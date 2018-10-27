@@ -35,6 +35,7 @@ ROOT_LINKER_LIBRARY(RIO
   src/TEmulatedMapProxy.cxx
   src/TEmulatedCollectionProxy.cxx
   src/TDirectoryFile.cxx
+  src/TFileBufferRead.cxx
   src/TFileCacheRead.cxx
   src/TFileMerger.cxx
   src/TFree.cxx
@@ -92,6 +93,7 @@ ROOT_GENERATE_DICTIONARY(G__RIO
   TEmulatedMapProxy.h
   TEmulatedCollectionProxy.h
   TDirectoryFile.h
+  TFileBufferRead.h
   TFileCacheRead.h
   TFileMerger.h
   TFree.h
