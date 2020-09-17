@@ -447,6 +447,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooFitLegacy/RooHashTable.cxx
     src/RooFitLegacy/RooMultiCatIter.cxx
     src/RooFitLegacy/RooNameSet.cxx
+    src/RooFitLegacy/OldRooIntegrator1D.cxx
   DICTIONARY_OPTIONS
     "-writeEmptyRootPCM"
   LIBRARIES
