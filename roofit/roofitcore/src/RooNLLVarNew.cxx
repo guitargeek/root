@@ -1,4 +1,5 @@
 #include "RooNLLVarNew.h"
+
 #include "RooBatchCompute.h"
 
 #include <numeric>
@@ -32,30 +33,9 @@ RooSpan<double> RooNLLVarNew::evaluateSpan(RooBatchCompute::RunContext &, const 
    throw std::runtime_error("RooNLLVarNew::evaluatSpan was called directly which should not happen!");
 }
 
-RooSpan<const double> RooNLLVarNew::getValues(RooBatchCompute::RunContext &evalData, const RooArgSet *normSet) const
+RooSpan<const double> RooNLLVarNew::getValues(RooBatchCompute::RunContext &, const RooArgSet *) const
 {
-
-   if (!normSet) {
-      throw std::runtime_error("RooNLLVarNew::getValues called without normalization set!");
-   }
-
-   auto item = evalData.spans.find(this);
-   if (item != evalData.spans.end()) {
-      return item->second;
-   }
-
-   auto values = _pdf->getValues(evalData, normSet);
-   std::vector<double> logValues;
-   logValues.resize(values.size());
-
-   for (std::size_t i = 0; i < values.size(); ++i) { // CHECK_VECTORISE
-      logValues[i] = RooBatchCompute::fast_log(values[i]);
-   }
-
-   auto outputData = evalData.makeBatch(this, 1);
-   outputData[0] = -std::accumulate(logValues.begin(), logValues.end(), 0.0);
-
-   return outputData;
+   throw std::runtime_error("RooNLLVarNew::getValues was called directly which should not happen!");
 }
 
 RooArgSet *RooNLLVarNew::getParameters(const RooArgSet *depList, Bool_t stripDisconnected) const

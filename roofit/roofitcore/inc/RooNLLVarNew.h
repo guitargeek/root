@@ -5,7 +5,7 @@
 #include "RooAbsReal.h"
 #include "RooTemplateProxy.h"
 
-#include "RunContext.h"
+#include "RooBatchCompute.h"
 
 class RooNLLVarNew : public RooAbsReal {
 
@@ -21,6 +21,16 @@ public:
    {
       // Return default level for MINUIT error analysis
       return 0.5;
+   }
+
+   inline RooAbsPdf *getPdf() const { return &*_pdf; }
+   inline void computeBatch(double *output, size_t nEvents, rbc::DataMap &dataMap) const override
+   {
+      rbc::dispatch->compute(rbc::NegativeLogarithms, output, nEvents, dataMap, {&*_pdf});
+   }
+   inline double reduce(const double *input, size_t nEvents) const
+   {
+      return RooBatchCompute::dispatch->sumReduce(input, nEvents);
    }
 
 protected:
@@ -39,4 +49,4 @@ private:
    ClassDefOverride(RooNLLVarNew, 1)
 };
 
-#endif
+#endif // RooNLLVarNew_h

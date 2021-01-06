@@ -1,40 +1,37 @@
 #ifndef RooFitDriver_h
 #define RooFitDriver_h
 
-#include "RooRealProxy.h"
+#include "RooBatchCompute.h"
 
-#include "RunContext.h"
+#include <queue>
+#include <unordered_map>
 
 class RooAbsData;
 class RooAbsReal;
+class RooNLLVarNew;
 
-class RooFitDriver : public RooAbsReal {
-
+class RooFitDriver {
 public:
-   RooFitDriver(){};
-   RooFitDriver(const char *name, const char *title, RooAbsReal &absReal, RooAbsData &data, RooArgSet const &normSet);
-   RooFitDriver(const RooFitDriver &other, const char *name = 0);
-   virtual TObject *clone(const char *newname) const override { return new RooFitDriver(*this, newname); }
-
-   RooArgSet *getParameters(const RooArgSet *depList, Bool_t stripDisconnected = kTRUE) const override;
-
-   virtual Double_t defaultErrorLevel() const override { return _absReal->defaultErrorLevel(); }
-
-protected:
-   RooAbsReal *_absReal = nullptr;
-   RooAbsData *_data = nullptr;
-   RooArgSet _normSet;
-
-   double getValV(const RooArgSet *normalisationSet = nullptr) const override;
-
-   double evaluate() const override;
-
-   RooSpan<double> evaluateSpan(RooBatchCompute::RunContext &evalData, const RooArgSet *normSet) const override;
+   RooFitDriver(const RooAbsData &data, const RooNLLVarNew &topNode, int batchMode);
+   ~RooFitDriver();
+   // inline RooAbsReal* getTopNode() { return initialQueue.back(); }
+   double getVal();
+   RooArgSet *getParameters();
 
 private:
-   mutable RooBatchCompute::RunContext _runContext;
-
-   ClassDefOverride(RooFitDriver, 1)
+   const int batchMode = 0;
+   double *cudaMemDataset = nullptr;
+   // used for preserving static info about the computation graph
+   rbc::DataMap dataMap;
+   const RooArgSet *observables = nullptr;
+   const RooNLLVarNew &topNode;
+   size_t nEvents;
+   std::queue<const RooAbsReal *> initialQueue;
+   std::unordered_map<const RooAbsReal *, std::pair<int, int>> nServersClients;
+   // used for dynamically scheduling each step's computations
+   std::queue<const RooAbsReal *> computeQueue;
+   std::unordered_map<const RooAbsReal *, std::pair<int, int>> nRemainingServersClients;
+   std::queue<double *> buffers;
 };
 
-#endif
+#endif // RooFitDriver_h
