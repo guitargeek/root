@@ -50,6 +50,10 @@ if (ROOT_PLATFORM MATCHES "linux|macosx" AND CMAKE_SYSTEM_PROCESSOR MATCHES x86_
     target_compile_options(RooBatchCompute_AVX512  PRIVATE ${common-flags} -march=skylake-avx512 -DRF_ARCH=AVX512)
   endif()
 
+endif() # vector versions of library
+
+if (cuda)
+  ROOT_LINKER_LIBRARY(RooBatchCompute_CUDA  src/RooBatchCompute.cu TYPE SHARED DEPENDENCIES RooFitCore RooBatchCompute)
 endif()
 
 ROOT_INSTALL_HEADERS()
