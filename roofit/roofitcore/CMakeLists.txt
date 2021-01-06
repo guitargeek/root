@@ -145,7 +145,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooMultiVarGaussian.h
     RooNameReg.h
     RooNameSet.h
+    RooFitDriver.h
     RooNLLVar.h
+    RooNLLVarNew.h
     RooNormSetCache.h
     RooNumber.h
     RooNumCdf.h
@@ -360,7 +362,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooMultiVarGaussian.cxx
     src/RooNameReg.cxx
     src/RooNameSet.cxx
+    src/RooFitDriver.cxx
     src/RooNLLVar.cxx
+    src/RooNLLVarNew.cxx
     src/RooNormSetCache.cxx
     src/RooNumber.cxx
     src/RooNumCdf.cxx
@@ -460,7 +464,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
 # For recent clang, this can facilitate auto-vectorisation.
 # In RooFit, the errno side effect is not needed, anyway:
 if(NOT MSVC)
-  target_compile_options(RooFitCore PUBLIC -fno-math-errno)
+  target_compile_options(RooFitCore PRIVATE -fno-math-errno)
 endif()
 
 ROOT_ADD_TEST_SUBDIRECTORY(test)
