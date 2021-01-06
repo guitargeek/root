@@ -65,16 +65,17 @@ An (enforced) condition for this assumption is that each \f$ \mathrm{PDF}_i \f$ 
 
 #include "RooAddPdf.h"
 
+#include "RooAddGenContext.h"
+//~  #include "RooBatchCompute.h"
 #include "RooDataSet.h"
+#include "RooGlobalFunc.h"
+#include "RooNaNPacker.h"
 #include "RooRealProxy.h"
 #include "RooRealVar.h"
-#include "RooAddGenContext.h"
 #include "RooRealConstant.h"
-#include "RooRecursiveFraction.h"
-#include "RooGlobalFunc.h"
 #include "RooRealIntegral.h"
-#include "RooNaNPacker.h"
-#include "RooBatchCompute.h"
+#include "RooRecursiveFraction.h"
+#include "RunContext.h"
 
 #include <algorithm>
 #include <sstream>

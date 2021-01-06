@@ -46,6 +46,8 @@ protected:
 
   Double_t evaluate() const override;
   RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const override;
+  //~  void computeBatch(RooBatchCompute::RunContext& evalData, bool doNormalize) const override;
+
 
 private:
 

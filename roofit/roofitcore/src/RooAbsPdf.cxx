@@ -172,7 +172,10 @@ called for each data event.
 #include "RooWorkspace.h"
 #include "RooNaNPacker.h"
 #include "RooHelpers.h"
-#include "RooBatchCompute.h"
+//~  #include "RooBatchCompute.h"
+#include "RooFormulaVar.h"
+#include "RooFitDriver.h"
+#include "RooNLLVarNew.h"
 
 #include "TClass.h"
 #include "TMath.h"
@@ -1297,9 +1300,10 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
   RooLinkedList fitCmdList(cmdList) ;
   RooLinkedList nllCmdList = pc.filterCmdList(fitCmdList,"ProjectedObservables,Extended,Range,"
       "RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,"
-      "CloneData,GlobalObservables,GlobalObservablesTag,OffsetLikelihood,BatchMode,IntegrateBins");
+      "CloneData,GlobalObservables,GlobalObservablesTag,OffsetLikelihood,IntegrateBins");
 
   pc.defineDouble("prefit", "Prefit",0,0);
+  pc.defineInt("BatchMode", "BatchMode", 0, 0);
   pc.defineDouble("RecoverFromUndefinedRegions", "RecoverFromUndefinedRegions",0,10.);
   pc.defineString("fitOpt","FitOptions",0,"") ;
   pc.defineInt("optConst","Optimize",0,2) ;
@@ -1441,7 +1445,14 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
     }
   }
 
-  RooAbsReal* nll = createNLL(data,nllCmdList) ;
+  RooAbsReal* nll=nullptr;
+  std::unique_ptr<RooFitDriver> driver;
+  if (pc.getInt("BatchMode")==0) {
+    nll = createNLL(data,nllCmdList);
+  } else {
+    nll = new RooNLLVarNew("NewNLLVar","NewNLLVar",*this);
+    driver.reset(new RooFitDriver( data, static_cast<RooNLLVarNew&>(*nll), pc.getInt("BatchMode") ));
+  }
   RooFitResult *ret = 0 ;
 
   //avoid setting both SumW2 and Asymptotic for uncertainty correction
@@ -1455,7 +1466,7 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
   if (string(minType)!="OldMinuit") {
 
 #ifndef __ROOFIT_NOROOMINIMIZER
-    RooMinimizer m(*nll) ;
+    RooMinimizer m(*nll,driver.get()) ;
 
     m.setMinimizerType(minType) ;
 

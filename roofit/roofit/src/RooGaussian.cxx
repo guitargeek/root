@@ -21,12 +21,13 @@ Plain Gaussian p.d.f
 **/
 
 #include "RooGaussian.h"
-
-#include "RooRandom.h"
-#include "RooMath.h"
-#include "RooHelpers.h"
 #include "RooBatchCompute.h"
+#include "RooHelpers.h"
+#include "RooMath.h"
+#include "RooRandom.h"
+#include "RunContext.h"
 
+#include <vector>
 
 ClassImp(RooGaussian);
 
@@ -64,8 +65,26 @@ Double_t RooGaussian::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Gaussian distribution.  
 RooSpan<double> RooGaussian::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeGaussian(this, evalData, x->getValues(evalData, normSet), mean->getValues(evalData, normSet), sigma->getValues(evalData, normSet));
+  //~  x->getValues(evalData, normSet), mean->getValues(evalData, normSet), sigma->getValues(evalData, normSet);
+  //~  if (normSet != nullptr) 
+    //~  if (_norm == nullptr) 
+      //~  syncNormalization(normSet);
+    
+  //~  computeBatch(evalData,normSet);
+  //~  return evalData.ownedMemory[this];
+  return {};
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+//~  void RooGaussian::computeBatch(RooBatchCompute::RunContext& evalData, bool doNormalize) const
+//~  {
+  //~  double normVal = doNormalize ? _norm->getVal() : 0.0;
+  //~  evalData.makeBatch(&*_norm,1);
+  //~  evalData.ownedMemory[&*_norm][0] = normVal;
+  //~  double* output = evalData.makeBatch(this,evalData[&*x].size()).data();
+  //~  RooBatchCompute::dispatch->compute(RooBatchCompute::Gaussian, output, evalData.spans, {&*x,&*mean,&*sigma,&*_norm});
+//~  }
 
 ////////////////////////////////////////////////////////////////////////////////
 
