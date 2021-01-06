@@ -3,6 +3,7 @@
 #include "RooMath.h"
 
 #include <complex>
+#include <iostream>
 
 namespace RooBatchCompute {
   /**
@@ -697,6 +698,15 @@ namespace RooBatchCompute {
 
       public:
         RooBatchComputeClass() {
+#ifdef __CUDACC__
+          int nDevices=0;
+          cudaError_t err = cudaGetDeviceCount(&nDevices);
+          if (err!=cudaSuccess) {
+            if (gDebug>0) {
+              std::cout << "In " << __func__ << "(), " << __FILE__ << ":" << __LINE__ << ": " << cudaGetErrorString(err) << std::endl;
+            }
+          } else if (nDevices>0)
+#endif
           // Set the dispatch pointer to this instance of the library upon loading
           RooBatchCompute::dispatch = this;
         }
