@@ -2,7 +2,14 @@
 #include "RooBatchCompute.h"
 #include "RooMath.h"
 
+#include "RooMsgService.h"
+#include "RooAbsReal.h"
+#include "TClass.h"
+
 #include <complex>
+#include <algorithm>
+
+#include "details/tuple_helpers.h"
 
 namespace RooBatchCompute {
   /**
@@ -647,28 +654,89 @@ namespace RooBatchCompute {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    template <class Functor_t>
+    class StaticArgBroadcaster {
+
+    public:
+
+      StaticArgBroadcaster(Functor_t functor, size_t batch_size, double* output)
+          : functor_{functor}, batch_size_{batch_size}, output_{output} {}
+
+      template <typename Arg_t, typename... Args_t>
+      void operator()(Arg_t first, Args_t... rest) {
+        transformArgsAndRun(std::make_tuple(), first, std::make_tuple(rest...));
+      }
+
+    private:
+
+      template <class... Args_t, std::size_t... Is>
+      void runFunctorImpl(std::tuple<Args_t...> const& args, std::index_sequence<Is...>) {
+        functor_.run(batch_size_, output_, std::get<Is>(args)...);
+      }
+
+      template <class... Args_t>
+      void runFunctor(std::tuple<Args_t...> const& args) {
+        return runFunctorImpl(args, std::make_index_sequence<sizeof...(Args_t)>{});
+      }
+
+      template <class Arg_t>
+      void validateArgSize(Arg_t const& arg) {
+        auto n = arg.size();
+        std::cout << n << " " << batch_size_ << std::endl;
+        if (n < 1) {
+          throw std::length_error("arg size can't be less than one!");
+        }
+        if (n != 1 && n != batch_size_) {
+          throw std::length_error("arg size can only be either 1 or batch size!");
+        }
+      }
+
+      template <class... ArgsPrev, class ArgCurr>
+      void transformArgsAndRun(std::tuple<ArgsPrev...> const& argsPrev, ArgCurr const& argCurr, std::tuple<> const&) {
+
+        validateArgSize(argCurr);
+
+        if (argCurr.size() <= 1) {
+          return runFunctor(std::tuple_cat(argsPrev, std::make_tuple(BracketAdapter<double>{argCurr[0]})));
+        } else {
+          return runFunctor(std::tuple_cat(argsPrev, std::make_tuple(argCurr)));
+        }
+      }
+
+      template <class... ArgsPrev, class ArgCurr, class... ArgsNext>
+      void transformArgsAndRun(std::tuple<ArgsPrev...> const& argsPrev,
+                               ArgCurr const& argCurr,
+                               std::tuple<ArgsNext...> const& argsNext) {
+        validateArgSize(argCurr);
+
+        if (argCurr.size() <= 1) {
+          return transformArgsAndRun(std::tuple_cat(argsPrev, std::make_tuple(BracketAdapter<double>{argCurr[0]})),
+                                     std::get<0>(argsNext),
+                                     tuple_helpers::tuple_tail(argsNext));
+        } else {
+          return transformArgsAndRun(std::tuple_cat(argsPrev, std::make_tuple(argCurr)),
+                                     std::get<0>(argsNext),
+                                     tuple_helpers::tuple_tail(argsNext));
+        }
+      }
+
+      Functor_t& functor_;
+      const size_t batch_size_;
+      double* const output_;
+    };
+
+    template <class Functor_t, typename... Args_t>
+    auto runWithStaticBroadcasting(Functor_t functor, size_t batch_size, double* output, Args_t... args) {
+      return StaticArgBroadcaster<Functor_t>{functor, batch_size, output}(args...);
+    }
+
     class RooBatchComputeClass : public RooBatchComputeInterface {
       private:
 
-        struct AnalysisInfo {
-          size_t batchSize=SIZE_MAX;
-          bool canDoHighPerf=true;
-        };
-        /// Small helping function that determines the sizes of the batches and executes either
-        /// * A high-performance and optimized compute function instance, if the observable is a span and all parameters are const scalars
-        /// * A less optimized one-fits-all compute function instance that covers every other (rare) scenario
-        AnalysisInfo analyseInputSpans(std::vector<RooSpan<const double>> parameters)
-        {
-          AnalysisInfo ret;
-          if (parameters[0].size()<=1) ret.canDoHighPerf=false;
-          else ret.batchSize = std::min(ret.batchSize, parameters[0].size());
-          for (size_t i=1; i<parameters.size(); i++)
-            if (parameters[i].size()>1)
-            {
-              ret.canDoHighPerf=false;
-              ret.batchSize = std::min(ret.batchSize, parameters[i].size());
-            }
-          return ret;
+        size_t getBatchSize(std::vector<RooSpan<const double>> args) {
+          return std::max_element(args.begin(),
+                                  args.end(),
+                                  [](auto const& v1, auto const& v2) {return v1.size() < v2.size();})->size();
         }
 
         /// Templated function that works for every PDF: does the necessary preprocessing and launches
@@ -676,11 +744,17 @@ namespace RooBatchCompute {
         template <class Computer_t, typename Arg_t, typename... Args_t>
         RooSpan<double> startComputation(const RooAbsReal* caller, RunContext& evalData, Computer_t computer, Arg_t first, Args_t... rest)
         {
-          AnalysisInfo info = analyseInputSpans({first, rest...});
-          RooSpan<double> output = evalData.makeBatch(caller, info.batchSize);
+          auto batchSize = getBatchSize({first, rest...});
 
-          if (info.canDoHighPerf) computer.run(info.batchSize, output.data(), first, BracketAdapter<double>(rest[0])...);
-          else                    computer.run(info.batchSize, output.data(), BracketAdapterWithMask(first), BracketAdapterWithMask(rest)...);
+          RooSpan<double> output = evalData.makeBatch(caller, batchSize);
+
+          // The runWithStaticBroadcasting function puts all scalar arguments into a BracketAdapter.
+          // In this case, the broadcasting of vectors to scalars has no overhead at runtime and vectorisation is possible,
+          // but the library size grows by a factor of 20 with all the template instantiations.
+          runWithStaticBroadcasting(computer, batchSize, output.data(), first, rest...);
+
+          // Alternatively, one can use the BracketAdapterWithMask that has a slight overhead and breaks the vectorisation.
+          // computer.run(info.batchSize, output.data(), BracketAdapterWithMask(first), BracketAdapterWithMask(rest)...);
 
           return output;
         }

@@ -7,6 +7,9 @@ ROOT_LINKER_LIBRARY(RooBatchCompute
     MathCore
 )
 
+target_compile_options(RooBatchCompute PUBLIC -Wno-error=unused-but-set-parameter)
+target_compile_options(RooBatchCompute PUBLIC -Wno-unused-but-set-parameter)
+
 if(vdt AND NOT builtin_vdt)
   target_include_directories(RooBatchCompute PUBLIC ${VDT_INCLUDE_DIR})
 endif()
