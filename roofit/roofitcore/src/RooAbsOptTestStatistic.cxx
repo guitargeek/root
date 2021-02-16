@@ -115,14 +115,15 @@ RooAbsOptTestStatistic:: RooAbsOptTestStatistic()
 /// \param[in] integrateOverBinsPrecision If > 0, PDF in binned fits are integrated over the bins. This sets the precision. If = 0,
 /// only unbinned PDFs fit to RooDataHist are integrated. If < 0, PDFs are never integrated.
 RooAbsOptTestStatistic::RooAbsOptTestStatistic(const char *name, const char *title, RooAbsReal& real, RooAbsData& indata,
-					       const RooArgSet& projDeps, const char* rangeName, const char* addCoefRangeName,
+					       const RooArgSet& projDeps, bool batchMode, const char* rangeName, const char* addCoefRangeName,
 					       Int_t nCPU, RooFit::MPSplit interleave, Bool_t verbose, Bool_t splitCutRange, Bool_t /*cloneInputData*/,
 					       double integrateOverBinsPrecision) :
   RooAbsTestStatistic(name,title,real,indata,projDeps,rangeName, addCoefRangeName, nCPU, interleave, verbose, splitCutRange),
   _projDeps(0),
   _sealed(kFALSE), 
   _optimized(kFALSE),
-  _integrateBinsPrecision(integrateOverBinsPrecision)
+  _integrateBinsPrecision(integrateOverBinsPrecision),
+  _batchMode(batchMode)
 {
   // Don't do a thing in master mode
 
@@ -150,7 +151,7 @@ RooAbsOptTestStatistic::RooAbsOptTestStatistic(const char *name, const char *tit
 
 RooAbsOptTestStatistic::RooAbsOptTestStatistic(const RooAbsOptTestStatistic& other, const char* name) : 
   RooAbsTestStatistic(other,name), _sealed(other._sealed), _sealNotice(other._sealNotice), _optimized(kFALSE),
-  _integrateBinsPrecision(other._integrateBinsPrecision)
+  _integrateBinsPrecision(other._integrateBinsPrecision), _batchMode(other._batchMode)
 {
   // Don't do a thing in master mode
   if (operMode()!=Slave) {    
@@ -568,17 +569,16 @@ void RooAbsOptTestStatistic::constOptimizeTestStatistic(ConstOpCode opcode, Bool
 
 void RooAbsOptTestStatistic::optimizeCaching() 
 {
-  // We hardcode-disable this because it interferes with Batch mode.
-  return;
-
 //   cout << "RooAbsOptTestStatistic::optimizeCaching(" << GetName() << "," << this << ")" << endl ;
 
   // Trigger create of all object caches now in nodes that have deferred object creation
   // so that cache contents can be processed immediately
   _funcClone->getVal(_normSet) ;
 
-  // Set value caching mode for all nodes that depend on any of the observables to ADirty
-  _funcClone->optimizeCacheMode(*_funcObsSet) ;
+  if(!_batchMode) {
+    // Set value caching mode for all nodes that depend on any of the observables to ADirty
+    _funcClone->optimizeCacheMode(*_funcObsSet) ; // incompatible with batch mode
+  }
 
   // Disable propagation of dirty state flags for observables
   _dataClone->setDirtyProp(kFALSE) ;  

@@ -151,6 +151,7 @@ protected:
   inline void addTracker(const RooAbsReal* absReal) const {
       RooArgList coll{};
       absReal->treeNodeServerList(&coll);
+      //const_cast<RooAbsReal*>(absReal)->setOperMode(RooAbsArg::Auto, true);
       // Should be simplyfied by only using the root node
       for(auto const& subarg : coll) {
           auto* subAbsReal = dynamic_cast<RooAbsReal const*>(subarg);
@@ -185,7 +186,7 @@ protected:
   }
 
   inline void resetTrackers(RooArgSet const*) const {
-      std::cout << "resetting trackers..." << std::endl;
+      //std::cout << "resetting trackers..." << std::endl;
       //for(auto const& item : _trackers) {
           //auto& arg = *item.first;
           //auto* absReal = dynamic_cast<RooAbsReal const*>(&arg);

@@ -53,19 +53,19 @@ In extended mode, a
 
 namespace{
 
-void printRunContext(RooBatchCompute::RunContext const& runContext) {
-    std::cout << "RunContext content:" << std::endl;
-    for(auto const& item : runContext.ownedMemory) {
-        auto const& absReal = *item.first;
-        //auto const& vec = item.second;
-        auto const& span = runContext.getBatch(&absReal);
-        if(span.empty()) {
-            std::cout << absReal.GetName() << " owns cleared memory" << std::endl;
-        } else {
-            std::cout << absReal.GetName() << " owns memory with span" << std::endl;
-        }
-    }
-}
+//void printRunContext(RooBatchCompute::RunContext const& runContext) {
+    //std::cout << "RunContext content:" << std::endl;
+    //for(auto const& item : runContext.ownedMemory) {
+        //auto const& absReal = *item.first;
+        ////auto const& vec = item.second;
+        //auto const& span = runContext.getBatch(&absReal);
+        //if(span.empty()) {
+            //std::cout << absReal.GetName() << " owns cleared memory" << std::endl;
+        //} else {
+            //std::cout << absReal.GetName() << " owns memory with span" << std::endl;
+        //}
+    //}
+//}
 
 }
 
@@ -98,6 +98,7 @@ RooNLLVar::RooNLLVar(const char *name, const char* title, RooAbsPdf& pdf, RooAbs
   RooAbsOptTestStatistic(name,title,pdf,indata,
 			 *(const RooArgSet*)RooCmdConfig::decodeObjOnTheFly("RooNLLVar::RooNLLVar","ProjectedObservables",0,&_emptySet
 									    ,arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9),
+             true, // the batchMode flag needs to be configurable of course
 			 RooCmdConfig::decodeStringOnTheFly("RooNLLVar::RooNLLVar","RangeWithName",0,"",arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9).c_str(),
 			 RooCmdConfig::decodeStringOnTheFly("RooNLLVar::RooNLLVar","AddCoefRange",0,"",arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9).c_str(),
 			 RooCmdConfig::decodeIntOnTheFly("RooNLLVar::RooNLLVar","NumCPU",0,1,arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9),
@@ -138,7 +139,9 @@ RooNLLVar::RooNLLVar(const char *name, const char *title, RooAbsPdf& pdf, RooAbs
 		     Bool_t extended, const char* rangeName, const char* addCoefRangeName,
 		     Int_t nCPU, RooFit::MPSplit interleave, Bool_t verbose, Bool_t splitRange, Bool_t cloneData, Bool_t binnedL,
 		     double integrateBinsPrecision) :
-  RooAbsOptTestStatistic(name,title,pdf,indata,RooArgSet(),rangeName,addCoefRangeName,nCPU,interleave,verbose,splitRange,cloneData,
+  RooAbsOptTestStatistic(name,title,pdf,indata,RooArgSet(),
+          true, // the batchMode flag needs to be configurable of course
+          rangeName,addCoefRangeName,nCPU,interleave,verbose,splitRange,cloneData,
       integrateBinsPrecision),
   _extended(extended),
   _weightSq(kFALSE),
@@ -185,7 +188,9 @@ RooNLLVar::RooNLLVar(const char *name, const char *title, RooAbsPdf& pdf, RooAbs
 		     const RooArgSet& projDeps, Bool_t extended, const char* rangeName,const char* addCoefRangeName,
 		     Int_t nCPU,RooFit::MPSplit interleave,Bool_t verbose, Bool_t splitRange, Bool_t cloneData, Bool_t binnedL,
 		     double integrateBinsPrecision) :
-  RooAbsOptTestStatistic(name,title,pdf,indata,projDeps,rangeName,addCoefRangeName,nCPU,interleave,verbose,splitRange,cloneData,
+  RooAbsOptTestStatistic(name,title,pdf,indata,projDeps,
+          true,// hardcoded: not good
+          rangeName,addCoefRangeName,nCPU,interleave,verbose,splitRange,cloneData,
       integrateBinsPrecision),
   _extended(extended),
   _weightSq(kFALSE),
@@ -493,7 +498,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 /// \return Tuple with (Kahan sum of probabilities, carry of kahan sum, sum of weights)
 std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSize, std::size_t firstEvent, std::size_t lastEvent) const
 {
-  printTrackers();
+  //printTrackers();
 
   if (stepSize != 1) {
     throw std::invalid_argument(std::string("Error in ") + __FILE__ + ": Step size for batch computations can only be 1.");
@@ -504,14 +509,14 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   // Create a RunContext that will own the memory where computation results are stored.
   // Holding on to this struct in between function calls will make sure that the memory
   // is only allocated once.
-  std::cout << "===================" << std::endl;
+  //std::cout << "===================" << std::endl;
   if (!_evalData) {
     _evalData.reset(new RooBatchCompute::RunContext);
   }
 
-  std::cout << std::endl << "Before clearing:" << std::endl;
-  printRunContext(*_evalData);
-  std::cout << std::endl;
+  //std::cout << std::endl << "Before clearing:" << std::endl;
+  //printRunContext(*_evalData);
+  //std::cout << std::endl;
 
   for(auto const& item : _trackers) {
     auto const* arg = item.first;
@@ -522,9 +527,9 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   }
 
   //_evalData->clear();
-  std::cout << "After clearing:" << std::endl;
-  printRunContext(*_evalData);
-  std::cout << std::endl;
+  //std::cout << "After clearing:" << std::endl;
+  //printRunContext(*_evalData);
+  //std::cout << std::endl;
 
   _dataClone->getBatches(*_evalData, firstEvent, lastEvent-firstEvent);
 
