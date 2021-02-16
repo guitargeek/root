@@ -568,6 +568,9 @@ void RooAbsOptTestStatistic::constOptimizeTestStatistic(ConstOpCode opcode, Bool
 
 void RooAbsOptTestStatistic::optimizeCaching() 
 {
+  // We hardcode-disable this because it interferes with Batch mode.
+  return;
+
 //   cout << "RooAbsOptTestStatistic::optimizeCaching(" << GetName() << "," << this << ")" << endl ;
 
   // Trigger create of all object caches now in nodes that have deferred object creation

@@ -378,6 +378,9 @@ RooSpan<const double> RooAbsPdf::getValues(RooBatchCompute::RunContext& evalData
     }
   }
 
+  // to trigger clean state
+  getVal(normSet);
+
   return outputs;
 }
 

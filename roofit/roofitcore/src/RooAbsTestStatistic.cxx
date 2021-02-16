@@ -244,6 +244,7 @@ RooAbsTestStatistic::~RooAbsTestStatistic()
 
 Double_t RooAbsTestStatistic::evaluate() const
 {
+
   // One-time Initialization
   if (!_init) {
     const_cast<RooAbsTestStatistic*>(this)->initialize() ;
@@ -298,6 +299,7 @@ Double_t RooAbsTestStatistic::evaluate() const
 
     Double_t ret = sum ;
     _evalCarry = carry;
+
     return ret ;
 
   } else {
@@ -336,10 +338,11 @@ Double_t RooAbsTestStatistic::evaluate() const
       ret /= norm;
       _evalCarry /= norm;
     }
-    
+
     return ret ;
 
   }
+    
 }
 
 

@@ -19,6 +19,7 @@
 #include "RooAbsReal.h"
 #include "RooSetProxy.h"
 #include "RooRealProxy.h"
+#include "RooChangeTracker.h"
 #include "TStopwatch.h"
 #include <string>
 #include <vector>
@@ -145,6 +146,67 @@ protected:
   mutable Double_t _offset ; //! Offset
   mutable Double_t _offsetCarry; //! avoids loss of precision
   mutable Double_t _evalCarry; //! carry of Kahan sum in evaluatePartition
+
+  mutable std::unordered_map<const RooAbsReal*, std::unique_ptr<RooChangeTracker>> _trackers; //!
+  inline void addTracker(const RooAbsReal* absReal) const {
+      RooArgList coll{};
+      absReal->treeNodeServerList(&coll);
+      // Should be simplyfied by only using the root node
+      for(auto const& subarg : coll) {
+          auto* subAbsReal = dynamic_cast<RooAbsReal const*>(subarg);
+          if (subAbsReal && _trackers.find(subAbsReal) == _trackers.end()) {
+              auto trackerName = std::string(subAbsReal->GetName()) + "_tracker";
+              _trackers[subAbsReal] = std::make_unique<RooChangeTracker>(trackerName.c_str(), trackerName.c_str(), RooArgSet{*subAbsReal});
+          }
+      }
+          //coll.Print();
+          
+      //auto trackerName = std::string(absReal->GetName()) + "_tracker";
+      //_trackers[absReal] = std::make_unique<RooChangeTracker>(trackerName.c_str(), trackerName.c_str(), RooArgSet{*absReal});
+  }
+
+  inline void printTrackers() const {
+      if(!_trackers.empty()) {
+          std::cout << "Tracker status:" << std::endl;
+          for(auto const& item : _trackers) {
+              auto& tracker = *item.second;
+              //auto& arg = dynamic_cast<RooAbsArg const&>(*item.first);
+              //arg.Print();
+              //std::cout << tracker.GetName() << " " << tracker.hasChanged(true) << std::endl;
+              std::cout << tracker.GetName() << " " << tracker.hasChanged(false) << std::endl;
+              //arg.getParameters(RooArgSet{})->Print();
+              //arg.getObservables(RooArgSet{})->Print();
+              //RooArgList coll{};
+              //arg.treeNodeServerList(&coll);
+              //coll.Print();
+              //arg.getComponents()->Print();
+          }
+      }
+  }
+
+  inline void resetTrackers(RooArgSet const*) const {
+      std::cout << "resetting trackers..." << std::endl;
+      //for(auto const& item : _trackers) {
+          //auto& arg = *item.first;
+          //auto* absReal = dynamic_cast<RooAbsReal const*>(&arg);
+          //if(absReal) {
+              //absReal->getVal(normSet);
+          //} else {
+              //assert(0);
+          //}
+      //}
+      //for (int i = 0; i < 10; ++i) {
+          for(auto const& item : _trackers) {
+              //auto& arg = dynamic_cast<RooAbsArg const&>(*item.first);
+              auto& tracker = *item.second;
+              tracker.hasChanged(true);
+              //std::cout << arg.operMode() << " " << tracker.operMode() << std::endl;
+              //tracker.hasChanged(true);
+              //std::cout << std::endl;
+          }
+      //}
+      //printTrackers();
+  }
 
   ClassDef(RooAbsTestStatistic,2) // Abstract base class for real-valued test statistics
 

@@ -296,6 +296,7 @@ void RooNLLVar::applyWeightSquared(Bool_t flag)
 
 Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
 {
+
   // Throughout the calculation, we use Kahan's algorithm for summing to
   // prevent loss of precision - this is a factor four more expensive than
   // straight addition, but since evaluating the PDF is usually much more
@@ -476,6 +477,7 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
     result = t;
   }
 
+  resetTrackers(_normSet);
 
   _evalCarry = carry;
   return result ;
@@ -491,6 +493,8 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
 /// \return Tuple with (Kahan sum of probabilities, carry of kahan sum, sum of weights)
 std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSize, std::size_t firstEvent, std::size_t lastEvent) const
 {
+  printTrackers();
+
   if (stepSize != 1) {
     throw std::invalid_argument(std::string("Error in ") + __FILE__ + ": Step size for batch computations can only be 1.");
   }
@@ -504,29 +508,20 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   if (!_evalData) {
     _evalData.reset(new RooBatchCompute::RunContext);
   }
-  if (_trackers.empty()) {
-    std::cout << "Adding trackers..." << std::endl;
-    for(auto const& item : _evalData->ownedMemory) {
-        addTracker(item.first);
-    }
-  } else {
-    std::cout << "Tracker status:" << std::endl;
-    for(auto const& item : _trackers) {
-        auto& tracker = *item.second;
-        auto& arg = dynamic_cast<RooAbsArg const&>(*item.first);
-        std::cout << tracker.GetName() << " " << tracker.hasChanged(true) << std::endl;
-        arg.getParameters(RooArgSet{})->Print();
-        arg.getObservables(RooArgSet{})->Print();
-        RooArgList coll{};
-        arg.treeNodeServerList(&coll);
-        coll.Print();
-        //arg.getComponents()->Print();
-    }
-  }
+
   std::cout << std::endl << "Before clearing:" << std::endl;
   printRunContext(*_evalData);
   std::cout << std::endl;
-  _evalData->clear();
+
+  for(auto const& item : _trackers) {
+    auto const* arg = item.first;
+    auto& tracker = *item.second;
+    if(tracker.hasChanged(false)) {
+      _evalData->spans.erase(arg);
+    }
+  }
+
+  //_evalData->clear();
   std::cout << "After clearing:" << std::endl;
   printRunContext(*_evalData);
   std::cout << std::endl;
@@ -557,7 +552,6 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   }
 
 #endif
-
 
   // Compute sum of event weights. First check if we need squared weights
   const RooSpan<const double> eventWeights = _dataClone->getWeightBatch(firstEvent, lastEvent-firstEvent);
@@ -592,6 +586,13 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   } else {
     for (std::size_t i = 0; i < results.size(); ++i) {
       kahanProb.AddIndexed(-retrieveWeight(i) * results[i], i);
+    }
+  }
+
+  if (_trackers.empty()) {
+    std::cout << "Adding trackers..." << std::endl;
+    for(auto const& item : _evalData->ownedMemory) {
+        addTracker(item.first);
     }
   }
 
