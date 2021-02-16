@@ -51,6 +51,24 @@ In extended mode, a
 
 #include <algorithm>
 
+namespace{
+
+void printRunContext(RooBatchCompute::RunContext const& runContext) {
+    std::cout << "RunContext content:" << std::endl;
+    for(auto const& item : runContext.ownedMemory) {
+        auto const& absReal = *item.first;
+        //auto const& vec = item.second;
+        auto const& span = runContext.getBatch(&absReal);
+        if(span.empty()) {
+            std::cout << absReal.GetName() << " owns cleared memory" << std::endl;
+        } else {
+            std::cout << absReal.GetName() << " owns memory with span" << std::endl;
+        }
+    }
+}
+
+}
+
 ClassImp(RooNLLVar)
 
 RooArgSet RooNLLVar::_emptySet ;
@@ -482,10 +500,37 @@ std::tuple<double, double, double> RooNLLVar::computeBatched(std::size_t stepSiz
   // Create a RunContext that will own the memory where computation results are stored.
   // Holding on to this struct in between function calls will make sure that the memory
   // is only allocated once.
+  std::cout << "===================" << std::endl;
   if (!_evalData) {
     _evalData.reset(new RooBatchCompute::RunContext);
   }
+  if (_trackers.empty()) {
+    std::cout << "Adding trackers..." << std::endl;
+    for(auto const& item : _evalData->ownedMemory) {
+        addTracker(item.first);
+    }
+  } else {
+    std::cout << "Tracker status:" << std::endl;
+    for(auto const& item : _trackers) {
+        auto& tracker = *item.second;
+        auto& arg = dynamic_cast<RooAbsArg const&>(*item.first);
+        std::cout << tracker.GetName() << " " << tracker.hasChanged(true) << std::endl;
+        arg.getParameters(RooArgSet{})->Print();
+        arg.getObservables(RooArgSet{})->Print();
+        RooArgList coll{};
+        arg.treeNodeServerList(&coll);
+        coll.Print();
+        //arg.getComponents()->Print();
+    }
+  }
+  std::cout << std::endl << "Before clearing:" << std::endl;
+  printRunContext(*_evalData);
+  std::cout << std::endl;
   _evalData->clear();
+  std::cout << "After clearing:" << std::endl;
+  printRunContext(*_evalData);
+  std::cout << std::endl;
+
   _dataClone->getBatches(*_evalData, firstEvent, lastEvent-firstEvent);
 
   auto results = pdfClone->getLogProbabilities(*_evalData, _normSet);

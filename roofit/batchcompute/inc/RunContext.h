@@ -21,6 +21,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 class RooArgSet;
 class RooAbsReal;
@@ -53,6 +54,7 @@ struct RunContext {
   std::unordered_map<const RooAbsReal*, std::vector<double>> ownedMemory;
   const char* rangeName{nullptr}; /// If evaluation should only occur in a range, the range name can be passed here.
   std::vector<double> logProbabilities; /// Possibility to register log probabilities.
+
 };
 
 }

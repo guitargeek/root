@@ -22,6 +22,8 @@
 #include <vector>
 #include <utility>
 
+#include "RooChangeTracker.h"
+
 class RooRealSumPdf ;
 namespace RooBatchCompute {
 struct RunContext;
@@ -88,6 +90,12 @@ private:
   mutable std::vector<Double_t> _binw ; //!
   mutable RooRealSumPdf* _binnedPdf{nullptr}; //!
   mutable std::unique_ptr<RooBatchCompute::RunContext> _evalData; //! Struct to store function evaluation workspaces.
+
+  mutable std::unordered_map<const RooAbsReal*, std::unique_ptr<RooChangeTracker>> _trackers; //!
+  inline void addTracker(const RooAbsReal* absReal) const {
+      auto trackerName = std::string(absReal->GetName()) + "_tracker";
+      _trackers[absReal] = std::make_unique<RooChangeTracker>(trackerName.c_str(), trackerName.c_str(), RooArgSet{*absReal});
+  }
    
   ClassDef(RooNLLVar,3) // Function representing (extended) -log(L) of p.d.f and dataset
 };

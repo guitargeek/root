@@ -25,7 +25,7 @@ PDF implementing the Crystal Ball line shape.
 #include "RooAbsReal.h"
 #include "RooRealVar.h"
 #include "RooMath.h"
-#include "RooBatchCompute.h"
+#include "RooBatchComputeWrapper.h"
 
 #include "TMath.h"
 
@@ -93,7 +93,16 @@ Double_t RooCBShape::evaluate() const {
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Crystal ball Shape distribution.  
 RooSpan<double> RooCBShape::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeCBShape(this, evalData, m->getValues(evalData, normSet), m0->getValues(evalData, normSet), sigma->getValues(evalData, normSet), alpha->getValues(evalData, normSet), n->getValues(evalData, normSet));
+  using namespace RooBatchCompute;
+  return callBatchCompute(
+          this,
+          &RooBatchComputeInterface::computeCBShape,
+          evalData,
+          m->getValues(evalData, normSet),
+          m0->getValues(evalData, normSet),
+          sigma->getValues(evalData, normSet),
+          alpha->getValues(evalData, normSet),
+          n->getValues(evalData, normSet));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
