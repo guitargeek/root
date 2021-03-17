@@ -268,9 +268,9 @@ const char* RooFFTConvPdf::inputBaseName() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return specialized cache subclass for FFT calculations
 
-RooFFTConvPdf::PdfCacheElem* RooFFTConvPdf::createCache(const RooArgSet* nset) const 
+std::pair<RooFFTConvPdf::PdfCacheElem*,int> RooFFTConvPdf::createCache(const RooArgSet* nset) const 
 {
-  return new FFTCacheElem(*this,nset) ;
+  return _cacheMgr.emplace<FFTCacheElem>({nset},*this,nset) ;
 }
 
 

@@ -44,7 +44,7 @@ protected:
 
   friend class RICacheElem ;
   virtual const char* binningName() const { return _binningName.c_str() ; }
-  virtual FuncCacheElem* createCache(const RooArgSet* nset) const ;
+  virtual std::pair<FuncCacheElem*,int> createCache(const RooArgSet* nset) const ;
   virtual const char* inputBaseName() const ; 
   virtual RooArgSet* actualObservables(const RooArgSet& nset) const ;
   virtual RooArgSet* actualParameters(const RooArgSet& nset) const ;

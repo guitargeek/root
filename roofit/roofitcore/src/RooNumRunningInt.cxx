@@ -292,9 +292,9 @@ RooArgSet* RooNumRunningInt::actualParameters(const RooArgSet& /*nset*/) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Create custom cache element for running integral calculations
 
-RooAbsCachedReal::FuncCacheElem* RooNumRunningInt::createCache(const RooArgSet* nset) const
+std::pair<RooAbsCachedReal::FuncCacheElem*,int> RooNumRunningInt::createCache(const RooArgSet* nset) const
 {
-  return new RICacheElem(*const_cast<RooNumRunningInt*>(this),nset) ;
+  return _cacheMgr.emplace<RICacheElem>({nset}, *const_cast<RooNumRunningInt*>(this),nset);
 }
 
 

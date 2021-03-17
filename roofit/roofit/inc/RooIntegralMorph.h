@@ -92,7 +92,7 @@ public:
 protected:
 
   friend class MorphCacheElem ;
-  virtual PdfCacheElem* createCache(const RooArgSet* nset) const ;
+  virtual std::pair<PdfCacheElem*,int> createCache(const RooArgSet* nset) const ;
   virtual const char* inputBaseName() const ;
   virtual RooArgSet* actualObservables(const RooArgSet& nset) const ;
   virtual RooArgSet* actualParameters(const RooArgSet& nset) const ;

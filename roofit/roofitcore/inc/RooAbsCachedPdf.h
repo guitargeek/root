@@ -96,9 +96,9 @@ public:
     // Return name of binning to be used for creation of cache histogram
     return "cache" ; 
   }
-  virtual PdfCacheElem* createCache(const RooArgSet* nset) const { 
-    // Create cache storage element
-    return new PdfCacheElem(*this,nset) ; 
+  virtual std::pair<PdfCacheElem*,int> createCache(const RooArgSet* nset) const { 
+    // emplace cache storage element
+    return _cacheMgr.emplace<PdfCacheElem>({nset},*this,nset) ;
   }
   virtual const char* inputBaseName() const = 0 ;
   virtual RooArgSet* actualObservables(const RooArgSet& nset) const = 0 ;

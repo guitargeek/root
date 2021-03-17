@@ -59,7 +59,7 @@ protected:
 
   void operModeHook() ;
 
-  virtual FuncCacheElem* createCache(const RooArgSet* nset) const ;
+  virtual std::pair<FuncCacheElem*,int> createCache(const RooArgSet* nset) const ;
 
   virtual const char* payloadUniqueSuffix() const { return func.arg().aggregateCacheUniqueSuffix() ; }
   

@@ -111,11 +111,11 @@ RooCachedReal::~RooCachedReal()
 /// a derived class fillCacheObject implementation can utilize extra functionality
 /// defined in such a derived cache class
 
-RooAbsCachedReal::FuncCacheElem* RooCachedReal::createCache(const RooArgSet* nset) const
+std::pair<RooAbsCachedReal::FuncCacheElem*,int> RooCachedReal::createCache(const RooArgSet* nset) const
 {
-  FuncCacheElem* ret = RooAbsCachedReal::createCache(nset) ;
+  auto ret = RooAbsCachedReal::createCache(nset) ;
   if (_cacheSource) {
-    ret->setCacheSource(kTRUE) ;
+    ret.first->setCacheSource(kTRUE) ;
   }
   return ret ;
 }

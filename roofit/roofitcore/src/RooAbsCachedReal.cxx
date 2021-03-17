@@ -123,9 +123,9 @@ void RooAbsCachedReal::clearCacheObject(FuncCacheElem& cache) const
 /// a derived class fillCacheObject implementation can utilize extra functionality
 /// defined in such a derived cache class
 
-RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::createCache(const RooArgSet* nset) const
+std::pair<RooAbsCachedReal::FuncCacheElem*,int> RooAbsCachedReal::createCache(const RooArgSet* nset) const
 {
-  return new FuncCacheElem(const_cast<RooAbsCachedReal&>(*this),nset) ;
+  return _cacheMgr.emplace<FuncCacheElem>({nset}, const_cast<RooAbsCachedReal&>(*this),nset);
 }
 
 
@@ -148,7 +148,8 @@ RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::getCache(const RooArgSet* nse
     return cache ;
   }
 
-  cache = createCache(nset) ;
+  int code = 0;
+  std::tie(cache, code) = createCache(nset) ;
 
   // Set cache function data to ADirty since function will need update every time in cache update process
   RooFIter iarg( cache->hist()->get()->fwdIterator() );
@@ -174,10 +175,10 @@ RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::getCache(const RooArgSet* nse
     expensiveObjectCache().registerObject(GetName(),cache->hist()->GetName(),*eoclone,cache->paramTracker()->parameters()) ;
   } 
 
-  // Store this cache configuration
-  Int_t code = _cacheMgr.setObj(nset,0,((RooAbsCacheElement*)cache),0) ;
-  ccoutD(Caching) << "RooAbsCachedReal("<<this<<")::getCache(" << GetName() << ") creating new cache " << cache->func()->GetName() << " for nset " << (nset?*nset:RooArgSet()) << " with code " << code << endl ;
-  
+  ccoutD(Caching) << "RooAbsCachedReal("<<this<<")::getCache(" << GetName() << ") creating new cache "
+                  << cache->func()->GetName() << " for nset " << (nset?*nset:RooArgSet())
+                  << " with code " << code << endl ;
+
   return cache ;
 }
 

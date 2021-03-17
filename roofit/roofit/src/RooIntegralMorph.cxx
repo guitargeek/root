@@ -213,9 +213,9 @@ void RooIntegralMorph::fillCacheObject(PdfCacheElem& cache) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Create and return a derived MorphCacheElem.
 
-RooAbsCachedPdf::PdfCacheElem* RooIntegralMorph::createCache(const RooArgSet* nset) const
+std::pair<RooAbsCachedPdf::PdfCacheElem*,int> RooIntegralMorph::createCache(const RooArgSet* nset) const
 {
-  return new MorphCacheElem(const_cast<RooIntegralMorph&>(*this),nset) ;
+  return _cacheMgr.emplace<MorphCacheElem>({nset},const_cast<RooIntegralMorph&>(*this),nset) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

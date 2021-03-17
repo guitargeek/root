@@ -94,7 +94,7 @@ protected:
     // Returns name of binning to be used for cache histogram creation
     return "cache" ; 
   }
-  virtual FuncCacheElem* createCache(const RooArgSet* nset) const ;
+  virtual std::pair<FuncCacheElem*,int> createCache(const RooArgSet* nset) const ;
   virtual const char* inputBaseName() const = 0 ;
   virtual RooArgSet* actualObservables(const RooArgSet& nset) const = 0 ;
   virtual RooArgSet* actualParameters(const RooArgSet& nset) const = 0 ;

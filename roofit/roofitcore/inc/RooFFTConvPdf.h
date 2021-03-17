@@ -104,7 +104,7 @@ protected:
   virtual void fillCacheObject(PdfCacheElem& cache) const ;
   void fillCacheSlice(FFTCacheElem& cache, const RooArgSet& slicePosition) const ;
 
-  virtual PdfCacheElem* createCache(const RooArgSet* nset) const ;
+  virtual std::pair<PdfCacheElem*,int> createCache(const RooArgSet* nset) const ;
   virtual TString histNameSuffix() const ;
 
   // mutable std:: map<const RooHistPdf*,CacheAuxInfo*> _cacheAuxInfo ; //! Auxilary Cache information (do not persist)

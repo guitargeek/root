@@ -608,7 +608,7 @@ Double_t RooAbsAnaConvPdf::getCoefNorm(Int_t coefIdx, const RooArgSet* nset, con
   CacheElem* cache = (CacheElem*) _coefNormMgr.getObj(nset,0,0,rangeName) ;
   if (!cache) {
 
-    cache = new CacheElem ;
+    cache = _coefNormMgr.emplace<CacheElem>({nset,nullptr,rangeName}).first ;
 
     // Make list of coefficient normalizations
     Int_t i ;
@@ -618,8 +618,6 @@ Double_t RooAbsAnaConvPdf::getCoefNorm(Int_t coefIdx, const RooArgSet* nset, con
       RooAbsReal* coefInt = static_cast<RooAbsReal&>(*cache->_coefVarList.at(i)).createIntegral(*nset,RooNameReg::str(rangeName)) ;
       cache->_normList.addOwned(*coefInt) ;      
     }  
-
-    _coefNormMgr.setObj(nset,0,cache,rangeName) ;
   }
 
   return ((RooAbsReal*)cache->_normList.at(coefIdx))->getVal() ;
