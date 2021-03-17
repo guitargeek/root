@@ -308,7 +308,8 @@ Int_t RooRealSumFunc::getAnalyticalIntegralWN(RooArgSet &allVars, RooArgSet &ana
    }
 
    // Create new cache element
-   cache = new CacheElem;
+   int code = 0;
+   std::tie(cache, code) = _normIntMgr.emplace<CacheElem>({normSet, &analVars, RooNameReg::ptr(rangeName)});
 
    // Make list of function projection and normalization integrals
    _funcIter->Reset();
@@ -322,9 +323,6 @@ Int_t RooRealSumFunc::getAnalyticalIntegralWN(RooArgSet &allVars, RooArgSet &ana
          cache->_funcNormList.addOwned(*funcNorm);
       }
    }
-
-   // Store cache element
-   Int_t code = _normIntMgr.setObj(normSet, &analVars, (RooAbsCacheElement *)cache, RooNameReg::ptr(rangeName));
 
    if (normSet) {
       delete normSet;

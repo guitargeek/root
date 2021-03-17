@@ -381,7 +381,8 @@ Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArg
   }
   
   // Create new cache element
-  cache = new CacheElem ;
+  int code = 0;
+  std::tie(cache, code) = _normIntMgr.emplace<CacheElem>({normSet,&analVars}) ;
 
   // Make list of function projection and normalization integrals 
   RooAbsReal *func ;
@@ -409,9 +410,6 @@ Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArg
     cache->_highIntList.addOwned(*funcInt) ;
     ++i;
   }
-
-  // Store cache element
-  Int_t code = _normIntMgr.setObj(normSet,&analVars,(RooAbsCacheElement*)cache,0) ;
 
   return code+1 ; 
 }

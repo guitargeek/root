@@ -124,12 +124,11 @@ const RooAbsReal* RooProjectedPdf::getProjection(const RooArgSet* iset, const Ro
   RooAbsReal* proj = intpdf.arg().createIntegral(iset?*iset:RooArgSet(),nset2,0,rangeName) ;
   delete nset2 ;
 
-  cache = new CacheElem ;
+  std::tie(cache, code) = _cacheMgr.emplace<CacheElem>({iset,nset,RooNameReg::ptr(rangeName)}) ;
   cache->_projection = proj ;
 
-  code = _cacheMgr.setObj(iset,nset,(RooAbsCacheElement*)cache,RooNameReg::ptr(rangeName)) ;
-
-  coutI(Integration) << "RooProjectedPdf::getProjection(" << GetName() << ") creating new projection " << proj->GetName() << " with code " << code << endl ;
+  coutI(Integration) << "RooProjectedPdf::getProjection(" << GetName() << ") creating new projection "
+                     << proj->GetName() << " with code " << code << endl ;
 
   return proj ;
 }

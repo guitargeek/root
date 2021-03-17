@@ -330,7 +330,7 @@ RooAddModel::CacheElem* RooAddModel::getProjCache(const RooArgSet* nset, const R
   }
 
   //Create new cache 
-  cache = new CacheElem ;
+  cache = _projCacheMgr.emplace<CacheElem>({nset,iset,RooNameReg::ptr(rangeName)}).first ;
 
   // *** PART 1 : Create supplemental normalization list ***
 
@@ -389,7 +389,6 @@ RooAddModel::CacheElem* RooAddModel::getProjCache(const RooArgSet* nset, const R
 
   // If no projections required stop here
   if (!_projectCoefs || _basis!=0 ) {
-    _projCacheMgr.setObj(nset,iset,cache,RooNameReg::ptr(rangeName)) ;
     return cache ;
   }
 
@@ -478,8 +477,6 @@ RooAddModel::CacheElem* RooAddModel::getProjCache(const RooArgSet* nset, const R
   }
 
   delete nset2 ;
-
-  _projCacheMgr.setObj(nset,iset,cache,RooNameReg::ptr(rangeName)) ;
 
   return cache ;
 }
@@ -705,7 +702,7 @@ void RooAddModel::getCompIntList(const RooArgSet* nset, const RooArgSet* iset, p
   }
 
   // Create containers for partial integral components to be generated
-  cache = new IntCacheElem ;
+  std::tie(cache, code) = _intCacheMgr.emplace<IntCacheElem>({nset,iset,RooNameReg::ptr(isetRangeName)}) ;
 
   // Fill Cache
   for (auto obj : _pdfList) {
@@ -714,9 +711,6 @@ void RooAddModel::getCompIntList(const RooArgSet* nset, const RooArgSet* iset, p
     RooAbsReal* intPdf = model->createIntegral(*iset,nset,0,isetRangeName) ;
     cache->_intList.addOwned(*intPdf) ;
   }
-
-  // Store the partial integral list and return the assigned code ;
-  code = _intCacheMgr.setObj(nset,iset,(RooAbsCacheElement*)cache,RooNameReg::ptr(isetRangeName)) ;
 
   // Fill references to be returned
   compIntList = &cache->_intList ;

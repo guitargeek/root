@@ -539,7 +539,10 @@ Int_t RooSimultaneous::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& an
     code = _partIntMgr.lastIndex() ;
     return code+1 ;
   }
-  cache = new CacheElem ;
+
+  // Store the partial integral list
+  std::tie(cache, code) = _partIntMgr.emplace<CacheElem>({normSet,&analVars,RooNameReg::ptr(rangeName)}) ;
+
 
   // Create the partial integral set for this request
   TIterator* iter = _pdfProxyList.MakeIterator() ;
@@ -549,9 +552,6 @@ Int_t RooSimultaneous::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& an
     cache->_partIntList.addOwned(*pdfInt) ;
   }
   delete iter ;
-
-  // Store the partial integral list and return the assigned code ;
-  code = _partIntMgr.setObj(normSet,&analVars,cache,RooNameReg::ptr(rangeName)) ;
 
   return code+1 ;
 }

@@ -684,11 +684,8 @@ Int_t ParamHistFunc::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& anal
     return _normIntMgr.lastIndex()+1 ;
   }
   
-  // Create new cache element
-  cache = new CacheElem ;
-
-  // Store cache element
-  Int_t code = _normIntMgr.setObj(normSet,&analVars,(RooAbsCacheElement*)cache,0) ;
+  // Emplace cache element
+  int code = _normIntMgr.emplace<CacheElem>({normSet,&analVars}).second ;
 
   return code+1 ; 
 

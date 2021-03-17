@@ -750,7 +750,10 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
   }
 
   // Create containers for partial integral components to be generated
-  cache = new CacheElem;
+  // and store the partial integral list and return the assigned code
+  int returnCode = 0;
+  std::tie(cache, returnCode) = _cacheMgr.emplace<CacheElem>({nset, iset, RooNameReg::ptr(isetRangeName)});
+
 
   // Factorize the product in irreducible terms for this nset
   RooLinkedList terms, norms, imp, ints, cross;
@@ -1042,9 +1045,6 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
       cache->_normList.emplace_back(compTermNorm.snapshot(kFALSE));
     }
   }
-
-  // Store the partial integral list and return the assigned code
-  Int_t returnCode = _cacheMgr.setObj(nset, iset, (RooAbsCacheElement*)cache, RooNameReg::ptr(isetRangeName));
 
   // WVE DEBUG PRINTING
 //   cout << "RooProdPdf::getPartIntList(" << GetName() << ") made cache " << cache << " with the following nset pointers ";

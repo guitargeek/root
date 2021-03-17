@@ -336,9 +336,8 @@ RooMomentMorphFunc::CacheElem *RooMomentMorphFunc::getCache(const RooArgSet * /*
    std::string trackerName = Form("%s_frac_tracker", GetName());
    RooChangeTracker *tracker = new RooChangeTracker(trackerName.c_str(), trackerName.c_str(), m.arg(), kTRUE);
 
-   // Store it in the cache
-   cache = new CacheElem(*theSumFunc, *tracker, fracl);
-   _cacheMgr.setObj(0, 0, cache, 0);
+   // emplace it in the cache
+   cache = _cacheMgr.emplace<CacheElem>({}, *theSumFunc, *tracker, fracl).first;
 
    return cache;
 }

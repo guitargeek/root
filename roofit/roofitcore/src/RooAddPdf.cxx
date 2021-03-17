@@ -421,7 +421,7 @@ RooAddPdf::CacheElem* RooAddPdf::getProjCache(const RooArgSet* nset, const RooAr
   }
 
   //Create new cache
-  cache = new CacheElem ;
+  cache = _projCacheMgr.emplace<CacheElem>({nset,iset,RooNameReg::ptr(rangeName)}).first ;
 
   // *** PART 1 : Create supplemental normalization list ***
 
@@ -487,7 +487,6 @@ RooAddPdf::CacheElem* RooAddPdf::getProjCache(const RooArgSet* nset, const RooAr
 
   // If no projections required stop here
   if (!_projectCoefs && !rangeName) {
-    _projCacheMgr.setObj(nset,iset,cache,RooNameReg::ptr(rangeName)) ;
 //     cout << " no projection required" << endl ;
     return cache ;
   }
@@ -641,8 +640,6 @@ RooAddPdf::CacheElem* RooAddPdf::getProjCache(const RooArgSet* nset, const RooAr
   }
 
   delete nset2 ;
-
-  _projCacheMgr.setObj(nset,iset,cache,RooNameReg::ptr(rangeName)) ;
 
   return cache ;
 }

@@ -283,13 +283,13 @@ Int_t RooAddition::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars
   }
 
   // we don't, so we make it right here....
-  cache = new CacheElem;
+  int code = 0;
+  std::tie(cache, code) = _cacheMgr.emplace<CacheElem>({&analVars,&analVars,RooNameReg::ptr(rangeName)});
   for (const auto arg : _set) {// checked in c'tor that this will work...
       RooAbsReal *I = static_cast<const RooAbsReal*>(arg)->createIntegral(analVars,rangeName);
       cache->_I.addOwned(*I);
   }
 
-  Int_t code = _cacheMgr.setObj(&analVars,&analVars,(RooAbsCacheElement*)cache,RooNameReg::ptr(rangeName));
   return 1+code;
 }
 

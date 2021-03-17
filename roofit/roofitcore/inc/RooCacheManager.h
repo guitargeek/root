@@ -59,6 +59,19 @@ public:
   T* getObj(const RooArgSet* nset, const RooArgSet* iset, Int_t* sterileIndex=0, const TNamed* isetRangeName=0) ;
   Int_t setObj(const RooArgSet* nset, const RooArgSet* iset, T* obj, const TNamed* isetRangeName=0) ;  
 
+  struct KeyStruct {
+      RooArgSet const * const nset = nullptr;
+      RooArgSet const * const iset = nullptr;
+      TNamed const * const isetRangeName = nullptr;
+  };
+
+  template<class U = T, class... Args >
+  std::pair<U*, int> emplace(KeyStruct const& key, Args&&... args ) {
+      auto * obj = new U(std::forward<Args>(args)...);
+      auto code = setObj(key.nset, key.iset, obj, key.isetRangeName);
+      return {obj, code};
+  }
+
   void reset() ;
   virtual void sterilize() ;
 

@@ -116,11 +116,9 @@ Double_t RooJeffreysPrior::evaluate() const
       var.setRange(range.first - 0.1*span, range.second + 0.1 * span);
     }
 
-    cacheElm = new CacheElem;
+    cacheElm = _cacheMgr.emplace<CacheElem>({}).first;
     cacheElm->_pdf.reset(clonePdf);
     cacheElm->_pdfVariables.reset(vars);
-
-    _cacheMgr.setObj(nullptr, cacheElm);
   }
 
   auto& cachedPdf = *cacheElm->_pdf;

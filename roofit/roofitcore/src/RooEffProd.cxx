@@ -147,15 +147,15 @@ Int_t RooEffProd::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVar
     return _cacheMgr.lastIndex()+1;
   }
 
+  // Store cache and return index as code
+  int code = 0;
+  std::tie(cache, code) = _cacheMgr.emplace<CacheElem>({&allVars,&allVars,RooNameReg::ptr(rangeName)});
+
   // Construct cache with clone of p.d.f that has fixed normalization set that is passed to input pdf
-  cache = new CacheElem ;
   cache->_intObs.addClone(allVars) ;
   cache->_clone = (RooEffProd*) clone(Form("%s_clone",GetName())) ;
   cache->_clone->_fixedNset = &cache->_intObs ;
   cache->_int = cache->_clone->createIntegral(cache->_intObs,rangeName) ;
-
-  // Store cache and return index as code
-  Int_t code = _cacheMgr.setObj(&allVars,&allVars,(RooAbsCacheElement*)cache,RooNameReg::ptr(rangeName)) ; 
 
   return code+1 ;
 }

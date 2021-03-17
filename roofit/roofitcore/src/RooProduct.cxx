@@ -240,7 +240,9 @@ Int_t RooProduct::getPartIntList(const RooArgSet* iset, const char *isetRange) c
     delete map ;
     return -1; // RRI caller will zero analVars if return code = 0....
   }
-  cache = new CacheElem();
+
+  int code = 0;
+  std::tie(cache, code) = _cacheMgr.emplace<CacheElem>({iset,iset,RooNameReg::ptr(isetRange)});
 
   for (ProdMap::const_iterator i = map->begin();i!=map->end();++i) {
     RooAbsReal *term(0);
@@ -265,8 +267,6 @@ Int_t RooProduct::getPartIntList(const RooArgSet* iset, const char *isetRange) c
       cxcoutD(Integration) << "RooProduct::getPartIntList(" << GetName() << ") adding integral for " << term->GetName() << " : " << integral->GetName() << endl;
     }
   }
-  // add current set-up to cache, and return index..
-  Int_t code = _cacheMgr.setObj(iset,iset,(RooAbsCacheElement*)cache,RooNameReg::ptr(isetRange));
 
   cxcoutD(Integration) << "RooProduct::getPartIntList(" << GetName() << ") created list " << cache->_prodList << " with code " << code+1 << endl
 		       << " for iset=" << *iset << " @" << iset << " range: " << (isetRange?isetRange:"<none>") << endl ;
