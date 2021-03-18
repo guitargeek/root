@@ -89,7 +89,7 @@ Double_t RooExponential::analyticalIntegral(Int_t code, const char* rangeName) c
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Exponential distribution.  
-RooSpan<double> RooExponential::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeExponential(this, evalData, x->getValues(evalData, normSet), c->getValues(evalData, normSet));
+void RooExponential::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computeExponential(this, evalData, x->getValues(evalData, normSet), c->getValues(evalData, normSet));
 }
 

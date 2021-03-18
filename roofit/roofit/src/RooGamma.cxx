@@ -87,8 +87,8 @@ Double_t RooGamma::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Gamma PDF.  
-RooSpan<double> RooGamma::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeGamma(this, evalData, x->getValues(evalData, normSet), gamma->getValues(evalData, normSet), beta->getValues(evalData, normSet), mu->getValues(evalData, normSet));
+void RooGamma::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computeGamma(this, evalData, x->getValues(evalData, normSet), gamma->getValues(evalData, normSet), beta->getValues(evalData, normSet), mu->getValues(evalData, normSet));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

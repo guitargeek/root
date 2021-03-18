@@ -37,7 +37,7 @@ public:
     return _value;
   }
 
-  RooSpan<const double> getValues(RooBatchCompute::RunContext& evalData, const RooArgSet*) const;
+  void getValuesImpl(RooBatchCompute::RunContext& evalData, const RooArgSet*) const;
 
   void writeToStream(std::ostream& os, Bool_t compact) const ;
 

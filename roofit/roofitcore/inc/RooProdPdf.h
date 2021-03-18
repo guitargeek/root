@@ -103,7 +103,7 @@ public:
 private:
 
   Double_t evaluate() const ;
-  virtual RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const;
+  virtual void evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const;
 
   RooAbsReal* makeCondPdfRatioCorr(RooAbsReal& term, const RooArgSet& termNset, const RooArgSet& termImpSet, const char* normRange, const char* refRange) const ;
 

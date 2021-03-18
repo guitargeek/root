@@ -348,12 +348,7 @@ Double_t RooAbsPdf::getValV(const RooArgSet* nset) const
 /// to the full batch.
 /// \return RooSpan with probabilities. The memory of this span is owned by `evalData`.
 /// \see RooAbsReal::getValues().
-RooSpan<const double> RooAbsPdf::getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  auto item = evalData.spans.find(this);
-  if (item != evalData.spans.end()) {
-    return item->second;
-  }
-
+void RooAbsPdf::getValuesImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   auto outputs = evaluateSpan(evalData, normSet);
   assert(evalData.spans.count(this) > 0);
 
@@ -377,8 +372,6 @@ RooSpan<const double> RooAbsPdf::getValues(RooBatchCompute::RunContext& evalData
       }
     }
   }
-
-  return outputs;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

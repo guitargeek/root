@@ -830,7 +830,7 @@ Double_t RooAddPdf::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute addition of PDFs in batches.
-RooSpan<double> RooAddPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooAddPdf::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   auto normAndCache = getNormAndCache(normSet);
   const RooArgSet* nset = normAndCache.first;
   CacheElem* cache = normAndCache.second;
@@ -859,8 +859,6 @@ RooSpan<double> RooAddPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, c
       }
     }
   }
-
-  return output;
 }
 
 

@@ -503,7 +503,7 @@ Double_t RooProdPdf::calculate(const RooProdPdf::CacheElem& cache, Bool_t /*verb
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate product of PDFs using input data in `evalData`.
-RooSpan<double> RooProdPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooProdPdf::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   int code;
   auto cache = static_cast<CacheElem*>(_cacheMgr.getObj(normSet, nullptr, &code));
 
@@ -522,7 +522,7 @@ RooSpan<double> RooProdPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, 
       outputs[i] = numerator[i] / denominator[i];
     }
 
-    return outputs;
+    return;
   } else {
     assert(cache->_normList.size() == cache->_partList.size());
     RooSpan<double> outputs;
@@ -542,7 +542,7 @@ RooSpan<double> RooProdPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, 
       }
     }
 
-    return outputs;
+    return;
   }
 }
 

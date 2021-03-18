@@ -89,8 +89,8 @@ Double_t RooArgusBG::evaluate() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Argus distribution.  
-RooSpan<double> RooArgusBG::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeArgusBG(this, evalData, m->getValues(evalData, normSet), m0->getValues(evalData, normSet), c->getValues(evalData, normSet), p->getValues(evalData, normSet));
+void RooArgusBG::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computeArgusBG(this, evalData, m->getValues(evalData, normSet), m0->getValues(evalData, normSet), c->getValues(evalData, normSet), p->getValues(evalData, normSet));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

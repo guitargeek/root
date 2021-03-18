@@ -82,8 +82,8 @@ Double_t RooLognormal::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Lognormal distribution.  
-RooSpan<double> RooLognormal::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeLognormal(this, evalData, x->getValues(evalData, normSet), m0->getValues(evalData, normSet), k->getValues(evalData, normSet));
+void RooLognormal::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computeLognormal(this, evalData, x->getValues(evalData, normSet), m0->getValues(evalData, normSet), k->getValues(evalData, normSet));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

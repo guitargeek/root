@@ -142,7 +142,7 @@ Double_t RooBernstein::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Bernstein distribution.  
-RooSpan<double> RooBernstein::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooBernstein::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   RooSpan<const double> xData = _x->getValues(evalData, normSet);
   const size_t batchSize = xData.size();  
   RooSpan<double> output = evalData.makeBatch(this, batchSize);
@@ -153,7 +153,6 @@ RooSpan<double> RooBernstein::evaluateSpan(RooBatchCompute::RunContext& evalData
     coef[i] = static_cast<RooAbsReal&>(_coefList[i]).getVal();
   }
   RooBatchCompute::dispatch->computeBernstein(batchSize, output.data(), xData.data(), _x.min(), _x.max(), coef);
-  return output;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

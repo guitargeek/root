@@ -154,7 +154,7 @@ Double_t RooFormulaVar::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate the formula for all entries of our servers found in `inputData`.
-RooSpan<double> RooFormulaVar::evaluateSpan(RooBatchCompute::RunContext& inputData, const RooArgSet* normSet) const {
+void RooFormulaVar::evaluateSpanImpl(RooBatchCompute::RunContext& inputData, const RooArgSet* normSet) const {
   if (normSet != _lastNSet) {
     // TODO: Remove dependence on _lastNSet
     // See also comment in RooAbsReal::getValBatch().
@@ -166,7 +166,7 @@ RooSpan<double> RooFormulaVar::evaluateSpan(RooBatchCompute::RunContext& inputDa
     throw std::logic_error("Got conflicting norm sets. This shouldn't happen.");
   }
 
-  return formula().evaluateSpan(this, inputData, normSet);
+  formula().evaluateSpan(this, inputData, normSet);
 }
 
 

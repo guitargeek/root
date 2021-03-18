@@ -153,7 +153,7 @@ double RooBinSamplingPdf::evaluate() const {
 /// Integrate the PDF over all its bins, and return a batch with those values.
 /// \param[in/out] evalData Struct with evaluation data.
 /// \param[in] normSet Normalisation set that's used to evaluate the PDF.
-RooSpan<double> RooBinSamplingPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooBinSamplingPdf::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   // Retrieve binning, which we need to compute the probabilities
   auto boundaries = binBoundaries();
   auto xValues = _observable->getValues(evalData, normSet);
@@ -171,8 +171,6 @@ RooSpan<double> RooBinSamplingPdf::evaluateSpan(RooBatchCompute::RunContext& eva
 
     results[i] = integrate(normSet, boundaries[bin], boundaries[bin+1]) / (boundaries[bin+1]-boundaries[bin]);
   }
-
-  return results;
 }
 
 

@@ -90,8 +90,8 @@ Double_t RooNovosibirsk::evaluate() const
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Novosibirsk distribution.  
-RooSpan<double> RooNovosibirsk::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeNovosibirsk(this, evalData, x->getValues(evalData, normSet), peak->getValues(evalData, normSet), width->getValues(evalData, normSet), tail->getValues(evalData, normSet));
+void RooNovosibirsk::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computeNovosibirsk(this, evalData, x->getValues(evalData, normSet), peak->getValues(evalData, normSet), width->getValues(evalData, normSet), tail->getValues(evalData, normSet));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

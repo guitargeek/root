@@ -146,7 +146,7 @@ Double_t RooPolynomial::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Polynomial.  
-RooSpan<double> RooPolynomial::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooPolynomial::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   RooSpan<const double> xData = _x->getValues(evalData, normSet);
   int batchSize = xData.size();  
   RooSpan<double> output = evalData.makeBatch(this, batchSize);
@@ -160,7 +160,6 @@ RooSpan<double> RooPolynomial::evaluateSpan(RooBatchCompute::RunContext& evalDat
   }
 
   RooBatchCompute::dispatch->computePolynomial(batchSize, output.data(), xData.data(), _lowestOrder, coefList);
-  return output;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

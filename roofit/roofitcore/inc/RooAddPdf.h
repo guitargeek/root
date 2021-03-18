@@ -131,7 +131,7 @@ protected:
 
 
   Double_t evaluate() const;
-  RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const;
+  void evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const;
 
 
   mutable RooAICRegistry _codeReg ;  //! Registry of component analytical integration codes

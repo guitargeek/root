@@ -184,7 +184,7 @@ Double_t RooChebychev::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Chebychev.  
-RooSpan<double> RooChebychev::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooChebychev::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
 
   RooSpan<const double> xData = _x->getValues(evalData, normSet);  
   size_t batchSize = xData.size();
@@ -198,7 +198,6 @@ RooSpan<double> RooChebychev::evaluateSpan(RooBatchCompute::RunContext& evalData
     coef[i] = static_cast<const RooAbsReal &>(_coefList[i]).getVal();
   }
   RooBatchCompute::dispatch->computeChebychev(batchSize, output.data(), xData.data(), xmin, xmax, coef);
-  return output;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

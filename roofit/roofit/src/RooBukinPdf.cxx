@@ -142,6 +142,6 @@ Double_t RooBukinPdf::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Bukin distribution.  
-RooSpan<double> RooBukinPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computeBukin(this, evalData, x->getValues(evalData, normSet), Xp->getValues(evalData, normSet), sigp->getValues(evalData, normSet), xi->getValues(evalData, normSet), rho1->getValues(evalData, normSet), rho2->getValues(evalData, normSet));
+void RooBukinPdf::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computeBukin(this, evalData, x->getValues(evalData, normSet), Xp->getValues(evalData, normSet), sigp->getValues(evalData, normSet), xi->getValues(evalData, normSet), rho1->getValues(evalData, normSet), rho2->getValues(evalData, normSet));
 }

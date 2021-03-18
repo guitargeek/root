@@ -309,11 +309,7 @@ Double_t RooAbsReal::getValV(const RooArgSet* nset) const
 /// \param[in] normSet   Use these variables for normalisation (relevant for PDFs), and pass this normalisation
 /// on to object serving values to us.
 /// \return RooSpan pointing to the computation results. The memory this span points to is owned by `evalData`.
-RooSpan<const double> RooAbsReal::getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  auto item = evalData.spans.find(this);
-  if (item != evalData.spans.end()) {
-    return item->second;
-  }
+void RooAbsReal::getValuesImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
 
   if (normSet && normSet != _lastNSet) {
     // TODO Implement better:
@@ -327,9 +323,7 @@ RooSpan<const double> RooAbsReal::getValues(RooBatchCompute::RunContext& evalDat
     _lastNSet = (RooArgSet*) normSet;
   }
 
-  auto results = evaluateSpan(evalData, normSet ? normSet : _lastNSet);
-
-  return results;
+  evaluateSpan(evalData, normSet ? normSet : _lastNSet);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4890,7 +4884,7 @@ void RooAbsReal::setParameterizeIntegral(const RooArgSet& paramVars)
 /// Computation results have to be stored here.
 /// \param[in]  normSet  Optional normalisation set passed down to the servers of this object.
 /// \return     Span pointing to the results. The memory is owned by `evalData`.
-RooSpan<double> RooAbsReal::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooAbsReal::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   if (RooMsgService::instance().isActive(this, RooFit::FastEvaluations, RooFit::INFO)) {
     coutI(FastEvaluations) << "The class " << IsA()->GetName() << " does not implement the faster batch evaluation interface."
         << " Consider requesting or implementing it to benefit from a speed up." << std::endl;
@@ -4951,8 +4945,6 @@ RooSpan<double> RooAbsReal::evaluateSpan(RooBatchCompute::RunContext& evalData, 
   for (unsigned int j=0; j < settableLeaves.size(); ++j) {
     settableLeaves[j]->setVal(oldLeafValues[j]);
   }
-
-  return outputData;
 }
 
 
@@ -5066,4 +5058,22 @@ void RooAbsReal::checkBatchComputation(const RooBatchCompute::RunContext& evalDa
 
     throw CachingError(formatter);
   }
+}
+
+
+RooSpan<const double> RooAbsReal::getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+
+  auto item = evalData.spans.find(this);
+  if (item != evalData.spans.end()) {
+    return item->second;
+  }
+
+  getValuesImpl(evalData, normSet);
+  return evalData.spans[this];
+}
+
+
+RooSpan<double> RooAbsReal::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  evaluateSpanImpl(evalData, normSet);
+  return evalData.getWritableBatch(this);
 }

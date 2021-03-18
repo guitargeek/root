@@ -487,7 +487,7 @@ void compute(RooSpan<double> output, RooSpan<const double> x,
 
 }
 
-RooSpan<double> RooHypatia2::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+void RooHypatia2::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   using namespace RooBatchCompute;
 
   auto x = _x->getValues(evalData, normSet);
@@ -523,7 +523,6 @@ RooSpan<double> RooHypatia2::evaluateSpan(RooBatchCompute::RunContext& evalData,
         BracketAdapterWithMask(_a, a), BracketAdapterWithMask(_n, n),
         BracketAdapterWithMask(_a2, a2), BracketAdapterWithMask(_n2, n2));
   }
-  return output;
 }
 
 

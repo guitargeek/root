@@ -64,8 +64,8 @@ Double_t RooPoisson::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of the Poisson distribution.  
-RooSpan<double> RooPoisson::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  return RooBatchCompute::dispatch->computePoisson(this, evalData, x->getValues(evalData, normSet), mean->getValues(evalData, normSet), _protectNegative, _noRounding);
+void RooPoisson::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooBatchCompute::dispatch->computePoisson(this, evalData, x->getValues(evalData, normSet), mean->getValues(evalData, normSet), _protectNegative, _noRounding);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

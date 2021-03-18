@@ -120,7 +120,8 @@ public:
   }
 #endif
   /// by this change, please consult the release notes for ROOT 6.24 for guidance on how to make this transition.
-  virtual RooSpan<const double> getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet = nullptr) const;
+  virtual RooSpan<const double> getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet = nullptr) const final;
+  virtual void getValuesImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet = nullptr) const;
 
   Double_t getPropagatedError(const RooFitResult &fr, const RooArgSet &nset = RooArgSet()) const;
 
@@ -432,7 +433,8 @@ protected:
   }
 #endif
 
-  virtual RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const;
+  virtual RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const final;
+  virtual void evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const;
 
   //---------- Interface to access batch data ---------------------------
   //
