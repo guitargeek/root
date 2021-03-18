@@ -43,7 +43,6 @@ class RooAbsMoment ;
 class RooDerivative ;
 class RooVectorDataStore ;
 namespace RooBatchCompute{
-class BatchInterfaceAccessor;
 struct RunContext;
 }
 struct TreeReadBuffer; /// A space to attach TBranches

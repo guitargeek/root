@@ -197,7 +197,7 @@ void RooChebychev::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const
   for (size_t i=0; i<nCoef; i++) {
     coef[i] = static_cast<const RooAbsReal &>(_coefList[i]).getVal();
   }
-  RooBatchCompute::dispatch->computeChebychev(batchSize, output.data(), xData.data(), xmin, xmax, coef);
+  //RooBatchCompute::dispatch->computeChebychev(batchSize, output.data(), xData.data(), xmin, xmax, coef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

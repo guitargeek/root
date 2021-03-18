@@ -90,7 +90,15 @@ Double_t RooArgusBG::evaluate() const {
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Argus distribution.  
 void RooArgusBG::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  RooBatchCompute::dispatch->computeArgusBG(this, evalData, m->getValues(evalData, normSet), m0->getValues(evalData, normSet), c->getValues(evalData, normSet), p->getValues(evalData, normSet));
+  //retrieve the RooAbsReal pointers from the proxies
+  std::vector<RooAbsReal*> vars = {m.operator->(), m0.operator->(), c.operator->(), p.operator->()};
+    //~  std::cout << "!!!!!!!!!!!!!!!!!!!!!!" << RooBatchCompute::dispatch << " " << evalData.memoryCuda.size() << std::endl;            
+  auto M = m->getValues(evalData, normSet);
+  auto M0 = m0->getValues(evalData, normSet);
+  auto C = c->getValues(evalData, normSet);
+  auto P = p->getValues(evalData, normSet);
+  //~  RooBatchCompute::dispatch->hello(M);
+  RooBatchCompute::dispatch->computeArgusBG(this, evalData, vars, M, M0, C, P);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -58,7 +58,7 @@ have to appear in any specific place in the list.
 #include "RooCustomizer.h"
 #include "RooRealIntegral.h"
 #include "RooTrace.h"
-#include "RooBatchCompute.h"
+#include "RunContext.h"
 #include "strtok.h"
 
 #include <cstring>

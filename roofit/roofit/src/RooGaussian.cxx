@@ -21,12 +21,13 @@ Plain Gaussian p.d.f
 **/
 
 #include "RooGaussian.h"
-
-#include "RooRandom.h"
-#include "RooMath.h"
-#include "RooHelpers.h"
 #include "RooBatchCompute.h"
+#include "RooHelpers.h"
+#include "RooMath.h"
+#include "RooRandom.h"
+#include "RunContext.h"
 
+#include <vector>
 
 ClassImp(RooGaussian);
 
@@ -64,7 +65,9 @@ Double_t RooGaussian::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Gaussian distribution.  
 void RooGaussian::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  RooBatchCompute::dispatch->computeGaussian(this, evalData, x->getValues(evalData, normSet), mean->getValues(evalData, normSet), sigma->getValues(evalData, normSet));
+  std::vector<const RooAbsReal*> vars  = {x.operator->(), mean.operator->(), sigma.operator->()};
+  auto spans = {x->getValues(evalData, normSet), mean->getValues(evalData, normSet), sigma->getValues(evalData, normSet)};
+  RooBatchCompute::dispatch->compute(this, RooBatchCompute::Gaussian, evalData, vars, spans);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

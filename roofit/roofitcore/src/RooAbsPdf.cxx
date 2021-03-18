@@ -172,7 +172,8 @@ called for each data event.
 #include "RooWorkspace.h"
 #include "RooNaNPacker.h"
 #include "RooHelpers.h"
-#include "RooBatchCompute.h"
+#include "RooVDTHeaders.h"
+#include "RunContext.h"
 
 #include "TClass.h"
 #include "TMath.h"

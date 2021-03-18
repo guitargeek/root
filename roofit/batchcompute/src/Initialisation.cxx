@@ -38,7 +38,7 @@ void loadComputeLibrary() {
   }
 
   // Check if cuda is enabled and available
-  if (gEnv->GetValue("RooFit.Cuda",1)==1 && gSystem->Load("libcuda")>=0 && gSystem->Load("libRooBatchCompute_CUDA")==0 && RooBatchCompute::dispatch!=nullptr) {
+  if (gEnv->GetValue("RooFit.Cuda",1)==1 && gSystem->Load("libcudart")>=0 && gSystem->Load("libRooBatchCompute_CUDA")==0 && RooBatchCompute::dispatch!=nullptr) {
     return;
   } else if (gDebug>0) {
     std::cout << "In " << __func__ << "(), " << __FILE__ << ":" << __LINE__ << ": Failed to load cuda implementation, trying cpu optimised implementations." << std::endl;

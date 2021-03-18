@@ -152,7 +152,7 @@ void RooBernstein::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, const
   for (int i=0; i<nCoef; i++) {
     coef[i] = static_cast<RooAbsReal&>(_coefList[i]).getVal();
   }
-  RooBatchCompute::dispatch->computeBernstein(batchSize, output.data(), xData.data(), _x.min(), _x.max(), coef);
+  //RooBatchCompute::dispatch->computeBernstein(batchSize, output.data(), xData.data(), _x.min(), _x.max(), coef);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

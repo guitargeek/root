@@ -159,7 +159,7 @@ void RooPolynomial::evaluateSpanImpl(RooBatchCompute::RunContext& evalData, cons
     coefList.emplace_back(valBatch);
   }
 
-  RooBatchCompute::dispatch->computePolynomial(batchSize, output.data(), xData.data(), _lowestOrder, coefList);
+  //RooBatchCompute::dispatch->computePolynomial(batchSize, output.data(), xData.data(), _lowestOrder, coefList);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
