@@ -147,7 +147,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooMultiVarGaussian.h
     RooNameReg.h
     RooNameSet.h
+    RooFitDriver.h
     RooNLLVar.h
+    RooNLLVarNew.h
     RooNormSetCache.h
     RooNumber.h
     RooNumCdf.h
@@ -364,7 +366,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooMultiVarGaussian.cxx
     src/RooNameReg.cxx
     src/RooNameSet.cxx
+    src/RooFitDriver.cxx
     src/RooNLLVar.cxx
+    src/RooNLLVarNew.cxx
     src/RooNormSetCache.cxx
     src/RooNumber.cxx
     src/RooNumCdf.cxx
