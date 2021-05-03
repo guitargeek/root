@@ -13,6 +13,7 @@
 
 from ._utils import _getter
 
+from libROOTPythonizations import AddNothing
 
 class RooAbsReal(object):
     def plotOn(self, *args, **kwargs):
@@ -30,3 +31,5 @@ class RooAbsReal(object):
         else:
             nargs = args + tuple((_getter(k, v) for k, v in kwargs.items()))
             return self._plotOn(*nargs)
+
+AddNothing(RooAbsReal)

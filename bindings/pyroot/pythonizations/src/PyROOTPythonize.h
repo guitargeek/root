@@ -26,6 +26,8 @@ PyObject *AddTDirectoryFileGetPyz(PyObject *self, PyObject *args);
 PyObject *AddFileOpenPyz(PyObject *self, PyObject *args);
 
 PyObject *AddBranchAttrSyntax(PyObject *self, PyObject *args);
+PyObject *AddNothing(PyObject *self, PyObject *args);
+
 PyObject *BranchPyz(PyObject *self, PyObject *args);
 PyObject *SetBranchAddressPyz(PyObject *self, PyObject *args);
 

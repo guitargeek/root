@@ -30,6 +30,8 @@
 #include "TStreamerElement.h"
 #include "TStreamerInfo.h"
 
+#include <iostream>
+
 using namespace CPyCppyy;
 
 static TBranch *SearchForBranch(TTree *tree, const char *name)
@@ -163,6 +165,14 @@ PyObject *GetAttr(CPPInstance *self, PyObject *pyname)
    return 0;
 }
 
+// Allow access to branches/leaves as if they were data members
+PyObject *GetAttrDummy(CPPInstance * /*self*/, PyObject * /*pyname*/)
+{
+   // confused
+   std::cout << "I am confused!" << std::endl;
+   return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////
 /// \brief Allow branches to be accessed as attributes of a tree.
 /// \param[in] self Always null, since this is a module function.
@@ -175,6 +185,14 @@ PyObject *PyROOT::AddBranchAttrSyntax(PyObject * /* self */, PyObject *args)
 {
    PyObject *pyclass = PyTuple_GetItem(args, 0);
    Utility::AddToClass(pyclass, "__getattr__", (PyCFunction)GetAttr, METH_O);
+   Py_RETURN_NONE;
+}
+
+PyObject *PyROOT::AddNothing(PyObject * /* self */, PyObject *args)
+{
+   std::cout << "PyROOT::AddNothing was executed" << std::endl;
+   PyObject *pyclass = PyTuple_GetItem(args, 0);
+   Utility::AddToClass(pyclass, "__getattr__", (PyCFunction)GetAttrDummy, METH_O);
    Py_RETURN_NONE;
 }
 
