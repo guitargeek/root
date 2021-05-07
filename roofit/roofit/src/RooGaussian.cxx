@@ -64,27 +64,10 @@ Double_t RooGaussian::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Gaussian distribution.  
-RooSpan<double> RooGaussian::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  //~  x->getValues(evalData, normSet), mean->getValues(evalData, normSet), sigma->getValues(evalData, normSet);
-  //~  if (normSet != nullptr) 
-    //~  if (_norm == nullptr) 
-      //~  syncNormalization(normSet);
-    
-  //~  computeBatch(evalData,normSet);
-  //~  return evalData.ownedMemory[this];
-  return {};
+void RooGaussian::computeBatch(double* output, size_t nEvents, rbc::DataMap& dataMap) const
+{
+  rbc::dispatch->compute(rbc::Gaussian, output, nEvents, dataMap, {&*x,&*mean,&*sigma,&*_norm});
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-//~  void RooGaussian::computeBatch(RooBatchCompute::RunContext& evalData, bool doNormalize) const
-//~  {
-  //~  double normVal = doNormalize ? _norm->getVal() : 0.0;
-  //~  evalData.makeBatch(&*_norm,1);
-  //~  evalData.ownedMemory[&*_norm][0] = normVal;
-  //~  double* output = evalData.makeBatch(this,evalData[&*x].size()).data();
-  //~  RooBatchCompute::dispatch->compute(RooBatchCompute::Gaussian, output, evalData.spans, {&*x,&*mean,&*sigma,&*_norm});
-//~  }
 
 ////////////////////////////////////////////////////////////////////////////////
 

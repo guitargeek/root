@@ -29,7 +29,7 @@ class RooListProxy;
 namespace rbc = RooBatchCompute;
 namespace RooBatchCompute {
 
-enum Computer{ArgusBG, Bernstein, Gaussian, NegativeLogarithms};
+enum Computer{AddPdf, ArgusBG, Bernstein, Exponential, Gaussian, NegativeLogarithms};
 
 struct RunContext;
 /**
@@ -55,9 +55,6 @@ class RooBatchComputeInterface {
     virtual void   memcpyToCPU(void* dest, const void* src, size_t) { (void)dest; (void)src; throw std::bad_function_call(); }
 
                             
-    //~  virtual void computeNLL(double* __restrict out, const double* __restrict in, size_t batchSize ) = 0;
-    //~  virtual void computeArgusBG(const RooAbsReal*, RunContext&, RooSpan<const double> m, RooSpan<const double> m0, RooSpan<const double> c, RooSpan<const double> p, double normVal=0.0) = 0;
-    //~  virtual void computeBernstein(size_t , double * __restrict , const double * __restrict const , double , double , std::vector<double> ) {return;}
     virtual RooSpan<double> computeBifurGauss(const RooAbsReal*, RunContext&, RooSpan<const double> , RooSpan<const double> , RooSpan<const double> , RooSpan<const double> ) {return{};}
     virtual RooSpan<double> computeBukin(const RooAbsReal*, RunContext&, RooSpan<const double> , RooSpan<const double> , RooSpan<const double> , RooSpan<const double> , RooSpan<const double> , RooSpan<const double> ) {return{};}
     virtual RooSpan<double> computeBreitWigner(const RooAbsReal*, RunContext&, RooSpan<const double> , RooSpan<const double> , RooSpan<const double> ) {return{};}

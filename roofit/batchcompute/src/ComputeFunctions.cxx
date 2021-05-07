@@ -18,6 +18,16 @@
 namespace RooBatchCompute {
 namespace RF_ARCH {
 
+__global__ void computeAddPdf(Batches batches)
+{
+  const int nPdfs = batches.getNExtraArgs();
+  for (size_t i=BEGIN; i<batches.getNEvents(); i+=STEP)
+    batches.output[i] = batches.extraArg(0)*batches[0][i];
+  for (int pdf=1; pdf<nPdfs; pdf++)
+    for (size_t i=BEGIN; i<batches.getNEvents(); i+=STEP)
+      batches.output[i] += batches.extraArg(pdf)*batches[pdf][i];
+}
+
 __global__ void computeArgusBG(Batches batches)
 {
   Batch m=batches[0], m0=batches[1], c=batches[2], p=batches[3], normVal=batches[4];
@@ -40,7 +50,7 @@ __global__ void computeBernstein(Batches batches)
   const int degree = nCoef-1;
   const double xmin = batches.extraArg(nCoef);
   const double xmax = batches.extraArg(nCoef+1);
-  Batch xData=batches[0];
+  Batch xData=batches[0], normVal=batches[1];
   
   double Binomial[maxExtraArgs] = {1.0}; //Binomial stores values c(degree,i) for i in [0..degree]
   for (int i=1; i<=degree; i++)
@@ -98,7 +108,7 @@ __global__ void computeBernstein(Batches batches)
 
   // normalization  
   for (size_t i=BEGIN; i<batches.getNEvents(); i+=STEP)
-    batches.output[i] /= batches[1][0];
+    batches.output[i] /= normVal[i];
 }
 
 
@@ -273,12 +283,12 @@ __global__ void computeBernstein(Batches batches)
 
 //~  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  //~  void run(size_t n, double* __restrict output, Tx x, Tc c) const
-  //~  {
-    //~  for (size_t i = 0; i < n; ++i) {
-      //~  output[i] = fast_exp(x[i]*c[i]);
-    //~  }
-  //~  }
+__global__ void computeExponential(Batches batches)
+{
+  Batch x=batches[0], c=batches[1], normVal=batches[2];
+  for (size_t i=BEGIN; i<batches.getNEvents(); i+=STEP)
+    batches.output[i] = fast_exp(x[i]*c[i])/normVal[i];
+}
 
 //~  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -333,11 +343,12 @@ __global__ void computeBernstein(Batches batches)
 ///overlap, results will likely be garbage.
 __global__ void computeGaussian(Batches batches) 
 {
-  auto x=batches[0], mean=batches[1], sigma=batches[2];
-  for (size_t i=BEGIN; i<batches.getNEvents(); i+=STEP) {
+  auto x=batches[0], mean=batches[1], sigma=batches[2], normVal=batches[3];
+  for (size_t i=BEGIN; i<batches.getNEvents(); i+=STEP)
+  {
     const double arg = x[i]-mean[i];
     const double halfBySigmaSq = -0.5 / (sigma[i]*sigma[i]);
-    batches.output[i] = fast_exp(arg*arg*halfBySigmaSq);
+    batches.output[i] = fast_exp(arg*arg*halfBySigmaSq)/normVal[i];
   }
 }
 
@@ -516,32 +527,32 @@ __global__ void computeNegativeLogarithms(Batches batches)
 
 //~  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  //~  void run(const size_t n, double* __restrict output, Tx x, TMean mean) const
-  //~  {
-    //~  for (size_t i = 0; i < n; ++i) { //CHECK_VECTORISE
-      //~  const double x_i = noRounding ? x[i] : floor(x[i]);
-      //~  // The std::lgamma yields different values than in the scalar implementation.
-      //~  // Need to check which one is more accurate.
-      //~  output[i] = std::lgamma(x_i + 1.);
-        // output[i] = TMath::LnGamma(x_i + 1.);
-    //~  }
-
-    //~  for (size_t i = 0; i < n; ++i) {
-      //~  const double x_i = noRounding ? x[i] : floor(x[i]);
-      //~  const double logMean = fast_log(mean[i]);
-      //~  const double logPoisson = x_i * logMean - mean[i] - output[i];
-      //~  output[i] = fast_exp(logPoisson);
-
-      //~  // Cosmetics
-      //~  if (x_i < 0.)
-        //~  output[i] = 0.;
-      //~  else if (x_i == 0.) {
-        //~  output[i] = 1./fast_exp(mean[i]);
-      //~  }
-      //~  if (protectNegative && mean[i] < 0.)
-        //~  output[i] = 1.E-3;
-    //~  }
+//~  void run(const size_t n, double* __restrict output, Tx x, TMean mean) const
+//~  {
+  //~  for (size_t i = 0; i < n; ++i) { //CHECK_VECTORISE
+    //~  const double x_i = noRounding ? x[i] : floor(x[i]);
+    //~  // The std::lgamma yields different values than in the scalar implementation.
+    //~  // Need to check which one is more accurate.
+    //~  output[i] = std::lgamma(x_i + 1.);
+      // output[i] = TMath::LnGamma(x_i + 1.);
   //~  }
+
+  //~  for (size_t i = 0; i < n; ++i) {
+    //~  const double x_i = noRounding ? x[i] : floor(x[i]);
+    //~  const double logMean = fast_log(mean[i]);
+    //~  const double logPoisson = x_i * logMean - mean[i] - output[i];
+    //~  output[i] = fast_exp(logPoisson);
+
+    //~  // Cosmetics
+    //~  if (x_i < 0.)
+      //~  output[i] = 0.;
+    //~  else if (x_i == 0.) {
+      //~  output[i] = 1./fast_exp(mean[i]);
+    //~  }
+    //~  if (protectNegative && mean[i] < 0.)
+      //~  output[i] = 1.E-3;
+  //~  }
+//~  }
 
 //~  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -626,7 +637,7 @@ __global__ void computeNegativeLogarithms(Batches batches)
 
 std::vector<void(*)(Batches)> getFunctions()
 {
-  return {computeArgusBG, computeBernstein, computeGaussian, computeNegativeLogarithms};
+  return {computeAddPdf, computeArgusBG, computeBernstein, computeExponential, computeGaussian, computeNegativeLogarithms};
 }
 } // End namespace RF_ARCH
 

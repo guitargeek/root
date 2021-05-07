@@ -51,14 +51,19 @@ RooFitDriver::RooFitDriver(const RooAbsData& data, const RooNLLVarNew& _topNode,
   {
     auto pAbsReal = dynamic_cast<RooAbsReal*>(&list[i]);
     if (!pAbsReal) continue;
-    auto pRealVar = dynamic_cast<RooRealVar*>(&list[i]);    
+    const bool alreadyExists = nameResolver.count(pAbsReal->namePtr());
     const RooAbsReal* pClone = nameResolver[pAbsReal->namePtr()];
-    
+    if (alreadyExists && !pClone) continue; // node included multiple times in the list
+    auto pRealVar = dynamic_cast<RooRealVar*>(&list[i]);
+      
     if (pClone) //this node is an observable, update the RunContext and don't add it in `nodes`.
     {
       auto it = dataMap.find(pClone);
       dataMap[pAbsReal]=it->second;
       dataMap.erase(it);
+
+      // set nameResolver to nullptr to be able to detect future duplicates
+      nameResolver[pAbsReal->namePtr()] = nullptr;
     }
     else if (!pRealVar) //this node needs computing, mark it's clients
     {
