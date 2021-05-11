@@ -65,7 +65,6 @@ public:
   RooArgList(RooArgList && other) : RooAbsCollection(std::move(other)) {}
   virtual TObject* clone(const char* newname) const { return new RooArgList(*this,newname); }
   virtual TObject* create(const char* newname) const { return new RooArgList(newname); }
-  RooArgList& operator=(const RooArgList& other) { RooAbsCollection::operator=(other) ; return *this ; }
 
 
   /// Return object at given index, or nullptr if index is out of range

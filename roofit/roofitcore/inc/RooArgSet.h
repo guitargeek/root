@@ -88,7 +88,6 @@ public:
   ~RooArgSet() override;
   TObject* clone(const char* newname) const override { return new RooArgSet(*this,newname); }
   TObject* create(const char* newname) const override { return new RooArgSet(newname); }
-  RooArgSet& operator=(const RooArgSet& other) { RooAbsCollection::operator=(other) ; return *this ;}
 
   using RooAbsCollection::add;
   Bool_t add(const RooAbsArg& var, Bool_t silent=kFALSE) override;

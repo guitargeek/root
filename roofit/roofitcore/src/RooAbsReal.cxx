@@ -2873,7 +2873,7 @@ RooPlot* RooAbsReal::plotOnWithErrorBand(RooPlot* frame,const RooFitResult& fr, 
     RooDataSet* d = paramPdf->generate(*errorParams,n) ;
     vector<RooCurve*> cvec ;
     for (int i=0 ; i<d->numEntries() ; i++) {
-      *cloneParams = (*d->get(i)) ;
+      cloneParams->syncronizeWith(*d->get(i)) ;
       RooLinkedList tmp2(plotArgList) ;
       cloneFunc->plotOn(frame,tmp2) ;
       cvec.push_back(frame->getCurve()) ;

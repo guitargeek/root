@@ -48,7 +48,14 @@ public:
   // to a copied list. The variables in the copied list are independent
   // of the original variables.
   RooAbsCollection(const RooAbsCollection& other, const char *name="");
-  RooAbsCollection& operator=(const RooAbsCollection& other);
+
+  // In the past, operator= did what syncronizeWith does now. That's why
+  // operator= should better stay deleted for a while, such that users who used
+  // it will get compilation errors and hence migrate to the syncornizeWith
+  // function.
+  RooAbsCollection& operator=(const RooAbsCollection& other) = delete;
+
+  void syncronizeWith(const RooAbsCollection& other) const;
   RooAbsCollection& assignValueOnly(const RooAbsCollection& other, Bool_t oneSafe=kFALSE) ;
   void assignFast(const RooAbsCollection& other, Bool_t setValDirty=kTRUE) ;
 

@@ -166,20 +166,6 @@ void RooListProxy::removeAll()
 }
 
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Reimplementation of standard RooArgList assignment operator
-
-RooListProxy& RooListProxy::operator=(const RooArgList& other) 
-{
-  RooArgList::operator=(other) ;
-  return *this ;
-}
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Internal function that implements consequences of a server redirect on the
 /// owner. If the list contains any element with names identical to those in newServerList

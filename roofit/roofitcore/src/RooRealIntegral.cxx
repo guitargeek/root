@@ -858,8 +858,8 @@ Double_t RooRealIntegral::evaluate() const
         }
         
         // Save current integral dependent values 
-        _saveInt = _intList ;
-        _saveSum = _sumList ;
+        _saveInt.syncronizeWith(_intList) ;
+        _saveSum.syncronizeWith(_sumList) ;
         
         // Evaluate sum/integral
         retVal = sum() ;
@@ -869,8 +869,8 @@ Double_t RooRealIntegral::evaluate() const
         setDirtyInhibit(origState) ;
         
         // Restore integral dependent values
-        _intList=_saveInt ;
-        _sumList=_saveSum ;
+        _intList.syncronizeWith(_saveInt) ;
+        _sumList.syncronizeWith(_saveSum) ;
         
         // Cache numeric integrals in >1d expensive object cache
         if ((_cacheNum && _intList.getSize()>0) || _intList.getSize()>=_cacheAllNDim) {

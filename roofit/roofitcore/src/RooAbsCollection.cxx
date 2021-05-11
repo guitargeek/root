@@ -321,9 +321,9 @@ Bool_t RooAbsCollection::addServerClonesToList(const RooAbsArg& var)
 /// The assignment operator sets the value of any argument in our set
 /// that also appears in the other set.
 
-RooAbsCollection &RooAbsCollection::operator=(const RooAbsCollection& other)
+void RooAbsCollection::syncronizeWith(const RooAbsCollection& other) const
 {
-  if (&other==this) return *this ;
+  if (&other==this) return ;
 
   for (auto elem : _list) {
     auto theirs = other.find(*elem);
@@ -332,7 +332,6 @@ RooAbsCollection &RooAbsCollection::operator=(const RooAbsCollection& other)
     elem->copyCache(theirs) ;
     elem->setAttribute("Constant",theirs->isConstant()) ;
   }
-  return *this;
 }
 
 

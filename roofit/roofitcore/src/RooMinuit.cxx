@@ -661,7 +661,7 @@ Bool_t RooMinuit::synchronize(Bool_t verbose)
   }
 
   // Update reference list
-  *_initConstParamList = *_constParamList ;
+  _initConstParamList->syncronizeWith(*_constParamList) ;
 
 
   // Synchronize MINUIT with function state
@@ -994,7 +994,7 @@ RooPlot* RooMinuit::contour(RooRealVar& var1, RooRealVar& var2, Double_t n1, Dou
   gMinuit->SetErrorDef(errdef);
 
   // restore parameter values
-  *_floatParamList = *paramSave ;
+  _floatParamList->syncronizeWith(*paramSave) ;
   delete paramSave ;
 
 

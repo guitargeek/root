@@ -112,7 +112,7 @@ Double_t RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type
        // make sure we set the variables attached to this nll
        RooArgSet* attachedSet = fNll->getVariables();
 
-       *attachedSet = paramsOfInterest;
+       attachedSet->syncronizeWith(paramsOfInterest);
        RooArgSet* origAttachedSet = (RooArgSet*) attachedSet->snapshot();
 
        ///////////////////////////////////////////////////////////////////////
@@ -182,7 +182,7 @@ Double_t RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type
 
 
           //       cout <<" reestablish snapshot"<<endl;
-          *attachedSet = *snap;
+          attachedSet->syncronizeWith(*snap);
 
 
           // set the POI to constant
@@ -273,7 +273,7 @@ Double_t RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type
 
 
        // need to restore the values ?
-       *attachedSet = *origAttachedSet;
+       attachedSet->syncronizeWith(*origAttachedSet);
 
        delete attachedSet;
        delete origAttachedSet;

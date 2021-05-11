@@ -173,7 +173,7 @@ Bool_t RooMinimizerFcn::Synchronize(std::vector<ROOT::Fit::ParameterSettings>& p
   }
 
   // Update reference list
-  *_initConstParamList = *_constParamList ;
+  _initConstParamList->syncronizeWith(*_constParamList) ;
 
   // Synchronize MINUIT with function state
   // Handle floatParamList

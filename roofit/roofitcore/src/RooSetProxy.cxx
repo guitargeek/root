@@ -243,20 +243,6 @@ void RooSetProxy::removeAll()
 }
 
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Assign values of arguments on other set to arguments in this set
-
-RooSetProxy& RooSetProxy::operator=(const RooArgSet& other) 
-{
-  RooArgSet::operator=(other) ;
-  return *this ;
-}
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Process server change operation on owner. Replace elements in set with equally
 /// named objects in 'newServerList'

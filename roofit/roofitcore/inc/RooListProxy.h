@@ -44,8 +44,6 @@ public:
   virtual Bool_t remove(const RooAbsArg& var, Bool_t silent=kFALSE, Bool_t matchByNameOnly=kFALSE) override;
   virtual void removeAll() override;
 
-  RooListProxy& operator=(const RooArgList& other) ;
-
   virtual void print(std::ostream& os, Bool_t addContents=kFALSE) const override;
   
 protected:

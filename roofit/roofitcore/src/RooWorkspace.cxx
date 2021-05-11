@@ -1183,7 +1183,7 @@ Bool_t RooWorkspace::saveSnapshot(const char* name, const RooArgSet& params, Boo
   snapshot->setName(name) ;
 
   if (importValues) {
-    *snapshot = params ;
+    snapshot->syncronizeWith(params) ;
   }
 
   RooArgSet* oldSnap = (RooArgSet*) _snapshots.FindObject(name) ;
@@ -1214,7 +1214,7 @@ Bool_t RooWorkspace::loadSnapshot(const char* name)
   }
 
   RooArgSet* actualParams = (RooArgSet*) _allOwnedNodes.selectCommon(*snap) ;
-  *actualParams = *snap ;
+  actualParams->syncronizeWith(*snap) ;
   delete actualParams ;
 
   return kTRUE ;

@@ -59,8 +59,6 @@ public:
 
   virtual void print(std::ostream& os, Bool_t addContents=kFALSE) const override;
 
-  RooSetProxy& operator=(const RooArgSet& other) ;
-  
 protected:
 
   RooAbsArg* _owner ;

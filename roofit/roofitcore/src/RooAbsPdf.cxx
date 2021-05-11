@@ -1252,7 +1252,7 @@ int RooAbsPdf::calculateAsymptoticCorrectedCovMatrix(Minimizer &minimizer, RooAb
    // Loop over data
    for (int j = 0; j < data.numEntries(); j++) {
       // Sets obs to current data point, this is where the pdf will be evaluated
-      *obs = *data.get(j);
+      obs->syncronizeWith(*data.get(j));
       // Determine first derivatives
       std::vector<double> diffs(floated.getSize(), 0.0);
       for (int k = 0; k < floated.getSize(); k++) {

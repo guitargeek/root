@@ -215,7 +215,7 @@ const RooArgSet* RooCompositeDataStore::get(Int_t idx) const
       offset += iter->second->numEntries() ;
       continue ;
     }    
-    const_cast<RooCompositeDataStore*>(this)->_vars = (*iter->second->get(idx-offset)) ;
+    _vars.syncronizeWith(*iter->second->get(idx-offset)) ;
 
     _indexCat->setIndex(iter->first) ;
     _curStore = iter->second ;
@@ -383,7 +383,7 @@ void RooCompositeDataStore::append(RooAbsDataStore& other)
 {
   Int_t nevt = other.numEntries() ;
   for (int i=0 ; i<nevt ; i++) {  
-    _vars = *other.get(i) ;
+    _vars.syncronizeWith(*other.get(i)) ;
     fill() ;
   }
 }
