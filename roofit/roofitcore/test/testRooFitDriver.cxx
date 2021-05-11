@@ -44,11 +44,11 @@ TEST(testRooFitDriver, SimpleLikelihoodFit)
        width.setError(0.0);
     };
 
-   auto doFit = [](RooAbsReal& absReal){
+   auto doFit = [](RooAbsReal& absReal, RooFitDriver * driver){
 
       std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
-      RooMinimizer minimizer(absReal);
+      RooMinimizer minimizer(absReal, driver);
       minimizer.setPrintLevel(-1);
       minimizer.minimize("Minuit", "minuit");
       std::unique_ptr<RooFitResult> result(minimizer.save());
@@ -65,15 +65,15 @@ TEST(testRooFitDriver, SimpleLikelihoodFit)
 
    // do likelihood fitting the old way...
    auto nllScalar = model.createNLL(*data, RooFit::BatchMode(false));
-   auto resultScalar = doFit(*nllScalar);
+   auto resultScalar = doFit(*nllScalar, nullptr);
    std::cout << "- scalar mode fit took " << resultScalar.elapsedTime << " ms" << std::endl;
 
    resetGraph();
 
    // ...and now the new way with RooFitDriver
    RooNLLVarNew nll("nll", "nll", model);
-   RooFitDriver driver("driver", "driver", nll, *data, x);
-   auto resultBatchNew = doFit(driver);
+   RooFitDriver driver(*data, nll, 0);
+   auto resultBatchNew = doFit(nll, &driver);
    std::cout << "-  batch mode fit took " << resultBatchNew.elapsedTime << " ms" << std::endl;
 
    // make sure the fit result is the same and that there were the same number
