@@ -105,6 +105,7 @@ For the inverse conversion, see `RooAbsData::convertToVectorStore()`.
 
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 
 
 using namespace std;
@@ -1056,7 +1057,12 @@ Double_t RooDataSet::weightError(ErrorType etype) const
 const RooArgSet* RooDataSet::get(Int_t index) const
 {
   const RooArgSet* ret  = RooAbsData::get(index) ;
-  return ret ? &_varsNoWgt : 0 ;
+  if(!ret) {
+    auto msg = std::string("Index ") + std::to_string(index)
+        + " out of range of RooDataSet with name \"" + GetName() + "\" and " + numEntries() + " entries.";
+    throw std::out_of_range(msg);
+  }
+  return &_varsNoWgt;
 }
 
 
