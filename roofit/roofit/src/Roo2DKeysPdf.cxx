@@ -542,7 +542,7 @@ void Roo2DKeysPdf::writeHistToFile(char * outputFile, const char * histName) con
   RooRealVar * yArg = ((RooRealVar*)(values.find(yy.GetName())) ) ;
 
   TH2F * hist = (TH2F*)xArg->createHistogram("hist", *yArg);
-  hist = (TH2F*)this->fillHistogram(hist, RooArgList(*xArg, *yArg) );
+  this->fillHistogram(*hist, RooArgList(*xArg, *yArg) );
   hist->SetName(histName);
 
   file->Write();

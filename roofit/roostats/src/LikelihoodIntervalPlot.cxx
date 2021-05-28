@@ -412,7 +412,7 @@ void LikelihoodIntervalPlot::Draw(const Option_t *options)
          TString histName = TString::Format("_hist2D__%s_%s",myparam->GetName(),myparamY->GetName() );
          int nBins = int( std::sqrt(double(nPoints)) + 0.5 );
          TH2* hist2D = new TH2D(histName, title, nBins, xmin, xmax, nBins, ymin, ymax );
-         newProfile->fillHistogram(hist2D, RooArgList(*myparam,*myparamY), 1, 0, false, 0, false);
+         newProfile->fillHistogram(*hist2D, RooArgList(*myparam,*myparamY), 1, 0, false, 0, false);
 
          hist2D->SetTitle(title);
          hist2D->SetStats(kFALSE);

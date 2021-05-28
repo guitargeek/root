@@ -1001,21 +1001,17 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
 /// the functions value (i.e. the value at the bin center is multiplied
 /// with bin volume)
 
-TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
+void RooAbsReal::fillHistogram(TH1 & hist, const RooArgList &plotVars,
 			       Double_t scaleFactor, const RooArgSet *projectedVars, Bool_t scaleForDensity,
 			       const RooArgSet* condObs, Bool_t setError) const
 {
-  // Do we have a valid histogram to use?
-  if(0 == hist) {
-    coutE(InputArguments) << ClassName() << "::" << GetName() << ":fillHistogram: no valid histogram to fill" << endl;
-    return 0;
-  }
 
   // Check that the number of plotVars matches the input histogram's dimension
-  Int_t hdim= hist->GetDimension();
+  Int_t hdim= hist.GetDimension();
   if(hdim != plotVars.getSize()) {
-    coutE(InputArguments) << ClassName() << "::" << GetName() << ":fillHistogram: plotVars has the wrong dimension" << endl;
-    return 0;
+    auto errMsg = std::string(ClassName()) + "::" + GetName() + ":fillHistogram: plotVars has the wrong dimension";
+    coutE(InputArguments) << errMsg << std::endl;
+    throw std::runtime_error(errMsg);
   }
 
 
@@ -1026,9 +1022,10 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
     const RooAbsArg *var= plotVars.at(index);
     const RooRealVar *realVar= dynamic_cast<const RooRealVar*>(var);
     if(0 == realVar) {
-      coutE(InputArguments) << ClassName() << "::" << GetName() << ":fillHistogram: cannot plot variable \"" << var->GetName()
-	   << "\" of type " << var->ClassName() << endl;
-      return 0;
+      auto errMsg = std::string(ClassName()) + "::" + GetName() + ":fillHistogram: cannot plot variable \""
+                      + var->GetName() + "\" of type " + var->ClassName();
+      coutE(InputArguments) << errMsg << std::endl;
+      throw std::runtime_error(errMsg);
     }
     if(!this->dependsOn(*realVar)) {
       coutE(InputArguments) << ClassName() << "::" << GetName()
@@ -1053,7 +1050,6 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
   }
   if (checkObservables(&allDeps)) {
     coutE(InputArguments) << "RooAbsReal::fillHistogram(" << GetName() << ") error in checkObservables, abort" << endl ;
-    return hist ;
   }
 
   // Create a standalone projection object to use for calculating bin contents
@@ -1071,27 +1067,27 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
   TAxis *zaxis = 0;
   switch(hdim) {
   case 3:
-    zbins= hist->GetNbinsZ();
+    zbins= hist.GetNbinsZ();
     zvar= dynamic_cast<RooRealVar*>(plotClones.find(plotVars.at(2)->GetName()));
-    zaxis= hist->GetZaxis();
+    zaxis= hist.GetZaxis();
     assert(0 != zvar && 0 != zaxis);
     if (scaleForDensity) {
       scaleFactor*= (zaxis->GetXmax() - zaxis->GetXmin())/zbins;
     }
     // fall through to next case...
   case 2:
-    ybins= hist->GetNbinsY();
+    ybins= hist.GetNbinsY();
     yvar= dynamic_cast<RooRealVar*>(plotClones.find(plotVars.at(1)->GetName()));
-    yaxis= hist->GetYaxis();
+    yaxis= hist.GetYaxis();
     assert(0 != yvar && 0 != yaxis);
     if (scaleForDensity) {
       scaleFactor*= (yaxis->GetXmax() - yaxis->GetXmin())/ybins;
     }
     // fall through to next case...
   case 1:
-    xbins= hist->GetNbinsX();
+    xbins= hist.GetNbinsX();
     xvar= dynamic_cast<RooRealVar*>(plotClones.find(plotVars.at(0)->GetName()));
-    xaxis= hist->GetXaxis();
+    xaxis= hist.GetXaxis();
     assert(0 != xvar && 0 != xaxis);
     if (scaleForDensity) {
       scaleFactor*= (xaxis->GetXmax() - xaxis->GetXmin())/xbins;
@@ -1142,16 +1138,15 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
     }
     RooAbsReal::clearEvalErrorLog() ;
 
-    hist->SetBinContent(hist->GetBin(xbin,ybin,zbin),result);
+    hist.SetBinContent(hist.GetBin(xbin,ybin,zbin),result);
     if (setError) {
-      hist->SetBinError(hist->GetBin(xbin,ybin,zbin),sqrt(result)) ;
+      hist.SetBinError(hist.GetBin(xbin,ybin,zbin),sqrt(result)) ;
     }
 
     //cout << "bin " << bin << " -> (" << xbin << "," << ybin << "," << zbin << ") = " << result << endl;
   }
   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
 
-  return hist;
 }
 
 
@@ -1476,7 +1471,7 @@ TH1* RooAbsReal::createHistogram(const char *name, const RooAbsRealLValue& xvar,
     doScaling=kFALSE ;
   }
 
-  fillHistogram(histo,vars,scaleFactor,intObs,doScaling,projObs,kFALSE) ;
+  fillHistogram(*histo,vars,scaleFactor,intObs,doScaling,projObs,kFALSE) ;
 
   // Deactivate component selection
   if (haveCompSel) {

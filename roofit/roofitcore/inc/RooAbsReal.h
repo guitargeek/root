@@ -270,7 +270,7 @@ public:
 			       Double_t scaleFactor=1.0, ScaleType stype=Relative, const RooAbsData* projData=0) const;
 
   // Fill an existing histogram
-  TH1 *fillHistogram(TH1 *hist, const RooArgList &plotVars,
+  void fillHistogram(TH1 & hist, const RooArgList &plotVars,
 		     Double_t scaleFactor= 1, const RooArgSet *projectedVars= 0, Bool_t scaling=kTRUE,
 		     const RooArgSet* condObs=0, Bool_t setError=kTRUE) const;
 
