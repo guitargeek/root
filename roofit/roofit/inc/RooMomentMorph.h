@@ -45,7 +45,7 @@ public:
     return kTRUE ;
   }
 
-  virtual Double_t getVal(const RooArgSet* set=0) const ;
+  double getValV(const RooArgSet* set=0) const ;
   RooAbsPdf* sumPdf(const RooArgSet* nset) ;
 
 
