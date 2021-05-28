@@ -638,7 +638,7 @@ RooAbsReal* RooAbsReal::createIntObj(const RooArgSet& iset2, const RooArgSet* ns
   RooAbsReal* integral = 0 ;
 
   // Handle trivial case of no integration here explicitly
-  if (iset.size()==0) {
+  if (iset.empty()) {
 
     TString title(GetTitle()) ;
     title.Prepend("Integral of ") ;
@@ -965,6 +965,17 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
   RooArgSet empty;
   if(0 == projectedVars) projectedVars= &empty;
 
+  if(projectedVars->empty()) {
+    // If there are no projection vars that we need to integrate over, we can
+    // just return the clone and don't need to call RooAbsReal::createIntegral.
+    // We also need to remove the clone from the cloneSet and pass ownership of
+    // remaining elements to clone.
+    cloneSet->releaseOwnership();
+    cloneSet->remove(*theClone);
+    theClone->addOwnedComponents(*cloneSet);
+    return std::unique_ptr<RooAbsReal>{theClone};
+  }
+
   std::unique_ptr<RooAbsReal> projected{theClone->createIntegral(*projectedVars,normSet,rangeName)};
 
   if(0 == projected || !projected->isValid()) {
@@ -1062,6 +1073,11 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
     return hist ;
   }
 
+  // Create the set of normalization variables to use in the projection evaluation
+  RooArgSet normSet{plotClones};
+  if(projectedVars != nullptr) normSet.add(*projectedVars);
+  if(condObs != nullptr) normSet.remove(*condObs,true,true);
+
   // Create a standalone projection object to use for calculating bin contents
   std::unique_ptr<RooAbsReal> projected = createPlotProjection(plotClones,projectedVars,nullptr,condObs);
 
@@ -1137,7 +1153,7 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
       break;
     }
 
-    Double_t result= scaleFactor*projected->getVal();
+    double result = scaleFactor * projected->getVal(&normSet);
     if (RooAbsReal::numEvalErrors()>0) {
       coutW(Plotting) << "WARNING: Function evaluation error(s) at coordinates [x]=" << xvar->getVal() ;
       if (hdim==2) ccoutW(Plotting) << " [y]=" << yvar->getVal() ;
