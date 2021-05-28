@@ -374,9 +374,9 @@ protected:
 
   
  public:
-  const RooAbsReal* createPlotProjection(const RooArgSet& depVars, const RooArgSet& projVars, RooArgSet*& cloneSet) const ;
-  const RooAbsReal *createPlotProjection(const RooArgSet &dependentVars, const RooArgSet *projectedVars,
-				         RooArgSet *&cloneSet, const char* rangeName=0, const RooArgSet* condObs=0) const;
+  std::unique_ptr<RooAbsReal> createPlotProjection(const RooArgSet& depVars, const RooArgSet& projVars, RooArgSet*& cloneSet) const ;
+  std::unique_ptr<RooAbsReal> createPlotProjection(const RooArgSet &dependentVars, const RooArgSet *projectedVars,
+                                                   RooArgSet *&cloneSet, const char* rangeName=0, const RooArgSet* condObs=0) const;
  protected:
 
   RooFitResult* chi2FitDriver(RooAbsReal& fcn, RooLinkedList& cmdList) ;
