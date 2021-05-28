@@ -217,7 +217,7 @@ void RooMomentMorph::initialize()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooMomentMorph::CacheElem* RooMomentMorph::getCache(const RooArgSet* /*nset*/) const
+RooMomentMorph::CacheElem* RooMomentMorph::getCache(const RooArgSet* nset) const
 {
   CacheElem* cache = (CacheElem*) _cacheMgr.getObj(0,(RooArgSet*)0) ;
   if (cache) {
@@ -339,6 +339,7 @@ RooMomentMorph::CacheElem* RooMomentMorph::getCache(const RooArgSet* /*nset*/) c
   else {
     theSumPdf = new RooAddPdf(sumpdfName.c_str(),sumpdfName.c_str(),_pdfList,coefList);
   }
+  theSumPdf->fixCoefNormalization(*nset);
 
   // *** WVE this is important *** this declares that frac effectively depends on the morphing parameters
   // This will prevent the likelihood optimizers from erroneously declaring terms constant
@@ -375,10 +376,10 @@ RooMomentMorph::CacheElem::~CacheElem()
 ////////////////////////////////////////////////////////////////////////////////
 /// Special version of getVal() overrides RooAbsReal::getVal() to save value of current normalization set
 
-Double_t RooMomentMorph::getVal(const RooArgSet* set) const
+double RooMomentMorph::getValV(const RooArgSet* set) const
 {
   _curNormSet = set ? (RooArgSet*)set : (RooArgSet*)&_varList ;
-  return RooAbsPdf::getVal(set) ;
+  return RooAbsPdf::getValV(_curNormSet) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
