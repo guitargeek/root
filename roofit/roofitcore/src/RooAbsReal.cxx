@@ -852,19 +852,6 @@ TString RooAbsReal::integralNameSuffix(const RooArgSet& iset, const RooArgSet* n
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Utility function for plotOn() that creates a projection of a function or p.d.f
-/// to be plotted on a RooPlot.
-/// \ref createPlotProjAnchor "createPlotProjection()"
-
-std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(const RooArgSet& depVars, const RooArgSet& projVars,
-                                                             RooArgSet*& cloneSet) const
-{
-  return createPlotProjection(depVars,&projVars,cloneSet) ;
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Utility function for plotOn() that creates a projection of a function or p.d.f
 /// to be plotted on a RooPlot.
@@ -880,15 +867,12 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(const RooArgSet& de
 ///
 /// \param[in] dependentVars Dependent variables over which to normalise, \f$ \{x\} \f$.
 /// \param[in] projectedVars Variables to project out, \f$ \{ y \} \f$.
-/// \param[out] cloneSet Will be set to a RooArgSet*, which will contain a clone of *this plus its projection integral object.
-/// The latter will also be returned. The caller takes ownership of this set.
 /// \param[in] rangeName Optional range for projection integrals
 /// \param[in] condObs Conditional observables, which are not integrated for normalisation, even if they
 /// are in `dependentVars` or `projectedVars`.
-/// \return A pointer to the newly created object, or zero in case of an
-/// error. The caller is responsible for deleting the `cloneSet` (which includes the returned projection object).
+/// \return A unique_ptr to the newly created object, or nullptr in case of an error.
 std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
-        const RooArgSet &dependentVars, const RooArgSet *projectedVars, RooArgSet *&cloneSet,
+        const RooArgSet &dependentVars, const RooArgSet *projectedVars,
         const char* rangeName, const RooArgSet* condObs) const
 {
   // Get the set of our leaf nodes
@@ -905,7 +889,7 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
     if(!arg->isFundamental() && !dynamic_cast<const RooAbsLValue*>(arg)) {
       coutE(Plotting) << ClassName() << "::" << GetName() << ":createPlotProjection: variable \"" << arg->GetName()
 	       << "\" of wrong type: " << arg->ClassName() << endl;
-      return 0;
+      return nullptr;
     }
 
     RooAbsArg *found= treeNodes.find(arg->GetName());
@@ -937,7 +921,7 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
     if(0 != projectedVars && projectedVars->find(arg->GetName())) {
       coutE(Plotting) << ClassName() << "::" << GetName() << ":createPlotProjection: \"" << arg->GetName()
 		          << "\" cannot be both a dependent and a projected variable." << endl;
-      return 0;
+      return nullptr;
     }
   }
 
@@ -945,10 +929,10 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
   if(0 != projectedVars) leafNodes.remove(*projectedVars,kTRUE);
 
   // Make a deep-clone of ourself so later operations do not disturb our original state
-  cloneSet= (RooArgSet*)RooArgSet(*this).snapshot(kTRUE);
+  std::unique_ptr<RooArgSet> cloneSet{static_cast<RooArgSet*>(RooArgSet(*this).snapshot(true))};
   if (!cloneSet) {
     coutE(Plotting) << "RooAbsPdf::createPlotProjection(" << GetName() << ") Couldn't deep-clone PDF, abort," << endl ;
-    return 0 ;
+    return nullptr ;
   }
   RooAbsReal *theClone= (RooAbsReal*)cloneSet->find(GetName());
 
@@ -975,13 +959,6 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
   RooArgSet empty;
   if(0 == projectedVars) projectedVars= &empty;
 
-  TString name = GetName() ;
-  name += integralNameSuffix(*projectedVars,&normSet,rangeName,kTRUE) ;
-
-  TString title(GetTitle());
-  title.Prepend("Projection of ");
-
-
   std::unique_ptr<RooAbsReal> projected{theClone->createIntegral(*projectedVars,normSet,rangeName)};
 
   if(0 == projected || !projected->isValid()) {
@@ -991,12 +968,18 @@ std::unique_ptr<RooAbsReal> RooAbsReal::createPlotProjection(
     return nullptr;
   }
 
+  // We pass the ownership of the arguments in the clone set to the integral object
+  projected->addOwnedComponents(*cloneSet);
+  cloneSet->releaseOwnership();
+
   if(projected->InheritsFrom(RooRealIntegral::Class())){
     static_cast<RooRealIntegral&>(*projected).setAllowComponentSelection(true);
   }
 
-  projected->SetName(name.Data()) ;
-  projected->SetTitle(title.Data()) ;
+  projected->SetName(
+          (std::string(GetName()) + integralNameSuffix(*projectedVars,&normSet,rangeName,true).Data()).c_str()
+  );
+  projected->SetTitle((std::string("Projection of ") + GetTitle()).c_str());
 
   return projected;
 }
@@ -1074,8 +1057,7 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
   }
 
   // Create a standalone projection object to use for calculating bin contents
-  RooArgSet *cloneSet = 0;
-  std::unique_ptr<RooAbsReal> projected= createPlotProjection(plotClones,projectedVars,cloneSet,0,condObs);
+  std::unique_ptr<RooAbsReal> projected = createPlotProjection(plotClones,projectedVars,nullptr,condObs);
 
   cxcoutD(Plotting) << "RooAbsReal::fillHistogram(" << GetName() << ") plot projection object is " << projected->GetName() << endl ;
 
@@ -1168,9 +1150,6 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
     //cout << "bin " << bin << " -> (" << xbin << "," << ybin << "," << zbin << ") = " << result << endl;
   }
   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
-
-  // cleanup
-  delete cloneSet;
 
   return hist;
 }
@@ -2062,7 +2041,6 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
   }
 
   // Create projection integral
-  RooArgSet* projectionCompList = 0 ;
 
   RooArgSet deps;
   getObservables(frame->getNormVars(), deps) ;
@@ -2086,7 +2064,7 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
   RooArgSet normSet(deps) ;
   //normSet.add(projDataVars) ;
 
-  std::unique_ptr<RooAbsReal> projection = createPlotProjection(normSet, &projectedVars, projectionCompList, o.projectionRangeName) ;
+  std::unique_ptr<RooAbsReal> projection = createPlotProjection(normSet, &projectedVars, o.projectionRangeName) ;
   cxcoutD(Plotting) << "RooAbsReal::plotOn(" << GetName() << ") plot projection object is " << projection->GetName() << endl ;
   if (dologD(Plotting)) {
     projection->printStream(ccoutD(Plotting),0,kVerbose) ;
@@ -2330,7 +2308,6 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
   }
 
   if (projDataNeededVars) delete projDataNeededVars ;
-  delete projectionCompList ;
   delete plotCloneSet ;
   return frame;
 }
@@ -2492,7 +2469,6 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
   RooAbsReal* funcNeg = (RooAbsReal*) custNeg->build() ;
 
   // Create projection integral
-  RooArgSet *posProjCompList, *negProjCompList ;
 
   // Add projDataVars to normalized dependents of projection
   // This is needed only for asymmetries (why?)
@@ -2501,8 +2477,8 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
   depPos.add(projDataVars) ;
   depNeg.add(projDataVars) ;
 
-  std::unique_ptr<RooAbsReal> posProj = funcPos->createPlotProjection(depPos, &projectedVars, posProjCompList, o.projectionRangeName) ;
-  std::unique_ptr<RooAbsReal> negProj = funcNeg->createPlotProjection(depNeg, &projectedVars, negProjCompList, o.projectionRangeName) ;
+  std::unique_ptr<RooAbsReal> posProj = funcPos->createPlotProjection(depPos, &projectedVars, o.projectionRangeName) ;
+  std::unique_ptr<RooAbsReal> negProj = funcNeg->createPlotProjection(depNeg, &projectedVars, o.projectionRangeName) ;
   if (!posProj || !negProj) {
     coutE(Plotting) << "RooAbsReal::plotAsymOn(" << GetName() << ") Unable to create projections, abort" << endl ;
     return frame ;
@@ -2646,8 +2622,6 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
   delete custNeg ;
   delete funcPos ;
   delete funcNeg ;
-  delete posProjCompList ;
-  delete negProjCompList ;
   delete asymPos ;
   delete asymNeg ;
   delete funcAsym ;
