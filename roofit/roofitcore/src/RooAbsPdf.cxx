@@ -1168,9 +1168,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   } else {
 
      if (cPars && cPars->getSize() > 0) {
-        RooArgSet *constraints = getAllConstraints(*data.get(), *cPars, doStripDisconnected);
-        allConstraints.add(*constraints);
-        delete constraints;
+        allConstraints.add(getAllConstraints(*data.get(), *cPars, doStripDisconnected));
      }
      if (extCons) {
         allConstraints.add(*extCons);
@@ -3567,17 +3565,18 @@ RooAbsReal* RooAbsPdf::createScanCdf(const RooArgSet& iset, const RooArgSet& nse
 /// This helper function finds and collects all constraints terms of all component p.d.f.s
 /// and returns a RooArgSet with all those terms.
 
-RooArgSet* RooAbsPdf::getAllConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected) const
+RooArgSet RooAbsPdf::getAllConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected) const
 {
-  RooArgSet* ret = new RooArgSet("AllConstraints") ;
+  RooArgSet ret{"AllConstraints"} ;
 
-  std::unique_ptr<RooArgSet> comps(getComponents());
-  for (const auto arg : *comps) {
+  RooArgSet comps;
+  branchNodeServerList(&comps) ;
+  for (const auto arg : comps) {
     auto pdf = dynamic_cast<const RooAbsPdf*>(arg) ;
-    if (pdf && !ret->find(pdf->GetName())) {
+    if (pdf && !ret.find(pdf->GetName())) {
       std::unique_ptr<RooArgSet> compRet(pdf->getConstraints(observables,constrainedParams,stripDisconnected));
       if (compRet) {
-        ret->add(*compRet,kFALSE) ;
+        ret.add(*compRet,kFALSE) ;
       }
     }
   }

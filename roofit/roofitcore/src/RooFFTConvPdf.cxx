@@ -392,10 +392,14 @@ RooArgList RooFFTConvPdf::FFTCacheElem::containedArgs(Action a)
   ret.add(*pdf1Clone) ;
   ret.add(*pdf2Clone) ;
   if (pdf1Clone->ownedComponents()) {
-    ret.add(*pdf1Clone->ownedComponents()) ;
+    for (auto const& arg : *pdf1Clone->ownedComponents()) {
+      ret.add(*arg) ;
+    }
   }
   if (pdf2Clone->ownedComponents()) {
-    ret.add(*pdf2Clone->ownedComponents()) ;
+    for (auto const& arg : *pdf2Clone->ownedComponents()) {
+      ret.add(*arg) ;
+    }
   }
 
   return ret ;

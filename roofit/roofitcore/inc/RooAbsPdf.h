@@ -183,7 +183,7 @@ public:
     // Interface to retrieve constraint terms on this pdf. Default implementation returns null
     return 0 ; 
   }
-  virtual RooArgSet* getAllConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected=kTRUE) const ;
+  virtual RooArgSet getAllConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected=kTRUE) const ;
   
   // Project p.d.f into lower dimensional p.d.f
   virtual RooAbsPdf* createProjection(const RooArgSet& iset) ;  

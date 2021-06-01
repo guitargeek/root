@@ -49,9 +49,10 @@ RooMinimizerFcn::RooMinimizerFcn(RooAbsReal *funct, RooMinimizer* context,
 {
 
   // Examine parameter list
-  RooArgSet* paramSet = _funct->getParameters(RooArgSet());
-  RooArgList paramList(*paramSet);
-  delete paramSet;
+  RooArgSet nset{};
+  RooArgSet paramSet;
+  _funct->getParameters(&nset, paramSet);
+  RooArgList paramList(paramSet);
 
   _floatParamList = (RooArgList*) paramList.selectByAttrib("Constant",kFALSE);
   if (_floatParamList->getSize()>1) {

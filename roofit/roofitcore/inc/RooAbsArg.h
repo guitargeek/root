@@ -519,7 +519,7 @@ public:
   virtual void printCompactTreeHook(std::ostream& os, const char *ind="") ;
 
   Bool_t addOwnedComponents(const RooArgSet& comps) ;
-  const RooArgSet* ownedComponents() const { return _ownedComponents ; }
+  const std::vector<std::unique_ptr<RooAbsArg>>* ownedComponents() const { return _ownedComponents.get() ; }
 
   void setProhibitServerRedirect(Bool_t flag) { _prohibitServerRedirect = flag ; }
 
@@ -675,7 +675,7 @@ private:
   mutable Bool_t _fast ; // Allow fast access mode in getVal() and proxies
 
   // Owned components
-  RooArgSet* _ownedComponents ; //! Set of owned component
+  std::unique_ptr<std::vector<std::unique_ptr<RooAbsArg>>> _ownedComponents = nullptr ; //! Set of owned component
 
   mutable Bool_t _prohibitServerRedirect ; //! Prohibit server redirects -- Debugging tool
 

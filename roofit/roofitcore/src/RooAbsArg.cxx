@@ -123,7 +123,7 @@ std::stack<RooAbsArg*> RooAbsArg::_ioReadStack ;
 /// Default constructor
 
 RooAbsArg::RooAbsArg()
-   : TNamed(), _deleteWatch(kFALSE), _valueDirty(kTRUE), _shapeDirty(kTRUE), _operMode(Auto), _fast(kFALSE), _ownedComponents(nullptr),
+   : TNamed(), _deleteWatch(kFALSE), _valueDirty(kTRUE), _shapeDirty(kTRUE), _operMode(Auto), _fast(kFALSE),
      _prohibitServerRedirect(kFALSE), _namePtr(0), _isConstant(kFALSE), _localNoInhibitDirty(kFALSE),
      _myws(0)
 {
@@ -138,7 +138,7 @@ RooAbsArg::RooAbsArg()
 
 RooAbsArg::RooAbsArg(const char *name, const char *title)
    : TNamed(name, title), _deleteWatch(kFALSE), _valueDirty(kTRUE), _shapeDirty(kTRUE), _operMode(Auto), _fast(kFALSE),
-     _ownedComponents(0), _prohibitServerRedirect(kFALSE), _namePtr(0), _isConstant(kFALSE),
+     _prohibitServerRedirect(kFALSE), _namePtr(0), _isConstant(kFALSE),
      _localNoInhibitDirty(kFALSE), _myws(0)
 {
   if (name == nullptr || strlen(name) == 0) {
@@ -155,7 +155,7 @@ RooAbsArg::RooAbsArg(const char *name, const char *title)
 RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
    : TNamed(other.GetName(), other.GetTitle()), RooPrintable(other), _boolAttrib(other._boolAttrib),
      _stringAttrib(other._stringAttrib), _deleteWatch(other._deleteWatch), _operMode(Auto), _fast(kFALSE),
-     _ownedComponents(0), _prohibitServerRedirect(kFALSE), _namePtr(other._namePtr),
+     _prohibitServerRedirect(kFALSE), _namePtr(other._namePtr),
      _isConstant(other._isConstant), _localNoInhibitDirty(other._localNoInhibitDirty), _myws(0)
 {
   // Use name in argument, if supplied
@@ -195,7 +195,6 @@ RooAbsArg& RooAbsArg::operator=(const RooAbsArg& other) {
   _deleteWatch = other._deleteWatch;
   _operMode = other._operMode;
   _fast = other._fast;
-  _ownedComponents = nullptr;
   _prohibitServerRedirect = other._prohibitServerRedirect;
   _namePtr = other._namePtr;
   _isConstant = other._isConstant;
@@ -247,11 +246,6 @@ RooAbsArg::~RooAbsArg()
       cxcoutD(Tracing)  << fName << "::" << ClassName() << ":~RooAbsArg: dependent \""
 		       << client->GetName() << "\" should have been deleted first" << endl ;
     }
-  }
-
-  if (_ownedComponents) {
-    delete _ownedComponents ;
-    _ownedComponents = 0 ;
   }
 
 }
@@ -1742,8 +1736,9 @@ Bool_t RooAbsArg::findConstantNodes(const RooArgSet& observables, RooArgSet& cac
 
   // Check if node depends on any non-constant parameter
   Bool_t canOpt(kTRUE) ;
-  RooArgSet* paramSet = getParameters(observables) ;
-  RooFIter iter = paramSet->fwdIterator() ;
+  RooArgSet paramSet;
+  getParameters(&observables, paramSet) ;
+  RooFIter iter = paramSet.fwdIterator() ;
   RooAbsArg* param ;
   while((param = iter.next())) {
     if (!param->isConstant()) {
@@ -1751,8 +1746,6 @@ Bool_t RooAbsArg::findConstantNodes(const RooArgSet& observables, RooArgSet& cac
       break ;
     }
   }
-  delete paramSet ;
-
 
   if (getAttribute("NeverConstant")) {
     canOpt = kFALSE ;
@@ -2216,9 +2209,12 @@ void RooAbsArg::graphVizAddConnections(set<pair<RooAbsArg*,RooAbsArg*> >& linkSe
 Bool_t RooAbsArg::addOwnedComponents(const RooArgSet& comps)
 {
   if (!_ownedComponents) {
-    _ownedComponents = new RooArgSet("owned components") ;
+    _ownedComponents = std::make_unique<std::vector<std::unique_ptr<RooAbsArg>>>();
   }
-  return _ownedComponents->addOwned(comps) ;
+  for (auto const& arg : comps) {
+    _ownedComponents->emplace_back(arg);
+  }
+  return true;
 }
 
 
