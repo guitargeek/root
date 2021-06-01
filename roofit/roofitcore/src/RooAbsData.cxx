@@ -2165,8 +2165,9 @@ void RooAbsData::optimizeReadingWithCaching(RooAbsArg& arg, const RooArgSet& cac
 
   // Add unused observables in this dataset to pruneSet
   pruneSet.add(*get()) ;
-  RooArgSet* usedObs = arg.getObservables(*this) ;
-  pruneSet.remove(*usedObs,kTRUE,kTRUE) ;
+  RooArgSet usedObs;
+  arg.getObservables(this->get(), usedObs) ;
+  pruneSet.remove(usedObs,true,true) ;
 
   // Add observables exclusively used to calculate cached observables to pruneSet
   TIterator* vIter = get()->createIterator() ;
@@ -2184,7 +2185,7 @@ void RooAbsData::optimizeReadingWithCaching(RooAbsArg& arg, const RooArgSet& cac
     // Go over all used observables and check if any of them have parameterized
     // ranges in terms of pruned observables. If so, remove those observable
     // from the pruning list
-    TIterator* uIter = usedObs->createIterator() ;
+    TIterator* uIter = usedObs.createIterator() ;
     RooAbsArg* obs ;
     while((obs=(RooAbsArg*)uIter->Next())) {
       RooRealVar* rrv = dynamic_cast<RooRealVar*>(obs) ;
@@ -2217,8 +2218,6 @@ void RooAbsData::optimizeReadingWithCaching(RooAbsArg& arg, const RooArgSet& cac
              << " in dataset are either not used at all, orserving exclusively p.d.f nodes that are now cached, disabling reading of these observables for TTree" << endl ;
     setArgStatus(pruneSet,kFALSE) ;
   }
-
-  delete usedObs ;
 
 }
 

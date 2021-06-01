@@ -2228,22 +2228,22 @@ Bool_t RooAbsArg::addOwnedComponents(const RooArgSet& comps)
 RooAbsArg* RooAbsArg::cloneTree(const char* newname) const
 {
   // Clone tree using snapshot
-  RooArgSet* clonedNodes = (RooArgSet*) RooArgSet(*this).snapshot(kTRUE) ;
+  RooArgSet clonedNodes;
+  RooArgSet{*this}.snapshot(clonedNodes, true) ;
 
   // Find the head node in the cloneSet
-  RooAbsArg* head = clonedNodes->find(*this) ;
+  RooAbsArg* head = clonedNodes.find(*this) ;
   assert(head);
 
   // Remove the head node from the cloneSet
   // To release it from the set ownership
-  clonedNodes->remove(*head) ;
+  clonedNodes.remove(*head) ;
 
   // Add the set as owned component of the head
-  head->addOwnedComponents(*clonedNodes) ;
+  head->addOwnedComponents(clonedNodes) ;
 
   // Delete intermediate container
-  clonedNodes->releaseOwnership() ;
-  delete clonedNodes ;
+  clonedNodes.releaseOwnership() ;
 
   // Adjust name of head node if requested
   if (newname) {

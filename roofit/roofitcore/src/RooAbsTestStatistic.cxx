@@ -103,7 +103,7 @@ RooAbsTestStatistic::RooAbsTestStatistic(const char *name, const char *title, Ro
   _mpinterl(cfg.interleave)
 {
   // Register all parameters as servers
-  _paramSet.add(*std::unique_ptr<RooArgSet>{real.getParameters(&data)});
+  real.getParameters(data.get(), _paramSet);
 
   if (cfg.rangeName.find(',') != std::string::npos) {
     auto errorMsg = std::string("Ranges ") + cfg.rangeName
