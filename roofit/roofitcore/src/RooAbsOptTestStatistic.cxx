@@ -194,8 +194,9 @@ void RooAbsOptTestStatistic::initSlave(RooAbsReal& real, RooAbsData& indata, con
   }
 
   // Reattach FUNC to original parameters  
-  RooArgSet* origParams = (RooArgSet*) real.getParameters(indata) ;
-  _funcClone->recursiveRedirectServers(*origParams) ;
+  RooArgSet origParams;
+  real.getParameters(indata.get(), origParams) ;
+  _funcClone->recursiveRedirectServers(origParams) ;
 
   // Mark all projected dependents as such
   if (projDeps.getSize()>0) {
@@ -219,11 +220,8 @@ void RooAbsOptTestStatistic::initSlave(RooAbsReal& real, RooAbsData& indata, con
 
   } else {
     // Add parameters as servers
-    _paramSet.add(*origParams) ;
+    _paramSet.add(origParams) ;
   }
-
-
-  delete origParams ;
 
   // Store normalization set  
   _normSet = (RooArgSet*) indata.get()->snapshot(kFALSE) ;
@@ -287,7 +285,8 @@ void RooAbsOptTestStatistic::initSlave(RooAbsReal& real, RooAbsData& indata, con
   // *** PART 3 *** Make adjustments for fit ranges, if specified     *
   // ****************************************************************** 
 
-  std::unique_ptr<RooArgSet> origObsSet( real.getObservables(indata) );
+  RooArgSet origObsSet;
+  real.getObservables(indata.get(), origObsSet);
   RooArgSet* dataObsSet = (RooArgSet*) _dataClone->get() ;
   if (rangeName && strlen(rangeName)) {    
     cxcoutI(Fitting) << "RooAbsOptTestStatistic::ctor(" << GetName() << ") constructing test statistic for sub-range named " << rangeName << endl ;    
@@ -323,7 +322,7 @@ void RooAbsOptTestStatistic::initSlave(RooAbsReal& real, RooAbsData& indata, con
             newAttr += (newAttr.empty() ? "" : ",") + fitRangeName;
           }
           real.setStringAttribute("fitrange", newAttr.c_str());
-          RooRealVar* origObs = (RooRealVar*) origObsSet->find(arg->GetName()) ;
+          RooRealVar* origObs = (RooRealVar*) origObsSet.find(arg->GetName()) ;
           if (origObs) {
             origObs->setRange(fitRangeName.c_str(), realObs->getMin(rangeName), realObs->getMax(rangeName));
           }
