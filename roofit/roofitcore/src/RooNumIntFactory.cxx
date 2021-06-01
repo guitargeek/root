@@ -116,7 +116,7 @@ RooNumIntFactory& RooNumIntFactory::instance()
 /// default configuration options and an optional list of names of other numeric integrators
 /// on which this integrator depends. Returns true if integrator was previously registered
 
-Bool_t RooNumIntFactory::storeProtoIntegrator(RooAbsIntegrator* proto, const RooArgSet& defConfig, const char* depName) 
+Bool_t RooNumIntFactory::storeProtoIntegrator(RooAbsIntegrator* proto, const RooAbsCollection& defConfig, const char* depName) 
 {
   TString name = proto->IsA()->GetName() ;
 

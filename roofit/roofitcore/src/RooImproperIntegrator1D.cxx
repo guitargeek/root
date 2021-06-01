@@ -32,6 +32,7 @@ and the outer two pieces, if required are calculated using a 1/x transform
 #include "RooInvTransform.h"
 #include "RooNumber.h"
 #include "RooNumIntFactory.h"
+#include "RooArgList.h"
 #include "RooArgSet.h"
 #include "RooMsgService.h"
 
@@ -54,7 +55,7 @@ ClassImp(RooImproperIntegrator1D);
 void RooImproperIntegrator1D::registerIntegrator(RooNumIntFactory& fact)
 {
   RooImproperIntegrator1D* proto = new RooImproperIntegrator1D() ;
-  fact.storeProtoIntegrator(proto,RooArgSet(),RooIntegrator1D::Class()->GetName()) ;
+  fact.storeProtoIntegrator(proto,RooArgList(),RooIntegrator1D::Class()->GetName()) ;
 }
 
 

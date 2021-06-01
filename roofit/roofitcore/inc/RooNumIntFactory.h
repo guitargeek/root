@@ -33,7 +33,7 @@ public:
   static RooNumIntFactory& instance() ;
   virtual ~RooNumIntFactory() = default;
 
-  Bool_t storeProtoIntegrator(RooAbsIntegrator* proto, const RooArgSet& defConfig, const char* depName="") ;
+  Bool_t storeProtoIntegrator(RooAbsIntegrator* proto, const RooAbsCollection& defConfig, const char* depName="") ;
   const RooAbsIntegrator* getProtoIntegrator(const char* name) const;
   const char* getDepIntegratorName(const char* name) const;
 

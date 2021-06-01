@@ -52,7 +52,7 @@ ClassImp(RooSegmentedIntegrator1D);
 void RooSegmentedIntegrator1D::registerIntegrator(RooNumIntFactory& fact)
 {
   RooRealVar numSeg("numSeg","Number of segments",3) ;
-  fact.storeProtoIntegrator(new RooSegmentedIntegrator1D(),numSeg,RooIntegrator1D::Class()->GetName()) ;
+  fact.storeProtoIntegrator(new RooSegmentedIntegrator1D(),RooArgList(numSeg),RooIntegrator1D::Class()->GetName()) ;
 }
  
 

@@ -66,7 +66,7 @@ void RooIntegrator1D::registerIntegrator(RooNumIntFactory& fact)
   RooRealVar fixSteps("fixSteps","Fixed number of steps",0) ;
 
   RooIntegrator1D* proto = new RooIntegrator1D() ;
-  fact.storeProtoIntegrator(proto,RooArgSet(sumRule,extrap,maxSteps,minSteps,fixSteps)) ;
+  fact.storeProtoIntegrator(proto,RooArgList(sumRule,extrap,maxSteps,minSteps,fixSteps)) ;
   RooNumIntConfig::defaultConfig().method1D().setLabel(proto->IsA()->GetName()) ;
 }
 
@@ -131,7 +131,7 @@ RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, const RooNumIntConf
   _epsRel(config.epsRel())
 {
   // Extract parameters from config object
-  const RooArgSet& configSet = config.getConfigSection(IsA()->GetName()) ;  
+  const RooAbsCollection& configSet = config.getConfigSection(IsA()->GetName()) ;  
   _rule = (SummationRule) configSet.getCatIndex("sumRule",Trapezoid) ;
   _maxSteps = (Int_t) configSet.getRealValue("maxSteps",20) ;
   _minStepsZero = (Int_t) configSet.getRealValue("minSteps",999) ;
@@ -160,7 +160,7 @@ RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, Double_t xmin, Doub
   _epsRel(config.epsRel())
 {
   // Extract parameters from config object
-  const RooArgSet& configSet = config.getConfigSection(IsA()->GetName()) ;  
+  const RooAbsCollection& configSet = config.getConfigSection(IsA()->GetName()) ;  
   _rule = (SummationRule) configSet.getCatIndex("sumRule",Trapezoid) ;
   _maxSteps = (Int_t) configSet.getRealValue("maxSteps",20) ;
   _minStepsZero = (Int_t) configSet.getRealValue("minSteps",999) ;

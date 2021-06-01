@@ -51,7 +51,7 @@ ClassImp(RooSegmentedIntegrator2D);
 
 void RooSegmentedIntegrator2D::registerIntegrator(RooNumIntFactory& fact)
 {
-  fact.storeProtoIntegrator(new RooSegmentedIntegrator2D(),RooArgSet(),RooSegmentedIntegrator1D::Class()->GetName()) ;
+  fact.storeProtoIntegrator(new RooSegmentedIntegrator2D(),RooArgList(),RooSegmentedIntegrator1D::Class()->GetName()) ;
 }
 
 

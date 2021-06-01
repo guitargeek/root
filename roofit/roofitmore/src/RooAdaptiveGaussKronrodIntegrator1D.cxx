@@ -167,7 +167,7 @@ void RooAdaptiveGaussKronrodIntegrator1D::registerIntegrator(RooNumIntFactory& f
      method.defineType("51Points", 5);
      method.defineType("61Points", 6);
      method.setIndex(2);
-     fact.storeProtoIntegrator(new RooAdaptiveGaussKronrodIntegrator1D(), RooArgSet(maxSeg, method));
+     fact.storeProtoIntegrator(new RooAdaptiveGaussKronrodIntegrator1D(), RooArgList(maxSeg, method));
      oocoutI((TObject*)nullptr,Integration)  << "RooAdaptiveGaussKronrodIntegrator1D has been registered " << std::endl;
 }
 
@@ -193,7 +193,7 @@ RooAdaptiveGaussKronrodIntegrator1D::RooAdaptiveGaussKronrodIntegrator1D(const R
   _workspace(0)
 {  
   // Use this form of the constructor to integrate over the function's default range.
-  const RooArgSet& confSet = config.getConfigSection(IsA()->GetName()) ;  
+  const RooAbsCollection& confSet = config.getConfigSection(IsA()->GetName()) ;  
   _maxSeg = (Int_t) confSet.getRealValue("maxSeg",100) ;
   _methodKey = confSet.getCatIndex("method",2) ;
 
@@ -217,7 +217,7 @@ RooAdaptiveGaussKronrodIntegrator1D::RooAdaptiveGaussKronrodIntegrator1D(const R
   _xmax(xmax)
 {  
   // Use this form of the constructor to integrate over the function's default range.
-  const RooArgSet& confSet = config.getConfigSection(IsA()->GetName()) ;  
+  const RooAbsCollection& confSet = config.getConfigSection(IsA()->GetName()) ;  
   _maxSeg = (Int_t) confSet.getRealValue("maxSeg",100) ;
   _methodKey = confSet.getCatIndex("method",2) ;
   

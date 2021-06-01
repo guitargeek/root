@@ -58,7 +58,7 @@ void RooAdaptiveIntegratorND::registerIntegrator(RooNumIntFactory& fact)
   RooRealVar maxEvalND("maxEvalND","Max number of function evaluations for >3-dim integrals",10000000) ;
   RooRealVar maxWarn("maxWarn","Max number of warnings on precision not reached that is printed",5) ;
 
-  fact.storeProtoIntegrator(new RooAdaptiveIntegratorND(),RooArgSet(maxEval2D,maxEval3D,maxEvalND,maxWarn)) ;
+  fact.storeProtoIntegrator(new RooAdaptiveIntegratorND(),RooArgList(maxEval2D,maxEval3D,maxEvalND,maxWarn)) ;
 }
  
 

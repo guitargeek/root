@@ -59,9 +59,9 @@ public:
 
   static RooNumIntConfig& defaultConfig() ;
 
-  Bool_t addConfigSection(const RooAbsIntegrator* proto, const RooArgSet& defaultConfig) ;
-  const RooArgSet& getConfigSection(const char* name) const ;
-  RooArgSet& getConfigSection(const char* name) ;
+  Bool_t addConfigSection(const RooAbsIntegrator* proto, const RooAbsCollection& defaultConfig) ;
+  const RooAbsCollection& getConfigSection(const char* name) const ;
+  RooAbsCollection& getConfigSection(const char* name) ;
 
   void printMultiline(std::ostream &os, Int_t content, Bool_t verbose, TString indent= "") const;
 

@@ -28,6 +28,7 @@ use this class in the (normalization) integral configuration interface
 #include "Riostream.h"
 
 #include "RooNumIntConfig.h"
+#include "RooArgList.h"
 #include "RooArgSet.h"
 #include "RooAbsIntegrator.h"
 #include "RooNumIntFactory.h"
@@ -118,9 +119,8 @@ RooNumIntConfig::RooNumIntConfig(const RooNumIntConfig& other) :
 {
   // Clone all configuration dat
   TIterator* iter = other._configSets.MakeIterator() ;
-  RooArgSet* set ;
-  while((set=(RooArgSet*)iter->Next())) {
-    RooArgSet* setCopy = (RooArgSet*) set->snapshot() ;
+  while(auto set = (RooAbsCollection*)iter->Next()) {
+    RooAbsCollection* setCopy = set->snapshot() ;
     setCopy->setName(set->GetName()) ;
    _configSets.Add(setCopy);
   }
@@ -153,9 +153,8 @@ RooNumIntConfig& RooNumIntConfig::operator=(const RooNumIntConfig& other)
 
   // Copy new integrator-specific data
   TIterator* iter = other._configSets.MakeIterator() ;
-  RooArgSet* set ;
-  while((set=(RooArgSet*)iter->Next())) {
-    RooArgSet* setCopy = (RooArgSet*) set->snapshot() ;
+  while(auto set = (RooAbsCollection*)iter->Next()) {
+    RooAbsCollection* setCopy = set->snapshot() ;
     setCopy->setName(set->GetName()) ;
    _configSets.Add(setCopy);
   }
@@ -171,7 +170,7 @@ RooNumIntConfig& RooNumIntConfig::operator=(const RooNumIntConfig& other)
 /// automatically determined from instance passed as 'proto'. The defaultConfig object is associated
 /// as the default configuration for the integrator. 
 
-Bool_t RooNumIntConfig::addConfigSection(const RooAbsIntegrator* proto, const RooArgSet& inDefaultConfig)
+Bool_t RooNumIntConfig::addConfigSection(const RooAbsIntegrator* proto, const RooAbsCollection& inDefaultConfig)
 {
   std::string name = proto->IsA()->GetName() ;
 
@@ -198,7 +197,7 @@ Bool_t RooNumIntConfig::addConfigSection(const RooAbsIntegrator* proto, const Ro
   }
   
   // Store default configuration parameters
-  RooArgSet* config = (RooArgSet*) inDefaultConfig.snapshot() ;
+  RooAbsCollection* config = inDefaultConfig.snapshot() ;
   config->setName(name.c_str());
   _configSets.Add(config) ;
 
@@ -210,19 +209,19 @@ Bool_t RooNumIntConfig::addConfigSection(const RooAbsIntegrator* proto, const Ro
 ////////////////////////////////////////////////////////////////////////////////
 /// Return section with configuration parameters for integrator with given (class) name
 
-RooArgSet& RooNumIntConfig::getConfigSection(const char* name)  
+RooAbsCollection& RooNumIntConfig::getConfigSection(const char* name)  
 {
-  return const_cast<RooArgSet&>((const_cast<const RooNumIntConfig*>(this)->getConfigSection(name))) ;
+  return const_cast<RooAbsCollection&>((const_cast<const RooNumIntConfig*>(this)->getConfigSection(name))) ;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Retrieve configuration information specific to integrator with given name
 
-const RooArgSet& RooNumIntConfig::getConfigSection(const char* name) const
+const RooAbsCollection& RooNumIntConfig::getConfigSection(const char* name) const
 {
-  static RooArgSet dummy ;
-  RooArgSet* config = (RooArgSet*) _configSets.FindObject(name) ;
+  static RooArgList dummy ;
+  auto config = static_cast<RooAbsCollection*>(_configSets.FindObject(name)) ;
   if (!config) {
     oocoutE((TObject*)0,InputArguments) << "RooNumIntConfig::getConfigSection: ERROR: no configuration stored for integrator '" << name << "'" << endl ;
     return dummy ;
@@ -309,8 +308,8 @@ void RooNumIntConfig::printMultiline(ostream &os, Int_t /*content*/, Bool_t verb
 
     os << endl << "Available integration methods:" << endl << endl ;
     TIterator* cIter = _configSets.MakeIterator() ;
-    RooArgSet* configSet ;
-    while ((configSet=(RooArgSet*)cIter->Next())) {
+    RooAbsCollection* configSet ;
+    while ((configSet=(RooAbsCollection*)cIter->Next())) {
 
       os << indent << "*** " << configSet->GetName() << " ***" << endl ;
       os << indent << "Capabilities: " ;
