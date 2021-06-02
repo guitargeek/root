@@ -72,6 +72,7 @@ public:
 
   virtual const RooArgSet* getNative(Int_t index) const;
 
+  using RooAbsDataStore::weight ;
   /// Return the weight of the last-retrieved data point.
   Double_t weight() const override
   {
@@ -84,7 +85,6 @@ public:
   }
   virtual Double_t weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override;
   virtual void weightError(Double_t& lo, Double_t& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override;
-  virtual Double_t weight(Int_t index) const override;
   virtual Bool_t isWeighted() const override { return _wgtVar || _extWgtArray; }
 
   RooBatchCompute::RunContext getBatches(std::size_t first, std::size_t len) const override;
