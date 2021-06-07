@@ -131,7 +131,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooList.h
     RooListProxy.h
     RooMappedCategory.h
-    RooMath.h
     RooMCIntegrator.h
     RooMCStudy.h
     RooMinimizerFcn.h
@@ -348,7 +347,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooList.cxx
     src/RooListProxy.cxx
     src/RooMappedCategory.cxx
-    src/RooMath.cxx
     src/RooMCIntegrator.cxx
     src/RooMCStudy.cxx
     src/RooMinimizer.cxx
