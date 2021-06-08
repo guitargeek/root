@@ -5,10 +5,11 @@
 #include "RooBatchCompute.h"
 #include "RooNLLVarNew.h"
 #include "RooRealVar.h"
+#include "RooHelpers.h"
 #include "RunContext.h"
 
-RooFitDriver::RooFitDriver(const RooAbsData& data, const RooNLLVarNew& _topNode, int _batchMode)
-  : batchMode(_batchMode), topNode(_topNode)
+RooFitDriver::RooFitDriver(const RooAbsData& data, const RooNLLVarNew& _topNode, int _batchMode, bool doExtended)
+  : _data{data}, batchMode(_batchMode), topNode(_topNode), _doExtended{doExtended}
 {
   // get a set with all the observables as the normalization set
   // and call getVal to trigger the creation of the integrals.
@@ -154,7 +155,14 @@ double RooFitDriver::getVal()
   }
   // recycle the top node's buffer and return the final value
   buffers.push(const_cast<double*>( dataMap[&topNode].data() ));
-  return topNode.reduce(dataMap[&topNode].data(), nEvents);
+  double nll = topNode.reduce(dataMap[&topNode].data(), nEvents);
+
+  // add the extended term if requested
+  if(_doExtended) {
+    nll += RooHelpers::computeExtendedTermValue(*topNode.getPdf(), _data, false, true);
+  }
+
+  return nll;
 }
 
 RooArgSet* RooFitDriver::getParameters()

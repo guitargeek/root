@@ -26,6 +26,9 @@
 #include <string>
 #include <utility>
 
+class RooAbsPdf;
+class RooAbsData;
+
 
 namespace RooHelpers {
 
@@ -116,6 +119,7 @@ struct DisableCachingRAII {
 
 std::pair<double, double> getRangeOrBinningInterval(RooAbsArg const* arg, const char* rangeName);
 
+double computeExtendedTermValue(RooAbsPdf const& pdf, RooAbsData const& data, bool weightSquared, bool batchMode);
 
 }
 

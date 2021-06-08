@@ -904,6 +904,23 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooCmdArg& arg1, const 
 }
 
 
+namespace {
+
+bool getDoExtended(RooAbsPdf const& pdf, int extendedCmdArg) {
+  // Process automatic extended option
+  if (extendedCmdArg == 2) {
+    bool ext = pdf.extendMode() == RooAbsPdf::CanBeExtended || pdf.extendMode() == RooAbsPdf::MustBeExtended;
+    if (ext) {
+      oocoutI(&pdf, Minimization)
+          << "p.d.f. provides expected number of events, including extended term in likelihood." << endl;
+    }
+    return ext;
+  }
+  return extendedCmdArg;
+}
+
+} // namespace
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -954,7 +971,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   const char* rangeName = pc.getString("rangeName",0,kTRUE) ;
   const char* addCoefRangeName = pc.getString("addCoefRange",0,kTRUE) ;
   const char* globsTag = pc.getString("globstag",0,kTRUE) ;
-  Int_t ext      = pc.getInt("ext") ;
+  const bool ext = getDoExtended(*this, pc.getInt("ext")) ;
   Int_t numcpu   = pc.getInt("numcpu") ;
   Int_t numcpu_strategy = pc.getInt("interleave");
   // strategy 3 works only for RooSimultaneus.
@@ -1009,14 +1026,6 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
     doStripDisconnected=kTRUE ;
   }
   const RooArgSet* extCons = pc.getSet("extCons") ;
-
-  // Process automatic extended option
-  if (ext==2) {
-    ext = ((extendMode()==CanBeExtended || extendMode()==MustBeExtended)) ? 1 : 0 ;
-    if (ext) {
-      coutI(Minimization) << "p.d.f. provides expected number of events, including extended term in likelihood." << endl ;
-    }
-  }
 
   // Clear possible range attributes from previous fits.
   setStringAttribute("fitrange", nullptr);
@@ -1451,7 +1460,12 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
     nll = createNLL(data,nllCmdList);
   } else {
     nll = new RooNLLVarNew("NewNLLVar","NewNLLVar",*this);
-    driver.reset(new RooFitDriver( data, static_cast<RooNLLVarNew&>(*nll), pc.getInt("BatchMode") ));
+    driver.reset(new RooFitDriver(
+                data,
+                static_cast<RooNLLVarNew&>(*nll),
+                pc.getInt("BatchMode"),
+                getDoExtended(*this, pc.getInt("ext"))
+    ));
   }
   RooFitResult *ret = 0 ;
 

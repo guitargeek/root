@@ -15,7 +15,12 @@
  *****************************************************************************/
 
 #include "RooHelpers.h"
+
 #include "RooAbsRealLValue.h"
+#include "RooAbsData.h"
+#include "RooAbsPdf.h"
+
+#include "Math/Util.h"
 
 #include "TClass.h"
 
@@ -167,6 +172,57 @@ std::pair<double, double> getRangeOrBinningInterval(RooAbsArg const* arg, const 
     }
   }
   return {-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity()};
+}
+
+
+double computeExtendedTermValue(RooAbsPdf const& pdf, RooAbsData const& data, bool weightSquared, bool batchMode) {
+  if (weightSquared) {
+
+    // Calculate sum of weights-squared here for extended term
+    double sumW2;
+    if (batchMode) {
+      const RooSpan<const double> eventWeights = data.getWeightBatch(0, data.numEntries());
+      if (eventWeights.empty()) {
+        sumW2 = data.numEntries() * data.weightSquared();
+      } else {
+        ROOT::Math::KahanSum<double, 4u> kahanWeight;
+        for (std::size_t i = 0; i < eventWeights.size(); ++i) {
+          kahanWeight.AddIndexed(eventWeights[i] * eventWeights[i], i);
+        }
+        sumW2 = kahanWeight.Sum();
+      }
+    } else { // scalar mode
+      ROOT::Math::KahanSum<double> sumW2KahanSum;
+      for (decltype(data.numEntries()) i = 0; i < data.numEntries() ; i++) {
+        data.get(i);
+        sumW2KahanSum += data.weightSquared();
+      }
+      sumW2 = sumW2KahanSum.Sum();
+    }
+
+    double expected = pdf.expectedEvents(data.get());
+
+    // Adjust calculation of extended term with W^2 weighting: adjust poisson such that
+    // estimate of Nexpected stays at the same value, but has a different variance, rescale
+    // both the observed and expected count of the Poisson with a factor sum[w] / sum[w^2] which is
+    // the effective weight of the Poisson term.
+    // i.e. change Poisson(Nobs = sum[w]| Nexp ) --> Poisson( sum[w] * sum[w] / sum[w^2] | Nexp * sum[w] / sum[w^2] )
+    // weighted by the effective weight  sum[w^2]/ sum[w] in the likelihood.
+    // Since here we compute the likelihood with the weight square we need to multiply by the
+    // square of the effective weight
+    // expectedW = expected * sum[w] / sum[w^2]   : effective expected entries
+    // observedW =  sum[w]  * sum[w] / sum[w^2]   : effective observed entries
+    // The extended term for the likelihood weighted by the square of the weight will be then:
+    //  (sum[w^2]/ sum[w] )^2 * expectedW -  (sum[w^2]/ sum[w] )^2 * observedW * log (expectedW)  and this is
+    //  using the previous expressions for expectedW and observedW
+    //  sum[w^2] / sum[w] * expected - sum[w^2] * log (expectedW)
+    //  and since the weights are constants in the likelihood we can use log(expected) instead of log(expectedW)
+
+    double expectedW2 = expected * sumW2 / data.sumEntries() ;
+    return expectedW2 - sumW2*log(expected );
+  } else {
+    return pdf.extendedTerm(data.sumEntries(), data.get());
+  }
 }
 
 

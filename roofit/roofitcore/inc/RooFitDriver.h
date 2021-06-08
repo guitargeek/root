@@ -13,13 +13,14 @@ class RooNLLVarNew;
 
 class RooFitDriver {
   public:
-     RooFitDriver(const RooAbsData& data, const RooNLLVarNew& topNode, int batchMode);
+     RooFitDriver(const RooAbsData& data, const RooNLLVarNew& topNode, int batchMode, bool doExtended);
      ~RooFitDriver();
      //~  inline RooAbsReal* getTopNode() { return initialQueue.back(); }
      double getVal();
      RooArgSet* getParameters();
      
   private:
+    const RooAbsData& _data;
     const int batchMode=0;
     double* cudaMemDataset=nullptr;
     // used for preserving static info about the computation graph
@@ -33,6 +34,7 @@ class RooFitDriver {
     std::queue<const RooAbsReal*> computeQueue;
     std::unordered_map<const RooAbsReal*,std::pair<int,int>> nRemainingServersClients;
     std::queue<double*> buffers;
+    bool _doExtended;
 };
 
 #endif //ROO_FIT_DRIVER_H
