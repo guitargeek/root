@@ -22,7 +22,6 @@
 #include <vector>
 #include <utility>
 
-class RooRealSumPdf ;
 namespace RooBatchCompute {
 struct RunContext;
 }
@@ -79,8 +78,6 @@ private:
   mutable Bool_t _first{true}; //!
   ROOT::Math::KahanSum<double> _offsetSaveW2{0.0}; //!
 
-  mutable std::vector<Double_t> _binw ; //!
-  mutable RooRealSumPdf* _binnedPdf{nullptr}; //!
   mutable std::unique_ptr<RooBatchCompute::RunContext> _evalData; //! Struct to store function evaluation workspaces.
    
   ClassDef(RooNLLVar,3) // Function representing (extended) -log(L) of p.d.f and dataset

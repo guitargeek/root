@@ -50,8 +50,6 @@ public:
   /// is the sum of all coefficients.
   virtual Double_t expectedEvents(const RooArgSet* nset) const ;
 
-  virtual Bool_t selfNormalized() const { return getAttribute("BinnedLikelihoodActive") ; }
-
   void printMetaArgs(std::ostream& os) const ;
 
 

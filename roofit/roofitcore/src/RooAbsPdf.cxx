@@ -1113,7 +1113,6 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   cfg.splitCutRange = static_cast<bool>(splitr);
   cfg.cloneInputData = static_cast<bool>(cloneData);
   cfg.integrateOverBinsPrecision = pc.getDouble("IntegrateBins");
-  cfg.binnedL = false;
   if (!rangeName || strchr(rangeName,',')==0) {
     // Simple case: default range, or single restricted range
     //cout<<"FK: Data test 1: "<<data.sumEntries()<<endl;

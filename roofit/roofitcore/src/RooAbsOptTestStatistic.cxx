@@ -189,10 +189,6 @@ void RooAbsOptTestStatistic::initSlave(RooAbsReal& real, RooAbsData& indata, con
   // Attach FUNC to data set  
   _funcObsSet = _funcClone->getObservables(indata) ;
 
-  if (_funcClone->getAttribute("BinnedLikelihood")) {
-    _funcClone->setAttribute("BinnedLikelihoodActive") ;
-  }
-
   // Reattach FUNC to original parameters  
   RooArgSet* origParams = (RooArgSet*) real.getParameters(indata) ;
   _funcClone->recursiveRedirectServers(*origParams) ;
@@ -644,8 +640,8 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
 
     _funcClone->findConstantNodes(*_dataClone->get(),_cachedNodes) ;
 
-    // Cache constant nodes with dataset - also cache entries corresponding to zero-weights in data when using BinnedLikelihood
-    _dataClone->cacheArgs(this,_cachedNodes,_normSet,!_funcClone->getAttribute("BinnedLikelihood")) ;  
+    // Cache constant nodes with dataset
+    _dataClone->cacheArgs(this,_cachedNodes,_normSet,true) ;
 
     // Put all cached nodes in AClean value caching mode so that their evaluate() is never called
     for (auto cacheArg : _cachedNodes) {

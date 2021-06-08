@@ -50,7 +50,6 @@ public:
     bool splitCutRange = false;
     bool cloneInputData = true;
     double integrateOverBinsPrecision = -1.;
-    bool binnedL = false;
   };
 
   // Constructors, assignment etc

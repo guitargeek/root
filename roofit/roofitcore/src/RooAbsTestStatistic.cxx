@@ -492,38 +492,25 @@ void RooAbsTestStatistic::initSimMode(RooSimultaneous* simpdf, RooAbsData* data,
           << " (" << dset->numEntries() << " dataset entries)" << endl;
 
 
-      // *** START HERE
-      // WVE HACK determine if we have a RooRealSumPdf and then treat it like a binned likelihood
-      RooAbsPdf* binnedPdf = 0 ;
-      Bool_t binnedL = kFALSE ;
-      if (pdf->getAttribute("BinnedLikelihood") && pdf->IsA()->InheritsFrom(RooRealSumPdf::Class())) {
-        // Simplest case: top-level of component is a RRSP
-        binnedPdf = pdf ;
-        binnedL = kTRUE ;
-      } else if (pdf->IsA()->InheritsFrom(RooProdPdf::Class())) {
-        // Default case: top-level pdf is a product of RRSP and other pdfs
+      RooAbsPdf* mainMeasurementPdf = 0 ;
+      if (pdf->IsA()->InheritsFrom(RooProdPdf::Class())) {
         RooFIter iter = ((RooProdPdf*)pdf)->pdfList().fwdIterator() ;
         RooAbsArg* component ;
         while ((component = iter.next())) {
-          if (component->getAttribute("BinnedLikelihood") && component->IsA()->InheritsFrom(RooRealSumPdf::Class())) {
-            binnedPdf = (RooAbsPdf*) component ;
-            binnedL = kTRUE ;
-          }
           if (component->getAttribute("MAIN_MEASUREMENT")) {
             // not really a binned pdf, but this prevents a (potentially) long list of subsidiary measurements to be passed to the slave calculator
-            binnedPdf = (RooAbsPdf*) component ;
+            mainMeasurementPdf = static_cast<RooAbsPdf*>(component) ;
           }
         }
       }
-      // WVE END HACK
-      // Below here directly pass binnedPdf instead of PROD(binnedPdf,constraints) as constraints are evaluated elsewhere anyway
+
+      // Below here directly pass mainMeasurementPdf instead of PROD(mainMeasurementPdf,constraints) as constraints are evaluated elsewhere anyway
       // and omitting them reduces model complexity and associated handling/cloning times
       Configuration cfg;
       cfg.addCoefRangeName = addCoefRangeName;
       cfg.interleave = _mpinterl;
       cfg.verbose = _verbose;
       cfg.splitCutRange = _splitRange;
-      cfg.binnedL = binnedL;
       // This configuration parameter is stored in the RooAbsOptTestStatistic.
       // It would have been cleaner to move the member variable into RooAbsTestStatistic,
       // but to avoid incrementing the class version we do the dynamic_cast trick.
@@ -537,7 +524,7 @@ void RooAbsTestStatistic::initSimMode(RooSimultaneous* simpdf, RooAbsData* data,
         cfg.rangeName = rangeName;
         cfg.nCPU = _nCPU;
       }
-      _gofArray[n] = create(catName.c_str(),catName.c_str(),(binnedPdf?*binnedPdf:*pdf),*dset,*projDeps,cfg);
+      _gofArray[n] = create(catName.c_str(),catName.c_str(),(mainMeasurementPdf?*mainMeasurementPdf:*pdf),*dset,*projDeps,cfg);
       _gofArray[n]->setSimCount(_nGof);
       // *** END HERE
 
@@ -556,7 +543,7 @@ void RooAbsTestStatistic::initSimMode(RooSimultaneous* simpdf, RooAbsData* data,
 
       // Servers may have been redirected between instantiation and (deferred) initialization
 
-      RooArgSet *actualParams = binnedPdf ? binnedPdf->getParameters(dset) : pdf->getParameters(dset);
+      RooArgSet *actualParams = mainMeasurementPdf ? mainMeasurementPdf->getParameters(dset) : pdf->getParameters(dset);
       RooArgSet* selTargetParams = (RooArgSet*) _paramSet.selectCommon(*actualParams);
 
       _gofArray[n]->recursiveRedirectServers(*selTargetParams);
