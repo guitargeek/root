@@ -99,6 +99,12 @@ The `RooMinuit` class was the old interface between RooFit and minuit. With ROOT
 
 Before 6.26, it was possible to still use the `RooMinuit` by passing the `Minimizer("OldMinuit", "minimizer")` command argument to `RooAbsPdf::fitTo()`. This option is now removed.
 
+### Uniquely identifying RooDataSet objects
+
+Before v6.26, it was ensured that no RooDataSet objects on the heap were located at an address that had already been used for a RooDataSet before.
+With v6.26, this is not guaranteed anymore.
+Hence, if your code uses pointer comparisons to uniquely identify RooDataSet instances, please consider using the new `RooAbsData::uniqueId()`.
+
 ## 2D Graphics Libraries
 
 - Implement the option `X+` and `Y+` for reverse axis on TGraph.
