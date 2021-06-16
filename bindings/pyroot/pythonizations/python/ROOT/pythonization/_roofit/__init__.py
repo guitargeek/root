@@ -27,6 +27,7 @@ from ._roodatahist import RooDataHist
 from ._roodataset import RooDataSet
 from ._roodecays import RooDecay, RooBDecay, RooBCPGenDecay, RooBCPEffDecay, RooBMixDecay
 from ._roogenfitstudy import RooGenFitStudy
+from ._rooglobalfunc import LineColor
 from ._roomcstudy import RooMCStudy
 from ._roomsgservice import RooMsgService
 from ._roonllvar import RooNLLVar
@@ -62,6 +63,8 @@ python_classes = [
     RooSimWSTool,
     RooWorkspace,
 ]
+
+python_roofit_functions = [LineColor]
 
 # create a dictionary for convenient access to python classes
 python_classes_dict = dict()
@@ -130,7 +133,7 @@ def make_func_name_orig(func_name):
 
 
 @pythonization()
-def pythonize_roofit(klass, name):
+def pythonize_roofit_class(klass, name):
     # Parameters:
     # klass: class to pythonize
     # name: string containing the name of the class
@@ -160,3 +163,15 @@ def pythonize_roofit(klass, name):
         rebind_instancemethod(klass, python_klass, func_name)
 
     return
+
+
+def pythonize_roofit_namespace(ns):
+
+    for python_func in python_roofit_functions:
+        func_name = python_func.__name__
+        func_name_orig = "_" + func_name
+
+        setattr(ns, func_name_orig, getattr(ns, func_name))
+        setattr(ns, func_name, python_func)
+
+    return ns
