@@ -11,21 +11,24 @@
 # For the list of contributors see $ROOTSYS/README/CREDITS.                    #
 ################################################################################
 
-import cppyy
-
 
 def _getter(k, v):
     # helper function to get CmdArg attribute from `RooFit`
     # Parameters:
     # k: key of the kwarg
     # v: value of the kwarg
+
+    # We have to use ROOT here and not cppy.gbl, because the RooFit namespace is pythonized itself.
+    import ROOT
+
+    func = getattr(ROOT.RooFit, k)
+
     if isinstance(v, (tuple, list)):
-        attr = getattr(cppyy.gbl.RooFit, k)(*v)
+        return func(*v)
     elif isinstance(v, (dict,)):
-        attr = getattr(cppyy.gbl.RooFit, k)(**v)
+        return func(**v)
     else:
-        attr = getattr(cppyy.gbl.RooFit, k)(v)
-    return attr
+        return func(v)
 
 
 def _kwargs_to_roocmdargs(*args, **kwargs):

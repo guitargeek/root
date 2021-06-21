@@ -27,7 +27,7 @@ from ._roodatahist import RooDataHist
 from ._roodataset import RooDataSet
 from ._roodecays import RooDecay, RooBDecay, RooBCPGenDecay, RooBCPEffDecay, RooBMixDecay
 from ._roogenfitstudy import RooGenFitStudy
-from ._rooglobalfunc import LineColor
+from ._rooglobalfunc import FitOptions, LineColor
 from ._roomcstudy import RooMCStudy
 from ._roomsgservice import RooMsgService
 from ._roonllvar import RooNLLVar
@@ -64,7 +64,10 @@ python_classes = [
     RooWorkspace,
 ]
 
-python_roofit_functions = [LineColor]
+python_roofit_functions = [
+    FitOptions,
+    LineColor,
+]
 
 # create a dictionary for convenient access to python classes
 python_classes_dict = dict()
