@@ -79,7 +79,7 @@ _is_ipython = hasattr(builtins, '__IPYTHON__')
 # Configure ROOT facade module
 import sys
 from ._facade import ROOTFacade
-sys.modules[__name__] = ROOTFacade(sys.modules[__name__], _is_ipython)
+sys.modules[__name__] = ROOTFacade(sys.modules[__name__], _is_ipython, pyz)
 
 # Configuration for usage from Jupyter notebooks
 if _is_ipython:

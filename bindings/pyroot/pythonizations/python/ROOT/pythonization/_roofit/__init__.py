@@ -12,6 +12,7 @@
 ################################################################################
 
 import cppyy
+import sys
 
 from ROOT import pythonization
 
@@ -114,8 +115,6 @@ def rebind_instancemethod(to_class, from_class, func_name):
 
     from_method = getattr(from_class, func_name)
 
-    import sys
-
     if sys.version_info > (3, 0):
         to_method = from_method
     else:
@@ -173,6 +172,11 @@ def pythonize_roofit_namespace(ns):
     for python_func in python_roofit_functions:
         func_name = python_func.__name__
         func_name_orig = "_" + func_name
+
+        if sys.version_info <= (3, 0):
+            # In Python 2 the RooFit is treated like a class and the global
+            # functions in the namespace must be static methods.
+            python_func = staticmethod(python_func)
 
         setattr(ns, func_name_orig, getattr(ns, func_name))
         setattr(ns, func_name, python_func)

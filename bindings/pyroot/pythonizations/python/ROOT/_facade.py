@@ -90,7 +90,7 @@ def _subimport(name):
 class ROOTFacade(types.ModuleType):
     """Facade class for ROOT module"""
 
-    def __init__(self, module, is_ipython):
+    def __init__(self, module, is_ipython, pythonization_module):
         types.ModuleType.__init__(self, module.__name__)
 
         self.module = module
@@ -119,6 +119,7 @@ class ROOTFacade(types.ModuleType):
         self.PyConfig = PyROOTConfiguration()
 
         self._is_ipython = is_ipython
+        self._pythonization = pythonization_module
 
         # Redirect lookups to temporary helper methods
         # This lets the user do some actions before all the machinery is in place:
@@ -341,11 +342,7 @@ class ROOTFacade(types.ModuleType):
     @property
     def RooFit(self):
         ns = self._fallback_getattr('RooFit')
-        try:
-            import ROOT.pythonization as pyz
-            pyz._roofit.pythonize_roofit_namespace(ns)
-        except:
-            raise Exception('Failed to pythonize the namespace RooFit')
+        self._pythonization._roofit.pythonize_roofit_namespace(ns)
         del type(self).RooFit
         return ns
 
