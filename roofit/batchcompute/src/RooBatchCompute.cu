@@ -37,7 +37,7 @@ class RooBatchComputeClass : public RooBatchComputeInterface {
     void compute(Computer computer, RestrictArr output, size_t nEvents, const DataMap& varData, const VarVector& vars, const ArgVector& extraArgs) override  
     {
       Batches batches(output, nEvents, varData, vars, extraArgs);
-      computeFunctions[computer]<<<256,64>>>(batches);
+      computeFunctions[computer]<<<128,512>>>(batches);
     }
 
     double sumReduce(InputArr input, size_t n) override
