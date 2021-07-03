@@ -115,6 +115,7 @@ Bool_t RooAbsArg::_verboseDirty(kFALSE) ;
 Bool_t RooAbsArg::_inhibitDirty(kFALSE) ;
 Bool_t RooAbsArg::inhibitDirty() const { return _inhibitDirty && !_localNoInhibitDirty; }
 
+std::unordered_set<std::size_t> RooAbsArg::_nameHashesOfRenamedArgs;
 std::map<RooAbsArg*,std::unique_ptr<TRefArray>> RooAbsArg::_ioEvoList;
 std::stack<RooAbsArg*> RooAbsArg::_ioReadStack ;
 
@@ -123,12 +124,9 @@ std::stack<RooAbsArg*> RooAbsArg::_ioReadStack ;
 /// Default constructor
 
 RooAbsArg::RooAbsArg()
-   : TNamed(), _deleteWatch(kFALSE), _valueDirty(kTRUE), _shapeDirty(kTRUE), _operMode(Auto), _fast(kFALSE), _ownedComponents(nullptr),
-     _prohibitServerRedirect(kFALSE), _namePtr(0), _isConstant(kFALSE), _localNoInhibitDirty(kFALSE),
-     _myws(0)
+   : TNamed(), _deleteWatch(kFALSE), _valueDirty(kTRUE), _shapeDirty(kTRUE), _operMode(Auto), _fast(kFALSE)
 {
-  _namePtr = (TNamed*) RooNameReg::instance().constPtr(GetName()) ;
-
+  updateNameHash();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,14 +136,13 @@ RooAbsArg::RooAbsArg()
 
 RooAbsArg::RooAbsArg(const char *name, const char *title)
    : TNamed(name, title), _deleteWatch(kFALSE), _valueDirty(kTRUE), _shapeDirty(kTRUE), _operMode(Auto), _fast(kFALSE),
-     _ownedComponents(0), _prohibitServerRedirect(kFALSE), _namePtr(0), _isConstant(kFALSE),
-     _localNoInhibitDirty(kFALSE), _myws(0)
+     _nameHash{std::hash<std::string>()(GetName())}
 {
   if (name == nullptr || strlen(name) == 0) {
     throw std::logic_error("Each RooFit object needs a name. "
         "Objects representing the same entity (e.g. an observable 'x') are identified using their name.");
   }
-  _namePtr = (TNamed*) RooNameReg::instance().constPtr(GetName()) ;
+  updateNameHash();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -155,17 +152,17 @@ RooAbsArg::RooAbsArg(const char *name, const char *title)
 RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
    : TNamed(other.GetName(), other.GetTitle()), RooPrintable(other), _boolAttrib(other._boolAttrib),
      _stringAttrib(other._stringAttrib), _deleteWatch(other._deleteWatch), _operMode(Auto), _fast(kFALSE),
-     _ownedComponents(0), _prohibitServerRedirect(kFALSE), _namePtr(other._namePtr),
+     _ownedComponents(0), _prohibitServerRedirect(kFALSE), _nameHash(other._nameHash),
      _isConstant(other._isConstant), _localNoInhibitDirty(other._localNoInhibitDirty), _myws(0)
 {
   // Use name in argument, if supplied
   if (name) {
     TNamed::SetName(name) ;
-    _namePtr = (TNamed*) RooNameReg::instance().constPtr(name) ;
+    updateNameHash();
   } else {
-    // Same name, don't recalculate name pointer (expensive)
+    // Same name, don't recalculate name hash (expensive)
     TNamed::SetName(other.GetName()) ;
-    _namePtr = other._namePtr ;
+    _nameHash = other._nameHash ;
   }
 
   // Copy server list by hand
@@ -197,7 +194,7 @@ RooAbsArg& RooAbsArg::operator=(const RooAbsArg& other) {
   _fast = other._fast;
   _ownedComponents = nullptr;
   _prohibitServerRedirect = other._prohibitServerRedirect;
-  _namePtr = other._namePtr;
+  _nameHash = other._nameHash;
   _isConstant = other._isConstant;
   _localNoInhibitDirty = other._localNoInhibitDirty;
   _myws = nullptr;
@@ -821,7 +818,7 @@ Bool_t RooAbsArg::dependsOn(const RooAbsArg& testArg, const RooAbsArg* ignoreArg
 
   // First check if testArg is self
   //if (!TString(testArg.GetName()).CompareTo(GetName())) return kTRUE ;
-  if (testArg.namePtr()==namePtr()) return kTRUE ;
+  if (testArg.nameHash() == nameHash()) return true ;
 
 
   // Next test direct dependence
@@ -1060,11 +1057,11 @@ Bool_t RooAbsArg::redirectServers(const RooAbsCollection& newSetOrig, Bool_t mus
       continue ;
     }
 
-    auto findByNamePtr = [&oldServer](const RooAbsArg * item) {
-      return oldServer->namePtr() == item->namePtr();
+    auto findByNameHash = [&oldServer](const RooAbsArg * item) {
+      return oldServer->nameHash() == item->nameHash();
     };
-    bool propValue = std::any_of(origServerValue.begin(), origServerValue.end(), findByNamePtr);
-    bool propShape = std::any_of(origServerShape.begin(), origServerShape.end(), findByNamePtr);
+    bool propValue = std::any_of(origServerValue.begin(), origServerValue.end(), findByNameHash);
+    bool propShape = std::any_of(origServerShape.begin(), origServerShape.end(), findByNameHash);
 
     if (newServer != this) {
       replaceServer(*oldServer,*newServer,propValue,propShape) ;
@@ -2249,8 +2246,7 @@ RooAbsArg* RooAbsArg::cloneTree(const char* newname) const
 
   // Adjust name of head node if requested
   if (newname) {
-    head->TNamed::SetName(newname) ;
-    head->_namePtr = (TNamed*) RooNameReg::instance().constPtr(newname) ;
+    head->SetName(newname) ;
   }
 
   // Return the head
@@ -2325,12 +2321,8 @@ void RooAbsArg::wireAllCaches()
 void RooAbsArg::SetName(const char* name)
 {
   TNamed::SetName(name) ;
-  TNamed* newPtr = (TNamed*) RooNameReg::instance().constPtr(GetName()) ;
-  if (newPtr != _namePtr) {
-    //cout << "Rename '" << _namePtr->GetName() << "' to '" << name << "' (set flag in new name)" << endl;
-    _namePtr = newPtr;
-    _namePtr->SetBit(RooNameReg::kRenamedArg);
-  }
+  updateNameHash();
+  _nameHashesOfRenamedArgs.insert(nameHash());
 }
 
 
@@ -2341,12 +2333,8 @@ void RooAbsArg::SetName(const char* name)
 void RooAbsArg::SetNameTitle(const char *name, const char *title)
 {
   TNamed::SetNameTitle(name,title) ;
-  TNamed* newPtr = (TNamed*) RooNameReg::instance().constPtr(GetName()) ;
-  if (newPtr != _namePtr) {
-    //cout << "Rename '" << _namePtr->GetName() << "' to '" << name << "' (set flag in new name)" << endl;
-    _namePtr = newPtr;
-    _namePtr->SetBit(RooNameReg::kRenamedArg);
-  }
+  updateNameHash();
+  _nameHashesOfRenamedArgs.insert(nameHash());
 }
 
 
@@ -2359,7 +2347,7 @@ void RooAbsArg::Streamer(TBuffer &R__b)
      _ioReadStack.push(this) ;
      R__b.ReadClassBuffer(RooAbsArg::Class(),this);
      _ioReadStack.pop() ;
-     _namePtr = (TNamed*) RooNameReg::instance().constPtr(GetName()) ;
+     updateNameHash();
      _isConstant = getAttribute("Constant") ;
    } else {
      R__b.WriteClassBuffer(RooAbsArg::Class(),this);

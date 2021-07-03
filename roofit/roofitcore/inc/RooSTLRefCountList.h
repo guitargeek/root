@@ -140,14 +140,14 @@ class RooSTLRefCountList {
     }
 
 
-    ///Find an item by comparing RooAbsArg::namePtr() adresses.
-    typename Container_t::const_iterator findByNamePointer(const T * item) const {
-      auto nptr = item->namePtr();
-      auto byNamePointer = [nptr](const T * element) {
-        return element->namePtr() == nptr;
+    ///Find an item by comparing RooAbsArg::nameHash().
+    typename Container_t::const_iterator findByNameHash(const T * item) const {
+      auto nameHash = item->nameHash();
+      auto byNameHash = [nameHash](const T * element) {
+        return element->nameHash() == nameHash;
       };
 
-      return std::find_if(_storage.begin(), _storage.end(), byNamePointer);
+      return std::find_if(_storage.begin(), _storage.end(), byNameHash);
     }
 
 
@@ -158,9 +158,9 @@ class RooSTLRefCountList {
     }
 
 
-    ///Check if list contains an item using findByNamePointer().
+    ///Check if list contains an item using findByNameHash().
     bool containsByNamePtr(const T * obj) const {
-      return findByNamePointer(obj) != _storage.end();
+      return findByNameHash(obj) != _storage.end();
     }
 
 

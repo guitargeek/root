@@ -210,7 +210,7 @@ RooSpan<const double> RooBinSamplingPdf::binBoundaries() const {
 /// \param[in] xhi End of range to create to create list of boundaries for.
 /// \return Pointer to a list to be deleted by caller.
 std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const {
-  if (obs.namePtr() != _observable->namePtr()) {
+  if (obs.nameHash() != _observable->nameHash()) {
     coutE(Plotting) << "RooBinSamplingPdf::binBoundaries(" << GetName() << "): observable '" << obs.GetName()
         << "' is not the observable of this PDF ('" << _observable->GetName() << "')." << std::endl;
     return nullptr;
@@ -233,7 +233,7 @@ std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, Doubl
 /// \param[in] xhi End of range to create sampling hint for.
 /// \return Pointer to a list to be deleted by caller.
 std::list<double>* RooBinSamplingPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const {
-  if (obs.namePtr() != _observable->namePtr()) {
+  if (obs.nameHash() != _observable->nameHash()) {
     coutE(Plotting) << "RooBinSamplingPdf::plotSamplingHint(" << GetName() << "): observable '" << obs.GetName()
         << "' is not the observable of this PDF ('" << _observable->GetName() << "')." << std::endl;
     return nullptr;

@@ -564,11 +564,11 @@ void eraseNullptrs(std::vector<T*>& v) {
 void removeCommon(std::vector<RooAbsArg*> &v, std::span<RooAbsArg * const> other) {
 
   for (auto const& arg : other) {
-    auto namePtrMatch = [&arg](const RooAbsArg* elm) {
-      return elm != nullptr && elm->namePtr() == arg->namePtr();
+    auto nameHashMatch = [&arg](const RooAbsArg* elm) {
+      return elm != nullptr && elm->nameHash() == arg->nameHash();
     };
 
-    auto found = std::find_if(v.begin(), v.end(), namePtrMatch);
+    auto found = std::find_if(v.begin(), v.end(), nameHashMatch);
     if(found != v.end()) {
       *found = nullptr;
     }
@@ -579,11 +579,11 @@ void removeCommon(std::vector<RooAbsArg*> &v, std::span<RooAbsArg * const> other
 void addCommon(std::vector<RooAbsArg*> &v, std::vector<RooAbsArg*> const& o1, std::vector<RooAbsArg*> const& o2) {
 
   for (auto const& arg : o1) {
-    auto namePtrMatch = [&arg](const RooAbsArg* elm) {
-      return elm->namePtr() == arg->namePtr();
+    auto nameHashMatch = [&arg](const RooAbsArg* elm) {
+      return elm->nameHash() == arg->nameHash();
     };
 
-    if(std::find_if(o2.begin(), o2.end(), namePtrMatch) != o2.end()) {
+    if(std::find_if(o2.begin(), o2.end(), nameHashMatch) != o2.end()) {
       v.push_back(arg);
     }
   }

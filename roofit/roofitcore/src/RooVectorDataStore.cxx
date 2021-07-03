@@ -1426,14 +1426,14 @@ RooVectorDataStore::RealVector* RooVectorDataStore::addReal(RooAbsReal* real) {
 
   // First try a match by name
   for (auto realVec : _realStoreList) {
-    if (realVec->bufArg()->namePtr()==real->namePtr()) {
+    if (realVec->bufArg()->nameHash()==real->nameHash()) {
       return realVec;
     }
   }
 
   // Then check if an entry already exists for a full real
   for (auto fullVec : _realfStoreList) {
-    if (fullVec->bufArg()->namePtr()==real->namePtr()) {
+    if (fullVec->bufArg()->nameHash()==real->nameHash()) {
       // Return full vector as RealVector base class here
       return fullVec;
     }

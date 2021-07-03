@@ -122,8 +122,8 @@ Bool_t RooHashTable::remove(TObject* arg, TObject* hashArg)
 
   // If we didn't find it by name, see if it might have been renamed
   RooAbsArg* p = dynamic_cast<RooAbsArg*>(arg);
-  //cout << "RooHashTable::remove possibly renamed '" << arg->GetName() << "', kRenamedArg=" << (p&&p->namePtr()->TestBit(RooNameReg::kRenamedArg)) << endl;
-  if (p && !p->namePtr()->TestBit(RooNameReg::kRenamedArg)) return kFALSE;
+  //cout << "RooHashTable::remove possibly renamed '" << arg->GetName() << "', kRenamedArg=" << (p&&p->nameHash()->TestBit(RooNameReg::kRenamedArg)) << endl;
+  if (p && !p->nameHash()->TestBit(RooNameReg::kRenamedArg)) return kFALSE;
 
   // If so, check the whole list
   Int_t i;

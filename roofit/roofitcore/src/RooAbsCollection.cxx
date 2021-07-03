@@ -562,8 +562,8 @@ Bool_t RooAbsCollection::replace(const RooAbsArg& var1, const RooAbsArg& var2)
 
   // replace var1 with var2
   if (_nameToItemMap) {
-    _nameToItemMap->erase((*var1It)->namePtr());
-    (*_nameToItemMap)[var2.namePtr()] = const_cast<RooAbsArg*>(&var2);
+    _nameToItemMap->erase((*var1It)->nameHash());
+    (*_nameToItemMap)[var2.nameHash()] = const_cast<RooAbsArg*>(&var2);
   }
   *var1It = const_cast<RooAbsArg*>(&var2); //FIXME try to get rid of const_cast
 
@@ -611,7 +611,7 @@ Bool_t RooAbsCollection::remove(const RooAbsArg& var, Bool_t , Bool_t matchByNam
   }
 
   if (_nameToItemMap && sizeBefore != _list.size()) {
-    _nameToItemMap->erase(var.namePtr());
+    _nameToItemMap->erase(var.nameHash());
   }
 
   return sizeBefore != _list.size();
@@ -779,7 +779,7 @@ Bool_t RooAbsCollection::equals(const RooAbsCollection& otherColl) const
 
   // Then check that each element of our list also occurs in the other list
   auto compareByNamePtr = [](const RooAbsArg * left, const RooAbsArg * right) {
-    return left->namePtr() == right->namePtr();
+    return left->nameHash() == right->nameHash();
   };
 
   return std::is_permutation(_list.begin(), _list.end(),
@@ -794,7 +794,7 @@ namespace {
 template<class Collection_t>
 RooAbsArg* findUsingNamePointer(const Collection_t& coll, const TNamed* ptr) {
   auto findByNamePtr = [ptr](const RooAbsArg* elm) {
-    return ptr == elm->namePtr();
+    return ptr == elm->nameHash();
   };
 
   auto item = std::find_if(coll.begin(), coll.end(), findByNamePtr);
@@ -828,7 +828,7 @@ RooAbsArg * RooAbsCollection::find(const char *name) const
 /// is returned if no object with the given name is found.
 RooAbsArg * RooAbsCollection::find(const RooAbsArg& arg) const
 {
-  const auto nptr = arg.namePtr();
+  const auto nptr = arg.nameHash();
   RooAbsArg* item = tryFastFind(nptr);
 
   return item ? item : findUsingNamePointer(_list, nptr);
@@ -1473,7 +1473,7 @@ void RooAbsCollection::insert(RooAbsArg* item) {
   }
 
   if (_nameToItemMap) {
-    (*_nameToItemMap)[item->namePtr()] = item;
+    (*_nameToItemMap)[item->nameHash()] = item;
   }
 }
 
@@ -1488,7 +1488,7 @@ void RooAbsCollection::useHashMapForFind(bool flag) const {
   if (flag && !_nameToItemMap) {
     _nameToItemMap.reset(new std::unordered_map<const TNamed*, Storage_t::value_type>());
     for (const auto item : _list) {
-      (*_nameToItemMap)[item->namePtr()] = item;
+      (*_nameToItemMap)[item->nameHash()] = item;
     }
   }
 }
@@ -1500,7 +1500,7 @@ void RooAbsCollection::useHashMapForFind(bool flag) const {
 /// This search is *not guaranteed* to find an existing
 /// element because elements can be renamed while
 /// being stored in the collection.
-RooAbsArg* RooAbsCollection::tryFastFind(const TNamed* namePtr) const {
+RooAbsArg* RooAbsCollection::tryFastFind(const TNamed* nameHash) const {
   if (_list.size() >= _sizeThresholdForMapSearch && !_nameToItemMap) {
     useHashMapForFind(true);
     assert(_nameToItemMap);
@@ -1510,16 +1510,16 @@ RooAbsArg* RooAbsCollection::tryFastFind(const TNamed* namePtr) const {
     return nullptr;
   }
 
-  auto item = _nameToItemMap->find(namePtr);
+  auto item = _nameToItemMap->find(nameHash);
   if (item != _nameToItemMap->end()) {
     // Have an element. Check that it didn't get renamed.
-    if (item->second->namePtr() == item->first) {
+    if (item->second->nameHash() == item->first) {
       return item->second;
     } else {
       // Item has been renamed / replaced.
       _nameToItemMap->erase(item);
-      if (auto arg = findUsingNamePointer(_list, namePtr)) {
-        (*_nameToItemMap)[arg->namePtr()] = arg;
+      if (auto arg = findUsingNamePointer(_list, nameHash)) {
+        (*_nameToItemMap)[arg->nameHash()] = arg;
         return arg;
       }
     }
@@ -1533,7 +1533,7 @@ RooAbsArg* RooAbsCollection::tryFastFind(const TNamed* namePtr) const {
 /// Check that all entries where the collections overlap have the same name.
 bool RooAbsCollection::hasSameLayout(const RooAbsCollection& other) const {
   for (unsigned int i=0; i < std::min(_list.size(), other.size()); ++i) {
-    if (_list[i]->namePtr() != other._list[i]->namePtr())
+    if (_list[i]->nameHash() != other._list[i]->nameHash())
       return false;
   }
 

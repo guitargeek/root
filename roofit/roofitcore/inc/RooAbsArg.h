@@ -206,7 +206,7 @@ public:
   }
   /// Return server of `this` that has the same name as `arg`. Returns `nullptr` if not found.
   inline RooAbsArg* findServer(const RooAbsArg& arg) const {
-    const auto serverIt = _serverList.findByNamePointer(&arg);
+    const auto serverIt = _serverList.findByNameHash(&arg);
     return serverIt != _serverList.end() ? *serverIt : nullptr;
   }
   /// Return i-th server from server list.
@@ -534,14 +534,13 @@ public:
   RooAbsProxy* getProxy(Int_t index) const ;
   Int_t numProxies() const ;
 
-  /// De-duplicated pointer to this object's name.
+  /// Return cached hash of this object's name.
   /// This can be used for fast name comparisons.
-  /// like `if (namePtr() == other.namePtr())`.
-  /// \note TNamed::GetName() will return a pointer that's
-  /// different for each object, but namePtr() always points
-  /// to a unique instance.
-  inline const TNamed* namePtr() const {
-    return _namePtr ;
+  /// like `if (nameHash() == other.nameHash())`.
+  /// \note TNamed::GetName() will return a pointer that's different for each
+  /// object, but the nameHash() is always the same for the same name.
+  inline std::size_t nameHash() const {
+    return _nameHash ;
   }
 
   void SetName(const char* name) ;
@@ -591,6 +590,8 @@ private:
   void addParameters(RooArgSet& params, const RooArgSet* nset=0, Bool_t stripDisconnected=kTRUE) const;
 
   RefCountListLegacyIterator_t * makeLegacyIterator(const RefCountList_t& list) const;
+
+  void updateNameHash() const { _nameHash = std::hash<std::string>()(GetName()); }
 
 
  protected:
@@ -680,21 +681,22 @@ private:
   mutable Bool_t _fast ; // Allow fast access mode in getVal() and proxies
 
   // Owned components
-  RooArgSet* _ownedComponents ; //! Set of owned component
+  RooArgSet* _ownedComponents = nullptr; //! Set of owned component
 
-  mutable Bool_t _prohibitServerRedirect ; //! Prohibit server redirects -- Debugging tool
+  mutable Bool_t _prohibitServerRedirect = false ; //! Prohibit server redirects -- Debugging tool
 
   mutable RooExpensiveObjectCache* _eocache{nullptr}; // Pointer to global cache manager for any expensive components created by this object
 
-  mutable TNamed* _namePtr ; //! De-duplicated name pointer. This will be equal for all objects with the same name.
-  Bool_t _isConstant ; //! Cached isConstant status
+  mutable std::size_t _nameHash; //! An std::hash of the name. This will be equal for all objects with the same name.
+  static std::unordered_set<std::size_t> _nameHashesOfRenamedArgs;
+  bool _isConstant = false ; //! Cached isConstant status
 
-  mutable Bool_t _localNoInhibitDirty ; //! Prevent 'AlwaysDirty' mode for this node
+  mutable bool _localNoInhibitDirty = false ; //! Prevent 'AlwaysDirty' mode for this node
 
 /*   RooArgSet _leafNodeCache ; //! Cached leaf nodes */
 /*   RooArgSet _branchNodeCache //! Cached branch nodes     */
 
-  mutable RooWorkspace *_myws; //! In which workspace do I live, if any
+  mutable RooWorkspace *_myws = nullptr; //! In which workspace do I live, if any
 
   /// \cond Internal
   // Legacy streamers need the following statics:

@@ -403,7 +403,7 @@ void RooLinkedList::Add(TObject* arg, Int_t refCount)
 {
   if (!arg) return ;
 
-  // Only use RooAbsArg::namePtr() in lookup-by-name if all elements have it
+  // Only use RooAbsArg::nameHash() in lookup-by-name if all elements have it
   if (!dynamic_cast<RooAbsArg*>(arg)) _useNptr = kFALSE;
   
   // Add to hash table 
@@ -611,11 +611,11 @@ TObject* RooLinkedList::find(const char* name) const
     if (_useNptr) {
       // See if it might have been renamed
       const TNamed* nptr= RooNameReg::known(name);
-      //cout << "RooLinkedList::find: possibly renamed '" << name << "', kRenamedArg=" << (nptr&&nptr->TestBit(RooNameReg::kRenamedArg)) << endl;
-      if (nptr && nptr->TestBit(RooNameReg::kRenamedArg)) {
+      auto found = RooAbsArg::_nameHashesOfRenamedArgs.find(std::hash<std::string>()(name));
+      if(if found != RooAbsArg::_nameHashesOfRenamedArgs.end()) {
         RooLinkedListElem* ptr = _first ;
         while(ptr) {
-          if ((((RooAbsArg*)ptr->_arg)->namePtr() == nptr)) {
+          if ((((RooAbsArg*)ptr->_arg)->nameHash() == *found)) {
             return ptr->_arg ;
           }
           ptr = ptr->_next ;
@@ -635,7 +635,7 @@ TObject* RooLinkedList::find(const char* name) const
     if (!nptr) return 0;
     
     while(ptr) {
-      if ((((RooAbsArg*)ptr->_arg)->namePtr() == nptr)) {
+      if ((((RooAbsArg*)ptr->_arg)->nameHash() == nptr)) {
 	return ptr->_arg ;
       }
       ptr = ptr->_next ;
@@ -661,15 +661,15 @@ RooAbsArg* RooLinkedList::findArg(const RooAbsArg* arg) const
   if (_htableName) {
     RooAbsArg* a = (RooAbsArg*) (*_htableName)[arg->GetName()] ;
     if (a) return a;
-    //cout << "RooLinkedList::findArg: possibly renamed '" << arg->GetName() << "', kRenamedArg=" << arg->namePtr()->TestBit(RooNameReg::kRenamedArg) << endl;
+    //cout << "RooLinkedList::findArg: possibly renamed '" << arg->GetName() << "', kRenamedArg=" << arg->nameHash()->TestBit(RooNameReg::kRenamedArg) << endl;
     // See if it might have been renamed
-    if (!arg->namePtr()->TestBit(RooNameReg::kRenamedArg)) return 0;
+    if (!arg->nameHash()->TestBit(RooNameReg::kRenamedArg)) return 0;
   }
   
   RooLinkedListElem* ptr = _first ;
-  const TNamed* nptr = arg->namePtr();
+  auto nhash = arg->nameHash();
   while(ptr) {
-    if (((RooAbsArg*)(ptr->_arg))->namePtr() == nptr) {
+    if (((RooAbsArg*)(ptr->_arg))->nameHash() == nhash) {
       return (RooAbsArg*) ptr->_arg ;
     }
     ptr = ptr->_next ;
