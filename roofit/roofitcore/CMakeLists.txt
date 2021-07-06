@@ -11,6 +11,7 @@
 
 ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   HEADERS
+    BatchHelpers.h
     Floats.h
     Roo1DTable.h
     RooAbsAnaConvPdf.h
@@ -232,6 +233,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFitLegacy/RooNameSet.h
     RooFitLegacy/RooTreeData.h
   SOURCES
+    src/BatchHelpers.cxx
     src/BidirMMapPipe.cxx
     src/BidirMMapPipe.h
     src/Roo1DTable.cxx
