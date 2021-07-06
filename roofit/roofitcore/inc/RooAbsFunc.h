@@ -40,6 +40,9 @@ public:
   }
 
   virtual Double_t operator()(const Double_t xvector[]) const = 0;
+  virtual RooSpan<const double> getValues(std::vector<RooSpan<const double>> /*coordinates*/) const {
+    throw std::logic_error("Not implemented.");
+  }
   virtual Double_t getMinLimit(UInt_t dimension) const = 0;
   virtual Double_t getMaxLimit(UInt_t dimension) const = 0;
 
