@@ -318,12 +318,27 @@ Bool_t RooAbsCollection::addServerClonesToList(const RooAbsArg& var)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// The assignment operator sets the value of any argument in our set
-/// that also appears in the other set.
+/// The copy assignment operator redirects to assign(). This is confusing
+/// because it's not a properly implemented copy assignment operator, also
+/// because it's inconsistent with the copy constructor. Unfortunately, it is too
+/// late to change this behaviour now. If possible, please use assign()
+/// explicitly in your code to make the intention clear that you don't want to
+/// make a copy-assignment.
 
 RooAbsCollection &RooAbsCollection::operator=(const RooAbsCollection& other)
 {
-  if (&other==this) return *this ;
+  assign(other);
+  return *this;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Sets the value, cache and constant attribute of any argument in our set
+/// that also appears in the other set.
+
+void RooAbsCollection::assign(const RooAbsCollection& other)
+{
+  if (&other==this) return ;
 
   for (auto elem : _list) {
     auto theirs = other.find(*elem);
@@ -332,24 +347,22 @@ RooAbsCollection &RooAbsCollection::operator=(const RooAbsCollection& other)
     elem->copyCache(theirs) ;
     elem->setAttribute("Constant",theirs->isConstant()) ;
   }
-  return *this;
+  return ;
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
-/// The assignment operator sets the value of any argument in our set
-/// that also appears in the other set.
+/// Sets the value of any argument in our set that also appears in the other set.
 
-RooAbsCollection &RooAbsCollection::assignValueOnly(const RooAbsCollection& other, Bool_t oneSafe)
+void RooAbsCollection::assignValueOnly(const RooAbsCollection& other, bool oneSafe)
 {
-  if (&other==this) return *this ;
+  if (&other==this) return ;
 
   // Short cut for 1 element assignment
   if (getSize()==1 && getSize()==other.getSize() && oneSafe) {
     other.first()->syncCache() ;
     first()->copyCache(other.first(),kTRUE) ;
-    return *this ;
+    return ;
   }
 
   for (auto elem : _list) {
@@ -358,16 +371,16 @@ RooAbsCollection &RooAbsCollection::assignValueOnly(const RooAbsCollection& othe
     theirs->syncCache() ;
     elem->copyCache(theirs,kTRUE) ;
   }
-  return *this;
+  return ;
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Functional equivalent of operator=() but assumes this and other collection
+/// Functional equivalent of assign() but assumes this and other collection
 /// have same layout. Also no attributes are copied
 
-void RooAbsCollection::assignFast(const RooAbsCollection& other, Bool_t setValDirty)
+void RooAbsCollection::assignFast(const RooAbsCollection& other, bool setValDirty)
 {
   if (&other==this) return ;
   assert(_list.size() == other._list.size());
