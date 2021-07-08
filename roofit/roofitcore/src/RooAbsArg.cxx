@@ -1546,23 +1546,30 @@ void RooAbsArg::printAttribList(ostream& os) const
   if (!first) os << "] " ;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Replace server nodes with names matching the collection variable names
+/// with those collection variables, making this PDF directly dependent on the dataset.
+
+void RooAbsArg::attachArgs(const RooAbsCollection &set)
+{
+  RooArgSet branches ;
+  branchNodeServerList(&branches,0,true) ;
+
+  for(auto const& branch : branches) {
+    branch->redirectServers(set,false,false) ;
+  }
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Replace server nodes with names matching the dataset variable names
 /// with those data set variables, making this PDF directly dependent on the dataset.
 
 void RooAbsArg::attachDataSet(const RooAbsData &data)
 {
-  const RooArgSet* set = data.get() ;
-  RooArgSet branches ;
-  branchNodeServerList(&branches,0,kTRUE) ;
-
-  RooFIter iter = branches.fwdIterator() ;
-  RooAbsArg* branch ;
-  while((branch=iter.next())) {
-    branch->redirectServers(*set,kFALSE,kFALSE) ;
-  }
+  attachArgs(*data.get());
 }
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1571,17 +1578,8 @@ void RooAbsArg::attachDataSet(const RooAbsData &data)
 
 void RooAbsArg::attachDataStore(const RooAbsDataStore &dstore)
 {
-  const RooArgSet* set = dstore.get() ;
-  RooArgSet branches ;
-  branchNodeServerList(&branches,0,kTRUE) ;
-
-  RooFIter iter = branches.fwdIterator() ;
-  RooAbsArg* branch ;
-  while((branch=iter.next())) {
-    branch->redirectServers(*set,kFALSE,kFALSE) ;
-  }
+  attachArgs(*dstore.get());
 }
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
