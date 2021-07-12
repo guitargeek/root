@@ -603,7 +603,7 @@ void RooTreeDataStore::loadValues(const RooAbsDataStore *ads, const RooFormulaVa
       continue ;
     }
 
-    _cachedVars = ((RooTreeDataStore*)ads)->_cachedVars ;
+    _cachedVars.assign(((RooTreeDataStore*)ads)->_cachedVars) ;
     fill() ;
   }
 
@@ -1012,12 +1012,12 @@ RooAbsDataStore* RooTreeDataStore::merge(const RooArgSet& allVars, list<RooAbsDa
   for (int i=0 ; i<nevt ; i++) {
 
     // Cope data from self
-    mergedStore->_vars = *get(i) ;
+    mergedStore->_vars.assign(*get(i)) ;
 
     // Copy variables from merge sets
     for (list<RooAbsDataStore*>::iterator iter = dstoreList.begin() ; iter!=dstoreList.end() ; ++iter) {
       const RooArgSet* partSet = (*iter)->get(i) ;
-      mergedStore->_vars = *partSet ;
+      mergedStore->_vars.assign(*partSet) ;
     }
 
     mergedStore->fill() ;
@@ -1035,7 +1035,7 @@ void RooTreeDataStore::append(RooAbsDataStore& other)
 {
   Int_t nevt = other.numEntries() ;
   for (int i=0 ; i<nevt ; i++) {
-    _vars = *other.get(i) ;
+    _vars.assign(*other.get(i)) ;
     if (_wgtVar) {
       _wgtVar->setVal(other.weight()) ;
     }
