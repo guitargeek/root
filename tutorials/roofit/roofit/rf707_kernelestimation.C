@@ -49,7 +49,12 @@ void rf707_kernelestimation()
 
    // Adaptive kernel estimation pdf with increased bandwidth scale factor
    // (promotes smoothness over detail preservation)
-   RooKeysPdf kest3("kest1", "kest1", x, *data1, RooKeysPdf::MirrorBoth, 2);
+   RooKeysPdf kest3("kest3", "kest3", x, *data1, RooKeysPdf::MirrorBoth, 2);
+   TFile *myFile = new TFile("myFile.root","RECREATE");
+   kest1.Write();
+   kest2.Write();
+   kest3.Write();
+   myFile->Close();
 
    // Plot kernel estimation pdfs with and without mirroring over data
    RooPlot *frame = x.frame(Title("Adaptive kernel estimation pdf with and w/o mirroring"), Bins(20));
