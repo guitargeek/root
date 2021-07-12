@@ -45,7 +45,14 @@ public:
   virtual Int_t getMaxVal(const RooArgSet& vars) const;
   virtual Double_t maxVal(Int_t code) const;
 
-  void LoadDataSet( RooDataSet& data);
+  struct Configuration {
+    bool mirrorLeft = false;
+    bool mirrorRight = false;
+    bool asymLeft = false;
+    bool asymRight = false;
+  };
+
+  void LoadDataSet( RooDataSet& data, const char* xName, double rho, RooKeysPdf::Configuration const& cfg);
 
 protected:
 
@@ -57,26 +64,17 @@ private:
   // machine precision
   static const Double_t _nSigma; //!
 
-  Int_t _nEvents;
-  Double_t *_dataPts;  //[_nEvents]
-  Double_t *_dataWgts; //[_nEvents]
-  Double_t *_weights;  //[_nEvents]
-  Double_t _sumWgt ;
-
   enum { _nPoints = 1000 };
-  Double_t _lookupTable[_nPoints+1];
+  double _lookupTable[_nPoints+1];
 
-  Double_t g(Double_t x,Double_t sigma) const;
-
-  Bool_t _mirrorLeft, _mirrorRight;
-  Bool_t _asymLeft, _asymRight;
+  double g(int nEvents, std::vector<double> const& dataPts, double x, double sigma) const;
 
   // cached info on variable
-  Char_t _varName[128];
-  Double_t _lo, _hi, _binWidth;
-  Double_t _rho;
+  double _lo;
+  double _hi;
+  double _binWidth;
 
-  ClassDef(RooKeysPdf,2) // One-dimensional non-parametric kernel estimation p.d.f.
+  ClassDef(RooKeysPdf,3) // One-dimensional non-parametric kernel estimation p.d.f.
 };
 
 #endif
