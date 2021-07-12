@@ -206,13 +206,13 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data, const char* xName, double rho, R
 
   // copy the sorted data set to its final destination
   int _nEvents = tmp.size();
-  std::vector<double >_dataPts;
-  _dataPts.resize(_nEvents);
-  std::vector<double >_dataWgts;
-  _dataWgts.resize(_nEvents);
+  std::vector<double >dataPts;
+  dataPts.resize(_nEvents);
+  std::vector<double >dataWgts;
+  dataWgts.resize(_nEvents);
   for (unsigned i = 0; i < tmp.size(); ++i) {
-    _dataPts[i] = tmp[i].x;
-    _dataWgts[i] = tmp[i].w;
+    dataPts[i] = tmp[i].x;
+    dataWgts[i] = tmp[i].w;
   }
   {
     // free tmp
@@ -226,11 +226,11 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data, const char* xName, double rho, R
   Double_t hmin=h*sigmav*std::sqrt(2.)/10;
   Double_t norm=h*std::sqrt(sigmav)/(2.0*std::sqrt(3.0));
 
-  std::vector<double >_weights;
-  _weights.resize(_nEvents);
+  std::vector<double >weights;
+  weights.resize(_nEvents);
   for(Int_t j=0;j<_nEvents;++j) {
-    _weights[j]=norm/std::sqrt(g(_nEvents, _dataPts, _dataPts[j],h*sigmav));
-    if (_weights[j]<hmin) _weights[j]=hmin;
+    weights[j]=norm/std::sqrt(g(_nEvents, dataPts, dataPts[j],h*sigmav));
+    if (weights[j]<hmin) weights[j]=hmin;
   }
 
   // The idea below is that beyond nSigma sigma, the value of the exponential
@@ -240,17 +240,17 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data, const char* xName, double rho, R
   for (Int_t i=0;i<_nPoints+1;++i) _lookupTable[i] = 0.;
   for(Int_t j=0;j<_nEvents;++j) {
       const Double_t xlo = std::min(_hi,
-         std::max(_lo, _dataPts[j] - _nSigma * _weights[j]));
+         std::max(_lo, dataPts[j] - _nSigma * weights[j]));
       const Double_t xhi = std::max(_lo,
-         std::min(_hi, _dataPts[j] + _nSigma * _weights[j]));
+         std::min(_hi, dataPts[j] + _nSigma * weights[j]));
       if (xlo >= xhi) continue;
-      const Double_t chi2incr = _binWidth / _weights[j] / std::sqrt(2.);
-      const Double_t weightratio = _dataWgts[j] / _weights[j];
+      const Double_t chi2incr = _binWidth / weights[j] / std::sqrt(2.);
+      const Double_t weightratio = dataWgts[j] / weights[j];
       const Int_t binlo = static_cast<Int_t>(std::floor((xlo - _lo) / _binWidth));
       const Int_t binhi = static_cast<Int_t>(_nPoints - std::floor((_hi - xhi) / _binWidth));
       const Double_t x = (Double_t(_nPoints - binlo) * _lo +
          Double_t(binlo) * _hi) / Double_t(_nPoints);
-      Double_t chi = (x - _dataPts[j]) / _weights[j] / std::sqrt(2.);
+      Double_t chi = (x - dataPts[j]) / weights[j] / std::sqrt(2.);
       for (Int_t k = binlo; k <= binhi; ++k, chi += chi2incr) {
      _lookupTable[k] += weightratio * std::exp(- chi * chi);
       }
@@ -258,17 +258,17 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data, const char* xName, double rho, R
   if (cfg.asymLeft) {
       for(Int_t j=0;j<_nEvents;++j) {
      const Double_t xlo = std::min(_hi,
-        std::max(_lo, 2. * _lo - _dataPts[j] + _nSigma * _weights[j]));
+        std::max(_lo, 2. * _lo - dataPts[j] + _nSigma * weights[j]));
      const Double_t xhi = std::max(_lo,
-        std::min(_hi, 2. * _lo - _dataPts[j] - _nSigma * _weights[j]));
+        std::min(_hi, 2. * _lo - dataPts[j] - _nSigma * weights[j]));
      if (xlo >= xhi) continue;
-     const Double_t chi2incr = _binWidth / _weights[j] / std::sqrt(2.);
-     const Double_t weightratio = _dataWgts[j] / _weights[j];
+     const Double_t chi2incr = _binWidth / weights[j] / std::sqrt(2.);
+     const Double_t weightratio = dataWgts[j] / weights[j];
      const Int_t binlo = static_cast<Int_t>(std::floor((xlo - _lo) / _binWidth));
      const Int_t binhi = static_cast<Int_t>(_nPoints - std::floor((_hi - xhi) / _binWidth));
      const Double_t x = (Double_t(_nPoints - binlo) * _lo +
         Double_t(binlo) * _hi) / Double_t(_nPoints);
-     Double_t chi = (x - (2. * _lo - _dataPts[j])) / _weights[j] / std::sqrt(2.);
+     Double_t chi = (x - (2. * _lo - dataPts[j])) / weights[j] / std::sqrt(2.);
      for (Int_t k = binlo; k <= binhi; ++k, chi += chi2incr) {
          _lookupTable[k] -= weightratio * std::exp(- chi * chi);
      }
@@ -277,17 +277,17 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data, const char* xName, double rho, R
   if (cfg.asymRight) {
       for(Int_t j=0;j<_nEvents;++j) {
      const Double_t xlo = std::min(_hi,
-        std::max(_lo, 2. * _hi - _dataPts[j] + _nSigma * _weights[j]));
+        std::max(_lo, 2. * _hi - dataPts[j] + _nSigma * weights[j]));
      const Double_t xhi = std::max(_lo,
-        std::min(_hi, 2. * _hi - _dataPts[j] - _nSigma * _weights[j]));
+        std::min(_hi, 2. * _hi - dataPts[j] - _nSigma * weights[j]));
      if (xlo >= xhi) continue;
-     const Double_t chi2incr = _binWidth / _weights[j] / std::sqrt(2.);
-     const Double_t weightratio = _dataWgts[j] / _weights[j];
+     const Double_t chi2incr = _binWidth / weights[j] / std::sqrt(2.);
+     const Double_t weightratio = dataWgts[j] / weights[j];
      const Int_t binlo = static_cast<Int_t>(std::floor((xlo - _lo) / _binWidth));
      const Int_t binhi = static_cast<Int_t>(_nPoints - std::floor((_hi - xhi) / _binWidth));
      const Double_t x = (Double_t(_nPoints - binlo) * _lo +
         Double_t(binlo) * _hi) / Double_t(_nPoints);
-     Double_t chi = (x - (2. * _hi - _dataPts[j])) / _weights[j] / std::sqrt(2.);
+     Double_t chi = (x - (2. * _hi - dataPts[j])) / weights[j] / std::sqrt(2.);
      for (Int_t k = binlo; k <= binhi; ++k, chi += chi2incr) {
          _lookupTable[k] -= weightratio * std::exp(- chi * chi);
      }
