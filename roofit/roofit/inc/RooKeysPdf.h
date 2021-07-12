@@ -20,6 +20,8 @@
 #include "RooAbsPdf.h"
 #include "RooRealProxy.h"
 
+#include <vector>
+
 class RooRealVar;
 
 class RooKeysPdf : public RooAbsPdf {
@@ -56,7 +58,14 @@ public:
   Int_t getMaxVal(const RooArgSet& vars) const override;
   double maxVal(Int_t code) const override;
 
-  void LoadDataSet( RooDataSet& data);
+  struct Configuration {
+    bool mirrorLeft = false;
+    bool mirrorRight = false;
+    bool asymLeft = false;
+    bool asymRight = false;
+  };
+
+  void LoadDataSet( RooDataSet& data, const char* xName, double rho, RooKeysPdf::Configuration const& cfg);
 
 protected:
 
@@ -68,28 +77,17 @@ private:
   // machine precision
   static const double _nSigma; ///<!
 
-  Int_t _nEvents = 0;
-  double *_dataPts = nullptr;  //[_nEvents]
-  double *_dataWgts = nullptr; //[_nEvents]
-  double *_weights = nullptr;  //[_nEvents]
-  double _sumWgt = 0.0;
-
   constexpr static int _nPoints{1000};
   double _lookupTable[_nPoints+1];
 
-  double g(double x,double sigma) const;
-
-  bool _mirrorLeft = false;
-  bool _mirrorRight = false;
-  bool _asymLeft = false;
-  bool _asymRight = false;
+  double g(std::vector<double> const& dataPts, double x, double sigma) const;
 
   // cached info on variable
-  Char_t _varName[128];
-  double _lo, _hi, _binWidth;
-  double _rho;
+  double _lo;
+  double _hi;
+  double _binWidth;
 
-  ClassDefOverride(RooKeysPdf,2) // One-dimensional non-parametric kernel estimation p.d.f.
+  ClassDefOverride(RooKeysPdf,3) // One-dimensional non-parametric kernel estimation p.d.f.
 };
 
 #endif
