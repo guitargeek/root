@@ -48,6 +48,7 @@ public:
   RooKeysPdf(const char *name, const char *title,
              RooAbsReal& x, RooRealVar& xdata, RooDataSet& data, Mirror mirror= NoMirror,
         double rho=1);
+  RooKeysPdf(const char *name, const char *title, RooAbsRealLValue& x, double const* lookupTable);
   RooKeysPdf(const RooKeysPdf& other, const char* name=nullptr);
   TObject* clone(const char* newname=nullptr) const override {return new RooKeysPdf(*this,newname); }
   ~RooKeysPdf() override;
@@ -66,6 +67,11 @@ public:
   };
 
   void LoadDataSet( RooDataSet& data, const char* xName, double rho, RooKeysPdf::Configuration const& cfg);
+
+  /// Returns pointer to the beginning of the lookup table that defines this RooKeysPdf.
+  double const* lookupTable() const { return _lookupTable; }
+  /// Returns the number of points used for the lookup table of this RooKeysPdf.
+  int nPoints() const { return _nPoints; }
 
 protected:
 
