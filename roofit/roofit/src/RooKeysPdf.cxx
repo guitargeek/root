@@ -114,6 +114,27 @@ RooKeysPdf::RooKeysPdf(const char *name, const char *title,
   TRACE_CREATE
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Create a RooKeysPdf directly from a lookup table that defines a RooKeysPdf.
+
+RooKeysPdf::RooKeysPdf(const char *name, const char *title, RooAbsRealLValue& x, double const* lookupTable)
+  : RooAbsPdf(name,title), _x("x","Observable",this,x)
+{
+  // cache stuff about x
+  _lo = x.getMin();
+  _hi = x.getMax();
+  _binWidth = (_hi-_lo)/(_nPoints-1);
+
+  // copy over the lookup table
+  for (int i= 0; i<_nPoints+1; i++) {
+    _lookupTable[i]= lookupTable[i];
+  }
+
+  TRACE_CREATE
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 RooKeysPdf::RooKeysPdf(const RooKeysPdf& other, const char* name):
@@ -124,8 +145,9 @@ RooKeysPdf::RooKeysPdf(const RooKeysPdf& other, const char* name):
   _binWidth = other._binWidth;
 
   // copy over the lookup table
-  for (Int_t i= 0; i<_nPoints+1; i++)
+  for (int i= 0; i<_nPoints+1; i++) {
     _lookupTable[i]= other._lookupTable[i];
+  }
 
   TRACE_CREATE
 }
