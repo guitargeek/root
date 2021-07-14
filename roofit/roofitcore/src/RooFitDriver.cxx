@@ -146,6 +146,7 @@ double RooFitDriver::getVal()
       if (auto pAbsPdf = dynamic_cast<const RooAbsPdf*>(node))
       {
         if(pAbsPdf) {
+          // TODO: the integral might be different for every event in a conditional fit
           auto integral = pAbsPdf->getIntegral(*_data->get());
           normVal = integral->getVal();
           dataMap[integral] = RooSpan<const double>(&normVal,1);

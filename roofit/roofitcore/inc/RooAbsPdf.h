@@ -205,6 +205,8 @@ public:
       const RooArgSet* normSet = nullptr) const;
   RooSpan<const double> getLogProbabilities(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet = nullptr) const;
 
+  void computeBatch(double* output, size_t size, rbc::DataMap& dataMap) const;
+
   /// \copydoc getNorm(const RooArgSet*) const
   Double_t getNorm(const RooArgSet& nset) const { 
     return getNorm(&nset) ; 
@@ -368,6 +370,8 @@ private:
   
   ClassDef(RooAbsPdf,4) // Abstract PDF with normalization support
 };
+
+
 
 
 #endif
