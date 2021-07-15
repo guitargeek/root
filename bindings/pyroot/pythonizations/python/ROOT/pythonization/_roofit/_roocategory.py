@@ -51,6 +51,6 @@ class RooCategory(object):
         for i, elem in enumerate(args):
             if isinstance(elem, dict):
                 args = list(args)
-                args[i] = _dict_to_std_map(elem, "string, int")
+                args[i] = _dict_to_std_map(elem)
 
         self._init(*args, **kwargs)

@@ -126,7 +126,7 @@ def Slice(*args, **kwargs):
     for i, arg_dict in enumerate(args):
         if isinstance(arg_dict, dict):
             args = list(args)
-            args[i] = _dict_to_std_map(arg_dict, "RooCategory*, std::string")
+            args[i] = _dict_to_std_map(arg_dict)
 
     return RooFit._Slice(*args, **kwargs)
 
@@ -140,30 +140,10 @@ def Import(*args, **kwargs):
     def all_values_of_class(d, klass):
         return all([isinstance(v, klass) for v in d.values()])
 
-    def _get_template_args(import_dict):
-        import ROOT
-
-        if all_values_of_class(import_dict, ROOT.RooDataSet):
-            value_class_name = "RooDataSet"
-        elif all_values_of_class(import_dict, ROOT.RooDataHist):
-            value_class_name = "RooDataHist"
-        elif all_values_of_class(import_dict, ROOT.TH1):
-            value_class_name = "TH1"
-        else:
-            raise TypeError(
-                """Unsupported value types in dictionary passed to RooFit.Import(import_dict). The imported objects need to be either:
-                * all instances of RooDataSet
-                * all instances of RooDataHist
-                * all instances of TH1"""
-            )
-
-        return "std::string," + value_class_name + "*"
-
     for i, arg_dict in enumerate(args):
         if isinstance(arg_dict, dict):
-            template_arg = _get_template_args(arg_dict)
             args = list(args)
-            args[i] = _dict_to_std_map(arg_dict, template_arg)
+            args[i] = _dict_to_std_map(arg_dict)
 
     args, kwargs = _kwargs_to_roocmdargs(*args, **kwargs)
     return RooFit._Import(*args, **kwargs)
@@ -178,7 +158,7 @@ def Link(*args, **kwargs):
     for i, arg_dict in enumerate(args):
         if isinstance(arg_dict, dict):
             args = list(args)
-            args[i] = _dict_to_std_map(arg_dict, "std::string, RooAbsData*")
+            args[i] = _dict_to_std_map(arg_dict)
 
     return RooFit._Link(*args, **kwargs)
 

@@ -81,15 +81,73 @@ def _string_to_root_attribute(value, lookup_map):
         return value
 
 
-def _dict_to_std_map(arg_dict, template_arg):
+# def _dict_to_std_map(arg_dict, allowed_key_types, allowed_value_types):
+def _dict_to_std_map(arg_dict):
     """Helper function to convert python dict to std::map."""
     import ROOT
+
+    allowed_key_types = ["std::string", "RooCategory*"]
+    allowed_value_types = ["RooDataSet*", "RooDataHist*", "TH1*", "std::string", "int"]
+
+    def all_of_class(d, type, check_key):
+        return all([isinstance(key if check_key else value, type) for key, value in d.items()])
+
+    def get_python_class(cpp_type_name):
+
+        cpp_type_name = cpp_type_name.replace("*", "")
+
+        if cpp_type_name in ["std::string", "string"]:
+            return str
+        if cpp_type_name == "int":
+            return int
+
+        # otherwise try to get class from the ROOT namespace
+        return getattr(ROOT, cpp_type_name)
+
+    def get_template_args(import_dict):
+
+        key_type = None
+        value_type = None
+
+        for typename in allowed_key_types:
+            if all_of_class(import_dict, get_python_class(typename), True):
+                key_type = typename
+
+        for typename in allowed_value_types:
+            if all_of_class(import_dict, get_python_class(typename), False):
+                value_type = typename
+
+        def get_python_typenames(typenames):
+            return [get_python_class(t).__name__ for t in typenames]
+
+        def prettyprint_str_list(l):
+            if len(l) == 1:
+                return l[0]
+            if len(l) == 2:
+                return l[0] + " or " + l[1]
+            return ", ".join(l[:-1]) + ", or " + l[-1]
+
+        if key_type is None:
+            raise TypeError(
+                "All dictionary keys must be of the same type, which can be either "
+                + prettyprint_str_list(get_python_typenames(allowed_key_types))
+                + "."
+            )
+
+        if value_type is None:
+            raise TypeError(
+                "All dictionary values must be of the same type, which can be either "
+                + prettyprint_str_list(get_python_typenames(allowed_value_types))
+                + "."
+            )
+
+        return key_type + "," + value_type
 
     # The std::map created by this function usually contains non-owning pointers as values.
     # This is not considered by Pythons reference counter. To ensure that the pointed-to objects
     # live at least as long as the std::map, a python list containing references to these objects
     # is added as an attribute to the std::map.
-    arg_map = ROOT.std.map[template_arg]()
+    arg_map = ROOT.std.map[get_template_args(arg_dict)]()
     arg_map.keepalive = list()
     for key, value in arg_dict.items():
         arg_map.keepalive.append(value)
