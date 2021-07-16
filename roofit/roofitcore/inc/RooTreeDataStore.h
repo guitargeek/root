@@ -141,6 +141,9 @@ public:
   const RooArgSet& row() { return _varsww ; }
 
   RooAbsDataCache * cache() const;
+  const RooArgSet& cachedVars() const { return _cachedVars; }
+  virtual void recalculateCache(const RooArgSet* , int , int , int , bool ) {}
+  virtual void setCacheDirtyProp(Bool_t /*flag*/) {}
 
  private:
 
@@ -181,6 +184,7 @@ public:
   mutable Double_t  _curWgtErr ;   // Weight of current event
 
   RooArgSet _attachedBuffers ; //! Currently attached buffers (if different from _varsww)
+  RooArgSet _cachedVars; //!
 
   ClassDef(RooTreeDataStore, 2) // TTree-based Data Storage class
 };

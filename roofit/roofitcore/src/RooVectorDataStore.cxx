@@ -1177,21 +1177,6 @@ void RooVectorDataStore::resetCache()
 }
 
 
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Disabling of branches is (intentionally) not implemented in vector
-/// data stores (as the doesn't result in a net saving of time)
-
-void RooVectorDataStore::setArgStatus(const RooArgSet& /*set*/, Bool_t /*active*/) 
-{
-  return ;
-}
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 
 void RooVectorDataStore::attachBuffers(const RooArgSet& extObs) 
