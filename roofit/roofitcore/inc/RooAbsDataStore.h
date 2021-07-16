@@ -33,20 +33,21 @@ namespace RooBatchCompute {
 struct RunContext;
 }
 
+
 class RooAbsDataCache {
 public:
-  // Constant term  optimizer interface
+  // Constant term optimizer interface
   virtual void cacheArgs(const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kFALSE) = 0 ;
   virtual const RooAbsArg* cacheOwner() = 0 ;
   virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) = 0 ;
-  const RooArgSet& cachedVars() const { return _cachedVars ; }
+  virtual const RooArgSet& cachedVars() const = 0 ;
   virtual void resetCache() = 0 ;
-  virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, Bool_t /* skipZeroWeights*/) {} ;
+  virtual void recalculateCache(const RooArgSet* proj, int firstEvent, int lastEvent, int stepSize, bool skipZeroWeights) = 0;
   virtual void forceCacheUpdate() {} ;
-  virtual bool hasFilledCache() const { return kFALSE ; }
-protected:
-  RooArgSet _cachedVars;
+  virtual bool hasFilledCache() const { return false ; }
+  virtual void setCacheDirtyProp(bool flag) = 0;
 };
+
 
 class RooAbsDataStore : public TNamed, public RooPrintable {
 public:
@@ -131,9 +132,12 @@ public:
   /// Define default print options, for a given print style
   int defaultPrintContents(Option_t* /*opt*/) const override { return kName|kClassName|kArgs|kValue ; }
 
-  virtual void setArgStatus(const RooArgSet& set, Bool_t active) = 0 ;
+  virtual void setArgStatus(const RooArgSet& /*set*/, Bool_t /*active*/) {}
 
-  virtual void setDirtyProp(Bool_t flag) { _doDirtyProp = flag ; }
+  void setDirtyProp(Bool_t flag) {
+    _doDirtyProp = flag ;
+    cache()->setCacheDirtyProp(flag);
+  }
   bool dirtyProp() const { return _doDirtyProp ; }
 
   virtual void checkInit() const {} ;

@@ -137,8 +137,6 @@ public:
   virtual void resetCache() override;
   virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, Bool_t skipZeroWeights) override;
 
-  virtual void setArgStatus(const RooArgSet& set, Bool_t active) override;
-
   void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=0, const char* rangeName=0, std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max()) override;
   
   void dump() override;
@@ -149,13 +147,6 @@ public:
     _extWgtErrLoArray = arrayWgtErrLo ;
     _extWgtErrHiArray = arrayWgtErrHi ;
     _extSumW2Array = arraySumW2 ;
-  }
-
-  virtual void setDirtyProp(Bool_t flag) override {
-    _doDirtyProp = flag ; 
-    if (_cache) {
-      _cache->setDirtyProp(flag) ;
-    }
   }
 
   const RooArgSet& row() { return _varsww ; }
@@ -596,6 +587,17 @@ public:
   } ;
   
   RooAbsDataCache * cache() const override;
+  const RooArgSet& cachedVars() const override {
+    if(_cache) return *_cache->get();
+    static const RooArgSet empty{};
+    return empty;
+  }
+  virtual void setCacheDirtyProp(Bool_t flag) override {
+    if (_cache) {
+      _cache->setDirtyProp(flag) ;
+    }
+  }
+
 
  protected:
 
