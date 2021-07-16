@@ -36,7 +36,7 @@ class RooArgSet ;
 
 #define VECTOR_BUFFER_SIZE 1024
 
-class RooVectorDataStore : public RooAbsDataStore {
+class RooVectorDataStore : public RooAbsCachingDataStore {
 public:
 
   RooVectorDataStore() ; 
@@ -138,8 +138,6 @@ public:
   virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, Bool_t skipZeroWeights) override;
 
   virtual void setArgStatus(const RooArgSet& set, Bool_t active) override;
-
-  const RooVectorDataStore* cache() const { return _cache ; }
 
   void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=0, const char* rangeName=0, std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max()) override;
   
@@ -597,6 +595,7 @@ public:
     ClassDef(CatVector,2) // STL-vector-based Data Storage class
   } ;
   
+  RooAbsDataCache * cache() const override;
 
  protected:
 

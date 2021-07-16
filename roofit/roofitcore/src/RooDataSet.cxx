@@ -837,8 +837,6 @@ RooDataSet::RooDataSet(std::string_view name, std::string_view title, RooDataSet
         nStop, copyCache, wgtVarName);
   }
 
-   _cachedVars.add(_dstore->cachedVars());
-
    appendToDir(this, kTRUE);
    initialize(dset->_wgtVar ? dset->_wgtVar->GetName() : 0);
    TRACE_CREATE
@@ -866,7 +864,7 @@ RooAbsData* RooDataSet::cacheClone(const RooAbsArg* newCacheOwner, const RooArgS
   RooDataSet* dset = new RooDataSet(newName?newName:GetName(),GetTitle(),this,_vars,(RooFormulaVar*)0,0,0,2000000000,kTRUE,_wgtVar?_wgtVar->GetName():0) ;  
   //if (_wgtVar) dset->setWeightVar(_wgtVar->GetName()) ;
 
-  RooArgSet* selCacheVars = (RooArgSet*) newCacheVars->selectCommon(dset->_cachedVars) ;
+  auto selCacheVars = (RooArgSet*) newCacheVars->selectCommon(dset->cache()->cachedVars()) ;
   dset->attachCache(newCacheOwner, *selCacheVars) ;
   delete selCacheVars ;
 

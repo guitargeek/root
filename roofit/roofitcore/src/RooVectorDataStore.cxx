@@ -76,7 +76,7 @@ RooVectorDataStore::RooVectorDataStore() :
 ////////////////////////////////////////////////////////////////////////////////
 
 RooVectorDataStore::RooVectorDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _varsww(vars),
   _wgtVar(weightVar(vars,wgtVarName)),
   _sumWeight(0),
@@ -157,7 +157,7 @@ RooRealVar* RooVectorDataStore::weightVar(const RooArgSet& allVars, const char* 
 /// Regular copy ctor
 
 RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const char* newname) :
-  RooAbsDataStore(other,newname), 
+  RooAbsCachingDataStore(other,newname), 
   _varsww(other._varsww),
   _wgtVar(other._wgtVar),
   _sumWeight(other._sumWeight),
@@ -192,7 +192,7 @@ RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const ch
 ////////////////////////////////////////////////////////////////////////////////
 
 RooVectorDataStore::RooVectorDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname) :
-  RooAbsDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
+  RooAbsCachingDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
   _varsww(vars),
   _wgtVar(weightVar(vars,other._wgtVar?other._wgtVar->GetName():0)),
   _sumWeight(0),
@@ -228,7 +228,7 @@ RooVectorDataStore::RooVectorDataStore(const RooTreeDataStore& other, const RooA
 /// Clone ctor, must connect internal storage to given new external set of vars
 
 RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const RooArgSet& vars, const char* newname) :
-  RooAbsDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
+  RooAbsCachingDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
   _varsww(vars),
   _wgtVar(other._wgtVar?weightVar(vars,other._wgtVar->GetName()):0),
   _sumWeight(other._sumWeight),
@@ -289,7 +289,7 @@ RooVectorDataStore::RooVectorDataStore(std::string_view name, std::string_view t
 			 const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
 			 std::size_t nStart, std::size_t nStop, Bool_t /*copyCache*/, const char* wgtVarName) :
 
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _varsww(vars),
   _wgtVar(weightVar(vars,wgtVarName)),
   _sumWeight(0),
@@ -1485,3 +1485,6 @@ RooVectorDataStore::RealFullVector* RooVectorDataStore::addRealFull(RooAbsReal* 
 
   return _realfStoreList.back() ;
 }
+
+
+RooAbsDataCache * RooVectorDataStore::cache() const { return const_cast<RooVectorDataStore *>(this);}

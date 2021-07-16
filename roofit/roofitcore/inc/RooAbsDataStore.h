@@ -33,6 +33,20 @@ namespace RooBatchCompute {
 struct RunContext;
 }
 
+class RooAbsDataCache {
+public:
+  // Constant term  optimizer interface
+  virtual void cacheArgs(const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kFALSE) = 0 ;
+  virtual const RooAbsArg* cacheOwner() = 0 ;
+  virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) = 0 ;
+  const RooArgSet& cachedVars() const { return _cachedVars ; }
+  virtual void resetCache() = 0 ;
+  virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, Bool_t /* skipZeroWeights*/) {} ;
+  virtual void forceCacheUpdate() {} ;
+  virtual bool hasFilledCache() const { return kFALSE ; }
+protected:
+  RooArgSet _cachedVars;
+};
 
 class RooAbsDataStore : public TNamed, public RooPrintable {
 public:
@@ -115,24 +129,14 @@ public:
   void printMultiline(std::ostream& os, Int_t content, Bool_t verbose, TString indent) const override;
 
   /// Define default print options, for a given print style
-  virtual int defaultPrintContents(Option_t* /*opt*/) const override { return kName|kClassName|kArgs|kValue ; }
-   
+  int defaultPrintContents(Option_t* /*opt*/) const override { return kName|kClassName|kArgs|kValue ; }
 
-  // Constant term  optimizer interface
-  virtual void cacheArgs(const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kFALSE) = 0 ;
-  virtual const RooAbsArg* cacheOwner() = 0 ;
-  virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) = 0 ;
   virtual void setArgStatus(const RooArgSet& set, Bool_t active) = 0 ;
-  const RooArgSet& cachedVars() const { return _cachedVars ; }
-  virtual void resetCache() = 0 ;
-  virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, Bool_t /* skipZeroWeights*/) {} ;
 
   virtual void setDirtyProp(Bool_t flag) { _doDirtyProp = flag ; }
-  Bool_t dirtyProp() const { return _doDirtyProp ; }
+  bool dirtyProp() const { return _doDirtyProp ; }
 
   virtual void checkInit() const {} ;
-  
-  virtual Bool_t hasFilledCache() const { return kFALSE ; }
   
   virtual const TTree* tree() const { return 0 ; }
   virtual void dump() {} 
@@ -140,16 +144,20 @@ public:
   virtual void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=0, const char* rangeName=0,
       std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max()) = 0 ;
 
-  virtual void forceCacheUpdate() {} ;
+  virtual RooAbsDataCache * cache() const = 0;
   
  protected:
 
   RooArgSet _vars;
-  RooArgSet _cachedVars;
 
   Bool_t _doDirtyProp = true; // Switch do (de)activate dirty state propagation when loading a data point
 
-  ClassDefOverride(RooAbsDataStore,1) // Abstract Data Storage class
+  ClassDefOverride(RooAbsDataStore,2) // Abstract Data Storage class
+};
+
+
+class RooAbsCachingDataStore : public RooAbsDataStore, public RooAbsDataCache {
+  using RooAbsDataStore::RooAbsDataStore;
 };
 
 

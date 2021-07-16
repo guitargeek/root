@@ -32,7 +32,7 @@ class RooFormulaVar ;
 class RooArgSet ;
 
 
-class RooTreeDataStore : public RooAbsDataStore {
+class RooTreeDataStore : public RooAbsCachingDataStore {
 public:
 
   RooTreeDataStore() ; 
@@ -139,6 +139,8 @@ public:
   }
   
   const RooArgSet& row() { return _varsww ; }
+
+  RooAbsDataCache * cache() const;
 
  private:
 

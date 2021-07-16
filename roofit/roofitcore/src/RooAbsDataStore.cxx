@@ -52,7 +52,7 @@ void RooAbsDataStore::printMultiline(std::ostream& os, Int_t /*content*/, Bool_t
     _vars.printStream(os,kName|kValue|kExtras|kTitle,kVerbose,indent+"  ") ;
   }
 
-  if(verbose && !_cachedVars.empty()) {
-    os << indent << "  Caches " << _cachedVars << std::endl ;
+  if(verbose && !cache()->cachedVars().empty()) {
+    os << indent << "  Caches " << cache()->cachedVars() << std::endl ;
   }
 }

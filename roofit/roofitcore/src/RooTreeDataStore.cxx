@@ -90,7 +90,7 @@ RooTreeDataStore::RooTreeDataStore() :
 /// Constructor to facilitate reading of legacy RooDataSets
 
 RooTreeDataStore::RooTreeDataStore(TTree* t, const RooArgSet& vars, const char* wgtVarName) :
-  RooAbsDataStore("blah","blah",varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore("blah","blah",varsNoWeight(vars,wgtVarName)),
   _tree(t),
   _cacheTree(0),
   _cacheOwner(0),
@@ -107,7 +107,7 @@ RooTreeDataStore::RooTreeDataStore(TTree* t, const RooArgSet& vars, const char* 
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _tree(0),
   _cacheTree(0),
   _cacheOwner(0),
@@ -128,7 +128,7 @@ RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, TTree& t, const RooFormulaVar& select, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _tree(0),
   _cacheTree(0),
   _cacheOwner(0),
@@ -149,7 +149,7 @@ RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, TTree& t, const char* selExpr, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _tree(0),
   _cacheTree(0),
   _cacheOwner(0),
@@ -177,7 +177,7 @@ RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const RooAbsDataStore& tds, const RooFormulaVar& select, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _tree(0),
   _cacheTree(0),
   _cacheOwner(0),
@@ -198,7 +198,7 @@ RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const RooAbsDataStore& ads, const char* selExpr, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)),
   _tree(0),
   _cacheTree(0),
   _cacheOwner(0),
@@ -229,7 +229,7 @@ RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title
 RooTreeDataStore::RooTreeDataStore(std::string_view name, std::string_view title, RooAbsDataStore& tds,
 			 const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
 			 Int_t nStart, Int_t nStop, Bool_t /*copyCache*/, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)), _defCtor(kFALSE),
+  RooAbsCachingDataStore(name,title,varsNoWeight(vars,wgtVarName)), _defCtor(kFALSE),
   _varsww(vars),
   _wgtVar(weightVar(vars,wgtVarName)),
   _curWgt(1),
@@ -328,7 +328,7 @@ void RooTreeDataStore::attachCache(const RooAbsArg* newOwner, const RooArgSet& c
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(const RooTreeDataStore& other, const char* newname) :
-  RooAbsDataStore(other,newname),
+  RooAbsCachingDataStore(other,newname),
   _tree(0),
   _cacheTree(0),
   _defCtor(kFALSE),
@@ -351,7 +351,7 @@ RooTreeDataStore::RooTreeDataStore(const RooTreeDataStore& other, const char* ne
 ////////////////////////////////////////////////////////////////////////////////
 
 RooTreeDataStore::RooTreeDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname) :
-  RooAbsDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
+  RooAbsCachingDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
   _tree(0),
   _cacheTree(0),
   _defCtor(kFALSE),
@@ -1388,3 +1388,6 @@ RooSpan<const double> RooTreeDataStore::getWeightBatch(std::size_t first, std::s
 
   return {_weightBuffer->data() + first, len};
 }
+
+
+RooAbsDataCache * RooTreeDataStore::cache() const { return const_cast<RooTreeDataStore*>(this);}
