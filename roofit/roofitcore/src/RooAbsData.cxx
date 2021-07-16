@@ -185,7 +185,6 @@ RooAbsData::RooAbsData()
 RooAbsData::RooAbsData(std::string_view name, std::string_view title, const RooArgSet& vars, RooAbsDataStore* dstore) :
   TNamed(TString{name},TString{title}),
   _vars("Dataset Variables"),
-  _cachedVars("Cached Variables"),
   _dstore(dstore)
 {
    if (dynamic_cast<RooTreeDataStore *>(dstore)) {
@@ -223,8 +222,7 @@ RooAbsData::RooAbsData(std::string_view name, std::string_view title, const RooA
 
 RooAbsData::RooAbsData(const RooAbsData& other, const char* newname) :
   TNamed(newname?newname:other.GetName(),other.GetTitle()),
-  RooPrintable(other), _vars(),
-  _cachedVars("Cached Variables")
+  RooPrintable(other), _vars()
 {
   //cout << "created dataset " << this << endl ;
   claimVars(this) ;
@@ -394,28 +392,11 @@ const RooArgSet* RooAbsData::get(Int_t index) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Internal method -- Cache given set of functions with data
-
-void RooAbsData::cacheArgs(const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset, Bool_t skipZeroWeights)
-{
-  _dstore->cacheArgs(cacheOwner,varSet,nset,skipZeroWeights) ;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Internal method -- Remove cached function values
-
-void RooAbsData::resetCache()
-{
-  _dstore->resetCache() ;
-  _cachedVars.removeAll() ;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// Internal method -- Attach dataset copied with cache contents to copied instances of functions
 
 void RooAbsData::attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars)
 {
-  _dstore->attachCache(newOwner, cachedVars) ;
+  cache()->attachCache(newOwner, cachedVars) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2367,13 +2348,6 @@ void RooAbsData::Draw(Option_t* option)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-Bool_t RooAbsData::hasFilledCache() const
-{
-  return _dstore->hasFilledCache() ;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// Return a pointer to the TTree which stores the data. Returns a nullpointer
 /// if vector-based storage is used. The RooAbsData remains owner of the tree.
 /// GetClonedTree() can be used to get a tree even if the internal storage does not use one.
@@ -2446,3 +2420,6 @@ void RooAbsData::setGlobalObservables(RooArgSet const& globalObservables) {
     if(auto lval = dynamic_cast<RooAbsCategoryLValue*>(arg)) lval->setConstant(true);
   }
 }
+
+RooAbsDataCache* RooAbsData::cache() { return _dstore->cache() ; }
+const RooAbsDataCache* RooAbsData::cache() const { return _dstore->cache() ; }

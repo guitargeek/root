@@ -40,6 +40,7 @@ class TH1;
 class TH2F;
 class RooAbsBinning ;
 class Roo1DTable ;
+class RooAbsDataCache ;
 class RooAbsDataStore ;
 template<typename T> class TMatrixTSym;
 using TMatrixDSym = TMatrixTSym<Double_t>;
@@ -100,6 +101,8 @@ public:
 
   RooAbsDataStore* store() { return _dstore ; }
   const RooAbsDataStore* store() const { return _dstore ; }
+  RooAbsDataCache* cache();
+  const RooAbsDataCache* cache() const;
   const TTree* tree() const ;
   TTree *GetClonedTree() const;
 
@@ -291,8 +294,6 @@ public:
 
   virtual void RecursiveRemove(TObject *obj);
 
-  Bool_t hasFilledCache() const ; 
-
   void addOwnedComponent(const char* idxlabel, RooAbsData& data) ;
   static void claimVars(RooAbsData*) ;
   static Bool_t releaseVars(RooAbsData*) ;
@@ -338,8 +339,6 @@ protected:
   // for access into copied dataset:
   friend class RooFit::TestStatistics::RooAbsL;
 
-  virtual void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kFALSE) ;
-  virtual void resetCache() ;
   virtual void setArgStatus(const RooArgSet& set, Bool_t active) ;
   virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) ;
 
@@ -351,7 +350,6 @@ protected:
 
   // Column structure definition
   RooArgSet _vars;         // Dimensions of this data set
-  RooArgSet _cachedVars ;  //! External variables cached with this data set
 
   RooAbsDataStore* _dstore ; // Data storage implementation
 

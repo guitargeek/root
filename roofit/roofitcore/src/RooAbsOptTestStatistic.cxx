@@ -506,7 +506,7 @@ void RooAbsOptTestStatistic::constOptimizeTestStatistic(ConstOpCode opcode, Bool
   RooAbsTestStatistic::constOptimizeTestStatistic(opcode,doAlsoTrackingOpt);
   if (operMode()!=Slave) return ;
   
-  if (_dataClone->hasFilledCache() && _dataClone->store()->cacheOwner()!=this) {
+  if (_dataClone->cache()->hasFilledCache() && _dataClone->cache()->cacheOwner()!=this) {
     if (opcode==Activate) {
       cxcoutW(Optimization) << "RooAbsOptTestStatistic::constOptimize(" << GetName() 
 			    << ") dataset cache is owned by another object, no constant term optimization can be applied" << endl ;
@@ -522,7 +522,7 @@ void RooAbsOptTestStatistic::constOptimizeTestStatistic(ConstOpCode opcode, Bool
     return ;
   }
 
-  if (_dataClone->hasFilledCache() && opcode==Activate) {
+  if (_dataClone->cache()->hasFilledCache() && opcode==Activate) {
     opcode=ValueChange ;
   }
 
@@ -552,7 +552,7 @@ void RooAbsOptTestStatistic::constOptimizeTestStatistic(ConstOpCode opcode, Bool
     cxcoutI(Optimization) << "RooAbsOptTestStatistic::constOptimize(" << GetName() 
 			  << ") the value of one ore more constant parameter were changed re-evaluating constant term optimization" << endl ;
     // Request a forcible cache update of all cached nodes
-    _dataClone->store()->forceCacheUpdate() ;
+    _dataClone->cache()->forceCacheUpdate() ;
 
     break ;
   }
@@ -652,7 +652,7 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
     _funcClone->findConstantNodes(*_dataClone->get(),_cachedNodes) ;
 
     // Cache constant nodes with dataset - also cache entries corresponding to zero-weights in data when using BinnedLikelihood
-    _dataClone->cacheArgs(this,_cachedNodes,_normSet,!_funcClone->getAttribute("BinnedLikelihood")) ;  
+    _dataClone->cache()->cacheArgs(this,_cachedNodes,_normSet,!_funcClone->getAttribute("BinnedLikelihood")) ;  
 
     // Put all cached nodes in AClean value caching mode so that their evaluate() is never called
     for (auto cacheArg : _cachedNodes) {
@@ -686,7 +686,7 @@ void RooAbsOptTestStatistic::optimizeConstantTerms(Bool_t activate, Bool_t apply
   } else {
 
     // Delete the cache
-    _dataClone->resetCache() ;
+    _dataClone->cache()->resetCache() ;
 
     // Reactivate all tree branches
     _dataClone->setArgStatus(*_dataClone->get(),kTRUE) ;
@@ -764,7 +764,7 @@ Bool_t RooAbsOptTestStatistic::setDataSlave(RooAbsData& indata, Bool_t cloneData
 
   // ReCache constant nodes with dataset 
   if (_cachedNodes.getSize()>0) {
-    _dataClone->cacheArgs(this,_cachedNodes,_normSet) ;      
+    _dataClone->cache()->cacheArgs(this,_cachedNodes,_normSet) ;      
   }
 
   // Adjust internal event count

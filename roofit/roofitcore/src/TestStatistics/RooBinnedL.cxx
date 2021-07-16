@@ -93,7 +93,7 @@ RooBinnedL::evaluatePartition(Section bins, std::size_t /*components_begin*/, st
 
 //   data->store()->recalculateCache(_projDeps, firstEvent, lastEvent, stepSize, (_binnedPdf?kFALSE:kTRUE));
    // TODO: check when we might need _projDeps (it seems to be mostly empty); ties in with TODO below
-   data_->store()->recalculateCache(nullptr, bins.begin(N_events_), bins.end(N_events_), 1, kFALSE);
+   data_->cache()->recalculateCache(nullptr, bins.begin(N_events_), bins.end(N_events_), 1, kFALSE);
 
    ROOT::Math::KahanSum<double> sumWeight;
 

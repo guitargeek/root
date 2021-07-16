@@ -403,7 +403,7 @@ Double_t RooXYChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t las
   // Loop over bins of dataset
   RooDataSet* xydata = (RooDataSet*) _dataClone ;
 
-  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize,kFALSE ) ;
+  _dataClone->cache()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize,kFALSE ) ;
 
   for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
 

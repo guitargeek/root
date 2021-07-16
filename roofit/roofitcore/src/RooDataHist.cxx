@@ -879,7 +879,7 @@ RooAbsData* RooDataHist::cacheClone(const RooAbsArg* newCacheOwner, const RooArg
 
   RooDataHist* dhist = new RooDataHist(newName?newName:GetName(),GetTitle(),this,*get(),0,0,0,2000000000,kTRUE) ; 
 
-  RooArgSet* selCacheVars = (RooArgSet*) newCacheVars->selectCommon(dhist->_cachedVars) ;
+  auto selCacheVars = (RooArgSet*) newCacheVars->selectCommon(dhist->cache()->cachedVars()) ;
   dhist->attachCache(newCacheOwner, *selCacheVars) ;
   delete selCacheVars ;
 
@@ -2059,8 +2059,8 @@ void RooDataHist::printMultiline(ostream& os, Int_t content, Bool_t verbose, TSt
   }
 
   if(verbose) {
-    if (_cachedVars.getSize()>0) {
-      os << indent << "  Caches " << _cachedVars << endl ;
+    if (!cache()->cachedVars().empty()) {
+      os << indent << "  Caches " << cache()->cachedVars() << endl ;
     }
   }
 }

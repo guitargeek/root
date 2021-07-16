@@ -95,7 +95,7 @@ void ConstantTermsOptimizer::enableConstantTermsOptimization(RooAbsReal *functio
    // BinnedLikelihood
    // NOTE: we pass nullptr as cache-owner here, because we don't use the cacheOwner() anywhere in TestStatistics
    // TODO: make sure this (nullptr) is always correct
-   dataset->cacheArgs(nullptr, cached_nodes, norm_set, !function->getAttribute("BinnedLikelihood"));
+   dataset->cache()->cacheArgs(nullptr, cached_nodes, norm_set, !function->getAttribute("BinnedLikelihood"));
 
    // Put all cached nodes in AClean value caching mode so that their evaluate() is never called
    for (const auto cacheArg : cached_nodes) {
@@ -134,7 +134,7 @@ void ConstantTermsOptimizer::disableConstantTermsOptimization(RooAbsReal *functi
                                                                  RooAbsData *dataset)
 {
    // Delete the cache
-   dataset->resetCache();
+   dataset->cache()->resetCache();
 
    // Reactivate all tree branches
    dataset->setArgStatus(*dataset->get(), kTRUE);

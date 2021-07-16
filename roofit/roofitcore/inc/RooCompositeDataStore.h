@@ -31,7 +31,7 @@ class RooArgSet ;
 class RooCategory ;
 
 
-class RooCompositeDataStore : public RooAbsDataStore {
+class RooCompositeDataStore : public RooAbsCachingDataStore {
 public:
 
   RooCompositeDataStore() ; 
@@ -111,6 +111,7 @@ public:
   }
   virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len) const;
 
+  RooAbsDataCache * cache() const;
 
  protected:
 
