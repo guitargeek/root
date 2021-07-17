@@ -54,3 +54,49 @@ class RooDataSet(object):
         # Redefinition of `RooDataSet.plotOnXY` for keyword arguments.
         args, kwargs = _kwargs_to_roocmdargs(*args, **kwargs)
         return self._plotOnXY(*args, **kwargs)
+
+    @staticmethod
+    def from_numpy(data, name=None, title=None, variables=None):
+
+        import ROOT
+
+        import ctypes
+        import numpy as np
+
+        name = "" if name is None else name
+        title = "" if title is None else title
+        n_entries = None
+
+        data_real = ROOT.std.vector["double*"]()
+
+        for arr_name, arr in data.items():
+            if arr.dtype != np.float64:
+                raise TypeError("Arrays passed to RooDataSet.from_numpy() need to be of type float64.")
+            if n_entries is None:
+                n_entries = len(arr)
+            elif n_entries != len(arr):
+                raise RuntimeError("Arrays passed to RooDataSet.from_numpy() must be all of same length.")
+            if len(arr.shape) != 1:
+                raise RuntimeError("Arrays passed to RooDataSet.from_numpy() must be one dimensional.")
+
+            arr_ptr = arr.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            data_real.push_back(arr_ptr)
+
+        if variables is None:
+            variables = []
+            for arr_name, arr in data.items():
+                variables.append(ROOT.RooRealVar(arr_name, arr_name, arr[0]))
+
+        data_set = ROOT.RooDataSet.fromArrays(name, title, variables, n_entries, data_real)
+
+        return data_set
+
+    @staticmethod
+    def from_pandas(df, name=None, title=None, variables=None):
+
+        import ROOT
+
+        data = {}
+        for column in df:
+            data[column] = df[column].values
+        return ROOT.RooDataSet.from_numpy(data, name=name, title=title, variables=variables)
