@@ -4,8 +4,8 @@
 #include "RunContext.h"
 
 RooViewDataStore::RooViewDataStore(std::string_view name, std::string_view title, const RooArgSet &vars, int numEntries,
-                                   std::vector<double *> const &dataReal)
-   : RooAbsDataStore{name, title, vars}, _isWeighted{false}, _numEntries{numEntries},
+                                   std::vector<double *> const &dataReal, std::string_view weightVarName)
+   : RooAbsDataStore{name, title, vars}, _isWeighted{weightVarName != ""}, _numEntries{numEntries},
      _sumEntries{double(dataReal.size())}, _dataReal{dataReal}
 {
    // check if all values are in the range supported by the variables
@@ -16,7 +16,7 @@ RooViewDataStore::RooViewDataStore(std::string_view name, std::string_view title
       double minVal = (maxAllowedVal - minAllowedVal) / 2.;
       double maxVal = (maxAllowedVal - minAllowedVal) / 2.;
       double *data = dataReal[iVar];
-      for (std::size_t i = 0; i < numEntries; ++i) {
+      for (int i = 0; i < numEntries; ++i) {
          minVal = std::min(minVal, data[i]);
          maxVal = std::max(maxVal, data[i]);
       }
@@ -24,6 +24,9 @@ RooViewDataStore::RooViewDataStore(std::string_view name, std::string_view title
          auto errorMsg =
             std::string("RooViewDataStore(): values out of range of variable \"") + vars[iVar]->GetName() + "\".";
          throw std::runtime_error(errorMsg);
+      }
+      if(_isWeighted && std::string_view(vars[iVar]->GetName()) == weightVarName) {
+         _weights = data;
       }
    }
    _attachedArgs.resize(vars.size());
