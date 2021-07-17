@@ -89,6 +89,7 @@ For the inverse conversion, see `RooAbsData::convertToVectorStore()`.
 #include "RooHist.h"
 #include "RooTreeDataStore.h"
 #include "RooVectorDataStore.h"
+#include "RooViewDataStore.h"
 #include "RooCompositeDataStore.h"
 #include "RooSentinel.h"
 #include "RooTrace.h"
@@ -633,6 +634,8 @@ RooDataSet::RooDataSet(std::string_view name, std::string_view title, const RooA
   initialize(wgtVarName) ;
   TRACE_CREATE
 }
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2060,3 +2063,14 @@ void RooDataSet::convertToTreeStore()
    }
 }
 
+
+// Creation from data view.
+std::unique_ptr<RooDataSet> RooDataSet::fromArrays(std::string_view name, std::string_view title, const RooArgSet& vars,
+                             int numEntries, std::vector<double *> const &dataReal)
+{
+  auto out = std::make_unique<RooDataSet>(name,title,vars);
+  out->_dstore = new RooViewDataStore(name, title, out->_vars, numEntries, dataReal);
+  out->appendToDir(out.get(),true) ;
+  out->initialize(nullptr) ;
+  return out;
+}

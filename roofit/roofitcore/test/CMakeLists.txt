@@ -40,5 +40,6 @@ endif()
 ROOT_ADD_GTEST(testRooProductPdf testRooProductPdf.cxx LIBRARIES RooFitCore)
 ROOT_ADD_GTEST(testNaNPacker testNaNPacker.cxx LIBRARIES RooFitCore)
 ROOT_ADD_GTEST(testRooSimultaneous testRooSimultaneous.cxx LIBRARIES RooFitCore RooFit)
+ROOT_ADD_GTEST(testRooViewDataStore testRooViewDataStore.cxx LIBRARIES RooFitCore RooFit)
 #ROOT_ADD_GTEST(testRooGradMinimizerFcn testRooGradMinimizerFcn.cxx LIBRARIES RooFitCore)
 
