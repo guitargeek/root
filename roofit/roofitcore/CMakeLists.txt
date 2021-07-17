@@ -218,6 +218,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooUniformBinning.h
     RooUnitTest.h
     RooVectorDataStore.h
+    RooViewDataStore.h
     RooWorkspace.h
     RooWorkspaceHandle.h
     RooXYChi2Var.h
@@ -449,6 +450,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooUniformBinning.cxx
     src/RooUnitTest.cxx
     src/RooVectorDataStore.cxx
+    src/RooViewDataStore.cxx
     src/RooWorkspace.cxx
     src/RooXYChi2Var.cxx
     src/RooHelpers.cxx

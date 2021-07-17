@@ -20,6 +20,7 @@ class TDirectory;
 class RooAbsRealLValue;
 class RooRealVar;
 class RooDataHist;
+class RooViewDataStore;
 
 #include "RooAbsData.h"
 #include "RooDirItem.h"
@@ -147,6 +148,10 @@ public:
   static void cleanup();
 
   void convertToTreeStore() override;
+
+  // Creation from data view.
+  static std::unique_ptr<RooDataSet> fromArrays(std::string_view name, std::string_view title, const RooArgSet& vars,
+                                                int numEntries, std::vector<double *> const &dataReal);
 
 protected:
 
