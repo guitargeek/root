@@ -8,7 +8,7 @@ class RooViewDataStore : public RooAbsDataStore {
 public:
    RooViewDataStore() {}
    RooViewDataStore(std::string_view name, std::string_view title, const RooArgSet &vars, int numEntries,
-                    std::vector<double *> const &dataReal);
+                    std::vector<double *> const &dataReal, std::string_view weightVarName);
    RooViewDataStore(const RooViewDataStore &other, const char *newname = 0) : RooAbsDataStore(other, newname)
    {
       _isWeighted = other._isWeighted;
@@ -16,6 +16,7 @@ public:
       _sumEntries = other._sumEntries;
       _dataReal = other._dataReal;
       _attachedArgs = other._attachedArgs;
+      _weights = other._weights;
       _currentIndex = other._currentIndex;
    }
    RooViewDataStore(const RooViewDataStore &other, const RooArgSet &vars, const char *newname = 0)
@@ -26,6 +27,7 @@ public:
       _sumEntries = other._sumEntries;
       _dataReal = other._dataReal;
       _attachedArgs = other._attachedArgs;
+      _weights = other._weights;
       _currentIndex = other._currentIndex;
    }
 

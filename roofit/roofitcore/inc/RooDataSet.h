@@ -151,7 +151,7 @@ public:
 
   // Creation from data view.
   static std::unique_ptr<RooDataSet> fromArrays(std::string_view name, std::string_view title, const RooArgSet& vars,
-                                                int numEntries, std::vector<double *> const &dataReal);
+                                                int numEntries, std::vector<double *> const &dataReal, std::string_view weightVarName);
 
 protected:
 

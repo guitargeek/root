@@ -2066,11 +2066,11 @@ void RooDataSet::convertToTreeStore()
 
 // Creation from data view.
 std::unique_ptr<RooDataSet> RooDataSet::fromArrays(std::string_view name, std::string_view title, const RooArgSet& vars,
-                             int numEntries, std::vector<double *> const &dataReal)
+                             int numEntries, std::vector<double *> const &dataReal, std::string_view weightVarName)
 {
   auto out = std::make_unique<RooDataSet>(name,title,vars);
-  out->_dstore = new RooViewDataStore(name, title, out->_vars, numEntries, dataReal);
+  out->_dstore = new RooViewDataStore(name, title, out->_vars, numEntries, dataReal, weightVarName);
   out->appendToDir(out.get(),true) ;
-  out->initialize(nullptr) ;
+  out->initialize(weightVarName != "" ? std::string(weightVarName).c_str() : nullptr) ;
   return out;
 }

@@ -25,6 +25,21 @@ void setupRooMsgService()
    RooMsgService::instance().getStream(1).removeTopic(RooFit::Eval);
 }
 
+bool compareFitResults(RooAbsPdf& model, RooAbsData& data, RooAbsData& dataRef, bool verbose=false) {
+   using namespace RooFit;
+
+   std::unique_ptr<RooAbsPdf> modelCopy{static_cast<RooAbsPdf*>(model.cloneTree())};
+
+   std::unique_ptr<RooFitResult> result{
+      model.fitTo(data, Save(), PrintLevel(-1), Verbose(false), BatchMode(false))};
+   if(verbose) result->Print();
+   std::unique_ptr<RooFitResult> resultRef{
+      modelCopy->fitTo(dataRef, Save(), PrintLevel(-1), Verbose(false), BatchMode(false))};
+   if(verbose) resultRef->Print();
+
+   return result->isIdentical(*resultRef);
+}
+
 } // namespace
 
 TEST(RooViewDataStore, UnweightedDataSetOneDim)
@@ -37,8 +52,6 @@ TEST(RooViewDataStore, UnweightedDataSetOneDim)
    const double sigmaStartVal = 3.0;
    const int randomSeed = 65539;
    const std::size_t nEntries = 100;
-
-   using namespace RooFit;
 
    setupRooMsgService();
 
@@ -60,7 +73,7 @@ TEST(RooViewDataStore, UnweightedDataSetOneDim)
 
    RooArgSet obsSet{x};
 
-   auto dataSetView = RooDataSet::fromArrays("dataSetView", "dataSetView", obsSet, int(nEntries), std::vector<double *>{xValues.data()});
+   auto dataSetView = RooDataSet::fromArrays("dataSetView", "dataSetView", obsSet, int(nEntries), std::vector<double *>{xValues.data()}, "");
 
    RooDataSet dataSetCopy{"dataSetCopy", "dataSetCopy", obsSet};
    for (std::size_t i = 0; i < nEntries; ++i) {
@@ -68,12 +81,55 @@ TEST(RooViewDataStore, UnweightedDataSetOneDim)
       dataSetCopy.add(obsSet);
    }
 
-   std::unique_ptr<RooFitResult> result{
-      model.fitTo(*dataSetView, Save(), PrintLevel(-1), Verbose(false), BatchMode(false))};
-   mean.setVal(meanStartVal);
-   sigma.setVal(sigmaStartVal);
-   std::unique_ptr<RooFitResult> resultRef{
-      model.fitTo(dataSetCopy, Save(), PrintLevel(-1), Verbose(false), BatchMode(false))};
+   EXPECT_TRUE(compareFitResults(model, *dataSetView, dataSetCopy));
+}
 
-   EXPECT_TRUE(result->isIdentical(*resultRef));
+
+TEST(RooViewDataStore, WeightedDataSetOneDim)
+{
+   const double xMin = -10.0;
+   const double xMax = 20.0;
+   const double meanVal = 5.0;
+   const double sigmaVal = 2.0;
+   const double meanStartVal = 2.0;
+   const double sigmaStartVal = 3.0;
+   const int randomSeed = 65539;
+   const std::size_t nEntries = 100;
+
+   setupRooMsgService();
+
+   TRandom3 rndm{randomSeed};
+
+   std::vector<double> xValues;
+   std::vector<double> weights;
+   xValues.resize(nEntries);
+   weights.resize(nEntries);
+
+   for (std::size_t i = 0; i < nEntries; ++i) {
+      xValues[i] = rndm.Gaus(meanVal, sigmaVal);
+      xValues[i] = std::max(xMin, xValues[i]);
+      xValues[i] = std::min(xMax, xValues[i]);
+      weights[i] = rndm.Gaus(0.5, 0.2);
+      weights[i] = std::max(0.0, weights[i]);
+      weights[i] = std::min(1.0, weights[i]);
+   }
+
+   RooRealVar x("x", "x", (xMax - xMin) / 2., xMin, xMax);
+   RooRealVar weight("weight", "weight", 1.0, 0.0, 1.0);
+   RooRealVar mean("mean", "mean", meanStartVal, xMin, xMax);
+   RooRealVar sigma("sigma", "sigma", sigmaStartVal, 0.01, xMax);
+   RooGaussian model("model", "model", x, mean, sigma);
+
+   RooArgSet obsSet{x};
+   RooArgSet obsSetWithWeight{x, weight};
+
+   auto dataSetView = RooDataSet::fromArrays("dataSetView", "dataSetView", obsSetWithWeight, int(nEntries), std::vector<double *>{xValues.data(), weights.data()}, weight.GetName());
+
+   RooDataSet dataSetCopy{"dataSetCopy", "dataSetCopy", obsSetWithWeight, "weight"};
+   for (std::size_t i = 0; i < nEntries; ++i) {
+      x.setVal(xValues[i]);
+      dataSetCopy.add(obsSet, weights[i]);
+   }
+
+   EXPECT_TRUE(compareFitResults(model, *dataSetView, dataSetCopy));
 }

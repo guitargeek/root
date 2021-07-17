@@ -55,7 +55,7 @@ class RooDataSet(object):
         return self._plotOnXY(*args, **kwargs)
 
     @staticmethod
-    def from_numpy(data, name=None, title=None, variables=None):
+    def from_numpy(data, name=None, title=None, variables=None, weight_name=None):
 
         import ROOT
 
@@ -64,6 +64,7 @@ class RooDataSet(object):
 
         name = "" if name is None else name
         title = "" if title is None else title
+        weight_name = "" if weight_name is None else weight_name
         n_entries = None
 
         data_real = ROOT.std.vector["double*"]()
@@ -86,16 +87,16 @@ class RooDataSet(object):
             for arr_name, arr in data.items():
                 variables.append(ROOT.RooRealVar(arr_name, arr_name, arr[0]))
 
-        data_set = ROOT.RooDataSet.fromArrays(name, title, variables, n_entries, data_real)
+        data_set = ROOT.RooDataSet.fromArrays(name, title, variables, n_entries, data_real, weight_name)
 
         return data_set
 
     @staticmethod
-    def from_pandas(df, name=None, title=None, variables=None):
+    def from_pandas(df, name=None, title=None, variables=None, weight_name=None):
 
         import ROOT
 
         data = {}
         for column in df:
             data[column] = df[column].values
-        return ROOT.RooDataSet.from_numpy(data, name=name, title=title, variables=variables)
+        return ROOT.RooDataSet.from_numpy(data, name=name, title=title, variables=variables, weight_name=weight_name)
