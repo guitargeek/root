@@ -26,7 +26,6 @@
 #include "RooLinkedListIter.h"
 #include <map>
 #include <set>
-#include <deque>
 #include <stack>
 #include <string>
 #include <iostream>
@@ -611,7 +610,7 @@ private:
   RefCountList_t _clientListValue; // subset of clients that requested value dirty flag propagation
 
   RooRefArray _proxyList        ; // list of proxies
-  std::deque<RooAbsCache*> _cacheList ; // list of caches
+  std::vector<RooAbsCache*> _cacheList ; //! list of caches
 
 
   // Proxy management
@@ -707,7 +706,7 @@ private:
   static std::stack<RooAbsArg*> _ioReadStack ; // reading stack
   /// \endcond
 
-  ClassDef(RooAbsArg,7) // Abstract variable
+  ClassDef(RooAbsArg,8) // Abstract variable
 };
 
 std::ostream& operator<<(std::ostream& os, const RooAbsArg &arg);
