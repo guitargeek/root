@@ -127,7 +127,7 @@ protected:
   void calculatePreNorm(BoxInfo *bi) const;
   void sortDataIndices(BoxInfo *bi = 0);
   void calculateBandWidth();
-  Double_t gauss(std::vector<Double_t> &x, std::vector<std::vector<Double_t>> &weights) const;
+  Double_t gauss(std::vector<Double_t> &x, std::vector<std::vector<Double_t>> &weights, bool cdf=false) const;
   void loopRange(std::vector<Double_t> &x, std::map<Int_t, Bool_t> &ibMap) const;
   void boxInfoInit(BoxInfo *bi, const char *rangeName, Int_t code) const;
   RooDataSet *createDatasetFromHist(const RooArgList &varList, const TH1 &hist) const;

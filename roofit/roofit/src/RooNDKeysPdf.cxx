@@ -781,6 +781,7 @@ void RooNDKeysPdf::calculateShell(BoxInfo* bi) const
   }
 
   //for (Int_t i=0; i<_nEventsM; i++) {
+  std::cout << std::endl;
   for (const auto& wMapItr : _wMap) {
     Int_t i = wMapItr.first;
 
@@ -798,6 +799,7 @@ void RooNDKeysPdf::calculateShell(BoxInfo* bi) const
         inVarRangePlusShell = inVarRangePlusShell && kTRUE;
       } else { inVarRangePlusShell = inVarRangePlusShell && kFALSE; }
     }
+    std::cout << "    " << i << " " << x[0] << " "" " << inVarRange << " " << inVarRangePlusShell << std::endl;
 
     // event in range?
     if (inVarRange) {
@@ -962,11 +964,11 @@ void RooNDKeysPdf::calculateBandWidth()
 ////////////////////////////////////////////////////////////////////////////////
 /// loop over all closest point to x, as determined by loopRange()
 
-Double_t RooNDKeysPdf::gauss(vector<Double_t>& x, vector<vector<Double_t> >& weights) const
+Double_t RooNDKeysPdf::gauss(vector<Double_t>& x, vector<vector<Double_t> >& weights, bool cdf) const
 {
   if(_nEvents==0) return 0.;
 
-  const double sqrt2pi = std::sqrt(TMath::TwoPi());
+  constexpr double sqrt2pi = std::sqrt(TMath::TwoPi());
 
   Double_t z=0.;
   map<Int_t,Bool_t> ibMap;
@@ -979,14 +981,9 @@ Double_t RooNDKeysPdf::gauss(vector<Double_t>& x, vector<vector<Double_t> >& wei
     loopRange(x, ibMap);
   }
 
-  for (const auto& ibMapItr : _sortInput ? ibMap : _ibNoSort) {
-     Int_t i = ibMapItr.first;
+  for (size_t i = 0; i < _dataPts.size(); ++i) {
 
-     Double_t g(1.);
-
-     if (i >= (Int_t)_idx.size()) {
-        continue;
-     } //---> 1.myline
+     double g = 1.;
 
      const vector<Double_t> &point = _dataPts[i];
      const vector<Double_t> &weight = weights[_idx[i]];
@@ -1005,8 +1002,15 @@ Double_t RooNDKeysPdf::gauss(vector<Double_t>& x, vector<vector<Double_t> >& wei
 
         // cout << "j = " << j << " x[j] = " << point[j] << " w = " << weight[j] << endl;
 
-        g *= exp(-c * r * r);
-        g *= 1. / (sqrt2pi * weight[j]);
+        if(!cdf) {
+          g *= exp(-c * r * r);
+          g *= 1. / (sqrt2pi * weight[j]);
+        } else {
+          double erf_val = std::erf(std::abs(r/(weight[j] * std::sqrt(2.)))) * 0.5;
+          g *= ((r > 0) ? (0.5 + erf_val) : (0.5 - erf_val));
+          //std::cout << i << " " << (r/weight[j]) << " " << ((r > 0) ? (0.5 + erf_val) : (0.5 - erf_val)) << std::endl;
+          //std::cout << i << " " << r << " " << weight[j] << " " << ((r > 0) ? (0.5 + erf_val) : (0.5 - erf_val)) << std::endl;
+        }
      }
      z += (g * _wMap.at(_idx[i]));
   }
@@ -1129,9 +1133,11 @@ Double_t RooNDKeysPdf::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Int_t RooNDKeysPdf::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const
+Int_t RooNDKeysPdf::getAnalyticalIntegral(RooArgSet& allVars,
+                                          RooArgSet& analVars,
+                                          const char* /*rangeName*/) const
 {
-  if (rangeName) return 0 ;
+  //if (rangeName) return 0 ;
 
   Int_t code=0;
   if (matchArgs(allVars,analVars,RooArgSet(_varList))) { code=1; }
@@ -1152,6 +1158,56 @@ Double_t RooNDKeysPdf::analyticalIntegral(Int_t code, const char* rangeName) con
   // determine which observables need to be integrated over ...
   Int_t nComb = 1 << (_nDim);
   R__ASSERT(code>=1 && code<nComb) ;
+
+  if ( (_tracker && _tracker->hasChanged(kTRUE)) || (_weights != &_weights0 && _weights != &_weights1) ) {
+    updateRho(); // update internal rho parameters
+    // redetermine static and/or adaptive bandwidth
+    const_cast<RooNDKeysPdf*>(this)->calculateBandWidth();
+  }
+
+  std::vector<double> xLowerBound;
+  xLowerBound.resize(2);
+  std::vector<double> xHigherBound;
+  xHigherBound.resize(2);
+
+  for (unsigned int j=0; j < _varList.size(); ++j) {
+    auto var = static_cast<const RooAbsRealLValue*>(_varList.at(j));
+    xLowerBound[j] = var->getMin(rangeName);
+    xHigherBound[j] = var->getMax(rangeName);
+  }
+
+
+  auto analyticalCdf = [&](std::vector<double> const& x) {
+    double z = 0.;
+    for (size_t i = 0; i < _dataPts.size(); ++i) {
+       double g = 1.;
+       const vector<Double_t> &point = _dataPts[i];
+       const vector<Double_t> &weight = (*_weights)[_idx[i]];
+
+       for (Int_t j = 0; j < _nDim; j++) {
+          (*_dx)[j] = x[j] - point[j];
+       }
+
+       if (_nDim > 1 && _rotate) {
+          *_dx *= *_rotMat; // rotate to decorrelated frame!
+       }
+
+       for (Int_t j = 0; j < _nDim; j++) {
+          double r = (*_dx)[j];
+
+          double erf_val = std::erf(std::abs(r/(weight[j] * std::sqrt(2.)))) * 0.5;
+          g *= ((r > 0) ? (0.5 + erf_val) : (0.5 - erf_val));
+       }
+       z += (g * _wMap.at(_idx[i]));
+    }
+    return z;
+  };
+
+  double cdfHigher = analyticalCdf(xHigherBound);
+  double cdfLower = analyticalCdf(xLowerBound);
+
+  std::cout << "analytical integral stuff: " << cdfLower << " " << cdfHigher << std::endl;
+  return cdfHigher - cdfLower;
 
   vector<Bool_t> doInt(_nDim,kTRUE);
 
@@ -1205,12 +1261,14 @@ Double_t RooNDKeysPdf::analyticalIntegral(Int_t code, const char* rangeName) con
   else
   {
     norm = bi->nEventsBMSW;
+    std::cout << "initial norm: " << norm << std::endl;
     if (norm<0.) norm=0.;
 
     for (Int_t i=0; i<Int_t(bi->sIdcs.size()); ++i) {
       Double_t prob=1.;
       const vector<Double_t>& x = _dataPts[bi->sIdcs[i]];
       const vector<Double_t>& weight = (*_weights)[_idx[bi->sIdcs[i]]];
+      std::cout << i << " " << x[0] << " " << std::endl;
 
       vector<Double_t> chi(_nDim,100.);
 
@@ -1228,6 +1286,7 @@ Double_t RooNDKeysPdf::analyticalIntegral(Int_t code, const char* rangeName) con
      prob *= (0.5 - TMath::Erf(fabs(chi[j])/sqrt(2.))/2.);
       }
 
+      std::cout << "  " << prob << " " <<  _wMap.at(_idx[bi->sIdcs[i]]) << std::endl;
       norm += prob * _wMap.at(_idx[bi->sIdcs[i]]);
     }
 
