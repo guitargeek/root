@@ -495,12 +495,12 @@ Bool_t RooMCStudy::run(Bool_t doGenerate, Bool_t DoFit, Int_t nSamples, Int_t nE
       Int_t nEvt(nEvtPerSample) ;
 
       // Reset generator parameters to initial values
-      _genParams->assign(*_genInitParams) ;
+      *_genParams = *_genInitParams ;
 
       // If constraints are present, sample generator values from constraints
       if (_constrPdf) {
 	RooDataSet* tmp = _constrGenContext->generate(1) ;
-	_genParams->assign(*tmp->get()) ;
+	*_genParams = *tmp->get() ;
 	delete tmp ;
       }
 
@@ -612,8 +612,8 @@ Bool_t RooMCStudy::run(Bool_t doGenerate, Bool_t DoFit, Int_t nSamples, Int_t nE
     }
   }
 
-  for (iter=_modList.begin() ; iter!= _modList.end() ; ++iter) {
-    RooDataSet* auxData = (*iter)->finalizeRun() ;
+  for (auto const& mod : _modList) {
+    RooDataSet* auxData = mod->finalizeRun() ;
     if (auxData) {
       _fitParData->merge(auxData) ;
     }
@@ -622,13 +622,17 @@ Bool_t RooMCStudy::run(Bool_t doGenerate, Bool_t DoFit, Int_t nSamples, Int_t nE
   _canAddFitResults = kFALSE ;
 
   if (_genParData) {
-    const RooArgSet* genPars = _genParData->get() ;
-    TIterator* iter2 = genPars->createIterator() ;
-    RooAbsArg* arg ;
-    while((arg=(RooAbsArg*)iter2->Next())) {
+    if (_genParData->numEntries() != nSamples) {
+      auto msg = std::string("RooMCStudy::RooMCStudy: Only ") + std::to_string(_genParData->numEntries())
+              + " out of " + std::to_string(nSamples) + " samples were successfully generated and fitted.\n"
+              + std::string("Only the successfully fitted toy experiment results will be stored, ")
+              + "so please be careful with the number of entries in the RooMCStudy::fitParDataSet.";
+      coutW(Generation) << msg << std::endl;
+      //oocoutW(_fitModel,Generation) << msg << std::endl;
+    }
+    for(auto const& arg : *_genParData->get()) {
       _genParData->changeObservableName(arg->GetName(),Form("%s_gen",arg->GetName())) ;
     }
-    delete iter2 ;
     
     _fitParData->merge(_genParData) ;
   }
@@ -737,7 +741,7 @@ Bool_t RooMCStudy::fit(Int_t nSamples, TList& dataSetList)
 
 void RooMCStudy::resetFitParams()
 {
-  _fitParams->assign(*_fitInitParams) ;
+  *_fitParams = *_fitInitParams ;
 }
 
 
@@ -885,7 +889,7 @@ Bool_t RooMCStudy::addFitResult(const RooFitResult& fr)
   }
   
   // Transfer contents of fit result to fitParams ;
-  _fitParams->assign(RooArgSet(fr.floatParsFinal())) ;
+  *_fitParams = RooArgSet(fr.floatParsFinal()) ;
   
   // If fit converged, store parameters and NLL
   Bool_t ok = (fr.status()==0) ;
