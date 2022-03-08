@@ -28,8 +28,7 @@ class TH1;
 
 class RooHist : public TGraphAsymmErrors, public RooPlotable {
 public:
-  RooHist() {}
-  RooHist(double nominalBinWidth, double nSigma= 1, double xErrorFrac=1.0, double scaleFactor=1.0);
+  RooHist() { initialize(); }
   RooHist(const TH1 &data, double nominalBinWidth= 0, double nSigma= 1, RooAbsData::ErrorType=RooAbsData::Poisson,
      double xErrorFrac=1.0, bool correctForBinWidth=true, double scaleFactor=1.);
   RooHist(const TH1 &data1, const TH1 &data2, double nominalBinWidth= 0, double nSigma= 1, RooAbsData::ErrorType=RooAbsData::Poisson,
@@ -37,24 +36,9 @@ public:
   RooHist(const RooHist& hist1, const RooHist& hist2, double wgt1=1.0, double wgt2=1.0,
      RooAbsData::ErrorType etype=RooAbsData::Poisson, double xErrorFrac=1.0) ;
   RooHist(const RooAbsReal &f, RooAbsRealLValue &x, double xErrorFrac=1.0, double scaleFactor=1.0, const RooArgSet *normVars = nullptr, const RooFitResult* fr = nullptr);
-
-  // add a datapoint for a bin with n entries, using a Poisson error
-  void addBin(Axis_t binCenter, double n, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
-  // add a datapoint for a bin with n entries, using a given error
-  void addBinWithError(Axis_t binCenter, double n, double elow, double ehigh, double binWidth= 0,
-             double xErrorFrac=1.0, bool correctForBinWidth=true, double scaleFactor=1.0);
-  // add a datapoint for a bin with n entries, using a given x and y error
-  void addBinWithXYError(Axis_t binCenter, double n, double exlow, double exhigh, double eylow, double eyhigh,
-                         double scaleFactor=1.0);
-  // add a datapoint for the asymmetry (n1-n2)/(n1+n2), using a binomial error
-  void addAsymmetryBin(Axis_t binCenter, Int_t n1, Int_t n2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
-  // add a datapoint for the asymmetry (n1-n2)/(n1+n2), using sum-of-weights error
-  void addAsymmetryBinWithError(Axis_t binCenter, double n1, double n2, double en1, double en2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
-
-  // add a datapoint for the efficiency (n1)/(n1+n2), using a binomial error
-  void addEfficiencyBin(Axis_t binCenter, Int_t n1, Int_t n2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
-  // add a datapoint for the efficiency (n1)/(n1+n2), using a sum-of-weights error
-  void addEfficiencyBinWithError(Axis_t binCenter, double n1, double n2, double en1, double en2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
+  RooHist(std::size_t n, double const* x, double const* y,
+          double const* xErrLo, double const* xErrHi,
+          double const* yErrLo, double const* yErrHi, double scaleFactor);
 
   void printName(std::ostream& os) const override ;
   void printTitle(std::ostream& os) const override ;
@@ -92,6 +76,24 @@ protected:
   std::unique_ptr<RooHist> createEmptyResidHist(const RooCurve& curve, bool normalize=false) const;
 
 private:
+
+  // add a datapoint for a bin with n entries, using a Poisson error
+  void addBin(Axis_t binCenter, double n, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
+  // add a datapoint for a bin with n entries, using a given error
+  void addBinWithError(Axis_t binCenter, double n, double elow, double ehigh, double binWidth= 0,
+             double xErrorFrac=1.0, bool correctForBinWidth=true, double scaleFactor=1.0);
+  // add a datapoint for a bin with n entries, using a given x and y error
+  void addBinWithXYError(Axis_t binCenter, double n, double exlow, double exhigh, double eylow, double eyhigh,
+                         double scaleFactor=1.0);
+  // add a datapoint for the asymmetry (n1-n2)/(n1+n2), using a binomial error
+  void addAsymmetryBin(Axis_t binCenter, Int_t n1, Int_t n2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
+  // add a datapoint for the asymmetry (n1-n2)/(n1+n2), using sum-of-weights error
+  void addAsymmetryBinWithError(Axis_t binCenter, double n1, double n2, double en1, double en2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
+
+  // add a datapoint for the efficiency (n1)/(n1+n2), using a binomial error
+  void addEfficiencyBin(Axis_t binCenter, Int_t n1, Int_t n2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
+  // add a datapoint for the efficiency (n1)/(n1+n2), using a sum-of-weights error
+  void addEfficiencyBinWithError(Axis_t binCenter, double n1, double n2, double en1, double en2, double binWidth= 0, double xErrorFrac=1.0, double scaleFactor=1.0);
 
   void addPoint(Axis_t binCenter, double y, double yscale, double exlow, double exhigh, double eylow, double eyhigh);
 

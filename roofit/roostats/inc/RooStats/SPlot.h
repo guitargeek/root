@@ -23,7 +23,6 @@ class RooSimultaneous;
 
 #include "RooFitResult.h"
 #include "RooRealVar.h"
-#include "RooHist.h"
 #include "RooPlot.h"
 #include "RooDataSet.h"
 

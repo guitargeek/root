@@ -42,21 +42,6 @@ ClassImp(RooHist);
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Create an empty histogram that can be filled with the addBin()
-/// and addAsymmetryBin() methods. Use the optional parameter to
-/// specify the confidence level in units of sigma to use for
-/// calculating error bars. The nominal bin width specifies the
-/// default used by addBin(), and is used to set the relative
-/// normalization of bins with different widths.
-
-  RooHist::RooHist(double nominalBinWidth, double nSigma, double /*xErrorFrac*/, double /*scaleFactor*/) :
-    TGraphAsymmErrors(), _nominalBinWidth(nominalBinWidth), _nSigma(nSigma), _rawEntries(-1)
-{
-  initialize();
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Create a histogram from the contents of the specified TH1 object
 /// which may have fixed or variable bin widths. Error bars are
 /// calculated using Poisson statistics. Prints a warning and rounds
@@ -305,6 +290,16 @@ RooHist::RooHist(const RooAbsReal &f, RooAbsRealLValue &x, double xErrorFrac, do
     _entries += yval;
   }
   _nominalBinWidth = 1.;
+}
+
+
+RooHist::RooHist(std::size_t n, double const* x, double const* y,
+                 double const* xErrLo, double const* xErrHi,
+                 double const* yErrLo, double const* yErrHi, double scaleFactor) {
+  initialize();
+  for(std::size_t i = 0; i < n; ++i) {
+    addBinWithXYError(x[i],y[i],-1*xErrLo[i],xErrHi[i],-1*yErrLo[i],yErrHi[i],scaleFactor) ;
+  }
 }
 
 
@@ -684,7 +679,8 @@ void RooHist::printClassName(std::ostream& os) const
 std::unique_ptr<RooHist> RooHist::createEmptyResidHist(const RooCurve& curve, bool normalize) const
 {
   // Copy all non-content properties from hist1
-  auto hist = std::make_unique<RooHist>(_nominalBinWidth) ;
+  auto hist = std::make_unique<RooHist>();
+  hist->_nominalBinWidth = _nominalBinWidth;
   const std::string name = GetName() + std::string("_") + curve.GetName();
   const std::string title = GetTitle() + std::string(" and ") + curve.GetTitle();
   hist->SetName(((normalize ? "pull_" : "resid_") + name).c_str()) ;

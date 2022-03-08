@@ -56,6 +56,10 @@ The following people have contributed to this new version:
 
 ## RooFit Libraries
 
+### Reducing public interface of `RooHist`
+
+The functions to add bins to a `RooHist` were removed from the public interface, because the RooHist is an implementation detail of RooFit plotting:
+* `addBin`, `addBinWithError`, `addBinWithXYError`, `addAsymmetryBin`, `addAsymmetryBinWithError`, `addEfficiencyBin`, and `addEfficiencyBinWithError`
 
 ## 2D Graphics Libraries
 

@@ -1401,28 +1401,40 @@ RooPlot* RooDataSet::plotOnXY(RooPlot* frame, const RooCmdArg& arg1, const RooCm
 
 
   // Make RooHist representing XY contents of data
-  RooHist* graph = new RooHist ;
-  if (histName) {
-    graph->SetName(histName) ;
-  } else {
-    graph->SetName(("hxy_" + std::string(GetName())).c_str());
-  }
+  RooHist* graph = nullptr;
+  {
+    using Values = std::vector<double>;
 
-  for (int i=0 ; i<numEntries() ; i++) {
-    get(i) ;
-    double x = xvar->getVal() ;
-    double exlo = xvar->getErrorLo() ;
-    double exhi = xvar->getErrorHi() ;
-    double y,eylo,eyhi ;
-    if (!dataY) {
-      y = weight() ;
-      weightError(eylo,eyhi) ;
-    } else {
-      y = dataY->getVal() ;
-      eylo = dataY->getErrorLo() ;
-      eyhi = dataY->getErrorHi() ;
+    Values xValues(numEntries());
+    Values yValues(numEntries());
+    Values xErrLoValues(numEntries());
+    Values xErrHiValues(numEntries());
+    Values yErrLoValues(numEntries());
+    Values yErrHiValues(numEntries());
+
+    for (std::size_t i = 0 ; i < static_cast<std::size_t>(numEntries()) ; i++) {
+      get(i) ;
+      xValues[i] = xvar->getVal();
+      xErrLoValues[i] = xvar->getErrorLo();
+      xErrHiValues[i] = xvar->getErrorHi();
+      if (!dataY) {
+        yValues[i] = weight();
+        double eylo;
+        double eyhi;
+        weightError(eylo,eyhi);
+        yErrLoValues[i] = eylo;
+        yErrHiValues[i] = eyhi;
+      } else {
+        yValues[i] = dataY->getVal();
+        yErrLoValues[i] = dataY->getErrorLo();
+        yErrHiValues[i] = dataY->getErrorHi();
+      }
     }
-    graph->addBinWithXYError(x,y,-1*exlo,exhi,-1*eylo,eyhi,scaleFactor) ;
+    graph = new RooHist{static_cast<std::size_t>(numEntries()),
+                        xValues.data(), yValues.data(),
+                        xErrLoValues.data(), xErrHiValues.data(),
+                        yErrLoValues.data(), yErrHiValues.data(), scaleFactor};
+    graph->SetName(histName ? histName : Form("hxy_%s",GetName())) ;
   }
 
   // Adjust style options according to named arguments
