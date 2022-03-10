@@ -99,27 +99,8 @@ namespace RooStats {
       static void SetPrintLevel(int level);
 
    protected:
-      // // configure TestStatSampler for the Null run
-      // int PreNullHook(RooArgSet *parameterPoint, double obsTestStat) const;
-
-      // // configure TestStatSampler for the Alt run
-      // int PreAltHook(RooArgSet *parameterPoint, double obsTestStat) const;
-
-
-      static RooAbsData * GenerateAsimovDataSinglePdf(const RooAbsPdf & pdf, const RooArgSet & obs,  const RooRealVar & weightVar,
-                                                      RooCategory * channelCat = nullptr);
-
-      static RooAbsData * GenerateCountingAsimovData(RooAbsPdf & pdf, const RooArgSet & obs,  const RooRealVar & weightVar,
-                                                      RooCategory * channelCat = nullptr);
-
-
-      static void FillBins(const RooAbsPdf & pdf, const RooArgList &obs, RooAbsData & data, int &index,  double
-                           &binVolume, int &ibin);
 
       static double EvaluateNLL(RooAbsPdf & pdf, RooAbsData& data, const RooArgSet * condObs, const RooArgSet * globObs, const RooArgSet *poiSet = nullptr );
-
-      static bool SetObsToExpected(RooAbsPdf &pdf, const RooArgSet &obs);
-      static bool SetObsToExpected(RooProdPdf &prod, const RooArgSet &obs);
 
    protected:
       ClassDefOverride(AsymptoticCalculator,2)

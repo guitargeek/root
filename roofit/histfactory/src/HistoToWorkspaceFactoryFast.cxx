@@ -50,11 +50,10 @@
 #include "RooHelpers.h"
 #include "RooBinning.h"
 #include "RooBinWidthFunction.h"
-#include "RooStats/RooStatsUtils.h"
 #include "RooStats/ModelConfig.h"
 #include "RooStats/HistFactory/PiecewiseInterpolation.h"
 #include "RooStats/HistFactory/ParamHistFunc.h"
-#include "RooStats/AsymptoticCalculator.h"
+#include "RooFit/AsimovDataTools.h"
 #include "HFMsgService.h"
 
 #include "TH1.h"
@@ -187,7 +186,8 @@ namespace HistFactory{
 
       cxcoutPHF << "Generating additional Asimov Dataset: " << AsimovName << std::endl;
       asimov.ConfigureWorkspace(ws_single);
-      std::unique_ptr<RooDataSet> asimov_dataset{static_cast<RooDataSet*>(AsymptoticCalculator::GenerateAsimovData(*pdf, *observables))};
+      int asymcalcPrintLevel = 0;
+      auto asimov_dataset = RooFit::generateAsimovDataset(*pdf, *observables, asymcalcPrintLevel);
 
       cxcoutPHF << "Importing Asimov dataset" << std::endl;
       bool failure = ws_single->import(*asimov_dataset, Rename(AsimovName.c_str()));
@@ -1374,8 +1374,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     int asymcalcPrintLevel = 0;
     if (RooMsgService::instance().isActive(static_cast<TObject*>(nullptr), RooFit::HistFactory, RooFit::INFO)) asymcalcPrintLevel = 1;
     if (RooMsgService::instance().isActive(static_cast<TObject*>(nullptr), RooFit::HistFactory, RooFit::DEBUG)) asymcalcPrintLevel = 2;
-    AsymptoticCalculator::SetPrintLevel(asymcalcPrintLevel);
-    unique_ptr<RooAbsData> asimov_dataset(AsymptoticCalculator::GenerateAsimovData(*model, observables));
+    unique_ptr<RooAbsData> asimov_dataset(RooFit::generateAsimovDataset(*model, observables, asymcalcPrintLevel));
     proto->import(dynamic_cast<RooDataSet&>(*asimov_dataset), Rename("asimovData"));
 
     // GHL: Determine to use data if the hist isn't 'nullptr'
@@ -1630,9 +1629,8 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     // First Asimov
 
     // Create Asimov data for the combined dataset
-    std::unique_ptr<RooDataSet> asimov_combined{static_cast<RooDataSet*>(AsymptoticCalculator::GenerateAsimovData(
-                                  *combined->pdf("simPdf"),
-                                  obsList))};
+    int asymcalcPrintLevel = 0;
+    auto asimov_combined = RooFit::generateAsimovDataset(*simPdf, obsList, asymcalcPrintLevel);
     if( asimov_combined ) {
       combined->import( *asimov_combined, Rename("asimovData"));
     }

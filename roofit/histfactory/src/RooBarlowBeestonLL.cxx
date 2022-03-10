@@ -29,7 +29,7 @@
 #include "RooMsgService.h"
 #include "RooRealVar.h"
 
-#include "RooStats/RooStatsUtils.h"
+#include "RooProdPdf.h"
 #include "RooCategory.h"
 #include "RooSimultaneous.h"
 #include "RooArgList.h"
