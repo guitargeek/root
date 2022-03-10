@@ -50,7 +50,7 @@
 #include "RooHelpers.h"
 #include "RooBinning.h"
 #include "RooBinWidthFunction.h"
-#include "RooStats/ModelConfig.h"
+#include "RooFit/ModelConfig.h"
 #include "RooStats/HistFactory/PiecewiseInterpolation.h"
 #include "RooStats/HistFactory/ParamHistFunc.h"
 #include "RooFit/AsimovDataTools.h"

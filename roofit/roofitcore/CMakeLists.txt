@@ -17,6 +17,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   HEADERS
     RooFit/Detail/DataMap.h
     RooFit/Floats.h
+    RooFit/ModelConfig.h
     Roo1DTable.h
     RooAbsAnaConvPdf.h
     RooAbsArg.h
@@ -249,6 +250,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/BidirMMapPipe.cxx
     src/BidirMMapPipe.h
     src/NormalizationHelpers.cxx
+    src/ModelConfig.cxx
     src/Roo1DTable.cxx
     src/RooAbsAnaConvPdf.cxx
     src/RooAbsArg.cxx

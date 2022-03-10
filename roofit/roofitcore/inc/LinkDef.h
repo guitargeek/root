@@ -363,3 +363,4 @@
 #endif
 #pragma link C++ class RooBinSamplingPdf+;
 #pragma link C++ class RooBinWidthFunction+;
+#pragma link C++ class RooStats::ModelConfig+;

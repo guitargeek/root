@@ -72,7 +72,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
     MathCore
     Graf
     Gpad
-    RooStats
 )
 
 # For recent clang, this can facilitate auto-vectorisation.
