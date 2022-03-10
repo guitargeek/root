@@ -77,18 +77,17 @@ public:
       ROOT::Internal::TExecutor ex;
       unsigned int nThreads = ROOT::IsImplicitMTEnabled() ? ex.GetPoolSize() : 1u;
 
-      // Fill a std::vector<Batches> with the same object and with ~nEvents/nThreads
-      // Then advance every object but the first to split the work between threads
-      std::vector<Batches> batchesArr(
-         nThreads, Batches(output, nEvents / nThreads + (nEvents % nThreads > 0), varData, vars, extraArgs, buffer));
-      for (unsigned int i = 1; i < nThreads; i++)
-         batchesArr[i].advance(batchesArr[0].getNEvents() * i);
+      auto task = [&](std::size_t idx) -> int {
+         // Fill a std::vector<Batches> with the same object and with ~nEvents/nThreads
+         // Then advance every object but the first to split the work between threads
+         Batches batches(output, nEvents / nThreads + (nEvents % nThreads > 0), varData, vars, extraArgs, &buffer[0][0]);
+         batches.advance(batches.getNEvents() * idx);
 
-      // Set the number of events of the last Btches object as the remaining events
-      if (nThreads > 1)
-         batchesArr.back().setNEvents(nEvents - (nThreads - 1) * batchesArr[0].getNEvents());
+         // Set the number of events of the last Btches object as the remaining events
+         if(idx == nThreads - 1) {
+            batches.setNEvents(nEvents - idx * batches.getNEvents());
+         }
 
-      auto task = [this, computer](Batches batches) -> int {
          int events = batches.getNEvents();
          batches.setNEvents(bufferSize);
          while (events > bufferSize) {
@@ -100,7 +99,12 @@ public:
          _computeFunctions[computer](batches);
          return 0;
       };
-      ex.Map(task, batchesArr);
+
+      std::vector<std::size_t> indices(nThreads);
+      for (unsigned int i = 1; i < nThreads; i++) {
+         indices[i] = i;
+      }
+      ex.Map(task, indices);
    }
    /// Return the sum of an input array
    double sumReduce(cudaStream_t *, InputArr input, size_t n) override
@@ -127,17 +131,27 @@ For every scalar parameter a buffer (one row of the stackArr) is filled with cop
 value, so that it behaves as a batch and facilitates auto-vectorization. The Batches object can be
 passed by value to a compute function to perform efficient computations. **/
 Batches::Batches(RestrictArr output, size_t nEvents, const DataMap &varData, const VarVector &vars,
-                 const ArgVector &extraArgs, double stackArr[maxParams][bufferSize])
+                 const ArgVector &extraArgs, double * stackArr)
    : _nEvents(nEvents), _nBatches(vars.size()), _nExtraArgs(extraArgs.size()), _output(output)
 {
+   if(vars.size() > maxParams) {
+      throw std::runtime_error(
+              std::string("Size of vars is ") + std::to_string(vars.size()) + ", which is larger than maxParams = " + std::to_string(maxParams) + "!"
+              );
+   }
    for (size_t i = 0; i < vars.size(); i++) {
       const RooSpan<const double> &span = varData.at(vars[i]);
       if (span.size() > 1)
          _arrays[i].set(span.data()[0], span.data(), true);
       else {
-         std::fill_n(stackArr[i], bufferSize, span.data()[0]);
-         _arrays[i].set(span.data()[0], stackArr[i], false);
+         std::fill_n(&stackArr[i * bufferSize], bufferSize, span.data()[0]);
+         _arrays[i].set(span.data()[0], &stackArr[i * bufferSize], false);
       }
+   }
+   if(extraArgs.size() > maxExtraArgs) {
+      throw std::runtime_error(
+              std::string("Size of extraArgs is ") + std::to_string(extraArgs.size()) + ", which is larger than maxExtraArgs = " + std::to_string(maxExtraArgs) + "!"
+              );
    }
    std::copy(extraArgs.cbegin(), extraArgs.cend(), _extraArgs);
 }

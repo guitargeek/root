@@ -203,7 +203,7 @@ RooFitDriver::RooFitDriver(const RooAbsData &data, const RooAbsReal &topNode, Ro
                                                               topNode.getParameters(*data.get(), true))},
      _batchMode{batchMode}, _dataset{data, *std::unique_ptr<RooArgSet>(topNode.getObservables(data)), rangeName,
                                      indexCat},
-     _topNode{topNode}, _normSet{std::make_unique<RooArgSet>(normSet)}
+     _topNode{topNode}, _normSet{std::make_unique<RooArgSet>()}
 {
    init();
 }

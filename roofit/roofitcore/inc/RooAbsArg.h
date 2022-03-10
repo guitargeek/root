@@ -24,7 +24,7 @@
 #include "RooAbsCache.h"
 #include "RooNameReg.h"
 #include "RooLinkedListIter.h"
-#include <RooBatchCompute/DataKey.h>
+#include <RooBatchComputeTypes.h>
 #include <RooStringView.h>
 
 #include <deque>
@@ -600,6 +600,15 @@ public:
   virtual bool isReducerNode() const { return false; }
 
   operator RooBatchCompute::DataKey() const { return RooBatchCompute::DataKey::create(this->namePtr()); }
+  inline RooSpan<const double> getSpan(RooAbsArg const& arg, RooBatchCompute::DataMap const& dataMap) const {
+    if(dataMap.find(arg) == dataMap.end()) {
+      throw std::runtime_error(
+              std::string(IsA()->GetName()) + "::" + GetName() + " "
+            + "requested not-available "
+            + arg.IsA()->GetName() + "::" + arg.GetName() + " in the data map!");
+    }
+    return dataMap.at(arg);
+  }
 
 protected:
    void graphVizAddConnections(std::set<std::pair<RooAbsArg*,RooAbsArg*> >&) ;

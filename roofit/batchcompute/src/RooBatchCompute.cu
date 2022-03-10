@@ -180,7 +180,7 @@ For every scalar parameter a `Batch` object inside the `Batches` object is set a
 a data member of type double gets assigned the scalar value. This way, when the cuda kernel
 is launched this scalar value gets copied automatically and thus no call to cudaMemcpy is needed **/
 Batches::Batches(RestrictArr output, size_t nEvents, const DataMap &varData, const VarVector &vars,
-                 const ArgVector &extraArgs, double[maxParams][bufferSize])
+                 const ArgVector &extraArgs, double *)
    : _nEvents(nEvents), _nBatches(vars.size()), _nExtraArgs(extraArgs.size()), _output(output)
 {
    for (int i = 0; i < vars.size(); i++) {

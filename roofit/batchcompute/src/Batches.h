@@ -29,8 +29,13 @@ so that they can contain data for every kind of compute function.
 
 namespace RooBatchCompute {
 
-constexpr uint8_t maxParams = 8;
-constexpr uint8_t maxExtraArgs = 16;
+#ifdef __CUDACC__
+constexpr uint8_t maxParams = 120;
+constexpr uint8_t maxExtraArgs = 128;
+#else
+constexpr uint8_t maxParams = 255;
+constexpr uint8_t maxExtraArgs = 255;
+#endif
 constexpr uint16_t bufferSize = 64;
 
 namespace RF_ARCH {
@@ -68,13 +73,13 @@ private:
    size_t _nEvents = 0;
    double _extraArgs[maxExtraArgs];
    uint8_t _nBatches = 0;
-   uint8_t _nExtraArgs;
+   uint8_t _nExtraArgs = 0;
 
 public:
    RestrictArr _output = nullptr;
 
    Batches(RestrictArr output, size_t nEvents, const DataMap &varData, const VarVector &vars,
-           const ArgVector &extraArgs = {}, double stackArr[maxParams][bufferSize] = nullptr);
+           const ArgVector &extraArgs = {}, double * stackArr = nullptr);
    __roodevice__ size_t getNEvents() const { return _nEvents; }
    __roodevice__ uint8_t getNExtraArgs() const { return _nExtraArgs; }
    __roodevice__ double extraArg(uint8_t i) const { return _extraArgs[i]; }
