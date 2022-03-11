@@ -114,10 +114,9 @@ public:
 
   inline int getNPar() const { return fitterFcn()->getNDim() ; }
 
-protected:
-
-  friend class RooAbsPdf ;
   void applyCovarianceMatrix(TMatrixDSym& V) ;
+
+protected:
 
   void profileStart() ;
   void profileStop() ;

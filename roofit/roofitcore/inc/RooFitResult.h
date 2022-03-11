@@ -162,6 +162,8 @@ protected:
   friend class RooAbsPdf ;
   friend class RooMinuit ;
   friend class RooMinimizer ;
+  friend class RobustHesse ;
+
   void setCovarianceMatrix(TMatrixDSym& V) ;
   void setConstParList(const RooArgList& list) ;
   void setInitParList(const RooArgList& list) ;

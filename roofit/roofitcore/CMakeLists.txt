@@ -15,6 +15,7 @@ endif()
 
 ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   HEADERS
+    RobustHesse.h
     RooFit/Floats.h
     Roo1DTable.h
     RooAbsAnaConvPdf.h
@@ -245,6 +246,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFit/TestStatistics/optional_parameter_types.h
     RooFit/TestStatistics/buildLikelihood.h
   SOURCES
+    src/RobustHesse.cxx
     src/BatchModeHelpers.cxx
     src/Buffers.cxx
     src/BidirMMapPipe.cxx

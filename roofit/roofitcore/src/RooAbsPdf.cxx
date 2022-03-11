@@ -166,6 +166,7 @@ called for each data event.
 #include "RooXYChi2Var.h"
 #include "RooChi2Var.h"
 #include "RooMinimizer.h"
+#include "RobustHesse.h"
 #include "RooRealIntegral.h"
 #include "RooWorkspace.h"
 #include "RooNaNPacker.h"
@@ -1592,6 +1593,21 @@ std::unique_ptr<RooFitResult> RooAbsPdf::minimizeNLL(RooAbsReal & nll,
   }
 
   if (cfg.optConst) m.optimizeConst(0) ;
+
+  RobustHesse robustHesse(nll, cfg.printLevel - 1);
+  //robustHesse.ProtectArgSet(*mc_s->GetParametersOfInterest());
+  //if (robustHesseSave_ != "") {
+    //robustHesse.SaveHessianToFile(robustHesseSave_);
+  //}
+  //if (robustHesseLoad_ != "") {
+    //robustHesse.LoadHessianFromFile(robustHesseLoad_);
+  //}
+  robustHesse.hesse();
+  if(ret) {
+    ret.reset(robustHesse.GetRooFitResult(ret.get()));
+  }
+  //robustHesse.WriteOutputFile("robustHesse"+name_+".root");
+
   return ret ;
 }
 
