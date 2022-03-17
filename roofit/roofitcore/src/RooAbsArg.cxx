@@ -922,52 +922,6 @@ Bool_t RooAbsArg::observableOverlaps(const RooArgSet* nset, const RooAbsArg& tes
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Mark this object as having changed its value, and propagate this status
-/// change to all of our clients. If the object is not in automatic dirty
-/// state propagation mode, this call has no effect.
-
-void RooAbsArg::setValueDirty(const RooAbsArg* source)
-{
-  _allBatchesDirty = true;
-
-  if (_operMode!=Auto || _inhibitDirty) return ;
-
-  // Handle no-propagation scenarios first
-  if (_clientListValue.size() == 0) {
-    _valueDirty = kTRUE ;
-    return ;
-  }
-
-  // Cyclical dependency interception
-  if (source==0) {
-    source=this ;
-  } else if (source==this) {
-    // Cyclical dependency, abort
-    coutE(LinkStateMgmt) << "RooAbsArg::setValueDirty(" << GetName()
-          << "): cyclical dependency detected, source = " << source->GetName() << endl ;
-    //assert(0) ;
-    return ;
-  }
-
-  // Propagate dirty flag to all clients if this is a down->up transition
-  if (_verboseDirty) {
-    cxcoutD(LinkStateMgmt) << "RooAbsArg::setValueDirty(" << (source?source->GetName():"self") << "->" << GetName() << "," << this
-            << "): dirty flag " << (_valueDirty?"already ":"") << "raised" << endl ;
-  }
-
-  _valueDirty = kTRUE ;
-
-
-  for (auto client : _clientListValue) {
-    client->setValueDirty(source) ;
-  }
-
-
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Mark this object as having changed its shape, and propagate this status
 /// change to all of our clients.
@@ -999,7 +953,7 @@ void RooAbsArg::setShapeDirty(const RooAbsArg* source)
 
   for (auto client : _clientListShape) {
     client->setShapeDirty(source) ;
-    client->setValueDirty(source) ;
+    client->setValueDirty() ;
   }
 
 }

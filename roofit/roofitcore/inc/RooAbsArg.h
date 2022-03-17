@@ -509,12 +509,20 @@ public:
   /// Set the operation mode of this node.
   void setOperMode(OperMode mode, Bool_t recurseADirty=kTRUE) ;
 
-  // Dirty state modifiers
-  /// Mark the element dirty. This forces a re-evaluation when a value is requested.
-  void setValueDirty() {
-    if (_operMode == Auto && !inhibitDirty())
-      setValueDirty(nullptr);
+  /// Mark this object as having changed its value, and propagate this status
+  /// change to all of our clients. This forces a re-evaluation when a value is
+  /// requested. If the object is not in automatic dirty state propagation mode,
+  /// this call has no effect.
+  void setValueDirty()
+  {
+    if (_operMode!=Auto || _inhibitDirty) return ;
+    _valueDirty = true ;
+
+    for (auto client : _clientListValue) {
+      client->setValueDirty() ;
+    }
   }
+
   /// Notify that a shape-like property (*e.g.* binning) has changed.
   void setShapeDirty() { setShapeDirty(nullptr); }
 
@@ -625,8 +633,6 @@ protected:
      _shapeDirty=kFALSE ;
    }
 
-   /// Force element to re-evaluate itself when a value is requested.
-   void setValueDirty(const RooAbsArg* source);
    /// Notify that a shape-like property (*e.g.* binning) has changed.
    void setShapeDirty(const RooAbsArg* source);
 
@@ -729,7 +735,6 @@ private:
 
   mutable Bool_t _valueDirty ;  // Flag set if value needs recalculating because input values modified
   mutable Bool_t _shapeDirty ;  // Flag set if value needs recalculating because input shapes modified
-  mutable bool _allBatchesDirty{true}; //! Mark batches as dirty (only meaningful for RooAbsReal).
 
   mutable OperMode _operMode ; // Dirty state propagation mode
   mutable Bool_t _fast ; // Allow fast access mode in getVal() and proxies
