@@ -116,7 +116,7 @@ RooGenProdProj::RooGenProdProj(const RooGenProdProj& other, const char* name) :
   TIterator* iter = serverIterator() ;
   RooAbsArg* server ;
   while((server=(RooAbsArg*)iter->Next())) {
-    removeServer(*server,kTRUE) ;
+    removeServer(*server) ;
   }
   delete iter ;
 

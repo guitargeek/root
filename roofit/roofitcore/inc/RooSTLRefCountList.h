@@ -56,34 +56,15 @@ class RooSTLRefCountList {
 
     ///Add an object or increase refCount if it is already present. Only compares
     ///pointers to check for existing objects
-    void Add(T * obj, std::size_t initialCount = 1) {
+    void Add(T * obj) {
       auto foundItem = findByPointer(obj);
 
-      if (foundItem != _storage.end()) {
-        _refCount[foundItem - _storage.begin()] += initialCount;
-      }
-      else {
+      if (foundItem == _storage.end()) {
         if(!_orderedStorage.empty()) {
           _orderedStorage.insert(lowerBoundByNamePointer(obj), obj);
         }
         _storage.push_back(obj);
-        _refCount.push_back(initialCount);
       }
-    }
-
-
-    ///Return ref count of item that iterator points to.
-    std::size_t refCount(typename Container_t::const_iterator item) const {
-      assert(_storage.size() == _refCount.size());
-
-      return item != _storage.end() ? _refCount[item - _storage.begin()] : 0;
-    }
-
-
-    ///Return ref count of item with given address.
-    template<typename Obj_t>
-    std::size_t refCount(const Obj_t * obj) const {
-      return refCount(findByPointer(obj));
     }
 
     ///Iterator over contained objects.
@@ -110,14 +91,11 @@ class RooSTLRefCountList {
 
     ///Number of contained objects (neglecting the ref count).
     std::size_t size() const {
-      assert(_storage.size() == _refCount.size());
-
       return _storage.size();
     }
 
     void reserve(std::size_t amount) {
       _storage.reserve(amount);
-      _refCount.reserve(amount);
       _orderedStorage.reserve(amount);
     }
 
@@ -191,26 +169,21 @@ class RooSTLRefCountList {
     ///Decrease ref count of given object. Shrink list if ref count reaches 0.
     ///\param obj Decrease ref count of given object. Compare by pointer.
     ///\param force If true, remove irrespective of ref count.
-    void Remove(const T * obj, bool force = false) {
+    void Remove(const T * obj) {
       auto item = findByPointer(obj);
 
       if (item != _storage.end()) {
         const std::size_t pos = item - _storage.begin();
 
-        if (force || --_refCount[pos] == 0) {
-          //gcc4.x doesn't know how to erase at the position of a const_iterator
-          //Therefore, erase at begin + pos instead of 'item'
-          _storage.erase(_storage.begin() + pos);
-          _refCount.erase(_refCount.begin() + pos);
-          if(!_orderedStorage.empty()) {
-            // For the ordered storage, we could find by name pointer address
-            // with binary search, but this will not work anymore if one of the
-            // object pointers in this collection is dangling (can happen in
-            // RooFit...). However, the linear search by object address is
-            // acceptable, because we already do a linear search through
-            // _storage at the beginning of Remove().
-            _orderedStorage.erase(std::find(_orderedStorage.begin(), _orderedStorage.end(), obj));
-          }
+        _storage.erase(_storage.begin() + pos);
+        if(!_orderedStorage.empty()) {
+          // For the ordered storage, we could find by name pointer address
+          // with binary search, but this will not work anymore if one of the
+          // object pointers in this collection is dangling (can happen in
+          // RooFit...). However, the linear search by object address is
+          // acceptable, because we already do a linear search through
+          // _storage at the beginning of Remove().
+          _orderedStorage.erase(std::find(_orderedStorage.begin(), _orderedStorage.end(), obj));
         }
       }
     }
@@ -218,7 +191,7 @@ class RooSTLRefCountList {
 
     ///Remove from list irrespective of ref count.
     void RemoveAll(const T * obj) {
-      Remove(obj, true);
+      Remove(obj);
     }
 
 
@@ -261,8 +234,7 @@ class RooSTLRefCountList {
     }
 
     Container_t _storage;
-    std::vector<UInt_t> _refCount;
-    mutable std::vector<T*> _orderedStorage; //!
+    mutable Container_t _orderedStorage; //!
     mutable unsigned long _renameCounterForLastSorting = 0; ///<!
 
     // It is expensive to access the RooNameReg instance to get the counter for
@@ -270,7 +242,7 @@ class RooSTLRefCountList {
     // the counter.
     static std::size_t const* _renameCounter;
 
-    ClassDef(RooSTLRefCountList<T>,3);
+    ClassDef(RooSTLRefCountList<T>,4);
 };
 
 template<class T>

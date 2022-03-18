@@ -2624,11 +2624,10 @@ void RooWorkspace::Streamer(TBuffer &R__b)
        for (auto client : clientsTmp) {
          if (!_allOwnedNodes.containsInstance(*client)) {
 
-           const auto refCount = tmparg->_clientList.refCount(client);
            auto& bufferVec = extClients[tmparg];
 
-           bufferVec.insert(bufferVec.end(), refCount, client);
-           tmparg->_clientList.Remove(client, true);
+           bufferVec.push_back(client);
+           tmparg->_clientList.Remove(client);
          }
        }
 
@@ -2637,13 +2636,12 @@ void RooWorkspace::Streamer(TBuffer &R__b)
        for (auto vclient : clientsTmp) {
          if (!_allOwnedNodes.containsInstance(*vclient)) {
            cxcoutD(ObjectHandling) << "RooWorkspace::Streamer(" << GetName() << ") element " << tmparg->GetName()
-                   << " has external value client link to " << vclient << " (" << vclient->GetName() << ") with ref count " << tmparg->_clientListValue.refCount(vclient) << endl ;
+                   << " has external value client link to " << vclient << " (" << vclient->GetName() << ")" << endl ;
 
-           const auto refCount = tmparg->_clientListValue.refCount(vclient);
            auto& bufferVec = extValueClients[tmparg];
 
-           bufferVec.insert(bufferVec.end(), refCount, vclient);
-           tmparg->_clientListValue.Remove(vclient, true);
+           bufferVec.push_back(vclient);
+           tmparg->_clientListValue.Remove(vclient);
          }
        }
 
@@ -2652,13 +2650,12 @@ void RooWorkspace::Streamer(TBuffer &R__b)
        for (auto sclient : clientsTmp) {
          if (!_allOwnedNodes.containsInstance(*sclient)) {
            cxcoutD(ObjectHandling) << "RooWorkspace::Streamer(" << GetName() << ") element " << tmparg->GetName()
-                     << " has external shape client link to " << sclient << " (" << sclient->GetName() << ") with ref count " << tmparg->_clientListShape.refCount(sclient) << endl ;
+                     << " has external shape client link to " << sclient << " (" << sclient->GetName() << ")" << endl ;
 
-           const auto refCount = tmparg->_clientListShape.refCount(sclient);
            auto& bufferVec = extShapeClients[tmparg];
 
-           bufferVec.insert(bufferVec.end(), refCount, sclient);
-           tmparg->_clientListShape.Remove(sclient, true);
+           bufferVec.push_back(sclient);
+           tmparg->_clientListShape.Remove(sclient);
          }
        }
 

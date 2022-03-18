@@ -216,7 +216,7 @@ RooAbsArg::~RooAbsArg()
 {
   // Notify all servers that they no longer need to serve us
   while (!_serverList.empty()) {
-    removeServer(*_serverList.containedObjects().back(), kTRUE);
+    removeServer(*_serverList.containedObjects().back());
   }
 
   // Notify all clients that they are in limbo
@@ -228,7 +228,7 @@ RooAbsArg::~RooAbsArg()
     attr.Append(GetName());
     attr.Append(Form("(%zx)",(size_t)this)) ;
     client->setAttribute(attr.Data());
-    client->removeServer(*this,kTRUE);
+    client->removeServer(*this);
 
     if (_verboseDirty) {
 
@@ -378,7 +378,7 @@ Bool_t RooAbsArg::getTransientAttribute(const Text_t* name) const
 /// \param shapeProp In addition to the basic client-server relationship, declare dependence on the server's shape.
 /// \param refCount Optionally add with higher reference count (if multiple components depend on it)
 
-void RooAbsArg::addServer(RooAbsArg& server, Bool_t valueProp, Bool_t shapeProp, std::size_t refCount)
+void RooAbsArg::addServer(RooAbsArg& server, Bool_t valueProp, Bool_t shapeProp)
 {
   if (_prohibitServerRedirect) {
     cxcoutF(LinkStateMgmt) << "RooAbsArg::addServer(" << this << "," << GetName()
@@ -401,11 +401,11 @@ void RooAbsArg::addServer(RooAbsArg& server, Bool_t valueProp, Bool_t shapeProp,
 //  if (server._clientListValue.GetSize() >  999 && server._clientListValue.getHashTableSize() == 0) server._clientListValue.setHashTableSize(1000);
 
   // Add server link to given server
-  _serverList.Add(&server, refCount) ;
+  _serverList.Add(&server) ;
 
-  server._clientList.Add(this, refCount);
-  if (valueProp) server._clientListValue.Add(this, refCount);
-  if (shapeProp) server._clientListShape.Add(this, refCount);
+  server._clientList.Add(this);
+  if (valueProp) server._clientListValue.Add(this);
+  if (shapeProp) server._clientListShape.Add(this);
 }
 
 
@@ -429,7 +429,7 @@ void RooAbsArg::addServerList(RooAbsCollection& serverList, Bool_t valueProp, Bo
 /// Unregister another RooAbsArg as a server to us, ie, declare that
 /// we no longer depend on its value and shape.
 
-void RooAbsArg::removeServer(RooAbsArg& server, Bool_t force)
+void RooAbsArg::removeServer(RooAbsArg& server)
 {
   if (_prohibitServerRedirect) {
     cxcoutF(LinkStateMgmt) << "RooAbsArg::addServer(" << this << "," << GetName() << "): PROHIBITED SERVER REMOVAL REQUESTED: removing server "
@@ -443,11 +443,11 @@ void RooAbsArg::removeServer(RooAbsArg& server, Bool_t force)
   }
 
   // Remove server link to given server
-  _serverList.Remove(&server, force) ;
+  _serverList.Remove(&server) ;
 
-  server._clientList.Remove(this, force) ;
-  server._clientListValue.Remove(this, force) ;
-  server._clientListShape.Remove(this, force) ;
+  server._clientList.Remove(this) ;
+  server._clientListValue.Remove(this) ;
+  server._clientListShape.Remove(this) ;
 }
 
 
@@ -456,9 +456,8 @@ void RooAbsArg::removeServer(RooAbsArg& server, Bool_t force)
 
 void RooAbsArg::replaceServer(RooAbsArg& oldServer, RooAbsArg& newServer, Bool_t propValue, Bool_t propShape)
 {
-  Int_t count = _serverList.refCount(&oldServer);
-  removeServer(oldServer, kTRUE);
-  addServer(newServer, propValue, propShape, count);
+  removeServer(oldServer);
+  addServer(newServer, propValue, propShape);
 }
 
 
@@ -481,15 +480,13 @@ void RooAbsArg::changeServer(RooAbsArg& server, Bool_t valueProp, Bool_t shapePr
   }
 
   // Remove all propagation links, then reinstall requested ones ;
-  Int_t vcount = server._clientListValue.refCount(this) ;
-  Int_t scount = server._clientListShape.refCount(this) ;
   server._clientListValue.RemoveAll(this) ;
   server._clientListShape.RemoveAll(this) ;
   if (valueProp) {
-    server._clientListValue.Add(this, vcount) ;
+    server._clientListValue.Add(this) ;
   }
   if (shapeProp) {
-    server._clientListShape.Add(this, scount) ;
+    server._clientListShape.Add(this) ;
   }
 }
 

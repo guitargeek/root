@@ -34,7 +34,7 @@ RooSTLRefCountList<RooAbsArg> convert(const RooRefCountList& old) {
 
   auto it = old.fwdIterator();
   for (RooAbsArg * elm = it.next(); elm != nullptr; elm = it.next()) {
-    newList.Add(elm, old.refCount(elm));
+    newList.Add(elm);
   }
 
   return newList;
