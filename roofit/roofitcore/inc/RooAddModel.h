@@ -19,7 +19,6 @@
 #include "RooResolutionModel.h"
 #include "RooListProxy.h"
 #include "RooSetProxy.h"
-#include "RooAICRegistry.h"
 #include "RooNormSetCache.h"
 #include "RooObjCacheManager.h"
 
@@ -125,8 +124,6 @@ protected:
   } ;
 
   mutable RooObjCacheManager _intCacheMgr ; ///<! Manager of cache with integrals
-
-  mutable RooAICRegistry _codeReg ;  ///<! Registry of component analytical integration codes
 
   RooListProxy _pdfList ;   ///<  List of component PDFs
   RooListProxy _coefList ;  ///<  List of coefficients

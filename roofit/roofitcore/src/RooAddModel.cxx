@@ -68,7 +68,6 @@ RooAddModel::RooAddModel() :
   _projectCoefs(false),
   _projCacheMgr(this,10),
   _intCacheMgr(this,10),
-  _codeReg(10),
   _snormList(0),
   _haveLastCoef(false),
   _allExtendable(false)
@@ -94,7 +93,6 @@ RooAddModel::RooAddModel(const char *name, const char *title, const RooArgList& 
   _projectCoefs(kFALSE),
   _projCacheMgr(this,10),
   _intCacheMgr(this,10),
-  _codeReg(10),
   _pdfList("!pdfs","List of PDFs",this),
   _coefList("!coefficients","List of coefficients",this),
   _haveLastCoef(kFALSE),
@@ -168,7 +166,6 @@ RooAddModel::RooAddModel(const RooAddModel& other, const char* name) :
   _projectCoefs(other._projectCoefs),
   _projCacheMgr(other._projCacheMgr,this),
   _intCacheMgr(other._intCacheMgr,this),
-  _codeReg(other._codeReg),
   _pdfList("!pdfs",this,other._pdfList),
   _coefList("!coefficients",this,other._coefList),
   _haveLastCoef(other._haveLastCoef),

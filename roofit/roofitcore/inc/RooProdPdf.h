@@ -164,6 +164,7 @@ private:
 
 
   mutable RooAICRegistry _genCode ; ///<! Registry of composite direct generator codes
+  mutable std::vector<std::vector<int>> _genCodes ; ///<! Registry of composite direct generator codes
 
   Double_t _cutOff ;       ///<  Cutoff parameter for running product
   RooListProxy _pdfList ;  ///<  List of PDF components

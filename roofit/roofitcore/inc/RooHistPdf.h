@@ -19,7 +19,6 @@
 #include "RooAbsPdf.h"
 #include "RooRealProxy.h"
 #include "RooSetProxy.h"
-#include "RooAICRegistry.h"
 #include <list>
 
 class RooRealVar;
@@ -112,7 +111,6 @@ protected:
   RooArgSet         _histObsList ;   ///< List of observables defining dimensions of histogram
   RooSetProxy       _pdfObsList ;    ///< List of observables mapped onto histogram observables
   RooDataHist*      _dataHist ;      ///< Unowned pointer to underlying histogram
-  mutable RooAICRegistry _codeReg ;  ///<! Auxiliary class keeping tracking of analytical integration code
   Int_t             _intOrder ;      ///< Interpolation order
   Bool_t            _cdfBoundaries ; ///< Use boundary conditions for CDFs.
   mutable Double_t  _totVolume ;     ///<! Total volume of space (product of ranges of observables)

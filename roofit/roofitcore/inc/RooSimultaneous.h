@@ -22,7 +22,6 @@
 #include "RooCategoryProxy.h"
 #include "RooRealProxy.h"
 #include "RooSetProxy.h"
-#include "RooAICRegistry.h"
 #include "RooObjCacheManager.h"
 #include "RooAbsCacheElement.h"
 #include "RooArgList.h"

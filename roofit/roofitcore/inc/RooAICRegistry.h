@@ -46,7 +46,6 @@ protected:
   std::vector<pRooArgSet> _asArr3;         ///<! Array of 3rd RooArgSet pointers
   std::vector<pRooArgSet> _asArr4;         ///<! Array of 4th RooArgSet pointers
 
-  ClassDef(RooAICRegistry,2) // Registry for analytical integration codes
 } ;
 
 #endif
