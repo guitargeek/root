@@ -29,6 +29,7 @@ and applying an extra rejection step based on the efficiency function.
 
 #include "RooEffGenContext.h"
 #include "RooAbsPdf.h"
+#include "RooMsgService.h"
 #include "RooRandom.h"
 
 using namespace std;

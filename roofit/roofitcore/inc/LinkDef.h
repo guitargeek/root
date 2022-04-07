@@ -183,10 +183,8 @@
 
 
 // Old LinkDef3.h
-#pragma link C++ class RooCacheManager<std::vector<double> >+ ;
 #pragma link C++ class std::list<RooAbsData*>+ ;
 #pragma link C++ class std::map<string,RooAbsData*>+ ;
-#pragma link C++ class RooCacheManager<RooAbsCacheElement>+ ;
 #pragma link C++ class RooRandomizeParamMCSModule+ ;
 #pragma link C++ class RooRangeBinning+ ;
 #pragma link C++ class RooRealAnalytic+ ;

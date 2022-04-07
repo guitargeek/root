@@ -29,6 +29,7 @@ In extended mode, a
 #include "RooAbsData.h"
 #include "RooAbsPdf.h"
 #include "RooAbsDataStore.h"
+#include "RooMsgService.h"
 #include "RooRealSumPdf.h"
 #include "RooRealVar.h"
 #include "RooChangeTracker.h"

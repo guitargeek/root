@@ -1,5 +1,6 @@
 // Tests for the RooNaNPacker
 // Authors: Stephan Hageboeck, CERN  04/2020
+
 #include "RooNaNPacker.h"
 #include "RooRealVar.h"
 #include "RooGenericPdf.h"
@@ -9,6 +10,7 @@
 #include "RooAddPdf.h"
 #include "RooRealSumPdf.h"
 #include "RooRandom.h"
+#include "RooMsgService.h"
 
 #include "gtest/gtest.h"
 

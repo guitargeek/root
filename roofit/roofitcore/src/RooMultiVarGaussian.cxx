@@ -34,6 +34,7 @@ Multivariate Gaussian p.d.f. with correlations
 #include "RooConstVar.h"
 #include "TDecompChol.h"
 #include "RooFitResult.h"
+#include "RooMsgService.h"
 
 using namespace std;
 

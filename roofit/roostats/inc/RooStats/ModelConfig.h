@@ -13,11 +13,9 @@
 
 
 #include "RooAbsPdf.h"
-
 #include "RooAbsData.h"
-
 #include "RooArgSet.h"
-
+#include "RooMsgService.h"
 #include "RooWorkspaceHandle.h"
 
 #include "TRef.h"

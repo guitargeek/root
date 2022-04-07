@@ -19,7 +19,7 @@
 \class RooObjCacheManager
 \ingroup Roofitcore
 
-Class RooObjCacheManager is an implementation of class RooCacheManager<RooAbsCacheElement>
+Class RooObjCacheManager is an implementation of class RooCacheManager
 and specializes in the storage of cache elements that contain RooAbsArg objects.
 Caches with RooAbsArg derived payload require special care as server redirects
 cache operation mode changes and constant term optimization calls may need to be
@@ -48,8 +48,8 @@ bool RooObjCacheManager::_clearObsList(false) ;
 /// what you're doing as properly implementing server redirect in cache elements can get very
 /// complicated, especially if there are (cyclical) reference back to the owning object
 
-RooObjCacheManager::RooObjCacheManager(RooAbsArg* owner, Int_t maxSize, bool clearCacheOnServerRedirect, bool allowOptimize) :
-  RooCacheManager<RooAbsCacheElement>(owner,maxSize),
+RooObjCacheManager::RooObjCacheManager(RooAbsArg* owner, int maxSize, bool clearCacheOnServerRedirect, bool allowOptimize) :
+  RooCacheManager(owner,maxSize),
   _clearOnRedirect(clearCacheOnServerRedirect),
   _allowOptimize(allowOptimize),
   _optCacheModeSeen(false),
@@ -62,7 +62,7 @@ RooObjCacheManager::RooObjCacheManager(RooAbsArg* owner, Int_t maxSize, bool cle
 /// Copy constructor
 
 RooObjCacheManager::RooObjCacheManager(const RooObjCacheManager& other, RooAbsArg* owner) :
-  RooCacheManager<RooAbsCacheElement>(other,owner),
+  RooCacheManager(other,owner),
   _clearOnRedirect(other._clearOnRedirect),
   _allowOptimize(other._allowOptimize),
   _optCacheModeSeen(false), // cache mode properties are not transferred in copy ctor
@@ -157,7 +157,7 @@ void RooObjCacheManager::optimizeCacheMode(const RooArgSet& obs, RooArgSet& optN
 
 void RooObjCacheManager::sterilize()
 {
-  RooCacheManager<RooAbsCacheElement>::sterilize() ;
+  RooCacheManager::sterilize() ;
 
   // WVE - adding this causes trouble with IntegralMorpht????
   // Perhaps this should not be done in sterilize, but be a separate operation

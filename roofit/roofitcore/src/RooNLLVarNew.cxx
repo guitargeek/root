@@ -26,6 +26,7 @@ functions from `RooBatchCompute` library to provide faster computation times.
 
 #include <RooAddition.h>
 #include <RooFormulaVar.h>
+#include <RooHelpers.h>
 #include <RooNaNPacker.h>
 #include <RooRealVar.h>
 #include "RooFit/Detail/Buffers.h"

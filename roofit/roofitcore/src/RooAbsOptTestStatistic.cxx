@@ -60,6 +60,7 @@ parallelized calculation of test statistics.
 #include "RooTrace.h"
 #include "RooVectorDataStore.h"
 #include "RooBinSamplingPdf.h"
+#include "RooHelpers.h"
 
 #include "ROOT/StringUtils.hxx"
 

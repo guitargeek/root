@@ -15,6 +15,7 @@
 #include <RooDataSet.h>
 #include <RooFit/TestStatistics/buildLikelihood.h>
 #include <RooAbsPdf.h>
+#include <RooMsgService.h>
 #include <RooRealVar.h>
 #include <RooFit/TestStatistics/RooRealL.h>
 #include <RooFit/MultiProcess/Config.h>

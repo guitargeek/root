@@ -18,7 +18,6 @@
 
 #include "Rtypes.h"
 
-#include "RooNormSetCache.h"
 #include "RooAbsReal.h"
 #include "RooArgSet.h"
 #include "RooArgList.h"
@@ -27,7 +26,7 @@
 #include "RooCacheManager.h"
 
 
-class RooObjCacheManager : public RooCacheManager<RooAbsCacheElement> {
+class RooObjCacheManager : public RooCacheManager {
 
 public:
 
@@ -60,7 +59,7 @@ protected:
 
   static bool _clearObsList ; ///< Clear obslist on sterilize?
 
-  ClassDefOverride(RooObjCacheManager,3) ///< Cache manager for generic caches that contain RooAbsArg objects
+  ClassDefOverride(RooObjCacheManager,4) ///< Cache manager for generic caches that contain RooAbsArg objects
 } ;
 
 

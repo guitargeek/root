@@ -14,7 +14,6 @@
 
 #include "RooAbsPdf.h"
 #include "RooRealProxy.h"
-#include "RooObjCacheManager.h"
 
 class RooEffProd: public RooAbsPdf {
 public:

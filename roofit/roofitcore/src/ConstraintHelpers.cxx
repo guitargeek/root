@@ -15,6 +15,7 @@
 #include <RooAbsData.h>
 #include <RooAbsPdf.h>
 #include <RooConstraintSum.h>
+#include <RooHelpers.h>
 #include <RooMsgService.h>
 
 namespace {

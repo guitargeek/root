@@ -7,6 +7,7 @@
 #include <RooRandom.h>
 #include <RooDataHist.h>
 #include <RooDataSet.h>
+#include <RooMsgService.h>
 #include <RooRealVar.h>
 #include <RooWorkspace.h>
 

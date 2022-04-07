@@ -34,6 +34,7 @@ value of the (log-)likelihood itself.
 #include <RooFit/TestStatistics/RooSubsidiaryL.h>
 #include <RooAbsPdf.h> // for dynamic cast
 #include <RooErrorHandler.h>
+#include <RooMsgService.h>
 
 #include "Math/Util.h" // KahanSum
 
