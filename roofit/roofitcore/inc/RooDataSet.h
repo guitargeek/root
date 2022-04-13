@@ -175,7 +175,7 @@ protected:
                         Bool_t copyCache=kTRUE) override;
   RooDataSet(RooStringView name, RooStringView title, RooDataSet *ntuple,
              const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-             std::size_t nStart, std::size_t nStop, Bool_t copyCache, const char* wgtVarName=0);
+             std::size_t nStart, std::size_t nStop, Bool_t copyCache);
 
   RooArgSet addWgtVar(const RooArgSet& origVars, const RooAbsArg* wgtVar) ;
 

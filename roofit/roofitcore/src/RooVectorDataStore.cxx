@@ -281,6 +281,15 @@ RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const Ro
 }
 
 
+RooAbsDataStore* RooVectorDataStore::reduce(RooStringView name, RooStringView title,
+                        const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
+                        int nStart, int nStop) {
+  RooArgSet tmp(vars) ;
+  if(_wgtVar) {
+    tmp.add(*_wgtVar) ;
+  }
+  return new RooVectorDataStore(name, title, *this, tmp, cutVar, cutRange, nStart, nStop);
+}
 
 
 
@@ -288,11 +297,11 @@ RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const Ro
 
 RooVectorDataStore::RooVectorDataStore(RooStringView name, RooStringView title, RooAbsDataStore& tds,
           const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-          std::size_t nStart, std::size_t nStop, Bool_t /*copyCache*/, const char* wgtVarName) :
+          std::size_t nStart, std::size_t nStop) :
 
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)),
+  RooAbsDataStore(name,title,varsNoWeight(vars,tds.wgtVarName())),
   _varsww(vars),
-  _wgtVar(weightVar(vars,wgtVarName)),
+  _wgtVar(weightVar(vars,tds.wgtVarName())),
   _sumWeight(0),
   _sumWeightCarry(0),
   _extWgtArray(0),

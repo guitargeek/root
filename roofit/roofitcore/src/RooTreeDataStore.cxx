@@ -228,10 +228,10 @@ RooTreeDataStore::RooTreeDataStore(RooStringView name, RooStringView title, cons
 
 RooTreeDataStore::RooTreeDataStore(RooStringView name, RooStringView title, RooAbsDataStore& tds,
           const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-          Int_t nStart, Int_t nStop, Bool_t /*copyCache*/, const char* wgtVarName) :
-  RooAbsDataStore(name,title,varsNoWeight(vars,wgtVarName)), _defCtor(kFALSE),
+          Int_t nStart, Int_t nStop) :
+  RooAbsDataStore(name,title,varsNoWeight(vars,tds.wgtVarName())), _defCtor(kFALSE),
   _varsww(vars),
-  _wgtVar(weightVar(vars,wgtVarName)),
+  _wgtVar(weightVar(vars,tds.wgtVarName())),
   _curWgt(1),
   _curWgtErrLo(0),
   _curWgtErrHi(0),
@@ -265,6 +265,16 @@ RooTreeDataStore::RooTreeDataStore(RooStringView name, RooStringView title, RooA
   if (cloneVar) delete cloneVar ;
 }
 
+
+RooAbsDataStore* RooTreeDataStore::reduce(RooStringView name, RooStringView title,
+                        const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
+                        int nStart, int nStop) {
+  RooArgSet tmp(vars) ;
+  if(_wgtVar) {
+    tmp.add(*_wgtVar) ;
+  }
+  return new RooTreeDataStore(name, title, *this, tmp, cutVar, cutRange, nStart, nStop);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1387,4 +1397,9 @@ RooSpan<const double> RooTreeDataStore::getWeightBatch(std::size_t first, std::s
   }
 
   return {_weightBuffer->data() + first, len};
+}
+
+
+const char* RooTreeDataStore::wgtVarName() const {
+  return _wgtVar ? _wgtVar->GetName() : nullptr;
 }

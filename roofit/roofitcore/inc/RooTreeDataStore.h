@@ -45,9 +45,7 @@ public:
 
   RooAbsDataStore* reduce(RooStringView name, RooStringView title,
                           const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                          int nStart, int nStop, bool copyCache, const char* wgtVarName=0) override {
-    return new RooTreeDataStore(name, title, *this, vars, cutVar, cutRange, nStart, nStop, copyCache, wgtVarName);
-  }
+                          int nStart, int nStop) override;
 
   // Ctors from TTree
   RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, TTree& t, const RooFormulaVar& select, const char* wgtVarName=0) ;
@@ -59,7 +57,7 @@ public:
 
   RooTreeDataStore(RooStringView name, RooStringView title, RooAbsDataStore& tds,
                    const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                   Int_t nStart, Int_t nStop, Bool_t /*copyCache*/, const char* wgtVarName=0) ;
+                   Int_t nStart, Int_t nStop) ;
 
   RooTreeDataStore(const RooTreeDataStore& other, const char* newname=0) ;
   RooTreeDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
@@ -143,6 +141,8 @@ public:
   }
 
   const RooArgSet& row() { return _varsww ; }
+
+  const char* wgtVarName() const override;
 
  private:
 

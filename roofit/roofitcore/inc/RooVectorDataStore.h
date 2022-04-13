@@ -50,9 +50,7 @@ public:
 
   RooAbsDataStore* reduce(RooStringView name, RooStringView title,
                           const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                          int nStart, int nStop, bool copyCache, const char* wgtVarName=0) override {
-    return new RooVectorDataStore(name, title, *this, vars, cutVar, cutRange, nStart, nStop, copyCache, wgtVarName);
-  }
+                          int nStart, int nStop) override;
 
   RooVectorDataStore(const RooVectorDataStore& other, const char* newname=0) ;
   RooVectorDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
@@ -61,7 +59,7 @@ public:
 
   RooVectorDataStore(RooStringView name, RooStringView title, RooAbsDataStore& tds,
                      const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                     std::size_t nStart, std::size_t nStop, Bool_t /*copyCache*/, const char* wgtVarName=0) ;
+                     std::size_t nStart, std::size_t nStop) ;
 
   ~RooVectorDataStore() override ;
 
@@ -649,6 +647,10 @@ public:
   std::vector<RealVector*>& realStoreList() { return _realStoreList ; }
   std::vector<RealFullVector*>& realfStoreList() { return _realfStoreList ; }
   std::vector<CatVector*>& catStoreList() { return _catStoreList ; }
+
+  const char* wgtVarName() const override {
+    return _wgtVar ? _wgtVar->GetName() : nullptr;
+  }
 
  protected:
 

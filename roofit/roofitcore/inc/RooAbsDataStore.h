@@ -53,7 +53,9 @@ public:
 
   virtual RooAbsDataStore* reduce(RooStringView name, RooStringView title,
                                   const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                                  int nStart, int nStop, bool copyCache, const char* wgtVarName=0) = 0 ;
+                                  int nStart, int nStop) = 0 ;
+
+  virtual const char* wgtVarName() const = 0;
 
   // Write current row
   virtual Int_t fill() = 0 ;

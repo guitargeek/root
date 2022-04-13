@@ -45,7 +45,7 @@ public:
 
   RooAbsDataStore* reduce(RooStringView name, RooStringView title,
                           const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                          int nStart, int nStop, bool copyCache, const char* wgtVarName=0) override;
+                          int nStart, int nStop) override;
 
   RooCompositeDataStore(const RooCompositeDataStore& other, const char* newname=0) ;
   RooCompositeDataStore(const RooCompositeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
@@ -114,6 +114,11 @@ public:
   }
   RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len) const override;
 
+  const char* wgtVarName() const override {
+    // A RooCompositeDataStore has no defined weight variable name because they
+    // are in general different for all components.
+    return nullptr;
+  }
 
  protected:
 

@@ -125,14 +125,14 @@ RooCompositeDataStore::~RooCompositeDataStore()
 
 RooAbsDataStore* RooCompositeDataStore::reduce(
         RooStringView name, RooStringView title, const RooArgSet& vars, const RooFormulaVar* cutVar,
-        const char* cutRange, int nStart, int nStop, bool copyCache, const char* wgtVarName)
+        const char* cutRange, int nStart, int nStop)
 {
   // create an empty RooCompositeDataStore
   auto * out = new RooCompositeDataStore{name, title, vars, *_indexCat, std::map<std::string,RooAbsDataStore*>{}};
 
   // fill it with reduced versions of components
   for (const auto& item : _dataMap) {
-    auto * red = item.second->reduce(name, title, vars, cutVar, cutRange, nStart, nStop, copyCache, wgtVarName);
+    auto * red = item.second->reduce(name, title, vars, cutVar, cutRange, nStart, nStop);
     out->_dataMap[item.first] = red;
   }
 

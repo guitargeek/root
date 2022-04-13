@@ -841,11 +841,11 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
 /// is the most convenient way to create a subset of an existing data
 
 RooDataHist::RooDataHist(RooStringView name, RooStringView title, RooDataHist* h, const RooArgSet& varSubset,
-          const RooFormulaVar* cutVar, const char* cutRange, Int_t nStart, Int_t nStop, Bool_t copyCache) :
+          const RooFormulaVar* cutVar, const char* cutRange, Int_t nStart, Int_t nStop, Bool_t /*copyCache*/) :
   RooAbsData(name,title,varSubset)
 {
   // Initialize datastore
-  _dstore = new RooTreeDataStore(name,title,*h->_dstore,_vars,cutVar,cutRange,nStart,nStop,copyCache) ;
+  _dstore = new RooTreeDataStore(name,title,*h->_dstore,_vars,cutVar,cutRange,nStart,nStop) ;
 
   initialize(0,kFALSE) ;
 
