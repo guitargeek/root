@@ -48,6 +48,12 @@ public:
   RooAbsDataStore* clone(const char* newname=0) const override { return new RooVectorDataStore(*this,newname) ; }
   RooAbsDataStore* clone(const RooArgSet& vars, const char* newname=0) const override { return new RooVectorDataStore(*this,vars,newname) ; }
 
+  RooAbsDataStore* reduce(RooStringView name, RooStringView title,
+                          const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
+                          int nStart, int nStop, bool copyCache, const char* wgtVarName=0) override {
+    return new RooVectorDataStore(name, title, *this, vars, cutVar, cutRange, nStart, nStop, copyCache, wgtVarName);
+  }
+
   RooVectorDataStore(const RooVectorDataStore& other, const char* newname=0) ;
   RooVectorDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
   RooVectorDataStore(const RooVectorDataStore& other, const RooArgSet& vars, const char* newname=0) ;

@@ -844,13 +844,7 @@ RooDataSet::RooDataSet(RooStringView name, RooStringView title, RooDataSet *dset
              std::size_t nStart, std::size_t nStop, Bool_t copyCache, const char* wgtVarName) :
   RooAbsData(name,title,vars)
 {
-  if (defaultStorageType == Tree) {
-    _dstore = new RooTreeDataStore(name, title, *dset->_dstore, _vars, cutVar, cutRange, nStart, nStop,
-        copyCache, wgtVarName);
-  } else {
-    _dstore = new RooVectorDataStore(name, title, *dset->_dstore, _vars, cutVar, cutRange, nStart,
-        nStop, copyCache, wgtVarName);
-  }
+  _dstore = dset->_dstore->reduce(name, title, _vars, cutVar, cutRange, nStart, nStop, copyCache, wgtVarName);
 
    _cachedVars.add(_dstore->cachedVars());
 
