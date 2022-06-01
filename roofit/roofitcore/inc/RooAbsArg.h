@@ -757,9 +757,19 @@ private:
   friend class RooFitResult;
 
  public:
+
+  struct CopyContext{
+    RooAbsArg * target = nullptr;
+  };
+
+  RooAbsArg* getCopyTarget() const;
+
   static std::map<RooAbsArg*,std::unique_ptr<TRefArray>> _ioEvoList; // temporary holding list for proxies needed in schema evolution
  protected:
   static std::stack<RooAbsArg*> _ioReadStack ; // reading stack
+
+  mutable CopyContext _copyContext ; ///<! Info for when the object is copied
+
   /// \endcond
 
   ClassDefOverride(RooAbsArg,8) // Abstract variable

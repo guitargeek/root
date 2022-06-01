@@ -86,6 +86,22 @@ RooArgProxy::RooArgProxy(const char* inName, RooAbsArg* owner, const RooArgProxy
 }
 
 
+RooArgProxy::RooArgProxy(const RooArgProxy& other) :
+  TNamed(other.GetName(),other.GetTitle()), RooAbsProxy(other),
+  _arg(other._arg),
+  _valueServer(other._valueServer), _shapeServer(other._shapeServer),
+  _isFund(other._isFund), _ownArg(other._ownArg)
+{
+  if (_ownArg) {
+    _arg = _arg ? static_cast<RooAbsArg*>(_arg->Clone()) : nullptr;
+  }
+
+  if(auto prevOwner = other._owner) {
+    _owner = prevOwner->getCopyTarget();
+    _owner->registerProxy(*this);
+  }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Destructor

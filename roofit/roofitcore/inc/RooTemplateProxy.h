@@ -289,6 +289,8 @@ public:
   /// Return reference to object held in proxy.
   const T& arg() const { return static_cast<const T&>(*_arg); }
 
+  RooTemplateProxy& operator=(RooTemplateProxy const&) = delete;
+
   /// Assign a new value to the object pointed to by the proxy.
   /// This requires the payload to be assignable (RooAbsRealLValue or derived, RooAbsCategoryLValue).
   RooTemplateProxy<T>& operator=(typename T::value_type value) {

@@ -170,9 +170,7 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
   setValueDirty() ;
   setShapeDirty() ;
 
-  //setAttribute(Form("CloneOf(%08x)",&other)) ;
-  //cout << "RooAbsArg::cctor(" << this << ") #bools = " << _boolAttrib.size() << " #strings = " << _stringAttrib.size() << endl ;
-
+  other._copyContext.target = this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2567,4 +2565,14 @@ void RooAbsArg::applyWeightSquared(bool flag) {
 ///             server.
 void RooAbsArg::fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server, RooArgSet& serverNormSet) const {
   for(auto * arg : normSet) if(server.dependsOn(*arg)) serverNormSet.add(*arg);
+}
+
+
+RooAbsArg* RooAbsArg::getCopyTarget() const {
+
+  if(!_copyContext.target) {
+    throw std::runtime_error("Error in RooAbsArg::getCopyTarget(): no copying in process and copy target not set!");
+  }
+
+  return _copyContext.target;
 }

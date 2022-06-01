@@ -60,6 +60,16 @@ public:
       _owner->registerProxy(*this);
    }
 
+   RooCollectionProxy(const RooCollectionProxy &other)
+      : RooCollection_t(other, nullptr), RooAbsProxy{other}, _defValueServer(other._defValueServer),
+        _defShapeServer(other._defShapeServer)
+   {
+      if(auto prevOwner = other._owner) {
+        _owner = prevOwner->getCopyTarget();
+        _owner->registerProxy(*this);
+      }
+   }
+
    ~RooCollectionProxy() override
    {
       if (_owner)
@@ -103,6 +113,10 @@ public:
    void removeAll() override;
 
    void print(std::ostream &os, bool addContents = false) const override;
+
+   RooCollectionProxy &operator=(const RooCollectionProxy &other) {
+     return operator=(static_cast<RooCollection_t const&>(other));
+   }
 
    /// Assign values of arguments on other set to arguments in this set.
    RooCollectionProxy &operator=(const RooCollection_t &other)
