@@ -2026,17 +2026,16 @@ void RooLagrangianMorphFunc::init()
 
 RooLagrangianMorphFunc::RooLagrangianMorphFunc(const RooLagrangianMorphFunc &other, const char *name)
    : RooAbsReal(other, name), _cacheMgr(other._cacheMgr, this), _scale(other._scale), _sampleMap(other._sampleMap),
-     _physics(other._physics.GetName(), this, other._physics),
-     _operators(other._operators.GetName(), this, other._operators),
-     _observables(other._observables.GetName(), this, other._observables),
-     _binWidths(other._binWidths.GetName(), this, other._binWidths), _flags{other._flags.GetName(), this, other._flags},
+     _physics(other._physics),
+     _operators(other._operators),
+     _observables(other._observables),
+     _binWidths(other._binWidths), _flags{other._flags},
      _config(other._config)
 {
    for (size_t j = 0; j < other._diagrams.size(); ++j) {
       std::vector<RooListProxy *> diagram;
       for (size_t i = 0; i < other._diagrams[j].size(); ++i) {
-         RooListProxy *list = new RooListProxy(other._diagrams[j][i]->GetName(), this, *(other._diagrams[j][i]));
-         diagram.push_back(list);
+         diagram.push_back(new RooListProxy(*(other._diagrams[j][i])));
       }
       this->_diagrams.push_back(diagram);
    }

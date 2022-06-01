@@ -344,7 +344,7 @@ RooProdPdf::RooProdPdf(const RooProdPdf& other, const char* name) :
   _cacheMgr(other._cacheMgr,this),
   _genCode(other._genCode),
   _cutOff(other._cutOff),
-  _pdfList("!pdfs",this,other._pdfList),
+  _pdfList(other._pdfList),
   _extendedIndex(other._extendedIndex),
   _useDefaultGen(other._useDefaultGen),
   _refRangeName(other._refRangeName),

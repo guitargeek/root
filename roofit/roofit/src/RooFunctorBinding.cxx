@@ -72,7 +72,7 @@ RooFunctorBinding::RooFunctorBinding(const char *name, const char *title, const 
 RooFunctorBinding::RooFunctorBinding(const RooFunctorBinding& other, const char* name) :
   RooAbsReal(other,name),
   func(other.func),
-  vars("vars",this,other.vars)
+  vars(other.vars)
 {
   // Copy constructor
   x = new double[func->NDim()] ;
@@ -127,7 +127,7 @@ RooFunctorPdfBinding::RooFunctorPdfBinding(const char *name, const char *title, 
 RooFunctorPdfBinding::RooFunctorPdfBinding(const RooFunctorPdfBinding& other, const char* name) :
   RooAbsPdf(other,name),
   func(other.func),
-  vars("vars",this,other.vars)
+  vars(other.vars)
 {
   // Copy constructor
   x = new double[func->NDim()] ;

@@ -76,9 +76,9 @@ RooAbsMoment::RooAbsMoment(const RooAbsMoment& other, const char* name) :
   RooAbsReal(other, name),
   _order(other._order),
   _takeRoot(other._takeRoot),
-  _nset("nset",this,other._nset),
-  _func("function",this,other._func),
-  _x("x",this,other._x),
+  _nset(other._nset),
+  _func(other._func),
+  _x(other._x),
   _mean("!mean","!mean",this,false,false)
 {
 }

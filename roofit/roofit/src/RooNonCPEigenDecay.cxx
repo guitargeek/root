@@ -147,12 +147,12 @@ RooNonCPEigenDecay::RooNonCPEigenDecay( const char *name, const char *title,
   _tag      ( "tag",      "CP state",           this, tag      ),
   _rhoQ     ( "rhoQ",     "Charge of the rho",  this, rhoQ     ),
   _correctQ ( "correctQ", "correction of rhoQ", this, correctQ ),
+  // dummy mischarge (must be set to zero!)
+  _wQ       ( "wQ", "mischarge", this, *(new RooRealVar( "wQ", "wQ", 0 )) ),
   _genB0Frac     ( 0 ),
   _genRhoPlusFrac( 0 ),
   _type     ( type )
 {
-  // dummy mischarge (must be set to zero!)
-  _wQ = RooRealProxy( "wQ", "mischarge", this, *(new RooRealVar( "wQ", "wQ", 0 )) );
 
   switch(type) {
   case SingleSided:

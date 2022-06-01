@@ -169,8 +169,8 @@ RooHistConstraint::RooHistConstraint(const char *name, const char *title,
 
  RooHistConstraint::RooHistConstraint(const RooHistConstraint& other, const char* name) :
    RooAbsPdf(other,name),
-   _gamma("gamma",this,other._gamma),
-   _nominal("nominal",this,other._nominal),
+   _gamma(other._gamma),
+   _nominal(other._nominal),
    _relParam(other._relParam)
  {
  }

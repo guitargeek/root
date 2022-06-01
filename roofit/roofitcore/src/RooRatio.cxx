@@ -93,8 +93,8 @@ RooRatio::RooRatio(const char *name, const char *title,
 RooRatio::~RooRatio(){TRACE_DESTROY}
 
 RooRatio::RooRatio(const RooRatio &other, const char *name)
-    : RooAbsReal(other, name), _numerator("numerator", this, other._numerator),
-      _denominator("denominator", this, other._denominator){TRACE_CREATE}
+    : RooAbsReal(other, name), _numerator(other._numerator),
+      _denominator(other._denominator){TRACE_CREATE}
 
       double RooRatio::evaluate() const {
 

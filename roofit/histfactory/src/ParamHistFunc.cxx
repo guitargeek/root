@@ -175,8 +175,8 @@ Int_t ParamHistFunc::GetNumBins( const RooArgSet& vars ) {
 ParamHistFunc::ParamHistFunc(const ParamHistFunc& other, const char* name) :
   RooAbsReal(other, name),
   _normIntMgr(other._normIntMgr, this),
-  _dataVars("!dataVars", this, other._dataVars ),
-  _paramSet("!paramSet", this, other._paramSet),
+  _dataVars(other._dataVars ),
+  _paramSet(other._paramSet),
   _numBins( other._numBins ),
   _dataSet( other._dataSet )
 {

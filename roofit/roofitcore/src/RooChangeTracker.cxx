@@ -100,8 +100,8 @@ for (const auto arg : trackSet) {
 
 RooChangeTracker::RooChangeTracker(const RooChangeTracker& other, const char* name) :
   RooAbsReal(other, name),
-  _realSet("realSet",this,other._realSet),
-  _catSet("catSet",this,other._catSet),
+  _realSet(other._realSet),
+  _catSet(other._catSet),
   _realRef(other._realRef),
   _catRef(other._catRef),
   _checkVal(other._checkVal),

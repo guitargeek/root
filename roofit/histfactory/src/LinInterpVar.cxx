@@ -76,7 +76,7 @@ LinInterpVar::LinInterpVar(const char* name, const char* title) :
 
 LinInterpVar::LinInterpVar(const LinInterpVar& other, const char* name) :
   RooAbsReal(other, name),
-  _paramList("paramList",this,other._paramList),
+  _paramList(other._paramList),
   _nominal(other._nominal), _low(other._low), _high(other._high)
 
 {

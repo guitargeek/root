@@ -121,8 +121,8 @@ RooMomentMorphFunc::RooMomentMorphFunc(const char *name, const char *title, RooA
 
 //_____________________________________________________________________________
 RooMomentMorphFunc::RooMomentMorphFunc(const RooMomentMorphFunc &other, const char *name)
-   : RooAbsReal(other, name), _cacheMgr(other._cacheMgr, this), _curNormSet(0), m("m", this, other.m),
-     _varList("varList", this, other._varList), _pdfList("pdfList", this, other._pdfList), _setting(other._setting),
+   : RooAbsReal(other, name), _cacheMgr(other._cacheMgr, this), _curNormSet(0), m(other.m),
+     _varList(other._varList), _pdfList(other._pdfList), _setting(other._setting),
      _useHorizMorph(other._useHorizMorph)
 {
    _mref = new TVectorD(*other._mref);

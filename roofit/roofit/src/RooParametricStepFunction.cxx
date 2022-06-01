@@ -95,8 +95,8 @@ RooParametricStepFunction::RooParametricStepFunction(const char* name, const cha
 
 RooParametricStepFunction::RooParametricStepFunction(const RooParametricStepFunction& other, const char* name) :
   RooAbsPdf(other, name),
-  _x("x", this, other._x),
-  _coefList("coefList",this,other._coefList),
+  _x(other._x),
+  _coefList(other._coefList),
   _nBins(other._nBins)
 {
   (other._limits).Copy(_limits);

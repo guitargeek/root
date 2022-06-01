@@ -299,9 +299,9 @@ template<class VO,class VI1, class VI2, class VI3>
 RooCFunction3Binding<VO,VI1,VI2,VI3>::RooCFunction3Binding(const RooCFunction3Binding& other, const char* name) :
   RooAbsReal(other,name),
   func(other.func),
-  x("x",this,other.x),
-  y("y",this,other.y),
-  z("z",this,other.z)
+  x(other.x),
+  y(other.y),
+  z(other.z)
 {
   // Copy constructor
 }
@@ -370,9 +370,9 @@ template<class VO,class VI1, class VI2, class VI3>
 RooCFunction3PdfBinding<VO,VI1,VI2,VI3>::RooCFunction3PdfBinding(const RooCFunction3PdfBinding& other, const char* name) :
   RooAbsPdf(other,name),
   func(other.func),
-  x("x",this,other.x),
-  y("y",this,other.y),
-  z("z",this,other.z)
+  x(other.x),
+  y(other.y),
+  z(other.z)
 {
   // Copy constructor
 }

@@ -71,8 +71,8 @@ RooConstraintSum::RooConstraintSum(const char* name, const char* title, const Ro
 
 RooConstraintSum::RooConstraintSum(const RooConstraintSum& other, const char* name) :
   RooAbsReal(other, name),
-  _set1("set1",this,other._set1),
-  _paramSet("paramSet",this,other._paramSet),
+  _set1(other._set1),
+  _paramSet(other._paramSet),
   _takeGlobalObservablesFromData{other._takeGlobalObservablesFromData}
 {
 }

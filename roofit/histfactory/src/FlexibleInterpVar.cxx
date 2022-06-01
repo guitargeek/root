@@ -163,7 +163,7 @@ FlexibleInterpVar::FlexibleInterpVar(const char* name, const char* title) :
 
 FlexibleInterpVar::FlexibleInterpVar(const FlexibleInterpVar& other, const char* name) :
   RooAbsReal(other, name),
-  _paramList("paramList",this,other._paramList),
+  _paramList(other._paramList),
   _nominal(other._nominal), _low(other._low), _high(other._high), _interpCode(other._interpCode), _interpBoundary(other._interpBoundary)
 
 {

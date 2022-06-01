@@ -115,7 +115,7 @@ RooFormulaVar::RooFormulaVar(const char *name, const char *title, const RooArgLi
 
 RooFormulaVar::RooFormulaVar(const RooFormulaVar& other, const char* name) :
   RooAbsReal(other, name),
-  _actualVars("actualVars",this,other._actualVars),
+  _actualVars(other._actualVars),
   _formExpr(other._formExpr)
 {
   if (other._formula && other._formula->ok()) {

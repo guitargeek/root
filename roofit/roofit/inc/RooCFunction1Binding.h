@@ -273,7 +273,7 @@ template<class VO,class VI>
 RooCFunction1Binding<VO,VI>::RooCFunction1Binding(const RooCFunction1Binding& other, const char* name) :
   RooAbsReal(other,name),
   func(other.func),
-  x("x",this,other.x)
+  x(other.x)
 {
   // Copy constructor
 }

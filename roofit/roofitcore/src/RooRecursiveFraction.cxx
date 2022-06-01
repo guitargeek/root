@@ -81,7 +81,7 @@ RooRecursiveFraction::RooRecursiveFraction(const char* name, const char* title, 
 
 RooRecursiveFraction::RooRecursiveFraction(const RooRecursiveFraction& other, const char* name) :
   RooAbsReal(other, name),
-  _list("list",this,other._list)
+  _list(other._list)
 {
 
 }

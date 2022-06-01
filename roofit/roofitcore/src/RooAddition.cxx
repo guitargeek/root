@@ -143,7 +143,7 @@ RooAddition::RooAddition(const char* name, const char* title, const RooArgList& 
 
 RooAddition::RooAddition(const RooAddition& other, const char* name)
     : RooAbsReal(other, name)
-    , _set("!set",this,other._set)
+    , _set(other._set)
     , _cacheMgr(other._cacheMgr,this)
 {
   // Member _ownedList is intentionally not copy-constructed -- ownership is not transferred

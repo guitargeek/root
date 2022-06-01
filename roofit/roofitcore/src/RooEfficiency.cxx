@@ -62,8 +62,8 @@ RooEfficiency::RooEfficiency(const char *name, const char *title, const RooAbsRe
 
 RooEfficiency::RooEfficiency(const RooEfficiency& other, const char* name) :
   RooAbsPdf(other, name),
-  _cat("cat",this,other._cat),
-  _effFunc("effFunc",this,other._effFunc),
+  _cat(other._cat),
+  _effFunc(other._effFunc),
   _sigCatName(other._sigCatName)
 {
 }

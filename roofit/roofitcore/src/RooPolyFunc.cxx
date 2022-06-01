@@ -153,10 +153,10 @@ RooPolyFunc::RooPolyFunc(const char *name, const char *title, const RooAbsCollec
 /// Copy constructor
 
 RooPolyFunc::RooPolyFunc(const RooPolyFunc &other, const char *name)
-   : RooAbsReal(other, name), _vars("vars", this, other._vars)
+   : RooAbsReal(other, name), _vars(other._vars)
 {
    for (auto const &term : other._terms) {
-      this->_terms.emplace_back(std::make_unique<RooListProxy>(term->GetName(), this, *term));
+      this->_terms.emplace_back(std::make_unique<RooListProxy>(*term));
    }
 }
 
@@ -169,7 +169,7 @@ RooPolyFunc &RooPolyFunc::operator=(const RooPolyFunc &other)
    _vars = other._vars;
 
    for (auto const &term : other._terms) {
-      this->_terms.emplace_back(std::make_unique<RooListProxy>(term->GetName(), this, *term));
+      this->_terms.emplace_back(std::make_unique<RooListProxy>(*term));
    }
    return *this;
 }

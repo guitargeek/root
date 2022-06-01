@@ -78,7 +78,7 @@ RooSuperCategory::RooSuperCategory(const char *name, const char *title, const Ro
 
 RooSuperCategory::RooSuperCategory(const RooSuperCategory& other, const char *name) :
     RooAbsCategoryLValue(other, name),
-    _multiCat("MultiCatProxy", this, other._multiCat)
+    _multiCat(other._multiCat)
 {
   RooSuperCategory::setIndex(other.getCurrentIndex(), true);
   setShapeDirty();

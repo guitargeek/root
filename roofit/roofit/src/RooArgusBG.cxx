@@ -69,10 +69,10 @@ RooArgusBG::RooArgusBG(const char *name, const char *title,
 
 RooArgusBG::RooArgusBG(const RooArgusBG& other, const char* name) :
   RooAbsPdf(other,name),
-  m("m",this,other.m),
-  m0("m0",this,other.m0),
-  c("c",this,other.c),
-  p("p",this,other.p)
+  m(other.m),
+  m0(other.m0),
+  c(other.c),
+  p(other.p)
 {
 }
 

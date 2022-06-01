@@ -94,7 +94,7 @@ RooResolutionModel::RooResolutionModel(const char *name, const char *title, RooA
 
 RooResolutionModel::RooResolutionModel(const RooResolutionModel& other, const char* name) :
   RooAbsPdf(other,name),
-  x("x",this,other.x),
+  x(other.x),
   _basisCode(other._basisCode), _basis(0),
   _ownBasis(false)
 {

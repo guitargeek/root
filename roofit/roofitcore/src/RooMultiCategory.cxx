@@ -72,7 +72,7 @@ RooMultiCategory::RooMultiCategory(const char *name, const char *title, const Ro
 /// Copy constructor
 
 RooMultiCategory::RooMultiCategory(const RooMultiCategory& other, const char *name) :
-  RooAbsCategory(other,name), _catSet("input",this,other._catSet)
+  RooAbsCategory(other,name), _catSet(other._catSet)
 {
   setShapeDirty();
 }

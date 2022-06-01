@@ -138,10 +138,10 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
 PiecewiseInterpolation::PiecewiseInterpolation(const PiecewiseInterpolation& other, const char* name) :
   RooAbsReal(other, name),
   _normIntMgr(other._normIntMgr, this),
-  _nominal("!nominal",this,other._nominal),
-  _lowSet("!lowSet",this,other._lowSet),
-  _highSet("!highSet",this,other._highSet),
-  _paramSet("!paramSet",this,other._paramSet),
+  _nominal(other._nominal),
+  _lowSet(other._lowSet),
+  _highSet(other._highSet),
+  _paramSet(other._paramSet),
   _positiveDefinite(other._positiveDefinite),
   _interpCode(other._interpCode)
 {

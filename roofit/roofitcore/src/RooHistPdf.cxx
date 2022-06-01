@@ -168,7 +168,7 @@ RooHistPdf::RooHistPdf(const char *name, const char *title, const RooArgList& pd
 
 RooHistPdf::RooHistPdf(const RooHistPdf& other, const char* name) :
   RooAbsPdf(other,name),
-  _pdfObsList("pdfObs",this,other._pdfObsList),
+  _pdfObsList(other._pdfObsList),
   _dataHist(other._dataHist),
   _codeReg(other._codeReg),
   _intOrder(other._intOrder),

@@ -200,16 +200,16 @@ RooFFTConvPdf::RooFFTConvPdf(const char *name, const char *title, RooAbsReal& pd
 
 RooFFTConvPdf::RooFFTConvPdf(const RooFFTConvPdf& other, const char* name) :
   RooAbsCachedPdf(other,name),
-  _x("!x",this,other._x),
-  _xprime("!xprime",this,other._xprime),
-  _pdf1("!pdf1",this,other._pdf1),
-  _pdf2("!pdf2",this,other._pdf2),
-  _params("!params",this,other._params),
+  _x(other._x),
+  _xprime(other._xprime),
+  _pdf1(other._pdf1),
+  _pdf2(other._pdf2),
+  _params(other._params),
   _bufFrac(other._bufFrac),
   _bufStrat(other._bufStrat),
   _shift1(other._shift1),
   _shift2(other._shift2),
-  _cacheObs("!cacheObs",this,other._cacheObs)
+  _cacheObs(other._cacheObs)
  {
  }
 

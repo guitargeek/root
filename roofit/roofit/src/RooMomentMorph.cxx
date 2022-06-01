@@ -141,9 +141,9 @@ RooMomentMorph::RooMomentMorph(const RooMomentMorph& other, const char* name) :
   RooAbsPdf(other,name),
   _cacheMgr(other._cacheMgr,this),
   _curNormSet(0),
-  m("m",this,other.m),
-  _varList("varList",this,other._varList),
-  _pdfList("pdfList",this,other._pdfList),
+  m(other.m),
+  _varList(other._varList),
+  _pdfList(other._pdfList),
   _setting(other._setting),
   _useHorizMorph(other._useHorizMorph)
 {

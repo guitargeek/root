@@ -37,7 +37,7 @@ public:
 
   RooWrapperPdf(const RooWrapperPdf& other, const char* name = 0) :
     RooAbsPdf(other, name),
-    _func("inputFunction", this, other._func) { }
+    _func(other._func) { }
 
   TObject* clone(const char* newname) const override {
     return new RooWrapperPdf(*this, newname);

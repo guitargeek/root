@@ -318,17 +318,17 @@ void RooSimultaneous::initialize(RooAbsCategoryLValue& inIndexCat, std::map<std:
 
 RooSimultaneous::RooSimultaneous(const RooSimultaneous& other, const char* name) :
   RooAbsPdf(other,name),
-  _plotCoefNormSet("!plotCoefNormSet",this,other._plotCoefNormSet),
+  _plotCoefNormSet(other._plotCoefNormSet),
   _plotCoefNormRange(other._plotCoefNormRange),
   _partIntMgr(other._partIntMgr,this),
-  _indexCat("indexCat",this,other._indexCat),
+  _indexCat(other._indexCat),
   _numPdf(other._numPdf)
 {
   // Copy proxy list
   TIterator* pIter = other._pdfProxyList.MakeIterator() ;
   RooRealProxy* proxy ;
   while ((proxy=(RooRealProxy*)pIter->Next())) {
-    _pdfProxyList.Add(new RooRealProxy(proxy->GetName(),this,*proxy)) ;
+    _pdfProxyList.Add(new RooRealProxy(*proxy)) ;
   }
   delete pIter ;
 }

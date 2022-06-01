@@ -98,8 +98,8 @@ RooPolyVar::RooPolyVar(const char* name, const char* title,
 
 RooPolyVar::RooPolyVar(const RooPolyVar& other, const char* name) :
   RooAbsReal(other, name),
-  _x("x", this, other._x),
-  _coefList("coefList",this,other._coefList),
+  _x(other._x),
+  _coefList(other._coefList),
   _lowestOrder(other._lowestOrder)
 { }
 

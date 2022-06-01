@@ -131,8 +131,8 @@ RooBinSamplingPdf::RooBinSamplingPdf(const char *name, const char *title, RooAbs
  /// \param[in] name Optionally rename the copy.
  RooBinSamplingPdf::RooBinSamplingPdf(const RooBinSamplingPdf& other, const char* name) :
    RooAbsPdf(other, name),
-   _pdf("inputPdf", this, other._pdf),
-   _observable("observable", this, other._observable),
+   _pdf(other._pdf),
+   _observable(other._observable),
    _relEpsilon(other._relEpsilon) { }
 
 

@@ -56,7 +56,7 @@ RooErrorVar::RooErrorVar(const char *name, const char *title, const RooRealVar& 
 
 RooErrorVar::RooErrorVar(const RooErrorVar& other, const char* name) :
   RooAbsRealLValue(other,name),
-  _realVar("realVar",this,other._realVar)
+  _realVar(other._realVar)
 {
   _binning = other._binning->clone() ;
 

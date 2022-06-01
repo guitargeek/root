@@ -182,7 +182,7 @@ RooRealSumFunc::RooRealSumFunc(const char *name, const char *title, const RooArg
 //_____________________________________________________________________________
 RooRealSumFunc::RooRealSumFunc(const RooRealSumFunc &other, const char *name)
    : RooAbsReal(other, name), _normIntMgr(other._normIntMgr, this), _haveLastCoef(other._haveLastCoef),
-     _funcList("!funcList", this, other._funcList), _coefList("!coefList", this, other._coefList),
+     _funcList(other._funcList), _coefList(other._coefList),
      _doFloor(other._doFloor)
 {
    // Copy constructor

@@ -60,7 +60,7 @@ RooRangeBoolean::RooRangeBoolean(const char* name, const char* title, RooAbsReal
 
 RooRangeBoolean::RooRangeBoolean(const RooRangeBoolean& other, const char* name) :
   RooAbsReal(other, name),
-  _x("x", this, other._x),
+  _x(other._x),
   _rangeName(other._rangeName)
 {
 }

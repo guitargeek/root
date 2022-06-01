@@ -41,8 +41,8 @@ RooPoisson::RooPoisson(const char *name, const char *title,
 
  RooPoisson::RooPoisson(const RooPoisson& other, const char* name) :
    RooAbsPdf(other,name),
-   x("x",this,other.x),
-   mean("mean",this,other.mean),
+   x(other.x),
+   mean(other.mean),
    _noRounding(other._noRounding),
    _protectNegative(other._protectNegative)
 {

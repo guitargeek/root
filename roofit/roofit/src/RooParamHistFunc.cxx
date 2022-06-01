@@ -108,8 +108,8 @@ RooParamHistFunc::RooParamHistFunc(const char *name, const char *title, RooDataH
 
 RooParamHistFunc::RooParamHistFunc(const RooParamHistFunc& other, const char* name) :
   RooAbsReal(other,name),
-  _x("x",this,other._x),
-  _p("p",this,other._p),
+  _x(other._x),
+  _p(other._p),
   _dh(other._dh),
   _relParam(other._relParam)
 {

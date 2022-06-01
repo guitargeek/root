@@ -36,7 +36,7 @@ RooRealL::RooRealL(const char *name, const char *title, std::shared_ptr<RooAbsL>
 }
 
 RooRealL::RooRealL(const RooRealL &other, const char *name)
-   : RooAbsReal(other, name), likelihood_(other.likelihood_), vars_proxy_("varsProxy", this, other.vars_proxy_)
+   : RooAbsReal(other, name), likelihood_(other.likelihood_), vars_proxy_(other.vars_proxy_)
 {
    vars_obs_.add(other.vars_obs_) ;
 }

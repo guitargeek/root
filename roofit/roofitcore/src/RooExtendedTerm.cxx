@@ -59,7 +59,7 @@ RooExtendedTerm::RooExtendedTerm(const char *name, const char *title, const RooA
 
 RooExtendedTerm::RooExtendedTerm(const RooExtendedTerm& other, const char* name) :
   RooAbsPdf(other,name),
-  _n("n",this,other._n)
+  _n(other._n)
 {
 }
 

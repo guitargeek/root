@@ -80,8 +80,8 @@ RooCachedPdf::RooCachedPdf(const char *name, const char *title, RooAbsPdf& _pdf,
 
 RooCachedPdf::RooCachedPdf(const RooCachedPdf& other, const char* name) :
    RooAbsCachedPdf(other,name),
-   pdf("pdf",this,other.pdf),
-   _cacheObs("cacheObs",this,other._cacheObs)
+   pdf(other.pdf),
+   _cacheObs(other._cacheObs)
  {
  }
 

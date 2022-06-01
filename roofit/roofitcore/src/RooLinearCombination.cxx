@@ -51,7 +51,7 @@ RooLinearCombination::RooLinearCombination(const char *name)
 RooLinearCombination::RooLinearCombination(const RooLinearCombination &other,
                                      const char *name)
     : RooAbsReal(other, name),
-      _actualVars("actualVars", this, other._actualVars),
+      _actualVars(other._actualVars),
       _coefficients(other._coefficients), _nset(0) {
   // copy constructor
 }

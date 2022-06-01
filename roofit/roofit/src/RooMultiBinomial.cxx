@@ -68,8 +68,8 @@ RooMultiBinomial::RooMultiBinomial(const char *name, const char *title,
 
 RooMultiBinomial::RooMultiBinomial(const RooMultiBinomial& other, const char* name) :
   RooAbsReal(other, name),
-  _catList("catList",this,other._catList),
-  _effFuncList("effFuncList",this,other._effFuncList),
+  _catList(other._catList),
+  _effFuncList(other._effFuncList),
   _ignoreNonVisible(other._ignoreNonVisible)
 {
 }

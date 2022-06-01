@@ -109,8 +109,8 @@ RooRealMPFE::RooRealMPFE(const char *name, const char *title, RooAbsReal& arg, b
 RooRealMPFE::RooRealMPFE(const RooRealMPFE& other, const char* name) :
   RooAbsReal(other, name),
   _state(Initialize),
-  _arg("arg",this,other._arg),
-  _vars("vars",this,other._vars),
+  _arg(other._arg),
+  _vars(other._vars),
   _calcInProgress(false),
   _verboseClient(other._verboseClient),
   _verboseServer(other._verboseServer),

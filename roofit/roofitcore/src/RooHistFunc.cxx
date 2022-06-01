@@ -149,7 +149,7 @@ RooHistFunc::RooHistFunc(const char *name, const char *title, const RooArgList& 
 
 RooHistFunc::RooHistFunc(const RooHistFunc& other, const char* name) :
   RooAbsReal(other,name),
-  _depList("depList",this,other._depList),
+  _depList(other._depList),
   _dataHist(other._dataHist),
   _codeReg(other._codeReg),
   _intOrder(other._intOrder),

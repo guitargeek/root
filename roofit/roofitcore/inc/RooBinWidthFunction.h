@@ -50,7 +50,7 @@ public:
   /// Copy an existing object.
   RooBinWidthFunction(const RooBinWidthFunction& other, const char* newname = nullptr) :
     RooAbsReal(other, newname),
-    _histFunc("HistFuncForBinWidth", this, other._histFunc),
+    _histFunc(other._histFunc),
     _divideByBinWidth(other._divideByBinWidth) { }
 
   ~RooBinWidthFunction() override { }

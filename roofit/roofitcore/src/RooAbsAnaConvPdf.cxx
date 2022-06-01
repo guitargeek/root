@@ -111,9 +111,9 @@ RooAbsAnaConvPdf::RooAbsAnaConvPdf(const char *name, const char *title,
 
 RooAbsAnaConvPdf::RooAbsAnaConvPdf(const RooAbsAnaConvPdf& other, const char* name) :
   RooAbsPdf(other,name), _isCopy(true),
-  _model("!model",this,other._model),
-  _convVar("!convVar",this,other._convVar),
-  _convSet("!convSet",this,other._convSet),
+  _model(other._model),
+  _convVar(other._convVar),
+  _convSet(other._convSet),
   _coefNormMgr(other._coefNormMgr,this),
   _codeReg(other._codeReg)
 {

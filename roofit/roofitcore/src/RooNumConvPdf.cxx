@@ -117,9 +117,9 @@ RooNumConvPdf::RooNumConvPdf(const char *name, const char *title, RooRealVar& co
 RooNumConvPdf::RooNumConvPdf(const RooNumConvPdf& other, const char* name) :
   RooAbsPdf(other,name),
   _init(false),
-  _origVar("!origVar",this,other._origVar),
-  _origPdf("!origPdf",this,other._origPdf),
-  _origModel("!origModel",this,other._origModel)
+  _origVar(other._origVar),
+  _origPdf(other._origPdf),
+  _origModel(other._origModel)
 {
   // Make temporary clone of original convolution to preserve configuration information
   // This information will be propagated to a newly create convolution in a subsequent

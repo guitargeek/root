@@ -59,7 +59,7 @@ RooThresholdCategory::RooThresholdCategory(const char *name, const char *title, 
 
 RooThresholdCategory::RooThresholdCategory(const RooThresholdCategory& other, const char *name) :
   RooAbsCategory(other,name),
-  _inputVar("inputVar",this,other._inputVar),
+  _inputVar(other._inputVar),
   _defIndex(other._defIndex)
 {
   for (const auto& cat : other._threshList){

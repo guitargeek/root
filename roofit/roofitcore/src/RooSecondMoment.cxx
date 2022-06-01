@@ -164,9 +164,9 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
 
 RooSecondMoment::RooSecondMoment(const RooSecondMoment& other, const char* name) :
   RooAbsMoment(other, name),
-  _xf("xf",this,other._xf),
-  _ixf("ixf",this,other._ixf),
-  _if("if",this,other._if),
+  _xf(other._xf),
+  _ixf(other._ixf),
+  _if(other._if),
   _xfOffset(other._xfOffset)
 {
 }

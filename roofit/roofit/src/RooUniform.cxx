@@ -41,7 +41,7 @@ RooUniform::RooUniform(const char *name, const char *title, const RooArgSet& _x)
 ////////////////////////////////////////////////////////////////////////////////
 
 RooUniform::RooUniform(const RooUniform& other, const char* name) :
-  RooAbsPdf(other,name), x("x",this,other.x)
+  RooAbsPdf(other,name), x(other.x)
 {
 }
 

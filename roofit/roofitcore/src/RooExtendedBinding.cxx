@@ -24,7 +24,7 @@ ClassImp(RooExtendedBinding);
 
  RooExtendedBinding::RooExtendedBinding(const RooExtendedBinding& other, const char* name) :
    RooAbsReal(other,name),
-   pdf("pdf",this,other.pdf)
+   pdf(other.pdf)
  {
  }
 

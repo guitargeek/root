@@ -89,9 +89,9 @@ RooLinearVar::RooLinearVar(const char *name, const char *title, RooAbsRealLValue
 RooLinearVar::RooLinearVar(const RooLinearVar& other, const char* name) :
   RooAbsRealLValue(other,name),
   _binning(other._binning),
-  _var("var",this,other._var),
-  _slope("slope",this,other._slope),
-  _offset("offset",this,other._offset)
+  _var(other._var),
+  _slope(other._slope),
+  _offset(other._offset)
 {
 }
 

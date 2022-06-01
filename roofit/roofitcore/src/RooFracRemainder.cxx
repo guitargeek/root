@@ -84,7 +84,7 @@ RooFracRemainder::RooFracRemainder(const char* name, const char* title, const Ro
 
 RooFracRemainder::RooFracRemainder(const RooFracRemainder& other, const char* name) :
   RooAbsReal(other, name),
-  _set1("set1",this,other._set1)
+  _set1(other._set1)
 {
   _setIter1 = _set1.createIterator() ;
 

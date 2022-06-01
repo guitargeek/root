@@ -72,8 +72,8 @@ RooPullVar::RooPullVar(const char* name, const char* title, RooRealVar& meas, Ro
 
 RooPullVar::RooPullVar(const RooPullVar& other, const char* name) :
   RooAbsReal(other, name),
-  _meas("meas",this,other._meas),
-  _true("true",this,other._true)
+  _meas(other._meas),
+  _true(other._true)
 {
 }
 

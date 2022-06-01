@@ -48,8 +48,8 @@ RooTFnBinding::RooTFnBinding(const char *name, const char *title, TF1* func, con
 
 RooTFnBinding::RooTFnBinding(const RooTFnBinding& other, const char* name) :
   RooAbsReal(other,name),
-  _olist("obs",this,other._olist),
-  _plist("params",this,other._plist),
+  _olist(other._olist),
+  _plist(other._plist),
   _func(other._func)
 {
 }

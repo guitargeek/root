@@ -86,11 +86,11 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsPdf &pdf, 
 }
 
 RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
-   : RooAbsReal(other, name), _pdf{"pdf", this, other._pdf}, _observables{other._observables}
+   : RooAbsReal(other, name), _pdf{other._pdf}, _observables{other._observables}
 {
    if (other._fractionInRange)
       _fractionInRange =
-         std::make_unique<RooTemplateProxy<RooAbsReal>>("_fractionInRange", this, *other._fractionInRange);
+         std::make_unique<RooTemplateProxy<RooAbsReal>>(*other._fractionInRange);
 }
 
 /** Compute multiple negative logs of propabilities

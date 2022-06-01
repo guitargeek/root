@@ -97,9 +97,9 @@ RooDerivative::RooDerivative(const RooDerivative& other, const char* name) :
   RooAbsReal(other, name),
   _order(other._order),
   _eps(other._eps),
-  _nset("nset",this,other._nset),
-  _func("function",this,other._func),
-  _x("x",this,other._x),
+  _nset(other._nset),
+  _func(other._func),
+  _x(other._x),
   _ftor(0),
   _rd(0)
 {

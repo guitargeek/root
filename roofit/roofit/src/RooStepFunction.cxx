@@ -92,9 +92,9 @@ RooStepFunction::RooStepFunction(const char* name, const char* title,
 
 RooStepFunction::RooStepFunction(const RooStepFunction& other, const char* name) :
   RooAbsReal(other, name),
-  _x("x", this, other._x),
-  _coefList("coefList",this,other._coefList),
-  _boundaryList("boundaryList",this,other._boundaryList),
+  _x(other._x),
+  _coefList(other._coefList),
+  _boundaryList(other._boundaryList),
   _interpolate(other._interpolate)
 {
 }

@@ -287,7 +287,7 @@ RooNDKeysPdf::RooNDKeysPdf(const char *name, const char *title, RooAbsReal &x, R
 /// Constructor
 
 RooNDKeysPdf::RooNDKeysPdf(const RooNDKeysPdf &other, const char *name)
-   : RooAbsPdf(other, name), _varList("varList", this, other._varList), _rhoList("rhoList", this, other._rhoList),
+   : RooAbsPdf(other, name), _varList(other._varList), _rhoList(other._rhoList),
      _ownedData(other._ownedData ? new RooDataSet(*other._ownedData) : nullptr),
      _data(_ownedData ? _ownedData.get() : other._data), _options(other._options), _widthFactor(other._widthFactor),
      _nSigma(other._nSigma), _rotate(other._rotate), _sortInput(other._sortInput),

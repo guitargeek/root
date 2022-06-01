@@ -34,7 +34,7 @@ RooTFnPdfBinding::RooTFnPdfBinding(const char *name, const char *title, TF1* fun
 
 RooTFnPdfBinding::RooTFnPdfBinding(const RooTFnPdfBinding& other, const char* name) :
   RooAbsPdf(other,name),
-  _list("params",this,other._list),
+  _list(other._list),
   _func(other._func)
 {
 }

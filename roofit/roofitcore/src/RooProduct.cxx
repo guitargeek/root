@@ -93,8 +93,8 @@ RooProduct::RooProduct(const char* name, const char* title, const RooArgList& pr
 
 RooProduct::RooProduct(const RooProduct& other, const char* name) :
   RooAbsReal(other, name),
-  _compRSet("!compRSet",this,other._compRSet),
-  _compCSet("!compCSet",this,other._compCSet),
+  _compRSet(other._compRSet),
+  _compCSet(other._compCSet),
   _cacheMgr(other._cacheMgr,this)
 {
   TRACE_CREATE

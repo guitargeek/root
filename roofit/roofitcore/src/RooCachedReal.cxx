@@ -87,8 +87,8 @@ RooCachedReal::RooCachedReal(const char *name, const char *title, RooAbsReal& _f
 
 RooCachedReal::RooCachedReal(const RooCachedReal& other, const char* name) :
    RooAbsCachedReal(other,name),
-   func("func",this,other.func),
-   _cacheObs("cacheObs",this,other._cacheObs),
+   func(other.func),
+   _cacheObs(other._cacheObs),
    _useCdfBoundaries(other._useCdfBoundaries),
    _cacheSource(other._cacheSource)
  {

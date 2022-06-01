@@ -68,7 +68,7 @@ RooAbsHiddenReal::RooAbsHiddenReal(const char *name, const char *title, RooAbsCa
 
 RooAbsHiddenReal::RooAbsHiddenReal(const RooAbsHiddenReal& other, const char* name) :
   RooAbsReal(other, name),
-  _state("state",this,other._state)
+  _state(other._state)
 {
 }
 

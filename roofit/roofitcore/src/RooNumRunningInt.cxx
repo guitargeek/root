@@ -66,8 +66,8 @@ RooNumRunningInt::RooNumRunningInt(const char *name, const char *title, RooAbsRe
 
 RooNumRunningInt::RooNumRunningInt(const RooNumRunningInt& other, const char* name) :
    RooAbsCachedReal(other,name),
-   func("func",this,other.func),
-   x("x",this,other.x),
+   func(other.func),
+   x(other.x),
    _binningName(other._binningName)
  {
  }

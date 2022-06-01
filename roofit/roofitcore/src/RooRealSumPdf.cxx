@@ -184,8 +184,8 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
 RooRealSumPdf::RooRealSumPdf(const RooRealSumPdf& other, const char* name) :
   RooAbsPdf(other,name),
   _normIntMgr(other._normIntMgr,this),
-  _funcList("!funcList",this,other._funcList),
-  _coefList("!coefList",this,other._coefList),
+  _funcList(other._funcList),
+  _coefList(other._coefList),
   _extended(other._extended),
   _doFloor(other._doFloor)
 {

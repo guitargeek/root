@@ -152,8 +152,8 @@ RooMomentMorphND::RooMomentMorphND(const char *name, const char *title, RooAbsRe
 //_____________________________________________________________________________
 RooMomentMorphND::RooMomentMorphND(const RooMomentMorphND &other, const char *name)
    : RooAbsPdf(other, name), _cacheMgr(other._cacheMgr, this), _curNormSet(0),
-     _parList("parList", this, other._parList), _obsList("obsList", this, other._obsList),
-     _referenceGrid(other._referenceGrid), _pdfList("pdfList", this, other._pdfList), _M(0), _MSqr(0),
+     _parList(other._parList), _obsList(other._obsList),
+     _referenceGrid(other._referenceGrid), _pdfList(other._pdfList), _M(0), _MSqr(0),
      _setting(other._setting), _useHorizMorph(other._useHorizMorph)
 {
    // general initialization

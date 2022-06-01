@@ -93,7 +93,7 @@ RooGenericPdf::RooGenericPdf(const char *name, const char *title,
 
 RooGenericPdf::RooGenericPdf(const RooGenericPdf& other, const char* name) :
   RooAbsPdf(other, name),
-  _actualVars("actualVars",this,other._actualVars),
+  _actualVars(other._actualVars),
   _formExpr(other._formExpr)
 {
   formula();

@@ -45,8 +45,8 @@ RooEffProd::RooEffProd(const char *name, const char *title,
 
 RooEffProd::RooEffProd(const RooEffProd& other, const char* name) :
   RooAbsPdf(other, name),
-  _pdf("pdf",this,other._pdf),
-  _eff("acc",this,other._eff)
+  _pdf(other._pdf),
+  _eff(other._eff)
 {
 }
 

@@ -150,7 +150,7 @@ RooMultiVarGaussian::RooMultiVarGaussian(const char *name, const char *title,
 ////////////////////////////////////////////////////////////////////////////////
 
 RooMultiVarGaussian::RooMultiVarGaussian(const RooMultiVarGaussian& other, const char* name) :
-  RooAbsPdf(other,name), _aicMap(other._aicMap), _x("x",this,other._x), _mu("mu",this,other._mu),
+  RooAbsPdf(other,name), _aicMap(other._aicMap), _x(other._x), _mu(other._mu),
   _cov(other._cov), _covI(other._covI), _det(other._det), _z(other._z)
 {
 }

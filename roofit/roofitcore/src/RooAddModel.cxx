@@ -169,14 +169,14 @@ RooAddModel::RooAddModel(const char *name, const char *title, const RooArgList& 
 
 RooAddModel::RooAddModel(const RooAddModel& other, const char* name) :
   RooResolutionModel(other,name),
-  _refCoefNorm("!refCoefNorm",this,other._refCoefNorm),
+  _refCoefNorm(other._refCoefNorm),
   _refCoefRangeName((TNamed*)other._refCoefRangeName),
   _projectCoefs(other._projectCoefs),
   _projCacheMgr(other._projCacheMgr,this),
   _intCacheMgr(other._intCacheMgr,this),
   _codeReg(other._codeReg),
-  _pdfList("!pdfs",this,other._pdfList),
-  _coefList("!coefficients",this,other._coefList),
+  _pdfList(other._pdfList),
+  _coefList(other._coefList),
   _haveLastCoef(other._haveLastCoef),
   _allExtendable(other._allExtendable)
 {

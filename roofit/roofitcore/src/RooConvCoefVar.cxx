@@ -55,8 +55,8 @@ RooConvCoefVar::RooConvCoefVar(const char *name, const char *title, const RooAbs
 
 RooConvCoefVar::RooConvCoefVar(const RooConvCoefVar& other, const char* name) :
   RooAbsReal(other,name),
-  _varSet("varSet",this,other._varSet),
-  _convPdf("convPdf",this,other._convPdf),
+  _varSet(other._varSet),
+  _convPdf(other._convPdf),
   _coefIdx(other._coefIdx)
 {
 }

@@ -55,7 +55,7 @@ RooBinningCategory::RooBinningCategory(const char *name, const char *title, RooA
 /// Copy constructor
 
 RooBinningCategory::RooBinningCategory(const RooBinningCategory& other, const char *name) :
-  RooAbsCategory(other,name), _inputVar("inputVar",this,other._inputVar), _bname(other._bname)
+  RooAbsCategory(other,name), _inputVar(other._inputVar), _bname(other._bname)
 {
 }
 

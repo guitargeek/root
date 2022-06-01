@@ -94,7 +94,7 @@ RooMappedCategory::RooMappedCategory(const char *name, const char *title, RooAbs
 
 
 RooMappedCategory::RooMappedCategory(const RooMappedCategory& other, const char *name) :
-  RooAbsCategory(other,name), _inputCat("input",this,other._inputCat), _mapArray(other._mapArray),
+  RooAbsCategory(other,name), _inputCat(other._inputCat), _mapArray(other._mapArray),
   _mapcache(0)
 {
   _defCat = lookupIndex(other.lookupName(other._defCat));

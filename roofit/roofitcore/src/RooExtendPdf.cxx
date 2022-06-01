@@ -85,8 +85,8 @@ RooExtendPdf::RooExtendPdf(const char *name, const char *title, RooAbsPdf& pdf,
 
 RooExtendPdf::RooExtendPdf(const RooExtendPdf& other, const char* name) :
   RooAbsPdf(other,name),
-  _pdf("pdf",this,other._pdf),
-  _n("n",this,other._n),
+  _pdf(other._pdf),
+  _n(other._n),
   _rangeName(other._rangeName)
 {
   // Copy constructor

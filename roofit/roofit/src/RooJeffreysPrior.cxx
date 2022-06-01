@@ -76,9 +76,9 @@ RooJeffreysPrior::RooJeffreysPrior(const char* name, const char* title,
 
 RooJeffreysPrior::RooJeffreysPrior(const RooJeffreysPrior& other, const char* name) :
   RooAbsPdf(other, name),
-  _nominal("!nominal",this,other._nominal),
-  _obsSet("!obsSet",this,other._obsSet),
-  _paramSet("!paramSet",this,other._paramSet),
+  _nominal(other._nominal),
+  _obsSet(other._obsSet),
+  _paramSet(other._paramSet),
   _cacheMgr(this, 1, true, false)
 {
 
