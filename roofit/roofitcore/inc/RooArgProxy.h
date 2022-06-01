@@ -34,6 +34,10 @@ public:
   RooArgProxy(const char* name, const char* desc, RooAbsArg* owner, RooAbsArg& arg,
          bool valueServer, bool shapeServer, bool proxyOwnsArg=false) ;
   RooArgProxy(const char* name, RooAbsArg* owner, const RooArgProxy& other) ;
+  RooArgProxy(const RooArgProxy& other) ;
+
+  RooArgProxy &operator=(const RooArgProxy &other) = delete;
+
   ~RooArgProxy() override ;
 
   /// Return pointer to contained argument

@@ -173,6 +173,15 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
   //setAttribute(Form("CloneOf(%08x)",&other)) ;
   //cout << "RooAbsArg::cctor(" << this << ") #bools = " << _boolAttrib.size() << " #strings = " << _stringAttrib.size() << endl ;
 
+  //std::cout << "Starting copy scope for " << other.ClassName() << "::" << other.GetName() << std::endl;
+  auto& s = RooAbsProxy::proxyCopyScope();
+  auto found = std::find_if(s.begin(), s.end(), [&](auto const& item){ return item.from == &other; });
+  if(found == s.end())
+    s.emplace_back(&other, this, other.numProxies());
+  else {
+    found->to = this;
+    found->nProxies = other.numProxies();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

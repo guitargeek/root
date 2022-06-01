@@ -48,6 +48,15 @@ public:
   }
   virtual void print(std::ostream& os, bool addContents=false) const ;
 
+  struct ProxyCopyScope {
+    ProxyCopyScope(RooAbsArg const* fromArg, RooAbsArg *toArg, std::size_t proxyListSize)
+      : from{fromArg}, to{toArg}, nProxies{proxyListSize} {}
+    RooAbsArg const* from = nullptr;
+    RooAbsArg * to = nullptr;
+    std::size_t nProxies = 0;
+  };
+  static std::vector<ProxyCopyScope>& proxyCopyScope();
+
 protected:
 
   RooArgSet* _nset = nullptr ; ///<! Normalization set to be used for evaluation of RooAbsPdf contents

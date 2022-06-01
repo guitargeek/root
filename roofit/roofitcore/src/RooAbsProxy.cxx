@@ -73,3 +73,9 @@ void RooAbsProxy::print(ostream& os, bool /*addContents*/) const
 {
   os << name() << endl ;
 }
+
+
+std::vector<RooAbsProxy::ProxyCopyScope>& RooAbsProxy::proxyCopyScope() {
+  static std::vector<ProxyCopyScope> scopes{};
+  return scopes;
+}

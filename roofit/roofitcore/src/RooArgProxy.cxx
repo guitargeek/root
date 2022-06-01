@@ -86,6 +86,30 @@ RooArgProxy::RooArgProxy(const char* inName, RooAbsArg* owner, const RooArgProxy
 }
 
 
+RooArgProxy::RooArgProxy(const RooArgProxy& other) :
+  TNamed(other.GetName(),other.GetTitle()), RooAbsProxy(other),
+  _arg(other._arg),
+  _valueServer(other._valueServer), _shapeServer(other._shapeServer),
+  _isFund(other._isFund), _ownArg(other._ownArg)
+{
+  auto& s = proxyCopyScope();
+  auto found = std::find_if(s.begin(), s.end(), [&](auto const& item){ return item.from == other._owner; });
+  if(found == s.end()) {
+    throw std::runtime_error("No copy scope!");
+  }
+
+  _owner = found->to;
+  if(--found->nProxies == 0) {
+    s.erase(found);
+  }
+
+  if (_ownArg) {
+    _arg = _arg ? static_cast<RooAbsArg*>(_arg->Clone()) : nullptr;
+  }
+
+  _owner->registerProxy(*this) ;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Destructor

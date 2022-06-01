@@ -60,6 +60,24 @@ public:
       _owner->registerProxy(*this);
    }
 
+   RooCollectionProxy(const RooCollectionProxy &other)
+      : RooCollection_t(other, nullptr), _owner(other._owner), _defValueServer(other._defValueServer),
+        _defShapeServer(other._defShapeServer)
+   {
+      auto& s = proxyCopyScope();
+      auto found = std::find_if(s.begin(), s.end(), [&](auto const& item){ return item.from == other._owner; });
+      if(found == s.end()) {
+        throw std::runtime_error("No copy scope!");
+      }
+
+      _owner = found->to;
+      if(--found->nProxies == 0) {
+        s.erase(found);
+      }
+
+      _owner->registerProxy(*this);
+   }
+
    ~RooCollectionProxy() override
    {
       if (_owner)
@@ -103,6 +121,10 @@ public:
    void removeAll() override;
 
    void print(std::ostream &os, bool addContents = false) const override;
+
+   RooCollectionProxy &operator=(const RooCollectionProxy &other) {
+     return operator=(static_cast<RooCollection_t const&>(other));
+   }
 
    /// Assign values of arguments on other set to arguments in this set.
    RooCollectionProxy &operator=(const RooCollection_t &other)
