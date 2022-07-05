@@ -28,6 +28,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
     RooStats/HistFactory/HistFactoryNavigation.h
     RooStats/HistFactory/HistoToWorkspaceFactoryFast.h
     RooStats/HistFactory/HistRef.h
+    RooStats/HistFactory/GaussianConstraint.h
     RooStats/HistFactory/LinInterpVar.h
     RooStats/HistFactory/MakeModelAndMeasurementsFast.h
     RooStats/HistFactory/Measurement.h
@@ -47,6 +48,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
     src/HistFactoryNavigation.cxx
     src/HistoToWorkspaceFactoryFast.cxx
     src/HistRef.cxx
+    src/GaussianConstraint.cxx
     src/LinInterpVar.cxx
     src/MakeModelAndMeasurementsFast.cxx
     src/Measurement.cxx

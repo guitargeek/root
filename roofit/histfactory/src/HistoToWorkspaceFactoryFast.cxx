@@ -30,13 +30,11 @@
 #include "RooProduct.h"
 #include "RooProdPdf.h"
 #include "RooAddPdf.h"
-#include "RooGaussian.h"
 #include "RooPoisson.h"
 #include "RooExponential.h"
 #include "RooRandom.h"
 #include "RooCategory.h"
 #include "RooSimultaneous.h"
-#include "RooMultiVarGaussian.h"
 #include "RooNumIntConfig.h"
 #include "RooProfileLL.h"
 #include "RooFitResult.h"
@@ -65,6 +63,7 @@
 
 // specific to this package
 #include "RooStats/HistFactory/LinInterpVar.h"
+#include "RooStats/HistFactory/GaussianConstraint.h"
 #include "RooStats/HistFactory/FlexibleInterpVar.h"
 #include "RooStats/HistFactory/HistoToWorkspaceFactoryFast.h"
 #include "RooStats/HistFactory/Measurement.h"
@@ -368,7 +367,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       }
 
       std::stringstream command;
-      command << "Gaussian::" << constraintName << "(" << paramName << ",nom_" << paramName << "[0.,-10,10],"
+      command << "GaussianConstraint::" << constraintName << "(" << paramName << ",nom_" << paramName << "[0.,-10,10],"
               << gaussSigma << ")";
       constraintTermNames.emplace_back(proto.factory(command.str())->GetName());
       auto * normParam = proto.var(std::string("nom_") + paramName);
@@ -845,7 +844,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
 
     std::stringstream lumiErrorStr;
     lumiErrorStr << "nominalLumi["<<fNomLumi << ",0,"<<fNomLumi+10*fLumiError<<"]," << fLumiError ;
-    proto->factory("Gaussian::lumiConstraint(Lumi,"+lumiErrorStr.str()+")");
+    proto->factory("GaussianConstraint::lumiConstraint(Lumi,"+lumiErrorStr.str()+")");
     proto->var("nominalLumi")->setConstant();
     proto->defineSet("globalObservables","nominalLumi");
     //likelihoodTermNames.push_back("lumiConstraint");
@@ -1975,15 +1974,13 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
 
       // Make sigma
 
-      RooConstVar constrSigma( sigmaName.c_str(), sigmaName.c_str(), sigmaRel );
-
       // Make "observed" value
       RooRealVar constrNom(nomName.c_str(), nomName.c_str(), 1.0,0,10);
       constrNom.setConstant( true );
 
       // Make the constraint:
-      RooGaussian gauss( constrName.c_str(), constrName.c_str(),
-          constrNom, gamma, constrSigma );
+      GaussianConstraint gauss( constrName.c_str(), constrName.c_str(),
+          constrNom, gamma, sigmaRel );
 
       proto->import( gauss, RecycleConflictNodes() );
 
@@ -2005,8 +2002,6 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
 
       // Make mean for scaled Poisson
       RooProduct constrMean( poisMeanName.c_str(), poisMeanName.c_str(), RooArgSet(gamma, poissonScaling) );
-      //proto->import( constrSigma, RecycleConflictNodes() );
-      //proto->import( constrSigma );
 
       // Type 2 : RooPoisson
       RooPoisson pois(constrName.c_str(), constrName.c_str(), constrNom, constrMean);
