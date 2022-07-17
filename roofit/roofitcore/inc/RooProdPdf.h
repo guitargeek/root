@@ -60,7 +60,7 @@ public:
   bool forceAnalyticalInt(const RooAbsArg& dep) const override ;
   Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& numVars, const RooArgSet* normSet, const char* rangeName=0) const override ;
   double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
-  bool selfNormalized() const override { return _selfNorm ; }
+  bool selfNormalized() const override { return true ; }
 
   ExtendMode extendMode() const override ;
   double expectedEvents(const RooArgSet* nset) const override ;
@@ -84,7 +84,6 @@ public:
   void selectNormalizationRange(const char* rangeName=0, bool force=false) override ;
   void fixRefRange(const char* rangeName) ;
 
-  void setSelfNormalized(bool flag) { _selfNorm = flag ; }
   void setDefNormSet(const RooArgSet& nset) { _defNormSet.removeAll() ; _defNormSet.addClone(nset) ; }
 
 
@@ -176,7 +175,6 @@ private:
 
   mutable TNamed* _refRangeName ; ///< Reference range name for interpretation of conditional products
 
-  bool _selfNorm ; ///< Is self-normalized
   RooArgSet _defNormSet ; ///< Default normalization set
 
 private:

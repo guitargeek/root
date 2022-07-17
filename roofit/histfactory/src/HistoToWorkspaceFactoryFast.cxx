@@ -36,7 +36,6 @@
 #include "RooRandom.h"
 #include "RooCategory.h"
 #include "RooSimultaneous.h"
-#include "RooMultiVarGaussian.h"
 #include "RooNumIntConfig.h"
 #include "RooProfileLL.h"
 #include "RooFitResult.h"
@@ -370,7 +369,9 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       std::stringstream command;
       command << "Gaussian::" << constraintName << "(" << paramName << ",nom_" << paramName << "[0.,-10,10],"
               << gaussSigma << ")";
-      constraintTermNames.emplace_back(proto.factory(command.str())->GetName());
+      proto.factory(command.str());
+      proto.pdf(constraintName)->setSelfNormalized(true);
+      constraintTermNames.emplace_back(constraintName.c_str());
       auto * normParam = proto.var(std::string("nom_") + paramName);
       normParam->setConstant();
       const_cast<RooArgSet*>(proto.set("globalObservables"))->add(*normParam);
@@ -846,6 +847,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     std::stringstream lumiErrorStr;
     lumiErrorStr << "nominalLumi["<<fNomLumi << ",0,"<<fNomLumi+10*fLumiError<<"]," << fLumiError ;
     proto->factory("Gaussian::lumiConstraint(Lumi,"+lumiErrorStr.str()+")");
+    proto->pdf("lumiConstraint")->setSelfNormalized(true);
     proto->var("nominalLumi")->setConstant();
     proto->defineSet("globalObservables","nominalLumi");
     //likelihoodTermNames.push_back("lumiConstraint");
@@ -1984,6 +1986,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       // Make the constraint:
       RooGaussian gauss( constrName.c_str(), constrName.c_str(),
           constrNom, gamma, constrSigma );
+      gauss.setSelfNormalized(true);
 
       proto->import( gauss, RecycleConflictNodes() );
 
@@ -2011,6 +2014,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       // Type 2 : RooPoisson
       RooPoisson pois(constrName.c_str(), constrName.c_str(), constrNom, constrMean);
       pois.setNoRounding(true);
+      pois.setSelfNormalized(true);
       proto->import( pois, RecycleConflictNodes() );
 
       if (std::string(gamma.GetName()).find("gamma_stat") != std::string::npos) {

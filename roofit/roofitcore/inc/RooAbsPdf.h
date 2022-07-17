@@ -250,7 +250,11 @@ public:
   /// Shows if a PDF is self-normalized, which means that no attempt is made to add a normalization term.
   /// Always returns false, unless a PDF overrides this function.
   virtual bool selfNormalized() const {
-    return false ;
+    return _selfNorm ;
+  }
+
+  void setSelfNormalized(bool flag) {
+    _selfNorm = flag ;
   }
 
   // Support for extended maximum likelihood, switched off by default
@@ -386,6 +390,7 @@ protected:
   mutable Int_t _negCount ;          ///< Number of negative probablities remaining to print
 
   bool _selectComp ;               ///< Component selection flag for RooAbsPdf::plotCompOn
+  bool _selfNorm = false;
 
   RooNumGenConfig* _specGeneratorConfig ; ///<! MC generator configuration specific for this object
 
@@ -396,7 +401,7 @@ private:
   int calcAsymptoticCorrectedCovariance(RooMinimizer& minimizer, RooAbsData const& data);
   int calcSumW2CorrectedCovariance(RooMinimizer& minimizer, RooAbsReal & nll) const;
 
-  ClassDefOverride(RooAbsPdf,5) // Abstract PDF with normalization support
+  ClassDefOverride(RooAbsPdf,6) // Abstract PDF with normalization support
 };
 
 

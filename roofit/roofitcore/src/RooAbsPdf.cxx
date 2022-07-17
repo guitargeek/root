@@ -292,7 +292,8 @@ RooAbsPdf::RooAbsPdf(const char *name, const char *title,
 
 RooAbsPdf::RooAbsPdf(const RooAbsPdf& other, const char* name) :
   RooAbsReal(other,name),
-  _normMgr(other._normMgr,this), _selectComp(other._selectComp), _normRange(other._normRange)
+  _normMgr(other._normMgr,this), _selectComp(other._selectComp), _normRange(other._normRange),
+  _selfNorm{other._selfNorm}
 {
   resetErrorCounters() ;
   setTraceCounter(other._traceCount) ;

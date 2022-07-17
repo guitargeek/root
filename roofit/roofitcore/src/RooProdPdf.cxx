@@ -84,8 +84,7 @@ RooProdPdf::RooProdPdf() :
   _cutOff(0),
   _extendedIndex(-1),
   _useDefaultGen(false),
-  _refRangeName(0),
-  _selfNorm(true)
+  _refRangeName(0)
 {
   // Default constructor
   TRACE_CREATE
@@ -119,8 +118,7 @@ RooProdPdf::RooProdPdf(const char *name, const char *title,
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
   _useDefaultGen(false),
-  _refRangeName(0),
-  _selfNorm(true)
+  _refRangeName(0)
 {
   _pdfList.add(pdf1) ;
   _pdfNSetList.emplace_back(std::make_unique<RooArgSet>("nset")) ;
@@ -172,8 +170,7 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgList& in
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
   _useDefaultGen(false),
-  _refRangeName(0),
-  _selfNorm(true)
+  _refRangeName(0)
 {
   Int_t numExtended(0) ;
   for(RooAbsArg * arg : inPdfList) {
@@ -251,8 +248,7 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgSet& ful
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
   _useDefaultGen(false),
-  _refRangeName(0),
-  _selfNorm(true)
+  _refRangeName(0)
 {
   RooLinkedList l ;
   l.Add((TObject*)&arg1) ;  l.Add((TObject*)&arg2) ;
@@ -281,8 +277,7 @@ RooProdPdf::RooProdPdf(const char* name, const char* title,
   _pdfList("!pdfList","List of PDFs",this),
   _extendedIndex(-1),
   _useDefaultGen(false),
-  _refRangeName(0),
-  _selfNorm(true)
+  _refRangeName(0)
 {
   RooLinkedList l ;
   l.Add((TObject*)&arg1) ;  l.Add((TObject*)&arg2) ;
@@ -307,8 +302,7 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgSet& ful
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
   _useDefaultGen(false),
-  _refRangeName(0),
-  _selfNorm(true)
+  _refRangeName(0)
 {
   initializeFromCmdArgList(fullPdfSet, cmdArgList) ;
   TRACE_CREATE
@@ -328,7 +322,6 @@ RooProdPdf::RooProdPdf(const RooProdPdf& other, const char* name) :
   _extendedIndex(other._extendedIndex),
   _useDefaultGen(other._useDefaultGen),
   _refRangeName(other._refRangeName),
-  _selfNorm(other._selfNorm),
   _defNormSet(other._defNormSet)
 {
   // Clone contents of normalizarion set list
