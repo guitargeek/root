@@ -339,16 +339,36 @@ RooAbsBinning& RooRealVar::getBinning(const char* name, bool verbose, bool creat
         << "', but comma in binning names is not supported." << std::endl;
   }
 
+  // Helper function to ensure that the bounds of the alternative binning are
+  // not outside the bounds of the default binning.
+  auto validateBounds = [&](RooAbsBinning& binning) -> RooAbsBinning& {
+    const double min = getMin();
+    const double max = getMax();
+    const double bmin = binning.lowBound();
+    const double bmax = binning.highBound();
+    if(bmin < min || bmin > max || bmax < min || bmax > max) {
+      std::stringstream errMsgStream;
+      errMsgStream << "The bounds [" << bmin << "," << bmax << "] of the requested binning \"" << name
+                   << "\" for the variable \"" << GetName() << "\" are outside the bounds of the default binning ["
+                   << min << "," << max << "]. This is prohibited, because a variable can't be set to a value outside"
+                   << " the default bounds.";
+      const std::string errMsg = errMsgStream.str();
+      coutE(InputArguments) << errMsg << std::endl;
+      throw std::runtime_error(errMsg);
+    }
+    return binning;
+  };
+
   // Check if non-shared binning with this name has been created already
   auto item = _altNonSharedBinning.find(name);
   if (item != _altNonSharedBinning.end()) {
-    return *item->second;
+    return validateBounds(*item->second);
   }
 
   // Check if binning with this name has been created already
   auto item2 = sharedProp()->_altBinning.find(name);
   if (item2 != sharedProp()->_altBinning.end()) {
-    return *item2->second;
+    return validateBounds(*item2->second);
   }
 
 
