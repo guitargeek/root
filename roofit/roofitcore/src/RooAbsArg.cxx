@@ -2460,3 +2460,16 @@ void RooAbsArg::applyWeightSquared(bool flag) {
 std::unique_ptr<RooArgSet> RooAbsArg::fillNormSetForServer(RooArgSet const& /*normSet*/, RooAbsArg const& /*server*/) const {
    return nullptr;
 }
+
+RooArgSet* RooAbsArg::getNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const {
+   for(int i = 0; i < numProxies(); ++i) {
+      auto *proxy = getProxy(i);
+      if(auto realProxy = dynamic_cast<RooArgProxy*>(proxy)) {
+         if(realProxy->absArg() == &server) {
+            auto nset = proxy->nset();
+            return nset != &normSet ? const_cast<RooArgSet*>(nset) : nullptr;
+         }
+      }
+   }
+   return nullptr;
+}

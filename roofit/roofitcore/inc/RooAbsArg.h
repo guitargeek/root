@@ -593,6 +593,7 @@ public:
   virtual void applyWeightSquared(bool flag);
 
   virtual std::unique_ptr<RooArgSet> fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const;
+  RooArgSet* getNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const;
 
   virtual bool isCategory() const { return false; }
 

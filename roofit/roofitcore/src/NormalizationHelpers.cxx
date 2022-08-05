@@ -146,6 +146,10 @@ void treeNodeServerListAndNormSets(const RooAbsArg &arg, RooAbsCollection &list,
    if (normSets.find(&arg) != normSets.end())
       return;
 
+   //if(auto real = dynamic_cast<RooAbsReal*>(&arg)) {
+      //real->getVal();
+   //}
+
    list.add(arg, true);
 
    // normalization sets only need to be added for pdfs
@@ -169,7 +173,7 @@ void treeNodeServerListAndNormSets(const RooAbsArg &arg, RooAbsCollection &list,
             continue;
          }
 
-         auto differentSet = arg.fillNormSetForServer(normSet, *server);
+         auto differentSet = arg.getNormSetForServer(normSet, *server);
          if (differentSet)
             differentSet->sort();
 
@@ -209,6 +213,10 @@ std::vector<std::unique_ptr<RooAbsArg>> unfoldIntegrals(RooAbsArg const &topNode
    // No normalization set: we don't need to create any integrals
    if (normSet.empty())
       return newNodes;
+
+   if(auto real = dynamic_cast<RooAbsReal const*>(&topNode)) {
+      real->getVal(normSet);
+   }
 
    GraphChecker checker{topNode};
 
