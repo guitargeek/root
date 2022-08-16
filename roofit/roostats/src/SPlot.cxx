@@ -461,7 +461,7 @@ void SPlot::AddSWeight( RooAbsPdf* pdf, const RooArgList &yieldsTmp,
   const Int_t nspec = yieldsTmp.getSize();
   RooArgList yields = *(RooArgList*)yieldsTmp.snapshot(false);
 
-  if (RooMsgService::instance().isActive(this, RooFit::InputArguments, RooFit::DEBUG)) {
+  if (RooMsgService::isActive(this, RooFit::InputArguments, RooFit::DEBUG)) {
     coutI(InputArguments) << "Printing Yields" << endl;
     yields.Print();
   }
@@ -617,7 +617,7 @@ void SPlot::AddSWeight( RooAbsPdf* pdf, const RooArgList &yieldsTmp,
   TMatrixD covMatrix(TMatrixD::kInverted,covInv);
 
   //check cov normalization
-  if (RooMsgService::instance().isActive(this, RooFit::Eval, RooFit::DEBUG)) {
+  if (RooMsgService::isActive(this, RooFit::Eval, RooFit::DEBUG)) {
     coutI(Eval) << "Checking Likelihood normalization:  " << std::endl;
     coutI(Eval) << "Yield of specie  Sum of Row in Matrix   Norm" << std::endl;
     for(Int_t k=0; k<nspec; ++k)

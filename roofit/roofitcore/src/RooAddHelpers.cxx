@@ -324,7 +324,7 @@ void RooAddHelpers::updateCoefficients(RooAbsPdf const &addPdf, std::vector<doub
    }
 
    if ((RooMsgService::_debugCount > 0) &&
-       RooMsgService::instance().isActive(&addPdf, RooFit::Caching, RooFit::DEBUG)) {
+       RooMsgService::isActive(&addPdf, RooFit::Caching, RooFit::DEBUG)) {
       for (std::size_t i = 0; i < pdfList.size(); ++i) {
          ooccoutD(&addPdf, Caching) << " ALEX:   POST-SYNC coef[" << i << "] = " << coefCache[i]
                                     << " ( _coefCache[i]/coefSum = " << coefCache[i] * coefSum << "/" << coefSum

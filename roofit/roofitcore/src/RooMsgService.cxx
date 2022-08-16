@@ -397,7 +397,7 @@ void RooMsgService::restoreState()
 
 bool RooMsgService::isActive(const RooAbsArg* self, RooFit::MsgTopic topic, RooFit::MsgLevel level)
 {
-  return (activeStream(self,topic,level)>=0) ;
+  return instance().activeStream(self,topic,level)>=0;
 }
 
 
@@ -406,7 +406,7 @@ bool RooMsgService::isActive(const RooAbsArg* self, RooFit::MsgTopic topic, RooF
 
 bool RooMsgService::isActive(const TObject* self, RooFit::MsgTopic topic, RooFit::MsgLevel level)
 {
-  return (activeStream(self,topic,level)>=0) ;
+  return instance().activeStream(self,topic,level)>=0;
 }
 
 

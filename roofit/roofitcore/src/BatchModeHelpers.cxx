@@ -160,7 +160,7 @@ void RooFit::BatchModeHelpers::logArchitectureInfo(RooFit::BatchModeOption batch
    // We have to exit early if the message stream is not active. Otherwise it's
    // possible that this funciton skips logging because it thinks it has
    // already logged, but actually it didn't.
-   if (!RooMsgService::instance().isActive(static_cast<RooAbsArg *>(nullptr), RooFit::Fitting, RooFit::INFO))
+   if (!RooMsgService::isActive(nullptr, RooFit::Fitting, RooFit::INFO))
       return;
 
    // Don't repeat logging architecture info if the batchMode option didn't change
