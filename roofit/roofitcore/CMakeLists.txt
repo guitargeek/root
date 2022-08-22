@@ -13,6 +13,11 @@ if (roofit_multiprocess)
   set(RooFitMPTestStatisticsSources src/TestStatistics/LikelihoodJob.cxx src/TestStatistics/LikelihoodGradientJob.cxx)
 endif()
 
+if (cuda)
+  set(RooFitCoreCUDAHeaders MyCudaAddition.h)
+  set(RooFitCoreCUDASources src/MyCudaAddition.cu)
+endif()
+
 ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   HEADERS
     RooFit/Detail/DataMap.h
@@ -245,6 +250,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFit/TestStatistics/optional_parameter_types.h
     RooFit/TestStatistics/buildLikelihood.h
     RunContext.h
+    ${RooFitCoreCUDAHeaders}
   SOURCES
     src/BatchModeHelpers.cxx
     src/BatchModeDataHelpers.cxx
@@ -476,6 +482,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/TestStatistics/RooUnbinnedL.cxx
     src/TestStatistics/optional_parameter_types.cxx
     src/TestStatistics/buildLikelihood.cxx
+    ${RooFitCoreCUDASources}
     ${RooFitMPTestStatisticsSources}
   DICTIONARY_OPTIONS
     "-writeEmptyRootPCM"
