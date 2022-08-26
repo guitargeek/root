@@ -115,7 +115,7 @@ public:
    ~MnMigrad() override {}
 
    /// Copy constructor, copy shares the reference to the same FCNBase in MnApplication
-   MnMigrad(const MnMigrad &) = default;
+   MnMigrad(const MnMigrad &) = delete;
 
    // Copy assignment deleted, since MnApplication has unassignable reference to FCNBase
    MnMigrad &operator=(const MnMigrad &) = delete;

@@ -28,17 +28,7 @@ namespace Minuit2 {
 class SimplexMinimizer : public ModularFunctionMinimizer {
 
 public:
-   SimplexMinimizer() : fSeedGenerator(SimplexSeedGenerator()), fBuilder(SimplexBuilder()) {}
-
-   ~SimplexMinimizer() override {}
-
-   const MinimumSeedGenerator &SeedGenerator() const override { return fSeedGenerator; }
-   const MinimumBuilder &Builder() const override { return fBuilder; }
-   MinimumBuilder &Builder() override { return fBuilder; }
-
-private:
-   SimplexSeedGenerator fSeedGenerator;
-   SimplexBuilder fBuilder;
+   SimplexMinimizer() : ModularFunctionMinimizer(std::make_unique<SimplexSeedGenerator>(), std::make_unique<SimplexBuilder>()) {}
 };
 
 } // namespace Minuit2

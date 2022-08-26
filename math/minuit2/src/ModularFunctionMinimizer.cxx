@@ -32,6 +32,10 @@ namespace ROOT {
 
 namespace Minuit2 {
 
+ModularFunctionMinimizer::ModularFunctionMinimizer(std::unique_ptr<MinimumSeedGenerator> && minSeedGen, std::unique_ptr<MinimumBuilder> && minBuilder) : fMinSeedGen{std::move(minSeedGen)}, fMinBuilder{std::move(minBuilder)} {}
+
+ModularFunctionMinimizer::~ModularFunctionMinimizer() {}
+
 // #include "Minuit2/MnUserParametersPrint.h"
 
 FunctionMinimum ModularFunctionMinimizer::Minimize(const FCNBase &fcn, const std::vector<double> &par,

@@ -30,17 +30,7 @@ namespace Minuit2 {
 class CombinedMinimizer : public ModularFunctionMinimizer {
 
 public:
-   CombinedMinimizer() : fMinSeedGen(MnSeedGenerator()), fMinBuilder(CombinedMinimumBuilder()) {}
-
-   ~CombinedMinimizer() override {}
-
-   const MinimumSeedGenerator &SeedGenerator() const override { return fMinSeedGen; }
-   const MinimumBuilder &Builder() const override { return fMinBuilder; }
-   MinimumBuilder &Builder() override { return fMinBuilder; }
-
-private:
-   MnSeedGenerator fMinSeedGen;
-   CombinedMinimumBuilder fMinBuilder;
+   CombinedMinimizer() : ModularFunctionMinimizer{std::make_unique<MnSeedGenerator>(), std::make_unique<CombinedMinimumBuilder>()} {}
 };
 
 } // namespace Minuit2

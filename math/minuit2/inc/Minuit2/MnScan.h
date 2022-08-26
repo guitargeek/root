@@ -70,11 +70,6 @@ public:
    {
    }
 
-   MnScan(const MnScan &migr)
-      : MnApplication(migr.Fcnbase(), migr.State(), migr.Strategy(), migr.NumOfCalls()), fMinimizer(migr.fMinimizer)
-   {
-   }
-
    ~MnScan() override {}
 
    ModularFunctionMinimizer &Minimizer() override { return fMinimizer; }

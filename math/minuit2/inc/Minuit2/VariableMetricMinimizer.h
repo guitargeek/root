@@ -36,22 +36,12 @@ public:
    class BFGSType {
    };
 
-   VariableMetricMinimizer() : fMinSeedGen(MnSeedGenerator()), fMinBuilder(VariableMetricBuilder()) {}
+   VariableMetricMinimizer() : ModularFunctionMinimizer(std::make_unique<MnSeedGenerator>(), std::make_unique<VariableMetricBuilder>()) {}
 
    VariableMetricMinimizer(BFGSType)
-      : fMinSeedGen(MnSeedGenerator()), fMinBuilder(VariableMetricBuilder(VariableMetricBuilder::kBFGS))
+      : ModularFunctionMinimizer(std::make_unique<MnSeedGenerator>(), std::make_unique<VariableMetricBuilder>(VariableMetricBuilder::kBFGS))
    {
    }
-
-   ~VariableMetricMinimizer() override {}
-
-   const MinimumSeedGenerator &SeedGenerator() const override { return fMinSeedGen; }
-   const MinimumBuilder &Builder() const override { return fMinBuilder; }
-   MinimumBuilder &Builder() override { return fMinBuilder; }
-
-private:
-   MnSeedGenerator fMinSeedGen;
-   VariableMetricBuilder fMinBuilder;
 };
 
 } // namespace Minuit2

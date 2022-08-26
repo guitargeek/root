@@ -72,11 +72,6 @@ public:
    {
    }
 
-   MnSimplex(const MnSimplex &migr)
-      : MnApplication(migr.Fcnbase(), migr.State(), migr.Strategy(), migr.NumOfCalls()), fMinimizer(migr.fMinimizer)
-   {
-   }
-
    ~MnSimplex() override {}
 
    ModularFunctionMinimizer &Minimizer() override { return fMinimizer; }

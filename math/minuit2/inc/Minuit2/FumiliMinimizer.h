@@ -58,30 +58,7 @@ public:
 
    */
 
-   FumiliMinimizer() : fMinSeedGen(MnSeedGenerator()), fMinBuilder(FumiliBuilder()) {}
-
-   ~FumiliMinimizer() override {}
-
-   /**
-
-      Accessor to the seed generator of the minimizer.
-
-      @return A reference to the seed generator used by the minimizer
-
-   */
-
-   const MinimumSeedGenerator &SeedGenerator() const override { return fMinSeedGen; }
-
-   /**
-
-      Accessor to the Minimum builder of the minimizer.
-
-      @return a reference to the Minimum builder.
-
-   */
-
-   const FumiliBuilder &Builder() const override { return fMinBuilder; }
-   FumiliBuilder &Builder() override { return fMinBuilder; }
+   FumiliMinimizer() : ModularFunctionMinimizer{std::make_unique<MnSeedGenerator>(), std::make_unique<FumiliBuilder>()} {}
 
    // for Fumili
 
@@ -92,10 +69,6 @@ public:
                                     unsigned int maxfcn = 0, double toler = 0.1) const override;
 
    using ModularFunctionMinimizer::Minimize;
-
-private:
-   MnSeedGenerator fMinSeedGen;
-   FumiliBuilder fMinBuilder;
 };
 
 } // namespace Minuit2

@@ -79,12 +79,6 @@ public:
    {
    }
 
-   MnFumiliMinimize(const MnFumiliMinimize &migr)
-      : MnApplication(migr.Fcnbase(), migr.State(), migr.Strategy(), migr.NumOfCalls()), fMinimizer(migr.fMinimizer),
-        fFCN(migr.Fcnbase())
-   {
-   }
-
    ~MnFumiliMinimize() override {}
 
    FumiliMinimizer &Minimizer() override { return fMinimizer; }

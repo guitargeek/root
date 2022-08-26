@@ -109,11 +109,6 @@ public:
    {
    }
 
-   MnMinimize(const MnMinimize &migr)
-      : MnApplication(migr.Fcnbase(), migr.State(), migr.Strategy(), migr.NumOfCalls()), fMinimizer(migr.fMinimizer)
-   {
-   }
-
    ~MnMinimize() override {}
 
    ModularFunctionMinimizer &Minimizer() override { return fMinimizer; }
