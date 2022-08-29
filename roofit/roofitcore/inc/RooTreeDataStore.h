@@ -81,7 +81,7 @@ public:
     (void)first; (void)len;
     return {};
   }
-  RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len) const override;
+  RooSpan<const double> allWeights() const override;
 
   // Change observable name
   bool changeObservableName(const char* from, const char* to) override ;

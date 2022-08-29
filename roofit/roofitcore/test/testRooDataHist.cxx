@@ -305,7 +305,7 @@ TEST(RooDataHist, BatchDataAccess) {
   EXPECT_EQ(xBatch[5 * 10], histo->GetXaxis()->GetBinCenter(5+1));
   EXPECT_EQ(yBatch[5], histo->GetYaxis()->GetBinCenter(5+1));
 
-  auto weights = dataHist.getWeightBatch(0, numEntries);
+  auto weights = dataHist.allWeights();
   ASSERT_FALSE(weights.empty());
   ASSERT_EQ(weights.size(), numEntries);
   EXPECT_EQ(weights[2], 0.1 + 2.);
@@ -354,7 +354,7 @@ TEST(RooDataHist, BatchDataAccessWithCategories) {
   EXPECT_EQ(xBatch[15], histoX->GetXaxis()->GetBinCenter(15+1));
   EXPECT_EQ(xBatch[35], histoX->GetXaxis()->GetBinCenter(15+1));
 
-  auto weights = dataHist.getWeightBatch(0, numEntries);
+  auto weights = dataHist.allWeights();
   ASSERT_FALSE(weights.empty());
   ASSERT_EQ(weights.size(), numEntries);
   EXPECT_EQ(weights[2], 0.2 + 2.);
@@ -402,7 +402,7 @@ TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRange) {
   EXPECT_EQ(xBatch[13], -7.5);
   EXPECT_EQ(xBatch[25],  4.5);
 
-  auto weights = dataHist.getWeightBatch(0, numEntries);
+  auto weights = dataHist.allWeights();
   ASSERT_FALSE(weights.empty());
   ASSERT_EQ(weights.size(), numEntries);
   EXPECT_TRUE(std::none_of(weights.begin(), weights.end(), [](double arg){return arg == 0.;}));

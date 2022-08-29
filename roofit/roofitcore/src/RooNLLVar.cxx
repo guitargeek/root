@@ -410,7 +410,10 @@ RooNLLVar::ComputeResult RooNLLVar::computeBatchedFunc(const RooAbsPdf *pdfClone
 
 
   // Compute sum of event weights. First check if we need squared weights
-  const RooSpan<const double> eventWeights = dataClone->getWeightBatch(firstEvent, nEvents, weightSq);
+  RooSpan<const double> eventWeights = dataClone->allWeights(weightSq);
+  if(!eventWeights.empty()) {
+    eventWeights = RooSpan<const double>{eventWeights.begin() + firstEvent, eventWeights.begin() + firstEvent + nEvents};
+  }
 
   //Sum the event weights and probabilities
   ROOT::Math::KahanSum<double, 4u> kahanProb;

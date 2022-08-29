@@ -973,19 +973,15 @@ double RooDataSet::weightSquared() const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// \see RooAbsData::getWeightBatch().
-RooSpan<const double> RooDataSet::getWeightBatch(std::size_t first, std::size_t len, bool sumW2 /*=false*/) const {
+/// \see RooAbsData::allWeights().
+RooSpan<const double> RooDataSet::allWeights(bool sumW2 /*=false*/) const {
 
-  std::size_t nEntries = this->numEntries(); // for the casting to std::size_t
+  std::size_t nEntries = numEntries();
 
-  if(first >= nEntries || (first + len) > nEntries) {
-    throw std::runtime_error("RooDataSet::getWeightBatch(): requested range not valid for dataset.");
-  }
+  RooSpan<const double> allWeightsSpan = _dstore->allWeights();
+  if(allWeightsSpan.empty()) return {};
 
-  RooSpan<const double> allWeights = _dstore->getWeightBatch(0, numEntries());
-  if(allWeights.empty()) return {};
-
-  if(!sumW2) return {std::cbegin(allWeights) + first, std::cbegin(allWeights) + first + len};
+  if(!sumW2) return {std::cbegin(allWeightsSpan), std::cbegin(allWeightsSpan) + numEntries()};
 
   // Treat the sumW2 case with a result buffer, first reset buffer if the
   // number of entries doesn't match with the dataset anymore
@@ -1001,7 +997,7 @@ RooSpan<const double> RooDataSet::getWeightBatch(std::size_t first, std::size_t 
     }
   }
 
-  return RooSpan<const double>(_sumW2Buffer->begin() + first, _sumW2Buffer->begin() + first + len);
+  return RooSpan<const double>(_sumW2Buffer->begin(), _sumW2Buffer->begin() + numEntries());
 }
 
 

@@ -66,8 +66,8 @@ RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string_v
       return dataSpans;
    }
 
-   auto weight = data.getWeightBatch(0, nEvents, /*sumW2=*/false);
-   auto weightSumW2 = data.getWeightBatch(0, nEvents, /*sumW2=*/true);
+   auto weight = data.allWeights(/*sumW2=*/false);
+   auto weightSumW2 = data.allWeights(/*sumW2=*/true);
 
    std::vector<bool> hasZeroWeight;
    hasZeroWeight.resize(nEvents);

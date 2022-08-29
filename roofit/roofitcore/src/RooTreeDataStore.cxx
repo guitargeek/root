@@ -1194,10 +1194,12 @@ std::string RooTreeDataStore::makeTreeName() const {
 /// Get the weights of the events in the range [first, first+len).
 /// This implementation will fill a vector with every event retrieved one by one
 /// (even if the weight is constant). Then, it returns a span.
-RooSpan<const double> RooTreeDataStore::getWeightBatch(std::size_t first, std::size_t len) const {
+RooSpan<const double> RooTreeDataStore::allWeights() const {
+
+  std::size_t len = numEntries();
 
   if (_extWgtArray) {
-    return {_extWgtArray + first, len};
+    return {_extWgtArray, len};
   }
 
   if (!_weightBuffer) {
@@ -1209,5 +1211,5 @@ RooSpan<const double> RooTreeDataStore::getWeightBatch(std::size_t first, std::s
     }
   }
 
-  return {_weightBuffer->data() + first, len};
+  return {_weightBuffer->data(), len};
 }

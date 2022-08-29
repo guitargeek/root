@@ -83,7 +83,7 @@ public:
   bool isWeighted() const override { return true; }
   bool isNonPoissonWeighted() const override ;
 
-  RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len, bool sumW2=false) const override;
+  RooSpan<const double> allWeights(bool sumW2=false) const override;
 
   /// Retrieve all bin volumes. Bins are indexed according to getIndex().
   RooSpan<const double> binVolumes(std::size_t first, std::size_t len) const {

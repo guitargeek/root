@@ -402,10 +402,8 @@ double RooVectorDataStore::weightError(RooAbsData::ErrorType etype) const
     // We have a weight variable, use that info
     if (_wgtVar->hasAsymError()) {
       return ( _wgtVar->getAsymErrorHi() - _wgtVar->getAsymErrorLo() ) / 2 ;
-    } else if (_wgtVar->hasError(false)) {
-      return _wgtVar->getError();
     } else {
-      return 0 ;
+      return _wgtVar->getError();
     }
 
   } else {
@@ -1227,10 +1225,10 @@ RooAbsData::CategorySpans RooVectorDataStore::getCategoryBatches(std::size_t fir
 /// If an array with weights is stored, a batch with these weights will be returned. If
 /// no weights are stored, an empty batch is returned. Use weight() to check if there's
 /// a constant weight.
-RooSpan<const double> RooVectorDataStore::getWeightBatch(std::size_t first, std::size_t len) const
+RooSpan<const double> RooVectorDataStore::allWeights() const
 {
   if (_extWgtArray) {
-    return RooSpan<const double>(_extWgtArray + first, _extWgtArray + first + len);
+    return RooSpan<const double>(_extWgtArray, _extWgtArray + numEntries());
   }
 
   if (_wgtVar) {
@@ -1240,13 +1238,13 @@ RooSpan<const double> RooVectorDataStore::getWeightBatch(std::size_t first, std:
 
     auto storageIter = std::find_if(_realStoreList.begin(), _realStoreList.end(), findWeightVar);
     if (storageIter != _realStoreList.end())
-      return (*storageIter)->getRange(first, first + len);
+      return (*storageIter)->getRange(0, numEntries());
 
     auto fstorageIter = std::find_if(_realfStoreList.begin(), _realfStoreList.end(), findWeightVar);
     if (fstorageIter != _realfStoreList.end())
-      return (*fstorageIter)->getRange(first, first + len);
+      return (*fstorageIter)->getRange(0, numEntries());
 
-    throw std::logic_error("RooVectorDataStore::getWeightBatch(): Could not retrieve data for _wgtVar.");
+    throw std::logic_error("RooVectorDataStore::allWeights(): Could not retrieve data for _wgtVar.");
   }
   return {};
 }
