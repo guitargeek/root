@@ -47,16 +47,11 @@ RooAbsData::convertToVectorStore().
 #include "RooMsgService.h"
 #include "RooFormulaVar.h"
 #include "RooRealVar.h"
-#include "RooHistError.h"
 
 #include "ROOT/StringUtils.hxx"
 
 #include "TTree.h"
 #include "TFile.h"
-#include "TChain.h"
-#include "TDirectory.h"
-#include "TBuffer.h"
-#include "TBranch.h"
 #include "TROOT.h"
 
 #include <iomanip>
@@ -250,10 +245,6 @@ RooTreeDataStore::RooTreeDataStore(const RooTreeDataStore& other, const char* ne
   RooAbsDataStore(other,newname),
   _varsww(other._varsww),
   _wgtVar(other._wgtVar),
-  _extWgtArray(other._extWgtArray),
-  _extWgtErrLoArray(other._extWgtErrLoArray),
-  _extWgtErrHiArray(other._extWgtErrHiArray),
-  _extSumW2Array(other._extSumW2Array),
   _curWgt(other._curWgt),
   _curWgtErrLo(other._curWgtErrLo),
   _curWgtErrHi(other._curWgtErrHi),
@@ -270,10 +261,6 @@ RooTreeDataStore::RooTreeDataStore(const RooTreeDataStore& other, const RooArgSe
   RooAbsDataStore(other,varsNoWeight(vars,other._wgtVar?other._wgtVar->GetName():0),newname),
   _varsww(vars),
   _wgtVar(other._wgtVar?weightVar(vars,other._wgtVar->GetName()):0),
-  _extWgtArray(other._extWgtArray),
-  _extWgtErrLoArray(other._extWgtErrLoArray),
-  _extWgtErrHiArray(other._extWgtErrHiArray),
-  _extSumW2Array(other._extSumW2Array),
   _curWgt(other._curWgt),
   _curWgtErrLo(other._curWgtErrLo),
   _curWgtErrHi(other._curWgtErrHi),
@@ -571,15 +558,7 @@ const RooArgSet* RooTreeDataStore::get(Int_t index) const
   }
 
   // Update current weight cache
-  if (_extWgtArray) {
-
-    // If external array is specified use that
-    _curWgt = _extWgtArray[index] ;
-    _curWgtErrLo = _extWgtErrLoArray ? _extWgtErrLoArray[index] : -1.;
-    _curWgtErrHi = _extWgtErrHiArray ? _extWgtErrHiArray[index] : -1.;
-    _curWgtErr   = sqrt( _extSumW2Array ? _extSumW2Array[index] : _extWgtArray[index] );
-
-  } else if (_wgtVar) {
+  if (_wgtVar) {
 
     // Otherwise look for weight variable
     _curWgt = _wgtVar->getVal() ;
@@ -612,18 +591,9 @@ double RooTreeDataStore::weight() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooTreeDataStore::weightError(RooAbsData::ErrorType etype) const
+double RooTreeDataStore::weightError(RooAbsData::ErrorType /*etype*/) const
 {
-  if (_extWgtArray) {
-
-    // We have a weight array, use that info
-
-    // Return symmetric error on current bin calculated either from Poisson statistics or from SumOfWeights
-    double lo = 0, hi =0;
-    weightError(lo,hi,etype) ;
-    return (lo+hi)/2 ;
-
-   } else if (_wgtVar) {
+  if (_wgtVar) {
 
     // We have a weight variable, use that info
     if (_wgtVar->hasAsymError()) {
@@ -644,48 +614,9 @@ double RooTreeDataStore::weightError(RooAbsData::ErrorType etype) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooTreeDataStore::weightError(double& lo, double& hi, RooAbsData::ErrorType etype) const
+void RooTreeDataStore::weightError(double& lo, double& hi, RooAbsData::ErrorType /*etype*/) const
 {
-  if (_extWgtArray) {
-
-    // We have a weight array, use that info
-    switch (etype) {
-
-    case RooAbsData::Auto:
-      throw string(Form("RooDataHist::weightError(%s) error type Auto not allowed here",GetName())) ;
-      break ;
-
-    case RooAbsData::Expected:
-      throw string(Form("RooDataHist::weightError(%s) error type Expected not allowed here",GetName())) ;
-      break ;
-
-    case RooAbsData::Poisson:
-      // Weight may be preset or precalculated
-      if (_curWgtErrLo>=0) {
-         lo = _curWgtErrLo ;
-         hi = _curWgtErrHi ;
-         return ;
-      }
-
-      // Otherwise Calculate poisson errors
-      double ym,yp ;
-      RooHistError::instance().getPoissonInterval(Int_t(weight()+0.5),ym,yp,1) ;
-      lo = weight()-ym ;
-      hi = yp-weight() ;
-      return ;
-
-    case RooAbsData::SumW2:
-      lo = _curWgtErr ;
-      hi = _curWgtErr ;
-      return ;
-
-    case RooAbsData::None:
-      lo = 0 ;
-      hi = 0 ;
-      return ;
-    }
-
-  } else if (_wgtVar) {
+  if (_wgtVar) {
 
     // We have a weight variable, use that info
     if (_wgtVar->hasAsymError()) {
@@ -893,19 +824,6 @@ double RooTreeDataStore::sumEntries() const
       get(i) ;
       // Kahan's algorithm for summing to avoid loss of precision
       double y = _wgtVar->getVal() - carry;
-      double t = sum + y;
-      carry = (t - sum) - y;
-      sum = t;
-    }
-    return sum ;
-
-  } else if (_extWgtArray) {
-
-    double sum(0) , carry(0);
-    Int_t nevt = numEntries() ;
-    for (int i=0 ; i<nevt ; i++) {
-      // Kahan's algorithm for summing to avoid loss of precision
-      double y = _extWgtArray[i] - carry;
       double t = sum + y;
       carry = (t - sum) - y;
       sum = t;
@@ -1197,10 +1115,6 @@ std::string RooTreeDataStore::makeTreeName() const {
 RooSpan<const double> RooTreeDataStore::allWeights() const {
 
   std::size_t len = numEntries();
-
-  if (_extWgtArray) {
-    return {_extWgtArray, len};
-  }
 
   if (!_weightBuffer) {
     _weightBuffer.reset(new std::vector<double>());

@@ -38,7 +38,6 @@ which returns spans pointing directly to the data.
 #include "RooFormulaVar.h"
 #include "RooRealVar.h"
 #include "RooCategory.h"
-#include "RooHistError.h"
 #include "RooTrace.h"
 #include "RooHelpers.h"
 
@@ -141,12 +140,7 @@ RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const ch
   _varsww(other._varsww),
   _wgtVar(other._wgtVar),
   _sumWeight(other._sumWeight),
-  _sumWeightCarry(other._sumWeightCarry),
-  _extWgtArray(other._extWgtArray),
-  _extWgtErrLoArray(other._extWgtErrLoArray),
-  _extWgtErrHiArray(other._extWgtErrHiArray),
-  _extSumW2Array(other._extSumW2Array),
-  _currentWeightIndex(other._currentWeightIndex)
+  _sumWeightCarry(other._sumWeightCarry)
 {
   for (const auto realVec : other._realStoreList) {
     _realStoreList.push_back(new RealVector(*realVec, (RooAbsReal*)_varsww.find(realVec->_nativeReal->GetName()))) ;
@@ -199,12 +193,7 @@ RooVectorDataStore::RooVectorDataStore(const RooVectorDataStore& other, const Ro
   _varsww(vars),
   _wgtVar(other._wgtVar?weightVar(vars,other._wgtVar->GetName()):0),
   _sumWeight(other._sumWeight),
-  _sumWeightCarry(other._sumWeightCarry),
-  _extWgtArray(other._extWgtArray),
-  _extWgtErrLoArray(other._extWgtErrLoArray),
-  _extWgtErrHiArray(other._extWgtErrHiArray),
-  _extSumW2Array(other._extSumW2Array),
-  _currentWeightIndex(other._currentWeightIndex)
+  _sumWeightCarry(other._sumWeightCarry)
 {
   for (const auto realVec : other._realStoreList) {
     auto real = static_cast<RooAbsReal*>(vars.find(realVec->bufArg()->GetName()));
@@ -371,9 +360,6 @@ const RooArgSet* RooVectorDataStore::get(Int_t index) const
     }
   }
 
-  // Update current weight cache
-  _currentWeightIndex = index;
-
   if (_cache) {
     _cache->get(index) ;
   }
@@ -386,18 +372,9 @@ const RooArgSet* RooVectorDataStore::get(Int_t index) const
 /// Return the error of the current weight.
 /// @param[in] etype Switch between simple Poisson or sum-of-weights statistics
 
-double RooVectorDataStore::weightError(RooAbsData::ErrorType etype) const
+double RooVectorDataStore::weightError(RooAbsData::ErrorType /*etype*/) const
 {
-  if (_extWgtArray) {
-
-    // We have a weight array, use that info
-
-    // Return symmetric error on current bin calculated either from Poisson statistics or from SumOfWeights
-    double lo = 0, hi = 0 ;
-    weightError(lo,hi,etype) ;
-    return (lo+hi)/2 ;
-
-   } else if (_wgtVar) {
+  if (_wgtVar) {
 
     // We have a weight variable, use that info
     if (_wgtVar->hasAsymError()) {
@@ -418,50 +395,9 @@ double RooVectorDataStore::weightError(RooAbsData::ErrorType etype) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooVectorDataStore::weightError(double& lo, double& hi, RooAbsData::ErrorType etype) const
+void RooVectorDataStore::weightError(double& lo, double& hi, RooAbsData::ErrorType /*etype*/) const
 {
-  if (_extWgtArray) {
-    double wgt;
-
-    // We have a weight array, use that info
-    switch (etype) {
-
-    case RooAbsData::Auto:
-      throw string(Form("RooDataHist::weightError(%s) error type Auto not allowed here",GetName())) ;
-      break ;
-
-    case RooAbsData::Expected:
-      throw string(Form("RooDataHist::weightError(%s) error type Expected not allowed here",GetName())) ;
-      break ;
-
-    case RooAbsData::Poisson:
-      // Weight may be preset or precalculated
-      if (_extWgtErrLoArray && _extWgtErrLoArray[_currentWeightIndex] >= 0) {
-        lo = _extWgtErrLoArray[_currentWeightIndex];
-        hi = _extWgtErrHiArray[_currentWeightIndex];
-        return ;
-      }
-
-      // Otherwise Calculate poisson errors
-      wgt = weight();
-      double ym,yp ;
-      RooHistError::instance().getPoissonInterval(Int_t(wgt+0.5),ym,yp,1);
-      lo = wgt-ym;
-      hi = yp-wgt;
-      return ;
-
-    case RooAbsData::SumW2:
-      lo = sqrt( _extSumW2Array ? _extSumW2Array[_currentWeightIndex] : _extWgtArray[_currentWeightIndex] );
-      hi = lo;
-      return ;
-
-    case RooAbsData::None:
-      lo = 0 ;
-      hi = 0 ;
-      return ;
-    }
-
-  } else if (_wgtVar) {
+  if (_wgtVar) {
 
     // We have a weight variable, use that info
     if (_wgtVar->hasAsymError()) {
@@ -1227,10 +1163,6 @@ RooAbsData::CategorySpans RooVectorDataStore::getCategoryBatches(std::size_t fir
 /// a constant weight.
 RooSpan<const double> RooVectorDataStore::allWeights() const
 {
-  if (_extWgtArray) {
-    return RooSpan<const double>(_extWgtArray, _extWgtArray + numEntries());
-  }
-
   if (_wgtVar) {
     auto findWeightVar = [this](const RealVector* realVec) {
       return realVec->_nativeReal == _wgtVar || realVec->_nativeReal->GetName() == _wgtVar->GetName();
@@ -1362,9 +1294,6 @@ RooVectorDataStore::RealFullVector* RooVectorDataStore::addRealFull(RooAbsReal* 
 /// implemented as pythonizations.
 void RooVectorDataStore::recomputeSumWeight() {
   double const* arr = nullptr;
-  if (_extWgtArray) {
-    arr = _extWgtArray;
-  }
   if (_wgtVar) {
     const std::string wgtName = _wgtVar->GetName();
     for(auto const* real : _realStoreList) {
@@ -1405,11 +1334,6 @@ RooVectorDataStore::ArraysStruct  RooVectorDataStore::getArrays() const {
   for(auto const* cat : _catStoreList) {
     out.cats.emplace_back(cat->_cat->GetName(), cat->_vec.data());
   }
-
-  if(_extWgtArray) out.reals.emplace_back("weight", _extWgtArray);
-  if(_extWgtErrLoArray) out.reals.emplace_back("wgtErrLo", _extWgtErrLoArray);
-  if(_extWgtErrHiArray) out.reals.emplace_back("wgtErrHi", _extWgtErrHiArray);
-  if(_extSumW2Array) out.reals.emplace_back("sumW2",_extSumW2Array);
 
   return out;
 }

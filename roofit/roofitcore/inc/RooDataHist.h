@@ -257,7 +257,6 @@ private:
   double weightInterpolated(const RooArgSet& bin, int intOrder, bool correctForBinSize, bool cdfBoundaries);
 
   void _adjustBinning(RooRealVar &theirVar, const TAxis &axis, RooRealVar *ourVar, Int_t *offset);
-  void registerWeightArraysToDataStore() const;
   void initializeAsymErrArrays() const;
   VarInfo const& getVarInfo();
 

@@ -103,8 +103,6 @@ public:
   virtual void attachBuffers(const RooArgSet& extObs) = 0 ;
   virtual void resetBuffers() = 0 ;
 
-  virtual void setExternalWeightArray(const double* /*arrayWgt*/, const double* /*arrayWgtErrLo*/, const double* /*arrayWgtErrHi*/, const double* /*arraySumW2*/) {} ;
-
   // Printing interface (human readable)
   inline void Print(Option_t *options= nullptr) const override {
     // Print contents on stdout

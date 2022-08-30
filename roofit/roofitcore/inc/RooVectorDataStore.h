@@ -110,8 +110,6 @@ public:
   /// Return the weight of the last-retrieved data point.
   double weight() const override
   {
-    if (_extWgtArray)
-      return _extWgtArray[_currentWeightIndex];
     if (_wgtVar)
       return _wgtVar->getVal();
 
@@ -119,7 +117,7 @@ public:
   }
   double weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override;
   void weightError(double& lo, double& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override;
-  bool isWeighted() const override { return _wgtVar || _extWgtArray; }
+  bool isWeighted() const override { return _wgtVar; }
 
   RooAbsData::RealSpans getBatches(std::size_t first, std::size_t len) const override;
   RooAbsData::CategorySpans getCategoryBatches(std::size_t /*first*/, std::size_t len) const override;
@@ -173,14 +171,6 @@ public:
   void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=nullptr, const char* rangeName=nullptr, std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max()) override;
 
   void dump() override;
-
-  void setExternalWeightArray(const double* arrayWgt, const double* arrayWgtErrLo,
-      const double* arrayWgtErrHi, const double* arraySumW2) override {
-    _extWgtArray = arrayWgt ;
-    _extWgtErrLoArray = arrayWgtErrLo ;
-    _extWgtErrHiArray = arrayWgtErrHi ;
-    _extSumW2Array = arraySumW2 ;
-  }
 
   void setDirtyProp(bool flag) override {
     _doDirtyProp = flag ;
@@ -673,19 +663,12 @@ public:
   double _sumWeight = 0.0;
   double _sumWeightCarry = 0.0;
 
-  const double* _extWgtArray = nullptr;      ///<! External weight array
-  const double* _extWgtErrLoArray = nullptr; ///<! External weight array - low error
-  const double* _extWgtErrHiArray = nullptr; ///<! External weight array - high error
-  const double* _extSumW2Array = nullptr;    ///<! External sum of weights array
-
-  mutable ULong64_t _currentWeightIndex{0}; ///<
-
   RooVectorDataStore* _cache = nullptr; ///<! Optimization cache
   RooAbsArg* _cacheOwner = nullptr; ///<! Cache owner
 
   bool _forcedUpdate = false; ///<! Request for forced cache update
 
-  ClassDefOverride(RooVectorDataStore, 7) // STL-vector-based Data Storage class
+  ClassDefOverride(RooVectorDataStore, 8) // STL-vector-based Data Storage class
 };
 
 

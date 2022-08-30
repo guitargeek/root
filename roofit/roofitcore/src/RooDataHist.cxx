@@ -120,8 +120,6 @@ RooDataHist::RooDataHist(RooStringView name, RooStringView title, const RooArgSe
 
   initialize(binningName) ;
 
-  registerWeightArraysToDataStore();
-
   appendToDir(this,true) ;
   TRACE_CREATE
 }
@@ -174,7 +172,6 @@ RooDataHist::RooDataHist(RooStringView name, RooStringView title, const RooArgLi
 
   importTH1Set(vars, indexCat, histMap, wgt, false) ;
 
-  registerWeightArraysToDataStore();
   TRACE_CREATE
 }
 
@@ -198,7 +195,6 @@ RooDataHist::RooDataHist(RooStringView name, RooStringView title, const RooArgLi
 
   importDHistSet(vars, indexCat, dhistMap, wgt) ;
 
-  registerWeightArraysToDataStore();
   TRACE_CREATE
 }
 
@@ -228,7 +224,6 @@ RooDataHist::RooDataHist(RooStringView name, RooStringView title, const RooArgLi
 
   importTH1(vars,*hist,wgt, false) ;
 
-  registerWeightArraysToDataStore();
   TRACE_CREATE
 }
 
@@ -360,7 +355,6 @@ RooDataHist::RooDataHist(RooStringView name, RooStringView title, const RooArgLi
 
   }
 
-  registerWeightArraysToDataStore();
   TRACE_CREATE
 
 }
@@ -828,12 +822,6 @@ void RooDataHist::initialize(const char* binningName, bool fillTree)
     delete[] _errHi; _errHi = nullptr;
     delete[] _sumw2; _sumw2 = nullptr;
     initArray(_binv, _arrSize, 0.);
-
-    // Refill array pointers in data store when reading
-    // from Streamer
-    if (!fillTree) {
-      registerWeightArraysToDataStore();
-    }
   }
 
   if (!fillTree) return ;
@@ -900,8 +888,6 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
     const RooAbsBinning* binning = lvarg->getBinningPtr(0);
     _lvbins.emplace_back(binning ? binning->clone() : 0) ;
   }
-
-  registerWeightArraysToDataStore();
 
  appendToDir(this,true) ;
 }
@@ -1497,7 +1483,6 @@ void RooDataHist::initializeAsymErrArrays() const {
   if (!_errLo || !_errHi) {
     initArray(_errLo, _arrSize, -1.);
     initArray(_errHi, _arrSize, -1.);
-    registerWeightArraysToDataStore();
   }
 }
 
@@ -1653,8 +1638,6 @@ void RooDataHist::add(const RooArgSet& row, double wgt, double sumw2)
     // Receiving a weighted entry. SumW2 != sumw from now on.
     _sumw2 = new double[_arrSize];
     std::copy(_wgt, _wgt+_arrSize, _sumw2);
-
-    registerWeightArraysToDataStore();
   }
 
   const auto idx = calcTreeIndex(row, false);
@@ -1701,8 +1684,6 @@ void RooDataHist::set(std::size_t binNumber, double wgt, double wgtErr) {
   if (wgtErr > 0. && !_sumw2) {
     // Receiving a weighted entry. Need to track sumw2 from now on:
     cloneArray(_sumw2, _wgt, _arrSize);
-
-    registerWeightArraysToDataStore();
   }
 
   _wgt[binNumber] = wgt ;
@@ -2108,8 +2089,6 @@ void RooDataHist::reset()
   delete[] _errHi; _errHi = nullptr;
   delete[] _sumw2; _sumw2 = nullptr;
 
-  registerWeightArraysToDataStore();
-
   _cache_sum_valid = false;
 }
 
@@ -2346,13 +2325,6 @@ void RooDataHist::Streamer(TBuffer &R__b) {
 /// If cacheValidEntries() has been called, out-of-range events will have a weight of 0.
 RooSpan<const double> RooDataHist::allWeights(bool sumW2 /*=false*/) const {
   return {sumW2 && _sumw2 ? _sumw2 : _wgt, static_cast<std::size_t>(numEntries())};
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Hand over pointers to our weight arrays to the data store implementation.
-void RooDataHist::registerWeightArraysToDataStore() const {
-  _dstore->setExternalWeightArray(_wgt, _errLo, _errHi, _sumw2);
 }
 
 

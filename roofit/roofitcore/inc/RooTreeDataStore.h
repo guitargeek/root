@@ -72,7 +72,7 @@ public:
   double weight() const override ;
   double weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
   void weightError(double& lo, double& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
-  bool isWeighted() const override { return (_wgtVar!=nullptr||_extWgtArray!=nullptr) ; }
+  bool isWeighted() const override { return _wgtVar!=nullptr; }
 
   RooAbsData::RealSpans getBatches(std::size_t first, std::size_t len) const override {
     //TODO
@@ -129,14 +129,6 @@ public:
 
   void checkInit() const override;
 
-  void setExternalWeightArray(const double* arrayWgt, const double* arrayWgtErrLo,
-      const double* arrayWgtErrHi, const double* arraySumW2) override {
-    _extWgtArray = arrayWgt ;
-    _extWgtErrLoArray = arrayWgtErrLo ;
-    _extWgtErrHiArray = arrayWgtErrHi ;
-    _extSumW2Array = arraySumW2 ;
-  }
-
   const RooArgSet& row() { return _varsww ; }
 
  private:
@@ -166,10 +158,6 @@ public:
   RooArgSet _varsww ;
   RooRealVar* _wgtVar = nullptr;     // Pointer to weight variable (if set)
 
-  const double* _extWgtArray{nullptr};         ///<! External weight array
-  const double* _extWgtErrLoArray{nullptr};    ///<! External weight array - low error
-  const double* _extWgtErrHiArray{nullptr};    ///<! External weight array - high error
-  const double* _extSumW2Array{nullptr};       ///<! External sum of weights array
   mutable std::unique_ptr<std::vector<double>> _weightBuffer; //! Buffer for weights in case a batch of values is requested.
 
   mutable double  _curWgt = 1.0;      ///< Weight of current event
