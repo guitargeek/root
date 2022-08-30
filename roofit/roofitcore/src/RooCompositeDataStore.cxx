@@ -146,10 +146,10 @@ std::unique_ptr<RooAbsDataStore> RooCompositeDataStore::reduce(
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward recalculate request to all subsets
 
-void RooCompositeDataStore::recalculateCache(const RooArgSet* proj, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights)
+void RooCompositeDataStore::recalculateCache(RooAbsData const& data, const RooArgSet* proj, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights)
 {
   for (auto const& item : _dataMap) {
-    item.second->recalculateCache(proj,firstEvent,lastEvent,stepSize,skipZeroWeights) ;
+    item.second->recalculateCache(data, proj,firstEvent,lastEvent,stepSize,skipZeroWeights) ;
   }
 }
 
@@ -381,10 +381,10 @@ void RooCompositeDataStore::reset()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooCompositeDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet, const RooArgSet* nset, bool skipZeroWeights)
+void RooCompositeDataStore::cacheArgs(RooAbsData const& data, const RooAbsArg* owner, RooArgSet& newVarSet, const RooArgSet* nset, bool skipZeroWeights)
 {
   for (auto const& item : _dataMap) {
-    item.second->cacheArgs(owner,newVarSet,nset,skipZeroWeights) ;
+    item.second->cacheArgs(data, owner,newVarSet,nset,skipZeroWeights) ;
   }
 }
 

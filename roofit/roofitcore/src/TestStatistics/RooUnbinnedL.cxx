@@ -91,7 +91,7 @@ RooUnbinnedL::evaluatePartition(Section events, std::size_t /*components_begin*/
    // Do not reevaluate likelihood if parameters nor event range have changed
    if (!paramTracker_->hasChanged(true) && events == lastSection_ && (cachedResult_ != 0)) return cachedResult_;
 
-   data_->store()->recalculateCache(nullptr, events.begin(N_events_), events.end(N_events_), 1, true);
+   data_->recalculateCache(nullptr, events.begin(N_events_), events.end(N_events_), 1, true);
 
    if (useBatchedEvaluations_) {
       std::unique_ptr<RooBatchCompute::RunContext> evalData;

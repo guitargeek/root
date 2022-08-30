@@ -90,12 +90,12 @@ public:
   void resetBuffers() override ;
 
   // Constant term  optimizer interface
-  void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) override ;
+  void cacheArgs(RooAbsData const& data, const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) override ;
   const RooAbsArg* cacheOwner() override { return nullptr ; }
   void setArgStatus(const RooArgSet& set, bool active) override ;
   void resetCache() override ;
 
-  void recalculateCache(const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, bool /*skipZeroWeights*/) override ;
+  void recalculateCache(RooAbsData const& data, const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, bool /*skipZeroWeights*/) override ;
   bool hasFilledCache() const override ;
 
   void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=nullptr, const char* rangeName=nullptr,

@@ -758,7 +758,7 @@ void RooVectorDataStore::reset()
 /// internal cache of 'newVar' will be loaded with the
 /// precalculated value and it's dirty flag will be cleared.
 
-void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet, const RooArgSet* nset, bool skipZeroWeights)
+void RooVectorDataStore::cacheArgs(RooAbsData const& data, const RooAbsArg* owner, RooArgSet& newVarSet, const RooArgSet* nset, bool skipZeroWeights)
 {
   // Delete previous cache, if any
   delete _cache ;
@@ -866,8 +866,8 @@ void RooVectorDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet,
   const std::size_t numEvt = size();
   newCache->reserve(numEvt);
   for (std::size_t i=0; i < numEvt; i++) {
-    get(i) ;
-    if (weight()!=0 || !skipZeroWeights) {
+    data.get(i);
+    if (data.weight()!=0 || !skipZeroWeights) {
       for (unsigned int j = 0; j < cloneSet.size(); ++j) {
         auto& cloneArg = cloneSet[j];
         auto argNSet = nsetList[j];
@@ -924,7 +924,7 @@ void RooVectorDataStore::forceCacheUpdate()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooVectorDataStore::recalculateCache( const RooArgSet *projectedArgs, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights)
+void RooVectorDataStore::recalculateCache(RooAbsData const& data, const RooArgSet *projectedArgs, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights)
 {
   if (!_cache) return ;
 
@@ -960,8 +960,8 @@ void RooVectorDataStore::recalculateCache( const RooArgSet *projectedArgs, Int_t
 
 
   for (int i=firstEvent ; i<lastEvent ; i+=stepSize) {
-    get(i) ;
-    bool zeroWeight = (weight()==0) ;
+    data.get(i);
+    bool zeroWeight = data.weight()==0;
     if (!zeroWeight || !skipZeroWeights) {
        for (auto realVector : tv) {
           realVector->_nativeReal->_valueDirty = true;

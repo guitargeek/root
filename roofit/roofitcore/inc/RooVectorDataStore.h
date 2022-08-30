@@ -161,10 +161,10 @@ public:
 
   // Constant term  optimizer interface
   const RooAbsArg* cacheOwner() override { return _cacheOwner ; }
-  void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=true) override;
+  void cacheArgs(RooAbsData const& data, const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=true) override;
   void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) override;
   void resetCache() override;
-  void recalculateCache(const RooArgSet* /*proj*/, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights) override;
+  void recalculateCache(RooAbsData const& data, const RooArgSet* /*proj*/, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights) override;
 
   void setArgStatus(const RooArgSet& set, bool active) override;
 

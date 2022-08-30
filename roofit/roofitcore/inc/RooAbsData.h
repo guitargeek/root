@@ -323,6 +323,8 @@ public:
   /// memory is reused.
   RooFit::UniqueId<RooAbsData> const& uniqueId() const { return _uniqueId; }
 
+  void recalculateCache(const RooArgSet* proj, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights) ;
+
 protected:
 
   static StorageType defaultStorageType ;

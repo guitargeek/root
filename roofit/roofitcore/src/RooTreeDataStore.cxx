@@ -948,7 +948,7 @@ void RooTreeDataStore::reset()
 /// internal cache of 'newVar' will be loaded with the
 /// precalculated value and it's dirty flag will be cleared.
 
-void RooTreeDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet, const RooArgSet* nset, bool /*skipZeroWeights*/)
+void RooTreeDataStore::cacheArgs(RooAbsData const& data, const RooAbsArg* owner, RooArgSet& newVarSet, const RooArgSet* nset, bool /*skipZeroWeights*/)
 {
   checkInit() ;
 
@@ -970,7 +970,7 @@ void RooTreeDataStore::cacheArgs(const RooAbsArg* owner, RooArgSet& newVarSet, c
 
   // Refill regular and cached variables of current tree from clone
   for (int i=0 ; i<GetEntries() ; i++) {
-    get(i) ;
+    data.get(i) ;
 
     // Evaluate the cached variables and store the results
     for (RooAbsArg * arg : *constExprVarSet) {

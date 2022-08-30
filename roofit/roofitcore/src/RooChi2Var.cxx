@@ -243,7 +243,7 @@ double RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEve
 
   double result(0), carry(0);
 
-  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, false) ;
+  _dataClone->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, false) ;
 
 
   // Determine normalization factor depending on type of input function

@@ -96,9 +96,9 @@ RooBinnedL::evaluatePartition(Section bins, std::size_t /*components_begin*/, st
    // Do not reevaluate likelihood if parameters nor event range have changed
    if (!paramTracker_->hasChanged(true) && bins == lastSection_ && (cachedResult_ != 0)) return cachedResult_;
 
-//   data->store()->recalculateCache(_projDeps, firstEvent, lastEvent, stepSize, (_binnedPdf?false:true));
+//   data->recalculateCache(_projDeps, firstEvent, lastEvent, stepSize, (_binnedPdf?false:true));
    // TODO: check when we might need _projDeps (it seems to be mostly empty); ties in with TODO below
-   data_->store()->recalculateCache(nullptr, bins.begin(N_events_), bins.end(N_events_), 1, false);
+   data_->recalculateCache(nullptr, bins.begin(N_events_), bins.end(N_events_), 1, false);
 
    ROOT::Math::KahanSum<double> sumWeight;
 

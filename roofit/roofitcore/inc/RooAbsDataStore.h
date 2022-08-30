@@ -126,13 +126,13 @@ public:
 
 
   // Constant term  optimizer interface
-  virtual void cacheArgs(const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) = 0 ;
+  virtual void cacheArgs(RooAbsData const& data, const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) = 0 ;
   virtual const RooAbsArg* cacheOwner() = 0 ;
   virtual void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) = 0 ;
   virtual void setArgStatus(const RooArgSet& set, bool active) = 0 ;
   const RooArgSet& cachedVars() const { return _cachedVars ; }
   virtual void resetCache() = 0 ;
-  virtual void recalculateCache(const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, bool /* skipZeroWeights*/) {} ;
+  virtual void recalculateCache(RooAbsData const& /*data*/, const RooArgSet* /*proj*/, Int_t /*firstEvent*/, Int_t /*lastEvent*/, Int_t /*stepSize*/, bool /* skipZeroWeights*/) {}
 
   virtual void setDirtyProp(bool flag) { _doDirtyProp = flag ; }
   bool dirtyProp() const { return _doDirtyProp ; }

@@ -118,7 +118,7 @@ public:
   void   Draw(Option_t* option = "") override ;
 
   // Constant term  optimizer interface
-  void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) override ;
+  void cacheArgs(RooAbsData const& data, const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) override ;
   const RooAbsArg* cacheOwner() override { return _cacheOwner ; }
   void setArgStatus(const RooArgSet& set, bool active) override ;
   void resetCache() override ;

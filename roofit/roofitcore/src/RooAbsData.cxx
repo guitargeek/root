@@ -396,7 +396,11 @@ const RooArgSet* RooAbsData::get(Int_t index) const
 
 void RooAbsData::cacheArgs(const RooAbsArg* cacheOwner, RooArgSet& varSet, const RooArgSet* nset, bool skipZeroWeights)
 {
-  _dstore->cacheArgs(cacheOwner,varSet,nset,skipZeroWeights) ;
+  _dstore->cacheArgs(*this, cacheOwner,varSet,nset,skipZeroWeights) ;
+}
+
+void RooAbsData::recalculateCache(const RooArgSet* proj, Int_t firstEvent, Int_t lastEvent, Int_t stepSize, bool skipZeroWeights) {
+  _dstore->recalculateCache(*this, proj, firstEvent, lastEvent, stepSize, skipZeroWeights);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
