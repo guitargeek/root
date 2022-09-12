@@ -775,44 +775,39 @@ void initArray(double*& arr, std::size_t n, double val) {
 
 void RooDataHist::initialize(const char* binningName, bool fillTree)
 {
-  _lvvars.clear();
   _lvbins.clear();
-
-  // Fill array of LValue pointers to variables
-  for (unsigned int i = 0; i < _vars.size(); ++i) {
-    if (binningName) {
-      RooRealVar* rrv = dynamic_cast<RooRealVar*>(_vars[i]);
-      if (rrv) {
-        rrv->setBinning(rrv->getBinning(binningName));
-      }
-    }
-
-    auto lvarg = dynamic_cast<RooAbsLValue*>(_vars[i]);
-    assert(lvarg);
-    _lvvars.push_back(lvarg);
-
-    const RooAbsBinning* binning = lvarg->getBinningPtr(0);
-    _lvbins.emplace_back(binning ? binning->clone() : nullptr);
-  }
-
 
   // Allocate coefficients array
   _idxMult.resize(_vars.size()) ;
 
   _arrSize = 1 ;
   unsigned int n = 0u;
-  for (const auto var : _vars) {
-    auto arg = dynamic_cast<const RooAbsLValue*>(var);
-    assert(arg);
+
+  // Fill array of LValue pointers to variables
+  for (unsigned int iVar = 0; iVar < _vars.size(); ++iVar) {
+    if (binningName) {
+      if (auto rrv = dynamic_cast<RooRealVar*>(_vars[iVar])) {
+        rrv->setBinning(rrv->getBinning(binningName));
+      }
+    }
+
+    auto lvarg = dynamic_cast<RooAbsLValue*>(_vars[iVar]);
+    assert(lvarg);
+
+    const RooAbsBinning* binning = lvarg->getBinningPtr(0);
+    _lvbins.emplace_back(binning ? binning->clone() : nullptr);
+
+    const int numBins = _lvbins.back() ? static_cast<RooAbsRealLValue*>(_vars[iVar])->numBins()
+                                       : static_cast<RooAbsCategoryLValue*>(_vars[iVar])->numBins();
 
     // Calculate sub-index multipliers for master index
     for (unsigned int i = 0u; i<n; i++) {
-      _idxMult[i] *= arg->numBins() ;
+      _idxMult[i] *= numBins;
     }
-    _idxMult[n++] = 1 ;
+    _idxMult[n++] = 1;
 
     // Calculate dimension of weight array
-    _arrSize *= arg->numBins() ;
+    _arrSize *= numBins;
   }
 
   // Allocate and initialize weight array if necessary
@@ -832,11 +827,19 @@ void RooDataHist::initialize(const char* binningName, bool fillTree)
   for (Int_t ibin=0 ; ibin < _arrSize ; ibin++) {
     Int_t j(0), idx(0), tmp(ibin) ;
     double theBinVolume(1) ;
-    for (auto arg2 : _lvvars) {
+    for(std::size_t iVar = 0; iVar < _vars.size(); ++iVar) {
       idx  = tmp / _idxMult[j] ;
       tmp -= idx*_idxMult[j++] ;
-      arg2->setBin(idx) ;
-      theBinVolume *= arg2->getBinWidth(idx) ;
+      if(_lvbins[iVar]) {
+        auto arg2 = static_cast<RooAbsRealLValue*>(_vars[iVar]);
+        arg2->setBin(idx) ;
+        theBinVolume *= arg2->getBinWidth(idx) ;
+      } else {
+        auto arg2 = static_cast<RooAbsCategoryLValue*>(_vars[iVar]);
+        // No multiplicative factor to bin volume for categories, but we still
+        // have to set the bin fo fill the tree correctly.
+        arg2->setBin(idx) ;
+      }
     }
     _binv[ibin] = theBinVolume ;
 
@@ -884,7 +887,6 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
   for (const auto rvarg : _vars) {
     auto lvarg = dynamic_cast<RooAbsLValue*>(rvarg);
     assert(lvarg);
-    _lvvars.push_back(lvarg);
     const RooAbsBinning* binning = lvarg->getBinningPtr(0);
     _lvbins.emplace_back(binning ? binning->clone() : 0) ;
   }
@@ -1834,15 +1836,11 @@ double RooDataHist::sum(const RooArgSet& sumSet, const RooArgSet& sliceSet, bool
   std::vector<bool> mask(_vars.size());
   std::vector<int> refBin(_vars.size());
 
-  for (unsigned int i = 0; i < _vars.size(); ++i) {
-    const RooAbsArg*    arg   = _vars[i];
-    const RooAbsLValue* argLv = _lvvars[i]; // Same as above, but cross-cast
-
-    if (sumSet.find(*arg)) {
-      mask[i] = false ;
-    } else {
-      mask[i] = true ;
-      refBin[i] = argLv->getBin();
+  for (std::size_t iVar = 0; iVar < _vars.size(); ++iVar) {
+    RooAbsArg const& arg = *_vars[iVar];
+    if ((mask[iVar] = !sumSet.find(arg))) {
+      refBin[iVar] = _lvbins[iVar] ? static_cast<RooAbsRealLValue const&>(arg).getBin()
+                                   : static_cast<RooAbsCategoryLValue const&>(arg).getBin();
     }
   }
 
@@ -1910,22 +1908,20 @@ double RooDataHist::sum(const RooArgSet& sumSet, const RooArgSet& sliceSet,
   std::vector<double> rangeLo(_vars.size(), -std::numeric_limits<double>::infinity());
   std::vector<double> rangeHi(_vars.size(), +std::numeric_limits<double>::infinity());
 
-  for (std::size_t i = 0; i < _vars.size(); ++i) {
-    const RooAbsArg* arg = _vars[i];
-    const RooAbsLValue* argLV = _lvvars[i]; // Same object as above, but cross cast
+  for (std::size_t iVar = 0; iVar < _vars.size(); ++iVar) {
+    RooAbsArg const& arg = *_vars[iVar];
 
-    RooAbsArg* sumsetv = sumSet.find(*arg);
-    RooAbsArg* slicesetv = sliceSet.find(*arg);
-    mask[i] = !sumsetv;
-    if (mask[i]) {
-      assert(argLV);
-      refBin[i] = argLV->getBin();
+    RooAbsArg* sumsetv = sumSet.find(arg);
+    RooAbsArg* slicesetv = sliceSet.find(arg);
+    if ((mask[iVar] = !sumsetv)) {
+      refBin[iVar] = _lvbins[iVar] ? static_cast<RooAbsRealLValue const&>(arg).getBin()
+                                   : static_cast<RooAbsCategoryLValue const&>(arg).getBin();
     }
 
     auto it = ranges.find(sumsetv ? sumsetv : slicesetv);
     if (ranges.end() != it) {
-      rangeLo[i] = it->second.first;
-      rangeHi[i] = it->second.second;
+      rangeLo[iVar] = it->second.first;
+      rangeHi[iVar] = it->second.second;
     }
   }
 
@@ -2016,13 +2012,14 @@ const std::vector<double>& RooDataHist::calculatePartialBinVolume(const RooArgSe
   for (Int_t ibin=0; ibin < _arrSize ;ibin++) {
     Int_t idx(0), tmp(ibin) ;
     double theBinVolume(1) ;
-    for (unsigned int j=0; j < _lvvars.size(); ++j) {
-      const RooAbsLValue* arg = _lvvars[j];
-      assert(arg);
+    for(std::size_t iVar = 0; iVar < _vars.size(); ++iVar) {
+      // Skip categories because the bin volume is always one
+      if(!_lvbins[iVar]) continue;
+      auto arg = static_cast<RooAbsRealLValue*>(_vars[iVar]);
 
-      idx  = tmp / _idxMult[j];
-      tmp -= idx*_idxMult[j];
-      if (selDim[j]) {
+      idx  = tmp / _idxMult[iVar];
+      tmp -= idx*_idxMult[iVar];
+      if (selDim[iVar]) {
         theBinVolume *= arg->getBinWidth(idx) ;
       }
     }

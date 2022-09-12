@@ -243,7 +243,6 @@ protected:
   mutable ULong64_t _curIndex{std::numeric_limits<ULong64_t>::max()}; ///< Current index
 
   mutable std::unordered_map<int,std::vector<double>> _pbinvCache ; ///<! Cache for arrays of partial bin volumes
-  std::vector<RooAbsLValue*> _lvvars ; ///<! List of observables casted as RooAbsLValue
   std::vector<std::unique_ptr<const RooAbsBinning>> _lvbins ; ///<! List of used binnings associated with lvalues
   mutable std::vector<std::vector<double> > _binbounds;     ///<! list of bin bounds per dimension
 
