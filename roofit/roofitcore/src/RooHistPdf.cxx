@@ -260,11 +260,11 @@ bool fullRange(const RooAbsArg& x, const RooAbsArg& y ,const char* range)
   const RooAbsRealLValue *_x = dynamic_cast<const RooAbsRealLValue*>(&x);
   const RooAbsRealLValue *_y = dynamic_cast<const RooAbsRealLValue*>(&y);
   if (!_x || !_y) return false;
-  if (!range || !strlen(range) || !_x->hasRange(range) ||
-      _x->getBinningPtr(range)->isParameterized()) {
+  auto const& binning = _x->getBinning(range);
+  if (!range || !strlen(range) || !_x->hasRange(range) || binning.isParameterized()) {
     // parameterized ranges may be full range now, but that might change,
     // so return false
-    if (range && strlen(range) && _x->getBinningPtr(range)->isParameterized())
+    if (range && strlen(range) && binning.isParameterized())
       return false;
     return (_x->getMin() == _y->getMin() && _x->getMax() == _y->getMax());
   }
@@ -412,18 +412,15 @@ std::list<double>* RooHistPdf::plotSamplingHint(RooDataHist const& dataHist,
     }
   }
 
-  if (!dhObs) {
-    return nullptr;
-  }
-  RooAbsLValue* lval = dynamic_cast<RooAbsLValue*>(dhObs) ;
+  auto lval = dynamic_cast<RooAbsRealLValue*>(dhObs) ;
   if (!lval) {
     return nullptr;
   }
 
   // Retrieve position of all bin boundaries
 
-  const RooAbsBinning* binning = lval->getBinningPtr(nullptr);
-  std::span<double> boundaries{binning->array(), static_cast<std::size_t>(binning->numBoundaries())};
+  const RooAbsBinning& binning = lval->getBinning();
+  std::span<double> boundaries{binning.array(), static_cast<std::size_t>(binning.numBoundaries())};
 
   auto hint = new std::list<double> ;
 
@@ -459,20 +456,20 @@ std::list<double>* RooHistPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, 
   }
 
   // Check that observable is in dataset, if not no hint is generated
-  RooAbsLValue* lvarg = dynamic_cast<RooAbsLValue*>(_dataHist->get()->find(obs.GetName())) ;
+  auto lvarg = dynamic_cast<RooAbsRealLValue*>(_dataHist->get()->find(obs.GetName())) ;
   if (!lvarg) {
-    return 0 ;
+    return nullptr;
   }
 
   // Retrieve position of all bin boundaries
-  const RooAbsBinning* binning = lvarg->getBinningPtr(0) ;
-  double* boundaries = binning->array() ;
+  const RooAbsBinning& binning = lvarg->getBinning();
+  double* boundaries = binning.array() ;
 
   auto hint = new std::list<double> ;
 
   // Construct array with pairs of points positioned epsilon to the left and
   // right of the bin boundaries
-  for (Int_t i=0 ; i<binning->numBoundaries() ; i++) {
+  for (Int_t i=0 ; i<binning.numBoundaries() ; i++) {
     if (boundaries[i]>=xlo && boundaries[i]<=xhi) {
       hint->push_back(boundaries[i]) ;
     }

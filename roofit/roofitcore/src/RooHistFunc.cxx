@@ -385,15 +385,16 @@ std::list<double>* RooHistFunc::binBoundaries(RooAbsRealLValue& obs, double xlo,
     _dataHist->get()->Print("v") ;
     return 0 ;
   }
-  RooAbsLValue* lvarg = dynamic_cast<RooAbsLValue*>(_dataHist->get()->find(hobs->GetName())) ;
+  auto lvarg = dynamic_cast<RooAbsRealLValue*>(_dataHist->get()->find(hobs->GetName())) ;
   if (!lvarg) {
-    std::cout << "RooHistFunc::binBoundaries(" << GetName() << ") hobs = " << hobs->GetName() << " but is not an LV, returning null" << std::endl ;
-    return 0 ;
+    std::cout << "RooHistFunc::binBoundaries(" << GetName() << ") hobs = " << hobs->GetName()
+              << ", but is not a RooAbsRealLValue. Returning nullptr." << std::endl;
+    return nullptr;
   }
 
   // Retrieve position of all bin boundaries
-  const RooAbsBinning* binning = lvarg->getBinningPtr(0) ;
-  double* boundaries = binning->array() ;
+  const RooAbsBinning& binning = lvarg->getBinning();
+  double* boundaries = binning.array() ;
 
   auto hint = new std::list<double> ;
 
@@ -401,7 +402,7 @@ std::list<double>* RooHistFunc::binBoundaries(RooAbsRealLValue& obs, double xlo,
 
   // Construct array with pairs of points positioned epsilon to the left and
   // right of the bin boundaries
-  for (Int_t i=0 ; i<binning->numBoundaries() ; i++) {
+  for (Int_t i=0 ; i<binning.numBoundaries() ; i++) {
     if (boundaries[i]>xlo-delta && boundaries[i]<xhi+delta) {
 
       double boundary = boundaries[i] ;

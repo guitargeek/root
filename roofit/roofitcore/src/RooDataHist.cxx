@@ -791,11 +791,8 @@ void RooDataHist::initialize(const char* binningName, bool fillTree)
       }
     }
 
-    auto lvarg = dynamic_cast<RooAbsLValue*>(_vars[iVar]);
-    assert(lvarg);
-
-    const RooAbsBinning* binning = lvarg->getBinningPtr(0);
-    _lvbins.emplace_back(binning ? binning->clone() : nullptr);
+    _lvbins.emplace_back(!_vars[iVar]->isCategory() ? static_cast<RooAbsRealLValue*>(_vars[iVar])->getBinning().clone()
+                                                    : nullptr);
 
     const int numBins = _lvbins.back() ? static_cast<RooAbsRealLValue*>(_vars[iVar])->numBins()
                                        : static_cast<RooAbsCategoryLValue*>(_vars[iVar])->numBins();
@@ -885,10 +882,8 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
 
   // Fill array of LValue pointers to variables
   for (const auto rvarg : _vars) {
-    auto lvarg = dynamic_cast<RooAbsLValue*>(rvarg);
-    assert(lvarg);
-    const RooAbsBinning* binning = lvarg->getBinningPtr(0);
-    _lvbins.emplace_back(binning ? binning->clone() : 0) ;
+    _lvbins.emplace_back(!rvarg->isCategory() ? static_cast<RooAbsRealLValue*>(rvarg)->getBinning().clone()
+                                              : nullptr);
   }
 
  appendToDir(this,true) ;

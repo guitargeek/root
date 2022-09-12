@@ -174,9 +174,8 @@ std::pair<double, double> getRangeOrBinningInterval(RooAbsArg const* arg, const 
   if (rlv) {
     if (rangeName && rlv->hasRange(rangeName)) {
       return {rlv->getMin(rangeName), rlv->getMax(rangeName)};
-    } else if (auto binning = rlv->getBinningPtr(rangeName)) {
-      return getBinningInterval(*binning);
     }
+    return getBinningInterval(rlv->getBinning(rangeName));
   }
   return {-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity()};
 }
@@ -194,12 +193,7 @@ bool checkIfRangesOverlap(RooArgSet const& observables,
 
     // RooDataHistCase
     if(dynamic_cast<RooDataHist const*>(&data)) {
-      if (auto binning = rlv.getBinningPtr(rangeName)) {
-        return getBinningInterval(*binning);
-      } else {
-        // default binning if range is not defined
-        return getBinningInterval(*rlv.getBinningPtr(nullptr));
-      }
+      return getBinningInterval(rlv.getBinning(rangeName));
     }
 
     // RooDataSet and other cases
