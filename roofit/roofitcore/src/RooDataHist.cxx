@@ -798,12 +798,11 @@ void RooDataHist::initialize(const char* binningName, bool fillTree)
       }
     }
 
-    auto lvarg = dynamic_cast<RooAbsLValue*>(_vars[i]);
-    assert(lvarg);
-    _lvvars.push_back(lvarg);
+    _lvvars.push_back(dynamic_cast<RooAbsLValue*>(_vars[i]));
+    assert(_lvvars.back());
 
-    const RooAbsBinning* binning = lvarg->getBinningPtr(0);
-    _lvbins.emplace_back(binning ? binning->clone() : nullptr);
+    _lvbins.emplace_back(!_vars[i]->isCategory() ? static_cast<RooAbsRealLValue*>(_vars[i])->getBinning().clone()
+                                                 : nullptr);
   }
 
 
@@ -899,11 +898,10 @@ RooDataHist::RooDataHist(const RooDataHist& other, const char* newname) :
 
   // Fill array of LValue pointers to variables
   for (const auto rvarg : _vars) {
-    auto lvarg = dynamic_cast<RooAbsLValue*>(rvarg);
-    assert(lvarg);
-    _lvvars.push_back(lvarg);
-    const RooAbsBinning* binning = lvarg->getBinningPtr(0);
-    _lvbins.emplace_back(binning ? binning->clone() : 0) ;
+    _lvvars.push_back(dynamic_cast<RooAbsLValue*>(rvarg));
+    assert(_lvvars.back());
+    _lvbins.emplace_back(!rvarg->isCategory() ? static_cast<RooAbsRealLValue*>(rvarg)->getBinning().clone()
+                                              : nullptr);
   }
 
   registerWeightArraysToDataStore();
@@ -1145,7 +1143,7 @@ RooPlot *RooDataHist::plotOn(RooPlot *frame, PlotOpt o) const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// A vectorized version of interpolateDim for boundary safe quadratic
-/// interpolation of one dimensional histograms. 
+/// interpolation of one dimensional histograms.
 ///
 /// \param[out] output An array of interpolated weights corresponding to the
 ///                    values in xVals.
@@ -1192,7 +1190,7 @@ void RooDataHist::interpolateQuadratic(double* output, RooSpan<const double> xVa
   for (std::size_t binIdx = 0; binIdx < nBins; ++binIdx) {
     weightsExt[binIdx+2] = correctForBinSize ? _wgt[binIdx] / _binv[binIdx] : _wgt[binIdx];
   }
-  
+
   if (cdfBoundaries) {
     coordsExt[0] = - 1e-10 + binning.lowBound();
     weightsExt[0] = 0.;
@@ -1210,7 +1208,7 @@ void RooDataHist::interpolateQuadratic(double* output, RooSpan<const double> xVa
 
     coordsExt[1] = binCoords[0] - _binv[0];
     weightsExt[1] = weightsExt[2];
-    
+
     coordsExt[nBins+2] = binCoords[nBins-1] + _binv[nBins-1];
     weightsExt[nBins+2] = weightsExt[nBins+1];
   }
@@ -1251,10 +1249,10 @@ void RooDataHist::interpolateQuadratic(double* output, RooSpan<const double> xVa
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// A vectorized version of interpolateDim for boundary safe linear 
-/// interpolation of one dimensional histograms. 
+/// A vectorized version of interpolateDim for boundary safe linear
+/// interpolation of one dimensional histograms.
 ///
-/// \param[out] output An array of interpolated weights corresponding to the 
+/// \param[out] output An array of interpolated weights corresponding to the
 ///                    values in xVals.
 /// \param[in] xVals An array of event coordinates for which the weights should be
 ///                  calculated.
@@ -1341,7 +1339,7 @@ void RooDataHist::interpolateLinear(double* output, RooSpan<const double> xVals,
 
 ////////////////////////////////////////////////////////////////////////////////
 /// A vectorized version of RooDataHist::weight() for one dimensional histograms
-/// with up to one dimensional interpolation. 
+/// with up to one dimensional interpolation.
 /// \param[out] output An array of weights corresponding the values in xVals.
 /// \param[in] xVals An array of coordinates for which the weights should be
 ///                  calculated.

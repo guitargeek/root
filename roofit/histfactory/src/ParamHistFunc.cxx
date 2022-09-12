@@ -697,11 +697,10 @@ std::list<double>* ParamHistFunc::plotSamplingHint(RooAbsRealLValue& obs, double
                   double xhi) const
 {
   // copied and edited from RooHistFunc
-  RooAbsLValue* lvarg = &obs;
 
   // Retrieve position of all bin boundaries
-  const RooAbsBinning* binning = lvarg->getBinningPtr(0) ;
-  double* boundaries = binning->array() ;
+  const RooAbsBinning& binning = obs.getBinning();
+  double* boundaries = binning.array() ;
 
   std::list<double>* hint = new std::list<double> ;
 
@@ -713,7 +712,7 @@ std::list<double>* ParamHistFunc::plotSamplingHint(RooAbsRealLValue& obs, double
 
   // Construct array with pairs of points positioned epsilon to the left and
   // right of the bin boundaries
-  for (Int_t i=0 ; i<binning->numBoundaries() ; i++) {
+  for (Int_t i=0 ; i<binning.numBoundaries() ; i++) {
     if (boundaries[i]>=xlo && boundaries[i]<=xhi) {
       hint->push_back(boundaries[i]-delta) ;
       hint->push_back(boundaries[i]+delta) ;
@@ -732,17 +731,16 @@ std::list<double>* ParamHistFunc::binBoundaries(RooAbsRealLValue& obs, double xl
                     double xhi) const
 {
   // copied and edited from RooHistFunc
-  RooAbsLValue* lvarg = &obs;
 
   // Retrieve position of all bin boundaries
-  const RooAbsBinning* binning = lvarg->getBinningPtr(0) ;
-  double* boundaries = binning->array() ;
+  const RooAbsBinning& binning = obs.getBinning();
+  double* boundaries = binning.array();
 
   std::list<double>* hint = new std::list<double> ;
 
   // Construct array with pairs of points positioned epsilon to the left and
   // right of the bin boundaries
-  for (Int_t i=0 ; i<binning->numBoundaries() ; i++) {
+  for (Int_t i=0 ; i<binning.numBoundaries() ; i++) {
     if (boundaries[i]>=xlo && boundaries[i]<=xhi) {
       hint->push_back(boundaries[i]) ;
     }
