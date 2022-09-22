@@ -1,0 +1,75 @@
+From ea204b6556201e36eb676546b2f9bbf1ba11a6b8 Mon Sep 17 00:00:00 2001
+From: Vincenzo Eduardo Padulano <v.e.padulano@gmail.com>
+Date: Thu, 22 Sep 2022 16:57:00 +0200
+Subject: [PATCH] [PyROOT] Improve output of CPPMethod::GetPrototype
+
+Given the following function declared to ROOT and accessed via a Python
+proxy:
+
+```
+int foo(int x);
+```
+
+Currently accessing its `func_doc`, which in turn calls
+`CPPMethod::GetPrototype`, gives:
+
+'int ::foo(int x)'
+
+The extra set of '::' can be avoided by checking that the function is
+not declared inside a namespace.
+---
+ .../pyroot/cppyy/CPyCppyy/src/CPPMethod.cxx   | 34 +++++++++++++++++--
+ 1 file changed, 31 insertions(+), 3 deletions(-)
+
+diff --git a/bindings/pyroot/cppyy/CPyCppyy/src/CPPMethod.cxx b/bindings/pyroot/cppyy/CPyCppyy/src/CPPMethod.cxx
+index 2189348594..7666d4520a 100644
+--- a/bindings/pyroot/cppyy/CPyCppyy/src/CPPMethod.cxx
++++ b/bindings/pyroot/cppyy/CPyCppyy/src/CPPMethod.cxx
+@@ -328,13 +328,41 @@ CPyCppyy::CPPMethod::~CPPMethod()
+ 
+ 
+ //- public members -----------------------------------------------------------
++/**
++ * @brief Construct a Python string from the method's prototype
++ * 
++ * @param fa Show formal arguments of the method
++ * @return PyObject* A Python string with the full method prototype, namespaces included.
++ * 
++ * For example, given:
++ * 
++ * int foo(int x);
++ * 
++ * namespace a {
++ * namespace b {
++ * namespace c {
++ * int foo(int x);
++ * }}}
++ * 
++ * This function returns:
++ * 
++ * 'int foo(int x)'
++ * 'int a::b::c::foo(int x)'
++ */
+ PyObject* CPyCppyy::CPPMethod::GetPrototype(bool fa)
+ {
+-// construct python string from the method's prototype
+-    return CPyCppyy_PyText_FromFormat("%s%s %s::%s%s",
++    // Gather the fully qualified final scope of the method. This includes
++    // all namespaces up to the one where the method is declared, for example:
++    // namespace a { namespace b { void foo(); }}
++    // gives
++    // a::b
++    std::string finalscope = Cppyy::GetScopedFinalName(fScope);
++    return CPyCppyy_PyText_FromFormat("%s%s %s%s%s%s",
+         (Cppyy::IsStaticMethod(fMethod) ? "static " : ""),
+         Cppyy::GetMethodResultType(fMethod).c_str(),
+-        Cppyy::GetScopedFinalName(fScope).c_str(), Cppyy::GetMethodName(fMethod).c_str(),
++        finalscope.c_str(),
++        (finalscope.empty() ? "" : "::"), // Add final set of '::' if the method is scoped in namespace(s)
++        Cppyy::GetMethodName(fMethod).c_str(),
+         GetSignatureString(fa).c_str());
+ }
+ 
+-- 
+2.37.3
+
