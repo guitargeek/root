@@ -460,7 +460,7 @@ void RooRealMPFE::calculate() const
 
      if (_verboseServer) cout << "RooRealMPFE::calculate(" << GetName()
                << ") IPC toServer> SendReal [" << i << "]=" << val << (isC?" (Constant)":"") <<  endl ;
-   } else if (dynamic_cast<RooAbsCategory*>(var)) {
+   } else if (var->isCategory()) {
      int msg = SendCat ;
      UInt_t idx = ((RooAbsCategory*)var)->getCurrentIndex() ;
      *_pipe << msg << i << idx;

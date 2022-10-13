@@ -884,8 +884,8 @@ Roo1DTable* RooAbsData::table(const RooArgSet& catSet, const char* cuts, const c
 
   string prodName("(") ;
   for(auto * arg : catSet) {
-    if (dynamic_cast<RooAbsCategory*>(arg)) {
-      RooAbsCategory* varsArg = dynamic_cast<RooAbsCategory*>(_vars.find(arg->GetName())) ;
+    if (arg->isCategory()) {
+      auto varsArg = dynamic_cast<RooAbsCategory*>(_vars.find(arg->GetName())) ;
       if (varsArg != 0) catSet2.add(*varsArg) ;
       else catSet2.add(*arg) ;
       if (prodName.length()>1) {

@@ -1039,12 +1039,11 @@ const char* RooAbsCollection::getCatLabel(const char* name, const char* defVal, 
       if (verbose) coutE(InputArguments) << "RooAbsCollection::getCatLabel(" << GetName() << ") ERROR no object with name '" << name << "' found" << std::endl;
       return defVal ;
    }
-   auto* rac = dynamic_cast<RooAbsCategory*>(raa) ;
-   if (!rac) {
+   if (!raa->isCategory()) {
       if (verbose) coutE(InputArguments) << "RooAbsCollection::getCatLabel(" << GetName() << ") ERROR object '" << name << "' is not of type RooAbsCategory" << std::endl;
       return defVal ;
    }
-   return rac->getCurrentLabel() ;
+   return static_cast<RooAbsCategory*>(raa)->getCurrentLabel() ;
 }
 
 
@@ -1082,12 +1081,11 @@ Int_t RooAbsCollection::getCatIndex(const char* name, Int_t defVal, bool verbose
       if (verbose) coutE(InputArguments) << "RooAbsCollection::getCatLabel(" << GetName() << ") ERROR no object with name '" << name << "' found" << std::endl;
       return defVal ;
    }
-   auto* rac = dynamic_cast<RooAbsCategory*>(raa) ;
-   if (!rac) {
+   if (!raa->isCategory()) {
       if (verbose) coutE(InputArguments) << "RooAbsCollection::getCatLabel(" << GetName() << ") ERROR object '" << name << "' is not of type RooAbsCategory" << std::endl;
       return defVal ;
    }
-   return rac->getCurrentIndex() ;
+   return static_cast<RooAbsCategory*>(raa)->getCurrentIndex() ;
 }
 
 

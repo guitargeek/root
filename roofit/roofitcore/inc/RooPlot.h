@@ -109,6 +109,8 @@ public:
   // container management
   const char* nameOf(Int_t idx) const ;
   TObject *findObject(const char *name, const TClass* clas=nullptr) const;
+  /// \copydoc findObject() const
+  inline TObject *operator[](const char *name) const { return findObject(name); }
   TObject* getObject(Int_t idx) const ;
   Stat_t numItems() const {return _items.size();}
 

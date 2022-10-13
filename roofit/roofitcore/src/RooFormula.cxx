@@ -274,13 +274,14 @@ std::string RooFormula::processFormula(std::string formula) const {
     const std::string catName = (*matchIt)[1];
     const std::string catState = (*matchIt)[2];
 
-    const auto catVariable = dynamic_cast<const RooAbsCategory*>(_origList.find(catName.c_str()));
-    if (!catVariable) {
+    RooAbsArg* variable = _origList.find(catName.c_str());
+    if (!variable || !variable->isCategory()) {
       cxcoutD(InputArguments) << "Formula " << GetName() << " uses '::' to reference a category state as '" << fullMatch
           << "' but a category '" << catName << "' cannot be found in the input variables." << endl;
       continue;
     }
 
+    const auto catVariable = static_cast<const RooAbsCategory*>(variable);
     if (!catVariable->hasLabel(catState)) {
       coutE(InputArguments) << "Formula " << GetName() << " uses '::' to reference a category state as '" << fullMatch
           << "' but the category '" << catName << "' does not seem to have the state '" << catState << "'." << endl;
@@ -657,13 +658,14 @@ std::string RooFormula::processFormula(std::string formula) const {
     std::string catState = static_cast<TObjString*>(matches->At(2))->GetString().Data();
     offset = formulaTString.Index(categoryReg, offset) + fullMatch.size();
 
-    const auto catVariable = dynamic_cast<const RooAbsCategory*>(_origList.find(catName.c_str()));
-    if (!catVariable) {
+    RooAbsArg* variable = _origList.find(catName.c_str());
+    if (!variable || !variable->isCategory()) {
       cxcoutD(InputArguments) << "Formula " << GetName() << " uses '::' to reference a category state as '" << fullMatch
           << "' but a category '" << catName << "' cannot be found in the input variables." << endl;
       continue;
     }
 
+    const auto catVariable = static_cast<const RooAbsCategory*>(_origList.find(catName.c_str()));
     const RooCatType* catType = catVariable->lookupType(catState.c_str(), false);
     if (!catType) {
       coutE(InputArguments) << "Formula " << GetName() << " uses '::' to reference a category state as '" << fullMatch

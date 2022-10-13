@@ -131,7 +131,7 @@ void RooCachedReal::fillCacheObject(RooAbsCachedReal::FuncCacheElem& cache) cons
   if (nDim>1) {
     unsigned nCat(0);
     for(RooAbsArg * arg : *cache.hist()->get()) {
-      if (dynamic_cast<RooAbsCategory*>(arg)) ++nCat;
+      if (arg->isCategory()) ++nCat;
     }
     if (nDim>nCat+1) {
         coutP(Eval) << "RooCachedReal::fillCacheObject(" << GetName() << ") filling "

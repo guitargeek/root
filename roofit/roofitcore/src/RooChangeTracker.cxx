@@ -74,7 +74,7 @@ for (const auto arg : trackSet) {
     if (dynamic_cast<const RooAbsReal*>(arg)) {
       _realSet.add(*arg) ;
     }
-    if (dynamic_cast<const RooAbsCategory*>(arg)) {
+    if (arg->isCategory()) {
       _catSet.add(*arg) ;
     }
   }

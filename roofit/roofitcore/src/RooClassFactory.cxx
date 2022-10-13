@@ -94,7 +94,7 @@ bool RooClassFactory::makeAndCompilePdf(const char* name, const char* expression
     if (dynamic_cast<RooAbsReal*>(arg)) {
       if (realArgNames.size()>0) realArgNames += "," ;
       realArgNames += arg->GetName() ;
-    } else if (dynamic_cast<RooAbsCategory*>(arg)) {
+    } else if (arg->isCategory()) {
       if (catArgNames.size()>0) catArgNames += "," ;
       catArgNames += arg->GetName() ;
     } else {
@@ -135,7 +135,7 @@ bool RooClassFactory::makeAndCompileFunction(const char* name, const char* expre
     if (dynamic_cast<RooAbsReal*>(arg)) {
       if (realArgNames.size()>0) realArgNames += "," ;
       realArgNames += arg->GetName() ;
-    } else if (dynamic_cast<RooAbsCategory*>(arg)) {
+    } else if (arg->isCategory()) {
       if (catArgNames.size()>0) catArgNames += "," ;
       catArgNames += arg->GetName() ;
     } else {
@@ -231,7 +231,7 @@ RooAbsReal* RooClassFactory::makeFunctionInstance(const char* className, const c
   }
   // Next pass the RooAbsCategory arguments in the list order
   for(RooAbsArg * var : vars) {
-    if (dynamic_cast<RooAbsCategory*>(var)) {
+    if (var->isCategory()) {
       argList += Form(",*((RooAbsCategory*)0x%zx)",(size_t)var) ;
     }
   }
@@ -323,7 +323,7 @@ RooAbsPdf* RooClassFactory::makePdfInstance(const char* className, const char* n
   }
   // Next pass the RooAbsCategory arguments in the list order
   for (RooAbsArg * var : vars) {
-    if (dynamic_cast<RooAbsCategory*>(var)) {
+    if (var->isCategory()) {
       argList += Form(",*((RooAbsCategory*)0x%zx)",(size_t)var) ;
     }
   }

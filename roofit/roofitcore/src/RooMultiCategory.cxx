@@ -57,7 +57,7 @@ RooMultiCategory::RooMultiCategory(const char *name, const char *title, const Ro
 {
   // Copy category list
   for (const auto arg : inputCategories) {
-    if (!dynamic_cast<RooAbsCategory*>(arg)) {
+    if (!arg->isCategory()) {
       coutE(InputArguments) << "RooMultiCategory::RooMultiCategory(" << GetName() << "): input argument " << arg->GetName()
              << " is not a RooAbsCategory" << endl ;
     }

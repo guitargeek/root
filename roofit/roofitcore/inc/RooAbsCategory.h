@@ -109,7 +109,7 @@ public:
     return stateNames().empty();
   }
 
-  bool isCategory() const override { return true; }
+  bool isCategory() const final { return true; }
 
   /// \name Legacy interface
   /// Previous versions of RooAbsCategory were based on RooCatType, a class containing a state and a label.

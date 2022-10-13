@@ -1667,13 +1667,12 @@ RooAbsCategory& RooFactoryWSTool::asCATFUNC(const char* arg)
 {
   RooAbsArg* rarg = ws().arg(arg) ;
   if (!rarg) {
-    throw string(Form("RooAbsCategory named %s not found",arg)) ;
+    throw std::string(Form("RooAbsCategory named %s not found",arg)) ;
   }
-  RooAbsCategory* catf = dynamic_cast<RooAbsCategory*>(rarg) ;
-  if (!catf) {
-    throw string(Form("Object named %s is not of type RooAbsCategory",arg)) ;
+  if (!rarg->isCategory()) {
+    throw std::string(Form("Object named %s is not of type RooAbsCategory",arg)) ;
   }
-  return *catf ;
+  return *static_cast<RooAbsCategory*>(rarg);
 }
 
 

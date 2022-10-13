@@ -647,7 +647,7 @@ RooAbsArg* RooVectorDataStore::addColumn(RooAbsArg& newVar, bool /*adjustRange*/
   if (dynamic_cast<RooAbsReal*>(valHolder)) {
     rv = addReal((RooAbsReal*)valHolder);
     rv->resize(numEvt) ;
-  } else if (dynamic_cast<RooAbsCategory*>((RooAbsCategory*)valHolder)) {
+  } else if (valHolder->isCategory()) {
     cv = addCategory((RooAbsCategory*)valHolder) ;
     cv->resize(numEvt) ;
   }

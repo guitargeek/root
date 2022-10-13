@@ -1233,7 +1233,8 @@ RooCategory* RooWorkspace::cat(RooStringView name) const
 
 RooAbsCategory* RooWorkspace::catfunc(RooStringView name) const
 {
-  return dynamic_cast<RooAbsCategory*>(_allOwnedNodes.find(name)) ;
+  auto node = _allOwnedNodes.find(name);
+  return node->isCategory() ? static_cast<RooAbsCategory*>(node) : nullptr;
 }
 
 

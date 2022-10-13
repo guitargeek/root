@@ -108,7 +108,7 @@ RooProduct::RooProduct(const RooProduct& other, const char* name) :
 void RooProduct::addTerm(RooAbsArg* term) {
   if (dynamic_cast<RooAbsReal*>(term)) {
     _compRSet.add(*term) ;
-  } else if (dynamic_cast<RooAbsCategory*>(term)) {
+  } else if (term->isCategory()) {
     _compCSet.add(*term) ;
   } else {
     coutE(InputArguments) << "RooProduct::addTerm(" << GetName() << ") ERROR: component " << term->GetName()
