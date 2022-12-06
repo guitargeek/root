@@ -65,7 +65,7 @@ public:
     _templateRatioOffset = on;
   }
 
-  using ComputeResult = std::pair<ROOT::Math::KahanSum<double>, double>;
+  using ComputeResult = ROOT::Math::KahanSum<double>;
 
   static RooNLLVar::ComputeResult computeBatchedFunc(const RooAbsPdf *pdfClone, RooAbsData *dataClone,
                                                      std::unique_ptr<RooBatchCompute::RunContext> &evalData,

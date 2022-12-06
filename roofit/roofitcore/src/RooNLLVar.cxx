@@ -232,7 +232,6 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
   // straight addition, but since evaluating the PDF is usually much more
   // expensive than that, we tolerate the additional cost...
   ROOT::Math::KahanSum<double> result{0.0};
-  double sumWeight{0.0};
 
   auto * pdfClone = static_cast<RooAbsPdf*>(_funcClone);
 
@@ -244,7 +243,6 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
 
   // If pdf is marked as binned - do a binned likelihood calculation here (sum of log-Poisson for each bin)
   if (_binnedPdf) {
-    ROOT::Math::KahanSum<double> sumWeightKahanSum{0.0};
     for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
 
       _dataClone->get(i) ;
@@ -270,21 +268,17 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
       } else {
 
         result += -1*(-mu + N * std::log(mu) - TMath::LnGamma(N+1));
-        sumWeightKahanSum += eventWeight;
 
       }
     }
 
-    sumWeight = sumWeightKahanSum.Sum();
-
   } else { //unbinned PDF
 
     if (_batchEvaluations) {
-      std::tie(result, sumWeight) = computeBatched(stepSize, firstEvent, lastEvent);
+      result = computeBatched(stepSize, firstEvent, lastEvent);
 #ifdef ROOFIT_CHECK_CACHED_VALUES
 
-      ROOT::Math::KahanSum<double> resultScalar, sumWeightScalar;
-      std::tie(resultScalar, sumWeightScalar) = computeScalar(stepSize, firstEvent, lastEvent);
+      resultScalar = computeScalar(stepSize, firstEvent, lastEvent);
       double carryScalar = resultScalar.Carry();
 
       constexpr bool alwaysPrint = false;
@@ -299,14 +293,9 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
             << "\n\t" << carryScalar << std::endl;
       }
 
-      if (alwaysPrint || std::abs(sumWeight - sumWeightScalar)/sumWeightScalar > 1.E-15) {
-        std::cerr << "RooNLLVar: sumWeight is off\n\t" << std::setprecision(15) << sumWeight
-            << "\n\t" << sumWeightScalar << std::endl;
-      }
-
 #endif
     } else { //scalar mode
-      std::tie(result, sumWeight) = computeScalar(stepSize, firstEvent, lastEvent);
+      result = computeScalar(stepSize, firstEvent, lastEvent);
     }
 
     // include the extended maximum likelihood term, if requested
@@ -319,6 +308,7 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
   // If part of simultaneous PDF normalize probability over
   // number of simultaneous PDFs: -sum(log(p/n)) = -sum(log(p)) + N*log(n)
   if (_simCount>1) {
+    const double sumWeight = _weightSq ? _dataClone->sumEntriesW2() : _dataClone->sumEntries();
     result += sumWeight * std::log(static_cast<double>(_simCount));
   }
 
@@ -416,10 +406,8 @@ RooNLLVar::ComputeResult RooNLLVar::computeBatchedFunc(const RooAbsPdf *pdfClone
   //Sum the event weights and probabilities
   ROOT::Math::KahanSum<double, 4u> kahanProb;
   double uniformSingleEventWeight{0.0};
-  double sumOfWeights;
   if (eventWeights.empty()) {
     uniformSingleEventWeight = weightSq ? dataClone->weightSquared() : dataClone->weight();
-    sumOfWeights = nEvents * uniformSingleEventWeight;
     for (std::size_t i = 0; i < results.size(); ++i) { //CHECK_VECTORISE
       kahanProb.AddIndexed(-uniformSingleEventWeight * results[i], i);
     }
@@ -431,7 +419,6 @@ RooNLLVar::ComputeResult RooNLLVar::computeBatchedFunc(const RooAbsPdf *pdfClone
       kahanProb.AddIndexed(-weight * results[i], i);
       kahanWeight.AddIndexed(weight, i);
     }
-    sumOfWeights = kahanWeight.Sum();
   }
 
   if (std::isnan(kahanProb.Sum())) {
@@ -454,13 +441,13 @@ RooNLLVar::ComputeResult RooNLLVar::computeBatchedFunc(const RooAbsPdf *pdfClone
 
     // Some events with evaluation errors. Return "badness" of errors.
     if (nanPacker.getPayload() > 0.) {
-      return {{nanPacker.getNaNWithPayload()}, sumOfWeights};
+      return {nanPacker.getNaNWithPayload()};
     } else {
-      return {kahanSanitised, sumOfWeights};
+      return kahanSanitised;
     }
   }
 
-  return {kahanProb, sumOfWeights};
+  return kahanProb;
 }
 
 
@@ -474,7 +461,6 @@ RooNLLVar::ComputeResult RooNLLVar::computeScalarFunc(const RooAbsPdf *pdfClone,
                                                       RooArgSet *normSet, bool weightSq, std::size_t stepSize,
                                                       std::size_t firstEvent, std::size_t lastEvent, bool templateRatioOffset)
 {
-  ROOT::Math::KahanSum<double> kahanWeight;
   ROOT::Math::KahanSum<double> kahanProb;
   RooNaNPacker packedNaN(0.f);
   const double logSumW = std::log(dataClone->sumEntries());
@@ -498,15 +484,14 @@ RooNLLVar::ComputeResult RooNLLVar::computeScalarFunc(const RooAbsPdf *pdfClone,
 
     const double term = -weight * logProba;
 
-    kahanWeight.Add(weight);
     kahanProb.Add(term);
     packedNaN.accumulate(term);
   }
 
   if (packedNaN.getPayload() != 0.) {
     // Some events with evaluation errors. Return "badness" of errors.
-    return {{packedNaN.getNaNWithPayload()}, kahanWeight.Sum()};
+    return packedNaN.getNaNWithPayload();
   }
 
-  return {kahanProb, kahanWeight.Sum()};
+  return kahanProb;
 }

@@ -86,7 +86,6 @@ RooUnbinnedL::evaluatePartition(Section events, std::size_t /*components_begin*/
    // straight addition, but since evaluating the PDF is usually much more
    // expensive than that, we tolerate the additional cost...
    ROOT::Math::KahanSum<double> result;
-   double sumWeight;
 
    // Do not reevaluate likelihood if parameters nor event range have changed
    if (!paramTracker_->hasChanged(true) && events == lastSection_ && (cachedResult_ != 0)) return cachedResult_;
@@ -95,11 +94,11 @@ RooUnbinnedL::evaluatePartition(Section events, std::size_t /*components_begin*/
 
    if (useBatchedEvaluations_) {
       std::unique_ptr<RooBatchCompute::RunContext> evalData;
-      std::tie(result, sumWeight) = RooNLLVar::computeBatchedFunc(pdf_.get(), data_.get(), evalData, normSet_.get(), apply_weight_squared,
-                                                                  1, events.begin(N_events_), events.end(N_events_));
+      result = RooNLLVar::computeBatchedFunc(pdf_.get(), data_.get(), evalData, normSet_.get(), apply_weight_squared,
+                                             1, events.begin(N_events_), events.end(N_events_));
    } else {
-      std::tie(result, sumWeight) = RooNLLVar::computeScalarFunc(pdf_.get(), data_.get(), normSet_.get(), apply_weight_squared,
-                                                                 1, events.begin(N_events_), events.end(N_events_));
+      result = RooNLLVar::computeScalarFunc(pdf_.get(), data_.get(), normSet_.get(), apply_weight_squared,
+                                            1, events.begin(N_events_), events.end(N_events_));
    }
 
    // include the extended maximum likelihood term, if requested
@@ -110,6 +109,7 @@ RooUnbinnedL::evaluatePartition(Section events, std::size_t /*components_begin*/
    // If part of simultaneous PDF normalize probability over
    // number of simultaneous PDFs: -sum(log(p/n)) = -sum(log(p)) + N*log(n)
    if (sim_count_ > 1) {
+      const double sumWeight = apply_weight_squared ? data_->sumEntriesW2() : data_->sumEntries();
       result += sumWeight * log(1.0 * sim_count_);
    }
 
