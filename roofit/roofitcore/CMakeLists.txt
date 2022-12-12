@@ -15,6 +15,7 @@ endif()
 
 ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   HEADERS
+    RooFit/JSONIO.h
     RooFit/Detail/DataMap.h
     RooFit/Floats.h
     Roo1DTable.h
@@ -461,6 +462,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooFitLegacy/RooCatTypeLegacy.cxx
     src/RooFitLegacy/RooMinuit.cxx
     src/RunContext.cxx
+    src/JSONIO.cxx
     src/TestStatistics/ConstantTermsOptimizer.cxx
     src/TestStatistics/LikelihoodGradientWrapper.cxx
     src/TestStatistics/LikelihoodWrapper.cxx
@@ -492,6 +494,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     MathCore
     Foam
     Smatrix
+    RooFitJSONInterface
   LINKDEF
     inc/LinkDef.h
 )

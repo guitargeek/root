@@ -134,6 +134,10 @@ If evaluateSpan is not implemented, the classic and slower `evaluate()` will be
 called for each data event.
 */
 
+// If this is defined, we take the opportunity to validate the JSON export and
+// import everytime createNLL is called.
+//#define VALIDATE_JSONIO
+
 #include "RooAbsPdf.h"
 
 #include "RooMsgService.h"
@@ -177,6 +181,10 @@ called for each data event.
 #include "RooFit/TestStatistics/optional_parameter_types.h"
 #include "RunContext.h"
 #include "ConstraintHelpers.h"
+
+#ifdef VALIDATE_JSONIO
+#include <RooFit/JSONIO.h>
+#endif
 
 #include "ROOT/StringUtils.hxx"
 #include "TMath.h"
@@ -996,6 +1004,69 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooCmdArg& arg1, const 
 RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
 {
   auto baseName = std::string("nll_") + GetName() + "_" + data.GetName();
+
+#ifdef VALIDATE_JSONIO
+  if(!getAttribute("VALIDATE_JSONIO")) {
+    static int jsonCounter = 0;
+
+    std::unique_ptr<RooAbsPdf> pdfClone = RooHelpers::cloneTreeWithSameParameters(*this, data.get());
+
+    std::stringstream out1;
+    RooFit::exportJSON(out1, *this);
+    const std::string json1 = out1.str();
+
+    std::stringstream ss1;
+    ss1 << "pdf_" << jsonCounter << "_1.json";
+    {
+      std::ofstream of1(ss1.str());
+      of1 << json1;
+    }
+
+    // The the PDF roundtripped from RooFit over JSON back to RooFit
+    std::istringstream tmp{json1};
+    std::unique_ptr<RooAbsPdf> pdfRoundTripped = RooFit::importJSON(tmp, GetName());
+    {
+      // Reattach parameters
+      RooArgSet origParams;
+      this->getParameters(data.get(), origParams);
+      pdfRoundTripped->recursiveRedirectServers(origParams);
+    }
+
+    // Export round tripped PDF back to JSON to check roundtrip from JSON over
+    // RooFit back to JSON
+    {
+      std::stringstream out2;
+      RooFit::exportJSON(out2, *pdfRoundTripped);
+      const std::string json2 = out2.str();
+
+      if(json1 != json2) {
+        coutE(Fitting) << baseName << ": the JSON to JSON round trip failed!" << std::endl;
+      }
+
+      // Save the JSON to a file for debuggin,
+      // can be pretty-printed with `python3 -m json.tool pdf.json`
+      {
+        std::stringstream ss2;
+        ss2 << "pdf_" << jsonCounter << "_2.json";
+        {
+          std::ofstream of2(ss2.str());
+          of2 << json2;
+        }
+      }
+
+    }
+
+    // To avoid infinite recursion
+    pdfRoundTripped->setAttribute("VALIDATE_JSONIO");
+
+    // Use the roundtripped PDF for the NLL
+    RooAbsReal* nll = pdfRoundTripped->createNLL(data, cmdList);
+    nll->addOwnedComponents(std::move(pdfRoundTripped));
+
+    jsonCounter++;
+    return nll;
+  }
+#endif
 
   // Figure out the integer that corresponds to the default BatchMode option.
   const int defaultBatchModeInt = RooFit::BatchMode(RooFit::Experimental::defaultBatchMode()).getInt(0);
