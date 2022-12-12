@@ -575,7 +575,7 @@ protected:
   };
 
 
-  mutable RooArgSet* _lastNSet ; ///<!
+  mutable RooArgSet* _lastNSet = nullptr; ///<! Last norm set passed to RooAbsReal::getValV(). It's not very safe to use in derived classes, as it is often a dangling pointer.
   static bool _hideOffset ;    ///< Offset hiding flag
 
   ClassDefOverride(RooAbsReal,2) // Abstract real-valued variable

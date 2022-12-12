@@ -804,35 +804,6 @@ RooAbsReal* RooRealIntegral::createIntegral(const RooArgSet& iset, const RooArgS
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Return value of object. If the cache is clean, return the
-/// cached value, otherwise recalculate on the fly and refill
-/// the cache
-
-double RooRealIntegral::getValV(const RooArgSet* nset) const
-{
-//   // fast-track clean-cache processing
-//   if (_operMode==AClean) {
-//     return _value ;
-//   }
-
-  if (nset && nset!=_lastNSet) {
-    ((RooAbsReal*) this)->setProxyNormSet(nset) ;
-    _lastNSet = (RooArgSet*) nset ;
-  }
-
-  if (isValueOrShapeDirtyAndClear()) {
-    _value = traceEval(nset) ;
-  }
-
-  return _value ;
-}
-
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Perform the integration and return the result
 

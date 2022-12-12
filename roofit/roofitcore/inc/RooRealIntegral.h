@@ -42,8 +42,6 @@ public:
   TObject* clone(const char* newname) const override { return new RooRealIntegral(*this,newname); }
   ~RooRealIntegral() override;
 
-  double getValV(const RooArgSet* set=nullptr) const override ;
-
   bool isValid() const override { return _valid; }
 
   void printMultiline(std::ostream& os, Int_t contents, bool verbose=false, TString indent="") const override ;

@@ -125,7 +125,7 @@ std::map<const RooAbsArg*,std::pair<std::string,std::list<RooAbsReal::EvalError>
 /// coverity[UNINIT_CTOR]
 /// Default constructor
 
-RooAbsReal::RooAbsReal() : _specIntegratorConfig(0), _selectComp(true), _lastNSet(0)
+RooAbsReal::RooAbsReal() : _specIntegratorConfig(0), _selectComp(true)
 {
 }
 
@@ -136,7 +136,7 @@ RooAbsReal::RooAbsReal() : _specIntegratorConfig(0), _selectComp(true), _lastNSe
 
 RooAbsReal::RooAbsReal(const char *name, const char *title, const char *unit) :
   RooAbsArg(name,title), _plotMin(0), _plotMax(0), _plotBins(100),
-  _value(0),  _unit(unit), _forceNumInt(false), _specIntegratorConfig(0), _selectComp(true), _lastNSet(0)
+  _value(0),  _unit(unit), _forceNumInt(false), _specIntegratorConfig(0), _selectComp(true)
 {
   setValueDirty() ;
   setShapeDirty() ;
@@ -151,7 +151,7 @@ RooAbsReal::RooAbsReal(const char *name, const char *title, const char *unit) :
 RooAbsReal::RooAbsReal(const char *name, const char *title, double inMinVal,
              double inMaxVal, const char *unit) :
   RooAbsArg(name,title), _plotMin(inMinVal), _plotMax(inMaxVal), _plotBins(100),
-  _value(0), _unit(unit), _forceNumInt(false), _specIntegratorConfig(0), _selectComp(true), _lastNSet(0)
+  _value(0), _unit(unit), _forceNumInt(false), _specIntegratorConfig(0), _selectComp(true)
 {
   setValueDirty() ;
   setShapeDirty() ;
@@ -165,7 +165,7 @@ RooAbsReal::RooAbsReal(const char *name, const char *title, double inMinVal,
 RooAbsReal::RooAbsReal(const RooAbsReal& other, const char* name) :
   RooAbsArg(other,name), _plotMin(other._plotMin), _plotMax(other._plotMax),
   _plotBins(other._plotBins), _value(other._value), _unit(other._unit), _label(other._label),
-  _forceNumInt(other._forceNumInt), _selectComp(other._selectComp), _lastNSet(0)
+  _forceNumInt(other._forceNumInt), _selectComp(other._selectComp)
 {
   if (other._specIntegratorConfig) {
     _specIntegratorConfig = new RooNumIntConfig(*other._specIntegratorConfig) ;
