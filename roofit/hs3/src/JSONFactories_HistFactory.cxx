@@ -464,7 +464,7 @@ public:
       std::vector<std::string> funcnames;
       std::vector<std::string> coefnames;
       RooArgSet observables;
-      tool->getObservables(p, name, observables);
+      RooJSONFactoryWSTool::getObservables(ws, p, name, observables);
       scope.setObservables(observables);
       for (const auto &comp : p["samples"].children()) {
          std::string fname(RooJSONFactoryWSTool::name(comp));
