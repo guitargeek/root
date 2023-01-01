@@ -101,12 +101,12 @@ bool RooAbsRealLValue::inRange(double value, const char* rangeName, double* clip
   double max = binning.highBound() ;
 
   // test this value against our upper fit limit
-  if(!RooNumber::isInfinite(max) && value > (max+1e-6)) {
+  if(!RooNumber::isInfinite(max) && value > max) {
     clippedValue = max;
     isInRange = false ;
   }
   // test this value against our lower fit limit
-  if(!RooNumber::isInfinite(min) && value < min-1e-6) {
+  if(!RooNumber::isInfinite(min) && value < min) {
     clippedValue = min ;
     isInRange = false ;
   }
@@ -129,7 +129,7 @@ void RooAbsRealLValue::inRange(std::span<const double> values, std::string const
   const bool infiniteMax = RooNumber::isInfinite(max);
 
   for(std::size_t i = 0; i < values.size(); ++i) {
-    out[i] = out[i] && ((infiniteMax | (values[i] <= (max+1e-6))) && (infiniteMin | (values[i] >= (min-1e-6))));
+    out[i] = out[i] && ((infiniteMax | (values[i] <= max)) && (infiniteMin | (values[i] >= min)));
   }
 
 }
@@ -493,16 +493,15 @@ bool RooAbsRealLValue::fitRangeOKForPlotting() const
 bool RooAbsRealLValue::inRange(const char* name) const
 {
   const double val = getVal() ;
-  const double epsilon = 1e-8 * fabs(val) ;
   if (!name || name[0] == '\0') {
     const auto minMax = getRange(nullptr);
-    return minMax.first - epsilon <= val && val <= minMax.second + epsilon;
+    return minMax.first <= val && val <= minMax.second;
   }
 
   const auto& ranges = ROOT::Split(name, ",");
-  return std::any_of(ranges.begin(), ranges.end(), [val,epsilon,this](const std::string& range){
+  return std::any_of(ranges.begin(), ranges.end(), [val,this](const std::string& range){
     const auto minMax = this->getRange(range.c_str());
-    return minMax.first - epsilon <= val && val <= minMax.second + epsilon;
+    return minMax.first <= val && val <= minMax.second;
   });
 }
 
