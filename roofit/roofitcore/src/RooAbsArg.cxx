@@ -2482,3 +2482,38 @@ void RooAbsArg::applyWeightSquared(bool flag) {
 std::unique_ptr<RooArgSet> RooAbsArg::fillNormSetForServer(RooArgSet const& /*normSet*/, RooAbsArg const& /*server*/) const {
    return nullptr;
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return the default error level for MINUIT error analysis
+/// If the addition contains one or more RooNLLVars and
+/// no RooChi2Vars, return the defaultErrorLevel() of
+/// RooNLLVar. If the addition contains one ore more RooChi2Vars
+/// and no RooNLLVars, return the defaultErrorLevel() of
+/// RooChi2Var. If the addition contains neither or both
+/// issue a warning message and return a value of 1
+
+double RooAbsArg::defaultErrorLevel() const
+{
+  double errorLevel = 0.0;
+  bool issueWarning = false;
+
+  for(auto * term : servers()) {
+     const double termErrorLevel = term->defaultErrorLevel();
+     if(errorLevel > 0.0 && termErrorLevel != errorLevel) {
+       issueWarning = true;
+     }
+     errorLevel = std::max(errorLevel, termErrorLevel);
+  }
+
+  if(issueWarning) {
+      coutI(Fitting) << "RooAbsArg::defaultErrorLevel(" << GetName() << ") WARNING: "
+           << "Servers with different default error levels. "
+           << "Using the maximum error level, which is " << errorLevel << "." << std::endl;
+  }
+
+  /// Return default level for MINUIT error analysis. Returns 0.5 by default,
+  /// because usually in RooFit we mininize NLLs.
+  return errorLevel > 0.0 ? errorLevel : 0.5;
+}

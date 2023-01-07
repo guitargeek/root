@@ -581,6 +581,8 @@ public:
 
   virtual bool isCategory() const { return false; }
 
+  virtual double defaultErrorLevel() const;
+
 protected:
    void graphVizAddConnections(std::set<std::pair<RooAbsArg*,RooAbsArg*> >&) ;
 

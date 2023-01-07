@@ -49,8 +49,6 @@
 
 #include "RooFormulaVar.h"
 #include "RooStreamParser.h"
-#include "RooNLLVar.h"
-#include "RooChi2Var.h"
 #include "RooMsgService.h"
 #include "RooTrace.h"
 
@@ -268,51 +266,3 @@ std::list<double>* RooFormulaVar::plotSamplingHint(RooAbsRealLValue& obs, double
 
   return nullptr;
 }
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Return the default error level for MINUIT error analysis
-/// If the formula contains one or more RooNLLVars and
-/// no RooChi2Vars, return the defaultErrorLevel() of
-/// RooNLLVar. If the addition contains one ore more RooChi2Vars
-/// and no RooNLLVars, return the defaultErrorLevel() of
-/// RooChi2Var. If the addition contains neither or both
-/// issue a warning message and return a value of 1
-
-double RooFormulaVar::defaultErrorLevel() const
-{
-  RooAbsReal* nllArg(0) ;
-  RooAbsReal* chi2Arg(0) ;
-
-  for (const auto arg : _actualVars) {
-    if (dynamic_cast<RooNLLVar*>(arg)) {
-      nllArg = (RooAbsReal*)arg ;
-    }
-    if (dynamic_cast<RooChi2Var*>(arg)) {
-      chi2Arg = (RooAbsReal*)arg ;
-    }
-  }
-
-  if (nllArg && !chi2Arg) {
-    coutI(Minimization) << "RooFormulaVar::defaultErrorLevel(" << GetName()
-         << ") Formula contains a RooNLLVar, using its error level" << endl ;
-    return nllArg->defaultErrorLevel() ;
-  } else if (chi2Arg && !nllArg) {
-    coutI(Minimization) << "RooFormulaVar::defaultErrorLevel(" << GetName()
-    << ") Formula contains a RooChi2Var, using its error level" << endl ;
-    return chi2Arg->defaultErrorLevel() ;
-  } else if (!nllArg && !chi2Arg) {
-    coutI(Minimization) << "RooFormulaVar::defaultErrorLevel(" << GetName() << ") WARNING: "
-            << "Formula contains neither RooNLLVar nor RooChi2Var server, using default level of 1.0" << endl ;
-  } else {
-    coutI(Minimization) << "RooFormulaVar::defaultErrorLevel(" << GetName() << ") WARNING: "
-         << "Formula contains BOTH RooNLLVar and RooChi2Var server, using default level of 1.0" << endl ;
-  }
-
-  return 1.0 ;
-}
-
-
-
-

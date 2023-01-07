@@ -250,11 +250,6 @@ public:
   void setPlotLabel(const char *label);
   const char *getPlotLabel() const;
 
-  virtual double defaultErrorLevel() const {
-    // Return default level for MINUIT error analysis
-    return 1.0 ;
-  }
-
   const RooNumIntConfig* getIntegratorConfig() const ;
   RooNumIntConfig* getIntegratorConfig() ;
   static RooNumIntConfig* defaultIntegratorConfig()  ;

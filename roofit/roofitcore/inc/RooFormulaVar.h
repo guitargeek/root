@@ -65,8 +65,6 @@ public:
     return getFormula();
   }
 
-  double defaultErrorLevel() const override ;
-
   std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
   std::list<double>* plotSamplingHint(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
 

@@ -55,8 +55,6 @@ public:
 
   void applyWeightSquared(bool flag) override;
 
-  double defaultErrorLevel() const override { return 0.5 ; }
-
   void batchMode(bool on = true) {
     _batchEvaluations = on;
   }

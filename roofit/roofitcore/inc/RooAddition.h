@@ -34,8 +34,6 @@ public:
   RooAddition(const RooAddition& other, const char* name = nullptr);
   TObject* clone(const char* newname) const override { return new RooAddition(*this, newname); }
 
-  double defaultErrorLevel() const override ;
-
   void printMetaArgs(std::ostream& os) const override ;
 
   const RooArgList& list1() const { return _set ; }
