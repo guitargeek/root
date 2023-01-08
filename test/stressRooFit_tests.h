@@ -1,51 +1,48 @@
+// RooFit
+#include <RooBCPEffDecay.h>
+#include <RooBDecay.h>
+#include <RooBMixDecay.h>
+#include <RooChebychev.h>
+#include <RooChi2MCSModule.h>
+#include <RooDecay.h>
+#include <RooExponential.h>
+#include <RooGaussModel.h>
+#include <RooGaussian.h>
+#include <RooIntegralMorph.h>
+#include <RooKeysPdf.h>
+#include <RooLandau.h>
+#include <RooNDKeysPdf.h>
+#include <RooPolynomial.h>
+#include <RooTFnBinding.h>
+
+// RooFitCore
 #include <Roo1DTable.h>
 #include <RooAbsReal.h>
 #include <RooAddModel.h>
 #include <RooAddPdf.h>
-#include <RooAddition.h>
 #include <RooArgSet.h>
-#include <RooArgusBG.h>
-#include <RooBCPEffDecay.h>
-#include <RooBDecay.h>
-#include <RooBMixDecay.h>
 #include <RooBinning.h>
 #include <RooBinningCategory.h>
-#include <RooCFunction1Binding.h>
-#include <RooCFunction3Binding.h>
 #include <RooCategory.h>
-#include <RooChebychev.h>
-#include <RooChi2MCSModule.h>
 #include <RooConstVar.h>
 #include <RooDLLSignificanceMCSModule.h>
 #include <RooDataHist.h>
 #include <RooDataSet.h>
-#include <RooDecay.h>
-#include <RooEffProd.h>
 #include <RooEfficiency.h>
-#include <RooExponential.h>
-#include <RooExtendPdf.h>
-#include <RooFFTConvPdf.h>
 #include <RooFitResult.h>
 #include <RooFormulaVar.h>
-#include <RooGaussModel.h>
-#include <RooGaussian.h>
 #include <RooGenericPdf.h>
 #include <RooGlobalFunc.h>
 #include <RooHelpers.h>
 #include <RooHist.h>
 #include <RooHistPdf.h>
-#include <RooIntegralMorph.h>
-#include <RooKeysPdf.h>
-#include <RooLandau.h>
 #include <RooMCStudy.h>
 #include <RooMappedCategory.h>
 #include <RooMinimizer.h>
 #include <RooMultiCategory.h>
-#include <RooNDKeysPdf.h>
 #include <RooNumIntConfig.h>
 #include <RooPlot.h>
 #include <RooPolyVar.h>
-#include <RooPolynomial.h>
 #include <RooProdPdf.h>
 #include <RooProduct.h>
 #include <RooProfileLL.h>
@@ -55,7 +52,6 @@
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>
 #include <RooSuperCategory.h>
-#include <RooTFnBinding.h>
 #include <RooThresholdCategory.h>
 #include <RooTruthModel.h>
 #include <RooUnitTest.h>
@@ -104,16 +100,12 @@ public:
   TestBasic101(TFile* refFile, bool writeRef, Int_t verbose, std::string const& batchMode) : RooUnitTest("Fitting,plotting & event generation of basic p.d.f",refFile,writeRef,verbose,batchMode) {} ;
   bool testCode() {
 
-    // S e t u p   m o d e l
-    // ---------------------
-
-    // Declare variables x,mean,sigma with associated name, title, initial value and allowed range
-    RooRealVar x("x","x",-10,10) ;
-    RooRealVar mean("mean","mean of gaussian",1,-10,10) ;
-    RooRealVar sigma("sigma","width of gaussian",1,0.1,10) ;
-
-    // Build gaussian p.d.f in terms of x,mean and sigma
-    RooGaussian gauss("gauss","gaussian PDF",x,mean,sigma) ;
+    // Setup a Gaussian p.d.f in terms of x, mean, and sigma
+    RooWorkspace ws;
+    ws.factory("Gaussian::gauss(x[-10, 10], mean[1, -10, 10], sigma[1., 0.1, 10.])");
+    RooRealVar& x = *ws.var("x");
+    RooRealVar& sigma = *ws.var("sigma");
+    RooAbsPdf& gauss = *ws.pdf("gauss");
 
     // Construct plot frame in 'x'
     RooPlot* xframe = x.frame(Title("Gaussian p.d.f.")) ;
@@ -225,7 +217,9 @@ public:
     std::unique_ptr<TH1> hh{makeTH1()};
 
     // Declare observable x
-    RooRealVar x("x","x",-10,10) ;
+    RooWorkspace ws;
+    ws.factory("x[-10., 10.]");
+    RooRealVar& x = *ws.var("x");
 
     // Create a binned dataset that imports contents of TH1 and associates its contents to observable 'x'
     RooDataHist dh("dh","dh",x,Import(*hh)) ;
@@ -239,9 +233,8 @@ public:
     dh.plotOn(frame) ;
 
     // Fit a Gaussian p.d.f to the data
-    RooRealVar mean("mean","mean",0,-10,10) ;
-    RooRealVar sigma("sigma","sigma",3,0.1,10) ;
-    RooGaussian gauss("gauss","gauss",x,mean,sigma) ;
+    ws.factory("Gaussian::gauss(x, mean[0,-10,10], sigma[3,0.1,10])");
+    RooAbsPdf& gauss = *ws.pdf("gauss");
     gauss.fitTo(dh,BatchMode(_batchMode)) ;
     gauss.plotOn(frame) ;
 
@@ -337,7 +330,9 @@ public:
     /////////////////////////////////////////////////////////
 
     // Declare observable x
-    RooRealVar x("x","x",-20,20) ;
+    RooWorkspace ws;
+    ws.factory("x[-20.0, 20.0]");
+    RooRealVar& x = *ws.var("x");
 
     // C o n s t r u c t   g e n e r i c   p d f   f r o m   i n t e r p r e t e d   e x p r e s s i o n
     // -------------------------------------------------------------------------------------------------
@@ -346,7 +341,9 @@ public:
     // it by a numeric integral of the expresssion over x in the range [-20,20]
     //
     RooRealVar alpha("alpha","alpha",5,0.1,10) ;
-    RooGenericPdf genpdf("genpdf","genpdf","(1+0.1*abs(x)+sin(sqrt(abs(x*alpha+0.1))))",RooArgSet(x,alpha)) ;
+    ws.factory("alpha[5.0, 0.1, 10.0]");
+    ws.factory("EXPR::genpdf('(1+0.1*abs(x)+sin(sqrt(abs(x*alpha+0.1))))', {x, alpha})");
+    RooAbsPdf& genpdf = *ws.pdf("genpdf");
 
 
     // S a m p l e ,   f i t   a n d   p l o t   g e n e r i c   p d f
@@ -375,23 +372,20 @@ public:
     // C o n s t r u c t   s t a n d a r d   p d f  w i t h   f o r m u l a   r e p l a c i n g   p a r a m e t e r
     // ------------------------------------------------------------------------------------------------------------
 
-    // Construct parameter mean2 and sigma
-    RooRealVar mean2("mean2","mean^2",10,0,200) ;
-    RooRealVar sigma("sigma","sigma",3,0.1,10) ;
-
     // Construct interpreted function mean = sqrt(mean^2)
-    RooFormulaVar mean("mean","mean","sqrt(mean2)",mean2) ;
+    ws.factory("expr::mean('sqrt(mean2)', {mean2[10.0, 0.0, 200.0]})");
 
     // Construct a gaussian g2(x,sqrt(mean2),sigma) ;
-    RooGaussian g2("g2","h2",x,mean,sigma) ;
+    ws.factory("Gaussian::g2(x, mean, sigma[3.0, 0.1, 10.])");
+    RooAbsPdf& g2 = *ws.pdf("g2");
 
 
     // G e n e r a t e   t o y   d a t a
     // ---------------------------------
 
     // Construct a separate gaussian g1(x,10,3) to generate a toy Gaussian dataset with mean 10 and width 3
-    RooGaussian g1("g1","g1",x,RooConst(10),RooConst(3)) ;
-    std::unique_ptr<RooDataSet> data2{g1.generate(x,1000)};
+    ws.factory("Gaussian::g1(x, 10.0, 3.0)");
+    std::unique_ptr<RooDataSet> data2{ws.pdf("g1")->generate(x,1000)};
 
 
     // F i t   a n d   p l o t   t a i l o r e d   s t a n d a r d   p d f
@@ -435,11 +429,11 @@ public:
 
     // Bind one-dimensional TMath::Erf function as RooAbsReal function
     RooRealVar x("x","x",-3,3) ;
-    std::unique_ptr<RooAbsReal> erf{bindFunction("erf",TMath::Erf,x)};
+    RooFormulaVar errorFunc{"erf", "TMath::Erf(x)", {x}};
 
     // Plot erf on frame
     RooPlot* frame1 = x.frame(Title("TMath::Erf bound as RooFit function")) ;
-    erf->plotOn(frame1) ;
+    errorFunc.plotOn(frame1) ;
 
 
     // B i n d   R O O T : : M a t h : : b e t a _ p d f   C   f u n c t i o n
@@ -451,16 +445,16 @@ public:
     RooRealVar x2("x2","x2",0.001,0.999) ;
     RooRealVar a("a","a",5,0,10) ;
     RooRealVar b("b","b",2,0,10) ;
-    std::unique_ptr<RooAbsPdf> beta{bindPdf("beta",ROOT::Math::beta_pdf,x2,a,b)};
+    RooGenericPdf beta{"beta", "ROOT::Math::beta_pdf(x2, a, b)", {x2, a, b}};
 
     // Generate some events and fit
-    std::unique_ptr<RooDataSet> data{beta->generate(x2,10000)};
-    beta->fitTo(*data,BatchMode(_batchMode)) ;
+    std::unique_ptr<RooDataSet> data{beta.generate(x2,10000)};
+    beta.fitTo(*data,BatchMode(_batchMode)) ;
 
     // Plot data and pdf on frame
     RooPlot* frame2 = x2.frame(Title("ROOT::Math::Beta bound as RooFit pdf")) ;
     data->plotOn(frame2) ;
-    beta->plotOn(frame2) ;
+    beta.plotOn(frame2) ;
 
 
 
@@ -622,22 +616,18 @@ public:
   TestBasic109(TFile* refFile, bool writeRef, Int_t verbose, std::string const& batchMode) : RooUnitTest("Calculation of chi^2 and residuals in plots",refFile,writeRef,verbose,batchMode) {} ;
   bool testCode() {
 
-    // S e t u p   m o d e l
-    // ---------------------
-
-    // Create observables
-    RooRealVar x("x","x",-10,10) ;
-
-    // Create Gaussian
-    RooRealVar sigma("sigma","sigma",3,0.1,10) ;
-    RooRealVar mean("mean","mean",0,-10,10) ;
-    RooGaussian gauss("gauss","gauss",x,RooConst(0),sigma) ;
+    // Setup Gaussian model
+    RooWorkspace ws;
+    ws.factory("Gaussian::gauss(x[-10.0, 10.0], 0.0, sigma[3.0,0.1,10.0])");
+    RooRealVar& x = *ws.var("x");
+    RooRealVar& sigma = *ws.var("sigma");
+    RooAbsPdf& gauss = *ws.pdf("gauss");
 
     // Generate a sample of 1000 events with sigma=3
     std::unique_ptr<RooDataSet> data{gauss.generate(x,10000)};
 
     // Change sigma to 3.15
-    sigma=3.15 ;
+    sigma.setVal(3.15);
 
 
     // P l o t   d a t a   a n d   s l i g h t l y   d i s t o r t e d   m o d e l
@@ -707,14 +697,11 @@ public:
   TestBasic110(TFile* refFile, bool writeRef, Int_t verbose, std::string const& batchMode) : RooUnitTest("Normalization of p.d.f.s in 1D",refFile,writeRef,verbose,batchMode) {} ;
   bool testCode() {
 
-    // S e t u p   m o d e l
-    // ---------------------
-
-    // Create observables x,y
-    RooRealVar x("x","x",-10,10) ;
-
     // Create p.d.f. gaussx(x,-2,3)
-    RooGaussian gx("gx","gx",x,RooConst(-2),RooConst(3)) ;
+    RooWorkspace ws;
+    ws.factory("Gaussian::gx(x[-10, 10], -2, 3)");
+    RooRealVar& x = *ws.var("x");
+    RooAbsPdf& gx = *ws.pdf("gx");
 
 
     // R e t r i e v e   r a w  &   n o r m a l i z e d   v a l u e s   o f   R o o F i t   p . d . f . s
@@ -806,8 +793,10 @@ public:
     // N u m e r i c   i n t e g r a t i o n   o f   l a n d a u   p d f
     // ------------------------------------------------------------------
 
-    RooRealVar x("x","x",-10,10) ;
-    RooLandau landau("landau","landau",x,RooConst(0),RooConst(0.1)) ;
+    RooWorkspace ws;
+    ws.factory("Landau::landau(x[-10, 10], 0, 0.1)");
+    RooRealVar& x = *ws.var("x");
+    RooAbsPdf& landau = *ws.pdf("landau");
 
     // Disable analytic integration from demonstration purposes
     landau.forceNumInt(true);
@@ -815,7 +804,7 @@ public:
 
     // Calculate integral over landau with default choice of numeric integrator
     std::unique_ptr<RooAbsReal> intLandau{landau.createIntegral(x)};
-    Double_t val = intLandau->getVal() ;
+    double val = intLandau->getVal() ;
     regValue(val,"rf111_val1") ;
 
 
@@ -875,22 +864,14 @@ public:
 
     // S e t u p   c o m p o n e n t   p d f s
     // ---------------------------------------
-
-    // Declare observable x
-    RooRealVar x("x","x",0,10) ;
+    RooWorkspace ws;
 
     // Create two Gaussian PDFs g1(x,mean1,sigma) anf g2(x,mean2,sigma) and their parameters
-    RooRealVar mean("mean","mean of gaussians",5) ;
-    RooRealVar sigma1("sigma1","width of gaussians",0.5) ;
-    RooRealVar sigma2("sigma2","width of gaussians",1) ;
-
-    RooGaussian sig1("sig1","Signal component 1",x,mean,sigma1) ;
-    RooGaussian sig2("sig2","Signal component 2",x,mean,sigma2) ;
+    ws.factory("Gaussian::sig1(x[0, 10], mean[5], sigma1[0.5])");
+    ws.factory("Gaussian::sig2(x, mean, sigma2[1.0])");
 
     // Build Chebychev polynomial p.d.f.
-    RooRealVar a0("a0","a0",0.5,0.,1.) ;
-    RooRealVar a1("a1","a1",-0.2,-1.,1.) ;
-    RooChebychev bkg("bkg","Background",x,RooArgSet(a0,a1)) ;
+    ws.factory("Chebychev::bkg(x, {a0[0.5,0.,1.], a1[-0.2,-1.,1.]})");
 
 
     ////////////////////////////////////////////////////
@@ -902,16 +883,23 @@ public:
     // ------------------------------------------
 
     // Sum the signal components into a composite signal p.d.f.
-    RooRealVar sig1frac("sig1frac","fraction of component 1 in signal",0.8,0.,1.) ;
-    RooAddPdf sig("sig","Signal",RooArgList(sig1,sig2),sig1frac) ;
+    ws.factory("SUM::sig(sig1frac[0.8,0.,1.] * sig1, sig2)");
 
 
     // A d d  s i g n a l   a n d   b a c k g r o u n d
     // ------------------------------------------------
 
     // Sum the composite signal and background
-    RooRealVar bkgfrac("bkgfrac","fraction of background",0.5,0.,1.) ;
-    RooAddPdf  model("model","g1+g2+a",RooArgList(bkg,sig),bkgfrac) ;
+    ws.factory("SUM::model(bkgfrac[0.5,0.,1.] * bkg, sig)");
+
+    RooRealVar& x = *ws.var("x");
+    RooRealVar& bkgfrac = *ws.var("bkgfrac");
+    RooRealVar& sig1frac = *ws.var("sig1frac");
+
+    RooAbsPdf& sig1 = *ws.pdf("sig1");
+    RooAbsPdf& sig2 = *ws.pdf("sig2");
+    RooAbsPdf& bkg = *ws.pdf("bkg");
+    RooAbsPdf& model = *ws.pdf("model");
 
 
     // S a m p l e ,   f i t   a n d   p l o t   m o d e l
@@ -932,7 +920,7 @@ public:
     model.plotOn(xframe,Components(bkg),LineStyle(kDashed)) ;
 
     // Overlay the background+sig2 components of model with a dotted line
-    model.plotOn(xframe,Components(RooArgSet(bkg,sig2)),LineStyle(kDotted)) ;
+    model.plotOn(xframe,Components(RooArgSet(bkg,*ws.pdf("sig2"))),LineStyle(kDotted)) ;
 
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -988,26 +976,17 @@ public:
 
     // S e t u p   c o m p o n e n t   p d f s
     // ---------------------------------------
-
-    // Declare observable x
-    RooRealVar x("x","x",0,10) ;
+    RooWorkspace ws;
 
     // Create two Gaussian PDFs g1(x,mean1,sigma) anf g2(x,mean2,sigma) and their parameters
-    RooRealVar mean("mean","mean of gaussians",5) ;
-    RooRealVar sigma1("sigma1","width of gaussians",0.5) ;
-    RooRealVar sigma2("sigma2","width of gaussians",1) ;
-
-    RooGaussian sig1("sig1","Signal component 1",x,mean,sigma1) ;
-    RooGaussian sig2("sig2","Signal component 2",x,mean,sigma2) ;
+    ws.factory("Gaussian::sig1(x[0, 10], mean[5], sigma1[0.5])");
+    ws.factory("Gaussian::sig2(x, mean, sigma2[1.0])");
 
     // Build Chebychev polynomial p.d.f.
-    RooRealVar a0("a0","a0",0.5,0.,1.) ;
-    RooRealVar a1("a1","a1",-0.2,-1.,1.) ;
-    RooChebychev bkg("bkg","Background",x,RooArgSet(a0,a1)) ;
+    ws.factory("Chebychev::bkg(x, {a0[0.5,0.,1.], a1[-0.2,-1.,1.]})");
 
     // Sum the signal components into a composite signal p.d.f.
-    RooRealVar sig1frac("sig1frac","fraction of component 1 in signal",0.8,0.,1.) ;
-    RooAddPdf sig("sig","Signal",RooArgList(sig1,sig2),sig1frac) ;
+    ws.factory("SUM::sig(sig1frac[0.8,0.,1.] * sig1, sig2)");
 
     /////////////////////
     // M E T H O D   1 //
@@ -1018,11 +997,12 @@ public:
     // -------------------------------------------------------------------
 
     // Sum the composite signal and background into an extended pdf nsig*sig+nbkg*bkg
-    RooRealVar nsig("nsig","number of signal events",500,0.,10000) ;
-    RooRealVar nbkg("nbkg","number of background events",500,0,10000) ;
-    RooAddPdf  model("model","(g1+g2)+a",RooArgList(bkg,sig),RooArgList(nbkg,nsig)) ;
+    ws.factory("SUM::model(nbkg[500,0,10000] * bkg, nsig[500,0.,10000] * sig)");
 
-
+    RooRealVar& x = *ws.var("x");
+    RooAbsPdf& bkg = *ws.pdf("bkg");
+    RooAbsPdf& sig2 = *ws.pdf("sig2");
+    RooAbsPdf& model = *ws.pdf("model");
 
     // S a m p l e ,   f i t   a n d   p l o t   e x t e n d e d   m o d e l
     // ---------------------------------------------------------------------
@@ -1055,15 +1035,15 @@ public:
     // ---------------------------------------------------------------------
 
     // Associated nsig/nbkg as expected number of events with sig/bkg
-    RooExtendPdf esig("esig","extended signal p.d.f",sig,nsig) ;
-    RooExtendPdf ebkg("ebkg","extended background p.d.f",bkg,nbkg) ;
+    ws.factory("ExtendPdf::esig(sig, nsig)");
+    ws.factory("ExtendPdf::ebkg(bkg, nbkg)");
 
 
     // S u m   e x t e n d e d   c o m p o n e n t s   w i t h o u t   c o e f s
     // -------------------------------------------------------------------------
 
     // Construct sum of two extended p.d.f. (no coefficients required)
-    RooAddPdf  model2("model2","(g1+g2)+a",RooArgList(ebkg,esig)) ;
+    RooAddPdf  model2("model2","(g1+g2)+a",{*ws.pdf("ebkg"),*ws.pdf("esig")});
 
 
     regPlot(xframe,"rf202_plot1") ;
@@ -1166,27 +1146,19 @@ public:
 
     // S e t u p   c o m p o n e n t   p d f s
     // ---------------------------------------
-
-    // Declare observable x
-    RooRealVar x("x","x",0,10) ;
+    RooWorkspace ws;
 
     // Create two Gaussian PDFs g1(x,mean1,sigma) anf g2(x,mean2,sigma) and their parameters
-    RooRealVar mean("mean","mean of gaussians",5) ;
-    RooRealVar sigma1("sigma1","width of gaussians",0.5) ;
-    RooRealVar sigma2("sigma2","width of gaussians",1) ;
-
-    RooGaussian sig1("sig1","Signal component 1",x,mean,sigma1) ;
-    RooGaussian sig2("sig2","Signal component 2",x,mean,sigma2) ;
+    ws.factory("Gaussian::sig1(x[0, 10], mean[5], sigma1[0.5])");
+    ws.factory("Gaussian::sig2(x, mean, sigma2[1.0])");
 
     // Build Chebychev polynomial p.d.f.
-    RooRealVar a0("a0","a0",0.5,0.,1.) ;
-    RooRealVar a1("a1","a1",-0.2,-1.,1.) ;
-    RooChebychev bkg("bkg","Background",x,RooArgSet(a0,a1)) ;
+    ws.factory("Chebychev::bkg(x, {a0[0.5,0.,1.], a1[-0.2,-1.,1.]})");
 
     // Sum the signal components into a composite signal p.d.f.
-    RooRealVar sig1frac("sig1frac","fraction of component 1 in signal",0.8,0.,1.) ;
-    RooAddPdf sig("sig","Signal",RooArgList(sig1,sig2),sig1frac) ;
+    ws.factory("SUM::sig(sig1frac[0.8,0.,1.] * sig1, sig2)");
 
+    RooRealVar& x = *ws.var("x");
 
     // C o n s t r u c t   e x t e n d e d   c o m p s   wi t h   r a n g e   s p e c
     // ------------------------------------------------------------------------------
@@ -1195,17 +1167,15 @@ public:
     x.setRange("signalRange",4,6) ;
 
     // Associated nsig/nbkg as expected number of events with sig/bkg _in_the_range_ "signalRange"
-    RooRealVar nsig("nsig","number of signal events in signalRange",500,0.,10000) ;
-    RooRealVar nbkg("nbkg","number of background events in signalRange",500,0,10000) ;
-    RooExtendPdf esig("esig","extended signal p.d.f",sig,nsig,"signalRange") ;
-    RooExtendPdf ebkg("ebkg","extended background p.d.f",bkg,nbkg,"signalRange") ;
+    ws.factory("ExtendPdf::esig(sig, nsig[500,0.,10000], 'signalRange')");
+    ws.factory("ExtendPdf::ebkg(bkg, nbkg[500,0,10000], 'signalRange')");
 
 
     // S u m   e x t e n d e d   c o m p o n e n t s
     // ---------------------------------------------
 
     // Construct sum of two extended p.d.f. (no coefficients required)
-    RooAddPdf  model("model","(g1+g2)+a",RooArgList(ebkg,esig)) ;
+    RooAddPdf  model("model","(g1+g2)+a", {*ws.pdf("ebkg"), *ws.pdf("esig")}) ;
 
 
     // S a m p l e   d a t a ,   f i t   m o d e l
@@ -1378,18 +1348,14 @@ public:
     // S e t u p   c o m p o n e n t   p d f s
     // ---------------------------------------
 
-    // Construct observable
-    RooRealVar t("t","t",-10,30) ;
-
     // Construct landau(t,ml,sl) ;
-    RooRealVar ml("ml","mean landau",5.,-20,20) ;
-    RooRealVar sl("sl","sigma landau",1,0.1,10) ;
-    RooLandau landau("lx","lx",t,ml,sl) ;
+    RooWorkspace ws;
+    ws.factory("Landau::lx(t[-10,30], ml[5.,-20,20], sl[1,0.1,10])");
 
     // Construct gauss(t,mg,sg)
-    RooRealVar mg("mg","mg",0) ;
-    RooRealVar sg("sg","sg",2,0.1,10) ;
-    RooGaussian gauss("gauss","gauss",t,mg,sg) ;
+    ws.factory("Gaussian::gauss(t, mg[0.0], sg[2,0.1,10])");
+
+    RooRealVar& t = *ws.var("t");
 
 
     // C o n s t r u c t   c o n v o l u t i o n   p d f
@@ -1399,7 +1365,10 @@ public:
     t.setBins(10000,"cache") ;
 
     // Construct landau (x) gauss
-    RooFFTConvPdf lxg("lxg","landau (X) gauss",t,landau,gauss) ;
+    ws.factory("FFTConvPdf::lxg(t, lx, gauss)");
+
+    RooAbsPdf& landau = *ws.pdf("lx");
+    RooAbsPdf& lxg = *ws.pdf("lxg");
 
 
     // S a m p l e ,   f i t   a n d   p l o t   c o n v o l u t e d   p d f
@@ -1598,27 +1567,15 @@ public:
   TestBasic302(TFile* refFile, bool writeRef, Int_t verbose, std::string const& batchMode) : RooUnitTest("Sum and product utility functions",refFile,writeRef,verbose,batchMode) {} ;
   bool testCode() {
 
-  // C r e a t e   o b s e r v a b l e s ,   p a r a m e t e r s
-  // -----------------------------------------------------------
-
-  // Create observables
-  RooRealVar x("x","x",-5,5) ;
-  RooRealVar y("y","y",-5,5) ;
-
-  // Create parameters
-  RooRealVar a0("a0","a0",-1.5,-5,5) ;
-  RooRealVar a1("a1","a1",-0.5,-1,1) ;
-  RooRealVar sigma("sigma","width of gaussian",0.5) ;
-
-
   // U s i n g   R o o F o r m u l a V a r   t o   t a i l o r   p d f
   // -----------------------------------------------------------------------
 
   // Create interpreted function f(y) = a0 - a1*sqrt(10*abs(y))
-  RooFormulaVar fy_1("fy_1","a0-a1*sqrt(10*abs(y))",RooArgSet(y,a0,a1)) ;
+  RooWorkspace ws;
+  ws.factory("expr::fy_1('a0-a1*sqrt(10*abs(y))', {y[-5,5], a0[-1.5,-5,5], a1[-0.5,-1,1]})");
 
   // Create gauss(x,f(y),s)
-  RooGaussian model_1("model_1","Gaussian with shifting mean",x,fy_1,sigma) ;
+  ws.factory("Gaussian::model_1(x[-5,5], fy_1, sigma[0.5])");
 
 
 
@@ -1626,32 +1583,30 @@ public:
   // -----------------------------------------------------------------------
 
   // Create polynomial function f(y) = a0 + a1*y
-  RooPolyVar fy_2("fy_2","fy_2",y,RooArgSet(a0,a1)) ;
+  ws.factory("PolyVar::fy_2(y, {a0, a1})");
 
   // Create gauss(x,f(y),s)
-  RooGaussian model_2("model_2","Gaussian with shifting mean",x,fy_2,sigma) ;
-
+  ws.factory("Gaussian::model_2(x, fy_2, sigma)");
 
 
   // U s i n g   R o o A d d i t i o n   t o   t a i l o r   p d f
   // -----------------------------------------------------------------------
 
   // Create sum function f(y) = a0 + y
-  RooAddition fy_3("fy_3","a0+y",RooArgSet(a0,y)) ;
+  ws.factory("Addition::fy_3({a0, y})");
 
   // Create gauss(x,f(y),s)
-  RooGaussian model_3("model_3","Gaussian with shifting mean",x,fy_3,sigma) ;
-
+  ws.factory("Gaussian::model_3(x, fy_3, sigma)");
 
 
   // U s i n g   R o o P r o d u c t   t o   t a i l o r   p d f
   // -----------------------------------------------------------------------
 
   // Create product function f(y) = a1*y
-  RooProduct fy_4("fy_4","a1*y",RooArgSet(a1,y)) ;
+  ws.factory("Product::fy_4({a1, y})");
 
   // Create gauss(x,f(y),s)
-  RooGaussian model_4("model_4","Gaussian with shifting mean",x,fy_4,sigma) ;
+  ws.factory("Gaussian::model_4(x, fy_4, sigma)");
 
 
 
@@ -1659,10 +1614,12 @@ public:
   // ----------------------------
 
   // Make two-dimensional plots in x vs y
-  TH1* hh_model_1 = model_1.createHistogram("hh_model_1",x,Binning(50),YVar(y,Binning(50))) ;
-  TH1* hh_model_2 = model_2.createHistogram("hh_model_2",x,Binning(50),YVar(y,Binning(50))) ;
-  TH1* hh_model_3 = model_3.createHistogram("hh_model_3",x,Binning(50),YVar(y,Binning(50))) ;
-  TH1* hh_model_4 = model_4.createHistogram("hh_model_4",x,Binning(50),YVar(y,Binning(50))) ;
+  RooRealVar& x = *ws.var("x");
+  RooRealVar& y = *ws.var("y");
+  TH1* hh_model_1 = ws.pdf("model_1")->createHistogram("hh_model_1",x,Binning(50),YVar(y,Binning(50))) ;
+  TH1* hh_model_2 = ws.pdf("model_2")->createHistogram("hh_model_2",x,Binning(50),YVar(y,Binning(50))) ;
+  TH1* hh_model_3 = ws.pdf("model_3")->createHistogram("hh_model_3",x,Binning(50),YVar(y,Binning(50))) ;
+  TH1* hh_model_4 = ws.pdf("model_4")->createHistogram("hh_model_4",x,Binning(50),YVar(y,Binning(50))) ;
   hh_model_1->SetLineColor(kBlue) ;
   hh_model_2->SetLineColor(kBlue) ;
   hh_model_3->SetLineColor(kBlue) ;
@@ -1967,18 +1924,12 @@ public:
   // B - p h y s i c s   p d f   w i t h   p e r - e v e n t  G a u s s i a n   r e s o l u t i o n
   // ----------------------------------------------------------------------------------------------
 
-  // Observables
-  RooRealVar dt("dt","dt",-10,10) ;
-  RooRealVar dterr("dterr","per-event error on dt",0.01,10) ;
-
   // Build a gaussian resolution model scaled by the per-event error = gauss(dt,bias,sigma*dterr)
-  RooRealVar bias("bias","bias",0,-10,10) ;
-  RooRealVar sigma("sigma","per-event error scale factor",1,0.1,10) ;
-  RooGaussModel gm("gm1","gauss model scaled bt per-event error",dt,bias,sigma,dterr) ;
+  RooWorkspace ws;
+  ws.factory("GaussModel::gm(dt[-10, 10], bias[0, -10, 10], sigma[1, 0.1, 10], dterr[0.01, 10])");
 
   // Construct decay(dt) (x) gauss1(dt|dterr)
-  RooRealVar tau("tau","tau",1.548) ;
-  RooDecay decay_gm("decay_gm","decay",dt,tau,gm,RooDecay::DoubleSided) ;
+  ws.factory("Decay::decay_gm(dt, tau[1.548], gm, RooDecay::DoubleSided)");
 
 
 
@@ -1986,9 +1937,15 @@ public:
   // ------------------------------------------------------------------------------------------------------
 
   // Use landau p.d.f to get somewhat realistic distribution with long tail
-  RooLandau pdfDtErr("pdfDtErr","pdfDtErr",dterr,RooConst(1),RooConst(0.25)) ;
-  std::unique_ptr<RooDataSet> expDataDterr{pdfDtErr.generate(dterr,10000)};
+  ws.factory("Landau::pdfDtErr(dterr, 1, 0.25)");
 
+  RooRealVar& dt = *ws.var("dt");
+  RooRealVar& dterr = *ws.var("dterr");
+
+  RooAbsPdf& decay_gm = *ws.pdf("decay_gm");
+  RooAbsPdf& pdfDtErr = *ws.pdf("pdfDtErr");
+
+  std::unique_ptr<RooDataSet> expDataDterr{pdfDtErr.generate(dterr,10000)};
 
 
   // S a m p l e   d a t a   f r o m   c o n d i t i o n a l   d e c a y _ g m ( d t | d t e r r )
@@ -3221,8 +3178,10 @@ public:
 
 
   // Define a dummy PDF in x
-  RooRealVar x("x","x",0,10) ;
-  RooArgusBG a("a","argus(x)",x,RooRealConstant::value(10),RooRealConstant::value(-1)) ;
+  RooWorkspace ws;
+  ws.factory("ArgusBG::a(x[0, 10], 10, -1)");
+  RooRealVar& x = *ws.var("x");
+  RooAbsPdf& a = *ws.pdf("a");
 
   // Generate a dummy dataset
   std::unique_ptr<RooDataSet> data{a.generate(x,10000)};
@@ -4116,15 +4075,12 @@ public:
   // C r e a t e   m o d e l  a n d   d a t a s e t
   // ----------------------------------------------
 
-  // Observable
-  RooRealVar m("m","m",5.20,5.30) ;
-
-  // Parameters
-  RooRealVar m0("m0","m0",5.291,5.20,5.30) ;
-  RooRealVar k("k","k",-30,-50,-10) ;
-
   // Pdf
-  RooArgusBG argus("argus","argus",m,m0,k) ;
+  RooWorkspace ws;
+  ws.factory("ArgusBG::argus(m[5.20,5.30], m0[5.291,5.20,5.30], k[-30,-50,-10])");
+  RooRealVar& m = *ws.var("m");
+  RooRealVar& m0 = *ws.var("m0");
+  RooAbsPdf& argus = *ws.pdf("argus");
 
   // Sample 1000 events in m from argus
   std::unique_ptr<RooDataSet> data{argus.generate(m,1000)};
@@ -4549,28 +4505,26 @@ public:
   // D e f i n e   o b s e r v a b l e s   a n d   d e c a y   p d f
   // ---------------------------------------------------------------
 
-  // Declare observables
-  RooRealVar t("t","t",0,5) ;
-
-  // Make pdf
-  RooRealVar tau("tau","tau",-1.54,-4,-0.1) ;
-  RooExponential model("model","model",t,tau) ;
-
+  RooWorkspace ws;
+  ws.factory("Exponential::model(t[0, 5], tau[-1.54,-4,-0.1])");
+  RooRealVar& t = *ws.var("t");
+  RooAbsPdf& model = *ws.pdf("model");
 
 
   // D e f i n e   e f f i c i e n c y   f u n c t i o n
   // ---------------------------------------------------
 
   // Use error function to simulate turn-on slope
-  RooFormulaVar eff("eff","0.5*(TMath::Erf((t-1)/0.5)+1)",t) ;
-
+  ws.factory("expr::eff('0.5*(TMath::Erf((t-1)/0.5)+1)', {t})");
+  RooAbsReal& eff = *ws.function("eff");
 
 
   // D e f i n e   d e c a y   p d f   w i t h   e f f i c i e n c y
   // ---------------------------------------------------------------
 
   // Multiply pdf(t) with efficiency in t
-  RooEffProd modelEff("modelEff","model with efficiency",model,eff) ;
+  ws.factory("EffProd::modelEff(model, eff)");
+  RooAbsPdf& modelEff = *ws.pdf("modelEff");
 
 
 
@@ -4641,8 +4595,8 @@ public:
   RooRealVar tau("tau","#tau",1.5);
   RooRealVar deltaGamma("deltaGamma","deltaGamma", 0.3);
   RooTruthModel tm("tm","tm",t) ;
-  RooFormulaVar coshGBasis("coshGBasis","exp(-@0/ @1)*cosh(@0*@2/2)",RooArgList(t,tau,deltaGamma));
-  RooFormulaVar sinhGBasis("sinhGBasis","exp(-@0/ @1)*sinh(@0*@2/2)",RooArgList(t,tau,deltaGamma));
+  RooFormulaVar coshGBasis("coshGBasis","exp(-@0/ @1)*cosh(@0*@2/2)", {t,tau,deltaGamma});
+  RooFormulaVar sinhGBasis("sinhGBasis","exp(-@0/ @1)*sinh(@0*@2/2)", {t,tau,deltaGamma});
   std::unique_ptr<RooAbsReal> coshGConv{tm.convolution(&coshGBasis,&t)};
   std::unique_ptr<RooAbsReal> sinhGConv{tm.convolution(&sinhGBasis,&t)};
 
@@ -5547,31 +5501,24 @@ public:
 
   bool testCode() {
 
-  // C r e a t e   m o d e l   w i t h   p a r a m e t e r   c o n s t r a i n t
-  // ---------------------------------------------------------------------------
-
-  // Observable
-  RooRealVar x("x","x",-10,10) ;
+  // Create  model with parameter constraint
+  RooWorkspace ws;
 
   // Signal component
-  RooRealVar m("m","m",0,-10,10) ;
-  RooRealVar s("s","s",2,0.1,10) ;
-  RooGaussian g("g","g",x,m,s) ;
-
+  ws.factory("Gaussian::g(x[-10., 10.], m[0,-10,10], s[2,0.1,10])");
   // Background component
-  RooPolynomial p("p","p",x) ;
-
+  ws.factory("Polynomial::p(x)");
   // Composite model
-  RooRealVar f("f","f",0.4,0.,1.) ;
-  RooAddPdf sum("sum","sum",RooArgSet(g,p),f) ;
-
+  ws.factory("SUM::sum(f[0.4,0.,1.]*g, p)");
   // Construct constraint on parameter f
-  RooGaussian fconstraint("fconstraint","fconstraint",f,RooConst(0.7),RooConst(0.1)) ;
-
+  ws.factory("Gaussian::fconstraint(f, 0.7, 0.1)");
   // Multiply constraint with p.d.f
-  RooProdPdf sumc("sumc","sum with constraint",RooArgSet(sum,fconstraint)) ;
+  ws.factory("PROD::sumc({sum, fconstraint})");
 
-
+  RooRealVar& x = *ws.var("x");
+  RooRealVar& f = *ws.var("f");
+  RooAbsPdf& sum = *ws.pdf("sum");
+  RooAbsPdf& sumc = *ws.pdf("sumc");
 
   // S e t u p   t o y   s t u d y   w i t h   m o d e l
   // ---------------------------------------------------
