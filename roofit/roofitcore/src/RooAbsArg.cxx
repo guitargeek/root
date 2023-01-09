@@ -1207,10 +1207,29 @@ bool recursiveRedirectServersImpl(RooAbsArg *arg, RooAbsCollection const &newSet
 bool RooAbsArg::recursiveRedirectServers(RooAbsCollection const &newSet, bool mustReplaceAll, bool nameChange,
                                          bool recurseInNewSet)
 {
+   bool oldInhibitDirty = _inhibitDirty;
+
+   // On server redirection, setValueDirty() is called, which propagates
+   // recursively through all clients. If we recursively do server redirection
+   // for each arg, we therfore end up with O(n*n) setValueDirty() calls! For
+   // this reason, we disable the dirty flag propagation before entering the
+   // actual recursive server redirection, since setValueDirty() will be called
+   // recursively on each server anyway. We only have to call setValueDirty()
+   // again once for the top-level arg in the end, such that the dirty state
+   // also gets propagated to its clients.
+   _inhibitDirty = true;
+
    // For cyclic recursion protection
    std::set<const RooAbsArg *> callStack;
 
-   return recursiveRedirectServersImpl(this, newSet, mustReplaceAll, nameChange, recurseInNewSet, callStack);
+   bool ret = recursiveRedirectServersImpl(this, newSet, mustReplaceAll, nameChange, recurseInNewSet, callStack);
+
+   _inhibitDirty = oldInhibitDirty;
+
+   setValueDirty();
+   setShapeDirty();
+
+   return ret;
 }
 
 
