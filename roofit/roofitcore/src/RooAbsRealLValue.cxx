@@ -54,6 +54,26 @@ interpreted as a parameter.
 
 #include <cmath>
 
+namespace {
+
+// Implements RooFit convention to see if the value x is in the range [a, b]:
+// check if `[x - eps * x, x + eps * x]` overlaps with `[a, b]`, considering
+// RooFits definition of infinity and where `eps` equals 1e-8.
+inline bool inRangeImpl(double x, double a, double b)
+{
+   constexpr double eps = 1e-8;
+   const double epsAbs = eps * std::abs(x);
+
+   const int aIsInf = RooNumber::isInfinite(a);
+   const int bIsInf = RooNumber::isInfinite(b);
+
+   const bool isSameSignInf = (aIsInf != 0) & (aIsInf == bIsInf);
+
+   return ((aIsInf == -1) | (x + epsAbs >= a)) & ((bIsInf == +1) | (x - epsAbs <= b)) & !isSameSignInf;
+}
+
+} // namespace
+
 using namespace std;
 
 ClassImp(RooAbsRealLValue);
@@ -92,28 +112,17 @@ RooAbsRealLValue::~RooAbsRealLValue()
 
 bool RooAbsRealLValue::inRange(double value, const char* rangeName, double* clippedValPtr) const
 {
-  // double range = getMax() - getMin() ; // ok for +/-INIFINITY
-  double clippedValue(value);
-  bool isInRange(true) ;
-
   const RooAbsBinning& binning = getBinning(rangeName) ;
-  double min = binning.lowBound() ;
-  double max = binning.highBound() ;
+  const double min = binning.lowBound() ;
+  const double max = binning.highBound() ;
 
-  // test this value against our upper fit limit
-  if(!RooNumber::isInfinite(max) && value > (max+1e-6)) {
-    clippedValue = max;
-    isInRange = false ;
-  }
-  // test this value against our lower fit limit
-  if(!RooNumber::isInfinite(min) && value < min-1e-6) {
-    clippedValue = min ;
-    isInRange = false ;
+  const bool isInRange = inRangeImpl(value, min, max);
+
+  if (clippedValPtr) {
+    *clippedValPtr = isInRange ? value : (value < min ? min : max);
   }
 
-  if (clippedValPtr) *clippedValPtr=clippedValue ;
-
-  return isInRange ;
+  return isInRange;
 }
 
 
@@ -125,11 +134,9 @@ void RooAbsRealLValue::inRange(std::span<const double> values, std::string const
   const RooAbsBinning& binning = getBinning(rangeName.c_str()) ;
   const double min = binning.lowBound() ;
   const double max = binning.highBound() ;
-  const bool infiniteMin = RooNumber::isInfinite(min);
-  const bool infiniteMax = RooNumber::isInfinite(max);
 
   for(std::size_t i = 0; i < values.size(); ++i) {
-    out[i] = out[i] && ((infiniteMax | (values[i] <= (max+1e-6))) && (infiniteMin | (values[i] >= (min-1e-6))));
+    out[i] = out[i] && inRangeImpl(values[i], min, max);
   }
 
 }
@@ -493,16 +500,15 @@ bool RooAbsRealLValue::fitRangeOKForPlotting() const
 bool RooAbsRealLValue::inRange(const char* name) const
 {
   const double val = getVal() ;
-  const double epsilon = 1e-8 * std::abs(val) ;
   if (!name || name[0] == '\0') {
     const auto minMax = getRange(nullptr);
-    return minMax.first - epsilon <= val && val <= minMax.second + epsilon;
+    return inRangeImpl(val, minMax.first, minMax.second);
   }
 
   const auto& ranges = ROOT::Split(name, ",");
-  return std::any_of(ranges.begin(), ranges.end(), [val,epsilon,this](const std::string& range){
+  return std::any_of(ranges.begin(), ranges.end(), [val,this](const std::string& range){
     const auto minMax = this->getRange(range.c_str());
-    return minMax.first - epsilon <= val && val <= minMax.second + epsilon;
+    return inRangeImpl(val, minMax.first, minMax.second);
   });
 }
 
