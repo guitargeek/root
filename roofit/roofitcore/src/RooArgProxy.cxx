@@ -17,7 +17,10 @@
 #include "RooArgProxy.h"
 #include "RooArgSet.h"
 #include "RooAbsArg.h"
+#include "RooAbsReal.h"
+
 #include <iostream>
+
 using namespace std ;
 
 /**
@@ -156,4 +159,10 @@ void RooArgProxy::print(ostream& os, bool addContents) const
     os << "=" ;
     _arg->printStream(os,RooPrintable::kValue,RooPrintable::kInline) ;
   }
+}
+
+void RooArgProxy::changeNormSet(const RooArgSet* newNormSet)
+{
+   RooAbsProxy::changeNormSet(newNormSet);
+  if(_arg) _arg->setProxyNormSetHook(newNormSet);
 }

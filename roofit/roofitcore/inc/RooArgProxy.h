@@ -74,6 +74,8 @@ protected:
 
   virtual void changeDataSet(const RooArgSet* newNormSet) ;
 
+  void changeNormSet(const RooArgSet* newNormSet) override;
+
   RooAbsArg* _owner = nullptr;  ///< Pointer to owner of proxy
   RooAbsArg* _arg = nullptr;    ///< Pointer to content of proxy
 

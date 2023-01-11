@@ -45,8 +45,8 @@ TEST(RooRealIntegral, ClientServerInterface1)
    ws.factory("Product::mu_mod({mu[-0.005, -5.0, 5.0], 10.0})");
    ws.factory("Gaussian::gauss(x[0, 1], mu_mod, 2.0)");
 
-   RooRealVar& x = *ws.var("x");
-   RooAbsPdf& gauss = *ws.pdf("gauss");
+   RooRealVar &x = *ws.var("x");
+   RooAbsPdf &gauss = *ws.pdf("gauss");
    RooGenericPdf pdf{"gaussWrapped", "gauss", gauss};
 
    std::unique_ptr<RooAbsReal> integ1{gauss.createIntegral(x, *pdf.getIntegratorConfig(), nullptr)};
@@ -117,9 +117,9 @@ TEST(RooRealIntegral, IntegrateFuncWithShapeServers)
    ws.factory("Gaussian::gauss(x[0, 1], mu_mod, sigma[1, 0.5, 2.0])");
 
    RooRealVar &x = *ws.var("x");
-   RooAbsReal& muMod = *ws.function("mu_mod");
-   RooRealVar& sigma = *ws.var("sigma");
-   RooAbsPdf& gauss = *ws.pdf("gauss");
+   RooAbsReal &muMod = *ws.function("mu_mod");
+   RooRealVar &sigma = *ws.var("sigma");
+   RooAbsPdf &gauss = *ws.pdf("gauss");
    RooGenericPdf pdf("pdf", "gauss", gauss);
 
    // Project over sigma, meaning sigma should now become a shape server
@@ -243,7 +243,7 @@ TEST(RooRealIntegral, Issue11476)
    // Check that there were no warnings (covers GitHub issue #11476)
    const std::string messages = hijack.str();
    std::cout << messages;
-   EXPECT_TRUE(messages.empty()) << "Unexpected warnings were issued!";
+   EXPECT_TRUE(messages.empty()) << "Unexpected warnings were issued! Stream contents: " << hijack.str();
 
    // Verify that plot is correctly normalized
    std::unique_ptr<RooPlot> frame{x.frame()};

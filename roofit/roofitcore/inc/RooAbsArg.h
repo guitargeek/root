@@ -613,6 +613,7 @@ protected:
    virtual void ioStreamerPass2() ;
    static void ioStreamerPass2Finalize() ;
 
+   virtual void setProxyNormSetHook(const RooArgSet* /*nset*/) {}
 
 private:
   void addParameters(RooAbsCollection& params, const RooArgSet* nset = nullptr, bool stripDisconnected = true) const;

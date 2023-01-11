@@ -92,6 +92,8 @@ public:
   CacheMode canNodeBeCached() const override { return RooAbsArg::NotAdvised ; };
   void setCacheAndTrackHints(RooArgSet&) override;
 
+  void setProxyNormSetHook(const RooArgSet* nset) override;
+
 protected:
 
   void selectNormalization(const RooArgSet* depSet=nullptr, bool force=false) override;
@@ -137,7 +139,7 @@ protected:
   bool redirectServersHook(const RooAbsCollection&, bool, bool, bool) override;
 
 private:
-  std::pair<const RooArgSet*, AddCacheElem*> getNormAndCache(const RooArgSet* nset) const;
+  const RooArgSet* getNormSetFallback(const RooArgSet* nset) const;
   mutable RooFit::UniqueId<RooArgSet>::Value_t _idOfLastUsedNormSet = RooFit::UniqueId<RooArgSet>::nullval; ///<!
   mutable std::unique_ptr<const RooArgSet> _copyOfLastNormSet = nullptr; ///<!
 

@@ -291,7 +291,12 @@ RooAddPdf::RooAddPdf(const RooAddPdf& other, const char* name) :
 {
   _coefErrCount = _errorCount ;
   finalizeConstruction();
-  TRACE_CREATE
+
+  if(other._copyOfLastNormSet) {
+    getVal(*other._copyOfLastNormSet);
+  }
+
+  TRACE_CREATE;
 }
 
 
@@ -404,7 +409,7 @@ void RooAddPdf::updateCoefficients(AddCacheElem& cache, const RooArgSet* nset, b
 /// Look up projection cache and per-PDF norm sets. If a PDF doesn't have a special
 /// norm set, use the `defaultNorm`. If `defaultNorm == nullptr`, use the member
 /// _normSet.
-std::pair<const RooArgSet*, AddCacheElem*> RooAddPdf::getNormAndCache(const RooArgSet* nset) const {
+const RooArgSet* RooAddPdf::getNormSetFallback(const RooArgSet* nset) const {
 
   // Treat empty normalization set and nullptr the same way.
   if(nset && nset->empty()) nset = nullptr;
@@ -448,10 +453,7 @@ std::pair<const RooArgSet*, AddCacheElem*> RooAddPdf::getNormAndCache(const RooA
     }
   }
 
-
-  AddCacheElem* cache = getProjCache(nset) ;
-
-  return {nset, cache};
+  return nset;
 }
 
 
@@ -460,9 +462,8 @@ std::pair<const RooArgSet*, AddCacheElem*> RooAddPdf::getNormAndCache(const RooA
 
 double RooAddPdf::getValV(const RooArgSet* normSet) const
 {
-  auto normAndCache = getNormAndCache(normSet);
-  const RooArgSet* nset = normAndCache.first;
-  AddCacheElem* cache = normAndCache.second;
+  const RooArgSet* nset = getNormSetFallback(normSet);
+  AddCacheElem* cache = getProjCache(nset) ;
   updateCoefficients(*cache, nset);
 
   // Process change in last data set used
@@ -515,9 +516,8 @@ void RooAddPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvent
 
   RooBatchCompute::VarVector pdfs;
   RooBatchCompute::ArgVector coefs;
-  auto normAndCache = getNormAndCache(nullptr);
-  const RooArgSet* nset = normAndCache.first;
-  AddCacheElem* cache = normAndCache.second;
+  const RooArgSet* nset = getNormSetFallback(nullptr);
+  AddCacheElem* cache = getProjCache(nset) ;
   // We don't sync the coefficient values from the _coefList to the _coefCache
   // because we have already done it using the dataMap.
   updateCoefficients(*cache, nset, /*syncCoefValues=*/false);
@@ -572,6 +572,7 @@ bool RooAddPdf::checkObservables(const RooArgSet* nset) const
 Int_t RooAddPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars,
                 const RooArgSet* normSet, const char* rangeName) const
 {
+  //normSet = getNormSetFallback(normSet);
 
   RooArgSet allAnalVars(*std::unique_ptr<RooArgSet>{getObservables(allVars)}) ;
 
@@ -636,6 +637,8 @@ Int_t RooAddPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars
 
 double RooAddPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
 {
+  //normSet = getNormSetFallback(normSet);
+
   // WVE needs adaptation to handle new rangeName feature
   if (code==0) {
     return getVal(normSet) ;
@@ -828,4 +831,11 @@ bool RooAddPdf::redirectServersHook(const RooAbsCollection & newServerList, bool
   // to the right observables anymore. We need to reset it.
   _copyOfLastNormSet.reset();
   return RooAbsPdf::redirectServersHook(newServerList, mustReplaceAll, nameChange, isRecursiveStep);
+}
+
+
+void RooAddPdf::setProxyNormSetHook(const RooArgSet* nset) {
+  //if(nset && !nset->empty()) {
+      //getNormSetFallback(nset);
+  //}
 }

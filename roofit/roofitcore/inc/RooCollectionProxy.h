@@ -33,6 +33,7 @@ the serverRedirect changes.
 #include <RooAbsProxy.h>
 #include <RooAbsArg.h>
 #include <RooArgSet.h>
+#include <RooAbsReal.h>
 
 #include <exception>
 
@@ -58,7 +59,7 @@ public:
       : RooCollection_t(other, inName), _owner(owner), _defValueServer(other.defValueServer()),
         _defShapeServer(other.defShapeServer())
    {
-     _owner->registerProxy(*this);
+      _owner->registerProxy(*this);
    }
 
    /// Initializes this RooCollection proxy from another proxy. Should not be
@@ -89,8 +90,8 @@ public:
    // but value syncronization! Should it be re-implemented to be actual
    // assignment? That would be inconsistent with the base class! So it's
    // better to not support it at all.
-   RooCollectionProxy& operator=(RooCollectionProxy const& other) = delete;
-   RooCollectionProxy& operator=(RooCollectionProxy && other) = delete;
+   RooCollectionProxy &operator=(RooCollectionProxy const &other) = delete;
+   RooCollectionProxy &operator=(RooCollectionProxy &&other) = delete;
 
    ~RooCollectionProxy() override
    {
@@ -145,6 +146,15 @@ public:
 
    bool defValueServer() const { return _defValueServer; }
    bool defShapeServer() const { return _defShapeServer; }
+
+protected:
+   void changeNormSet(const RooArgSet *newNormSet) override
+   {
+      RooAbsProxy::changeNormSet(newNormSet);
+      for (RooAbsArg *arg : *this) {
+         arg->setProxyNormSetHook(newNormSet);
+      }
+   }
 
 private:
    RooAbsArg *_owner = nullptr;

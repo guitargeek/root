@@ -186,6 +186,8 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
   RooArgSet prodSet ;
   numIntSet.add(intSet) ;
 
+  RooArgSet emptyNormSet{};
+
   for (const auto pdfAsArg : compSet) {
     auto pdf = static_cast<const RooAbsPdf*>(pdfAsArg);
 
@@ -194,7 +196,7 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
       Int_t code = pdf->getAnalyticalIntegralWN(anaIntSet,anaSet,0,isetRangeName) ;
       if (code!=0) {
         // Analytical integral, create integral object
-        RooAbsReal* pai = pdf->createIntegral(anaSet,isetRangeName) ;
+        RooAbsReal* pai = pdf->createIntegral(anaSet,emptyNormSet,isetRangeName) ;
         pai->setOperMode(_operMode) ;
 
         // Add to integral to product
@@ -237,7 +239,7 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
   prod->setOperMode(_operMode) ;
 
   // Create integral performing remaining numeric integration over (partial) analytic product
-  std::unique_ptr<RooAbsReal> integral{prod->createIntegral(numIntSet,isetRangeName)};
+  std::unique_ptr<RooAbsReal> integral{prod->createIntegral(numIntSet,emptyNormSet,isetRangeName)};
   integral->setOperMode(_operMode) ;
   auto ret = integral.get();
 

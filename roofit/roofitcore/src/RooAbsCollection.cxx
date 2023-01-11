@@ -279,9 +279,14 @@ bool RooAbsCollection::snapshot(RooAbsCollection& output, bool deepCopy) const
 
 
 
-   // Redirect all server connections to internal list members
-  for (auto var : output) {
-    var->redirectServers(output,deepCopy);
+  // Redirect all server connections to internal list members. We don't need to
+  // do it if there was only one copied element, because it doesn't make sense
+  // to redirect an element to itself. And like this, we avoid potentially
+  // annoying side effects of the redirectServersHook.
+  if(output.size() > 1) {
+    for (auto var : output) {
+      var->redirectServers(output,deepCopy);
+    }
   }
 
 
