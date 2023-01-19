@@ -79,7 +79,8 @@ public:
    void      SetDau1(TFoamCell* Daug){ fDaught1Idx = Daug ? Daug->fSerial : -1;}  // Set pointer to 2-nd daughter
    void      SetSerial(Int_t Serial){ fSerial=Serial;}    // Set serial number
    Int_t     GetSerial() const { return fSerial;}         // Get serial number
-   void      SetCells(TFoamCell** cells) { fCells = cells;}          // Set the pointer to the cells array
+   void      SetCells(TFoamCell** cells) { fCells = cells;} // Set the pointer to the cells array
+   TFoamCell** GetCells() const { return fCells;}           // Return the pointer to the cells array
    //--- other ---
    void Print(Option_t *option) const override ;                   // Prints cell content
 
