@@ -139,7 +139,7 @@ public:
 private:
    Double_t Sqr(Double_t x) const { return x*x;}      // Square function
 
-   ClassDefOverride(TFoam,2);   // General purpose self-adapting Monte Carlo event generator
+   ClassDefOverride(TFoam,3);   // General purpose self-adapting Monte Carlo event generator
 };
 
 #endif

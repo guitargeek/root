@@ -85,7 +85,6 @@ S. Jadach, Computer Physics Communications 152 (2003) 55.
 #include <iomanip>
 #include <fstream>
 #include "TH1.h"
-#include "TRefArray.h"
 #include "TObjArray.h"
 #include "TMethodCall.h"
 #include "TRandom.h"
@@ -458,6 +457,7 @@ void TFoam::InitCells()
    for(i=0;i<fNCells;i++){
       fCells[i]= new TFoamCell(fDim); // Allocate BIG list of cells
       fCells[i]->SetSerial(i);
+      fCells[i]->SetCells(fCells);
    }
    if(fCells==0) Error("InitCells", "Cannot initialize CELLS \n"  );
 
