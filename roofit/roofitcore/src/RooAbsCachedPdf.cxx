@@ -411,21 +411,17 @@ std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & 
       newArg = RooAbsReal::compileForNormSet(normSet, serverNormSet);
       pdf = newArg.get();
    } else {
-      std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
-      newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
-      pdfClone->setAttribute("_COMPILED");
+      std::unique_ptr<RooAbsArg> pdfClone = RooAbsPdf::compileForNormSet(normSet, serverNormSet);
+      newArg = std::make_unique<RooNormalizedPdf>(static_cast<RooAbsPdf&>(*pdfClone), normSet);
+      newArg->setAttribute("_COMPILED");
       pdf = pdfClone.get();
       newArg->addOwnedComponents(std::move(pdfClone));
    }
 
-   newArg->setAttribute("_COMPILED");
-
    RooArgList newServers;
    for(RooAbsArg * server : servers()) {
       if (!server->isFundamental() || normSet.find(*server)) {
-         std::unique_ptr<RooAbsArg> serverClone{static_cast<RooAbsArg*>(server->Clone())};
-         serverClone->setAttribute("_COMPILED");
-         newServers.addOwned(std::move(serverClone));
+         newServers.addOwned(server->compileForNormSet({}, serverNormSet));
       }
    }
 

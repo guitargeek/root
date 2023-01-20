@@ -358,10 +358,6 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
    std::unordered_map<TNamed const *, RooAbsArg *> clonedArgsSet;
    addServerClonesToList(*head, clonedArgsSet, normSet);
 
-   RooArgSet params;
-   head->getParameters(&normSet, params);
-   head->recursiveRedirectServers(params);
-
    return head;
 }
 
