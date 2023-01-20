@@ -3631,12 +3631,6 @@ std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSe
    std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
    auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
 
-   // The call to getVal() sets up cached states for this normalization
-   // set, which is important in case this pdf is also used by clients
-   // using the getVal() interface (without this, test 28 in stressRooFit
-   // is failing for example).
-   pdfClone->getVal(normSet);
-
    newArg->setAttribute("_COMPILED");
    pdfClone->setAttribute("_COMPILED");
    newArg->addOwnedComponents(std::move(pdfClone));
