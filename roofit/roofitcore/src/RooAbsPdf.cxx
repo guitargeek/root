@@ -1129,7 +1129,11 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
     TString oldNormRange = _normRange;
     setNormRange(rangeName);
 
-    std::unique_ptr<RooAbsPdf> pdfClone = RooFit::compileForNormSet<RooAbsPdf>(*this, *data.get());
+    auto normSet = new RooArgSet; // INTENTIONAL LEAK FOR NOW!
+    getObservables(data.get(), *normSet);
+    normSet->remove(projDeps, true, true);
+
+    std::unique_ptr<RooAbsPdf> pdfClone = RooFit::compileForNormSet(*this, *normSet);
 
     // Reset the normalization range
     _normRange = oldNormRange;
@@ -1141,9 +1145,15 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
        pdfClone->fixAddCoefRange(addCoefRangeName, false);
     }
 
+    std::unique_ptr<RooAbsReal> compiledConstr;
+    if(std::unique_ptr<RooAbsReal> constr = createConstr(*this)) {
+       compiledConstr = RooFit::compileForNormSet(*constr, *data.get());
+       compiledConstr->addOwnedComponents(std::move(constr));
+    }
+
     return RooFit::BatchModeHelpers::createNLL(std::move(pdfClone),
                                                data,
-                                               createConstr(*pdfClone, /*removeConstraintsFromPdf=*/true),
+                                               std::move(compiledConstr),
                                                rangeName ? rangeName : "",
                                                projDeps,
                                                ext,

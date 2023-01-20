@@ -14,11 +14,8 @@
 #define RooFit_NormalizationHelpers_h
 
 #include <RooArgSet.h>
-#include <RooFit/Detail/DataMap.h>
 
 #include <memory>
-#include <unordered_map>
-#include <vector>
 
 class RooAbsArg;
 
@@ -31,26 +28,10 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
 }
 
 template <class T>
-std::unique_ptr<T> compileForNormSet(RooAbsArg const &arg, RooArgSet const &normSet)
+std::unique_ptr<T> compileForNormSet(T const &arg, RooArgSet const &normSet)
 {
    return std::unique_ptr<T>{static_cast<T *>(Detail::compileForNormSetImpl(arg, normSet).release())};
 }
-
-class NormalizationIntegralUnfolder {
-public:
-   NormalizationIntegralUnfolder(RooAbsArg const &topNode, RooArgSet const &normSet);
-   ~NormalizationIntegralUnfolder();
-
-   inline RooAbsArg &arg() const { return *_arg; }
-
-private:
-   std::unique_ptr<RooAbsArg> _topNodeWrapper;
-   RooAbsArg *_arg = nullptr;
-   std::unordered_map<RooFit::Detail::DataKey, RooArgSet *> _normSets;
-   RooArgSet _replacedArgs;
-   RooArgSet _newArgs;
-   bool _normSetWasEmpty;
-};
 
 } // namespace RooFit
 

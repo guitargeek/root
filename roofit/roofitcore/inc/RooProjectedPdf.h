@@ -41,6 +41,7 @@ public:
 
   void printMetaArgs(std::ostream& os) const override ;
 
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const override;
 
 protected:
 
