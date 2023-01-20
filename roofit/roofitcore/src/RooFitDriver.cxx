@@ -116,13 +116,11 @@ struct NodeInfo {
 ///
 /// \param[in] absReal The RooAbsReal object that sits on top of the
 ///            computation graph that we want to evaluate.
-/// \param[in] normSet Normalization set for the evaluation
 /// \param[in] batchMode The computation mode, accepted values are
 ///            `RooBatchCompute::Cpu` and `RooBatchCompute::Cuda`.
-RooFitDriver::RooFitDriver(const RooAbsReal &absReal, RooArgSet const &normSet, RooFit::BatchModeOption batchMode)
-   : _batchMode{batchMode}
+RooFitDriver::RooFitDriver(const RooAbsReal &absReal, RooFit::BatchModeOption batchMode)
+   : _topNode{const_cast<RooAbsReal &>(absReal)}, _batchMode{batchMode}
 {
-   _integralUnfolder = std::make_unique<RooFit::NormalizationIntegralUnfolder>(absReal, normSet);
 
    // Initialize RooBatchCompute
    RooBatchCompute::init();
@@ -801,7 +799,7 @@ void RooFitDriver::setOperMode(RooAbsArg *arg, RooAbsArg::OperMode opMode)
 
 RooAbsReal &RooFitDriver::topNode() const
 {
-   return static_cast<RooAbsReal &>(_integralUnfolder->arg());
+   return _topNode;
 }
 
 void RooFitDriver::print(std::ostream &os) const

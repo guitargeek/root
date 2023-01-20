@@ -190,11 +190,6 @@ RooFit::BatchModeHelpers::createNLL(std::unique_ptr<RooAbsPdf> &&pdf, RooAbsData
    pdf->getObservables(data.get(), observables);
    observables.remove(projDeps, true, true);
 
-   // Set the normalization range
-   if (!rangeName.empty()) {
-      pdf->setNormRange(rangeName.c_str());
-   }
-
    oocxcoutI(pdf.get(), Fitting) << "RooAbsPdf::fitTo(" << pdf->GetName()
                                  << ") fixing normalization set for coefficient determination to observables in data"
                                  << "\n";
@@ -229,7 +224,7 @@ RooFit::BatchModeHelpers::createNLL(std::unique_ptr<RooAbsPdf> &&pdf, RooAbsData
    nll->addOwnedComponents(std::move(binSamplingPdfs));
    nll->addOwnedComponents(std::move(nllTerms));
 
-   auto driver = std::make_unique<RooFitDriver>(*nll, observables, batchMode);
+   auto driver = std::make_unique<RooFitDriver>(*nll, batchMode);
 
    auto driverWrapper = std::make_unique<RooAbsRealWrapper>(std::move(driver), rangeName, simPdf, splitRange,
                                                             takeGlobalObservablesFromData);

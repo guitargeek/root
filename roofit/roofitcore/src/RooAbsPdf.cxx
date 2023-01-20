@@ -177,6 +177,7 @@ called for each data event.
 #include "RooFit/TestStatistics/optional_parameter_types.h"
 #include "RunContext.h"
 #include "ConstraintHelpers.h"
+#include "NormalizationHelpers.h"
 
 #include "ROOT/StringUtils.hxx"
 #include "TMath.h"
@@ -1121,7 +1122,17 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
 
   // Construct BatchModeNLL if requested
   if (batchMode != RooFit::BatchModeOption::Off && batchMode != RooFit::BatchModeOption::Old) {
-    std::unique_ptr<RooAbsPdf> pdfClone = RooHelpers::cloneTreeWithSameParameters(*this, data.get());
+
+    // Set the normalization range. We need to do it now, because it will be
+    // considered in `compileForNormSet`.
+    TString oldNormRange = _normRange;
+    setNormRange(rangeName);
+
+    std::unique_ptr<RooAbsPdf> pdfClone = RooFit::compileForNormSet<RooAbsPdf>(*this, *data.get());
+
+    // Reset the normalization range
+    _normRange = oldNormRange;
+
     if (addCoefRangeName) {
        cxcoutI(Fitting) << "RooAbsPdf::fitTo(" << GetName()
                         << ") fixing interpretation of coefficients of any component to range "
