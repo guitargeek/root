@@ -33,6 +33,7 @@ for changes to trigger a refilling of the cache histogram.
 #include "RooDataHist.h"
 #include "RooHistPdf.h"
 #include "RooExpensiveObjectCache.h"
+#include "RooNormalizedPdf.h"
 
 ClassImp(RooAbsCachedPdf);
 
@@ -403,25 +404,33 @@ void RooAbsCachedPdf::computeBatch(cudaStream_t* stream, double* output, size_t 
 }
 
 
-std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& /*serverNormSet*/) const {
-   std::unique_ptr<RooAbsPdf> newArg{static_cast<RooAbsPdf*>(this->Clone())};
+std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+   std::unique_ptr<RooAbsArg> newArg;
+   RooAbsArg * pdf = nullptr;
+   if(normSet.empty()) {
+      newArg = RooAbsReal::compileForNormSet(normSet, serverNormSet);
+      pdf = newArg.get();
+   } else {
+      std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
+      newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
+      pdfClone->setAttribute("_COMPILED");
+      pdf = pdfClone.get();
+      newArg->addOwnedComponents(std::move(pdfClone));
+   }
+
+   newArg->setAttribute("_COMPILED");
 
    RooArgList newServers;
    for(RooAbsArg * server : servers()) {
-      std::unique_ptr<RooAbsArg> serverClone{static_cast<RooAbsArg*>(server->Clone())};
-      serverClone->setAttribute("_COMPILED");
-      newServers.addOwned(std::move(serverClone));
+      if (!server->isFundamental() || normSet.find(*server)) {
+         std::unique_ptr<RooAbsArg> serverClone{static_cast<RooAbsArg*>(server->Clone())};
+         serverClone->setAttribute("_COMPILED");
+         newServers.addOwned(std::move(serverClone));
+      }
    }
 
-   newArg->redirectServers(newServers, true);
-   newArg->setAttribute("_COMPILED");
-   newArg->addOwnedComponents(std::move(newServers));
-
-   // The call to getVal() sets up cached states for this normalization
-   // set, which is important in case this pdf is also used by clients
-   // using the getVal() interface (without this, test 28 in stressRooFit
-   // is failing for example).
-   newArg->getVal(normSet);
+   pdf->redirectServers(newServers, false);
+   pdf->addOwnedComponents(std::move(newServers));
 
    return newArg;
 }
