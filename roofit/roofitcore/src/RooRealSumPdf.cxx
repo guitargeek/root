@@ -730,3 +730,19 @@ void RooRealSumPdf::printMetaArgs(RooArgList const& funcList, RooArgList const& 
 
   os << " " ;
 }
+
+//std::unique_ptr<RooAbsArg> RooRealSumPdf::compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const
+//{
+   //RooArgList newServers;
+
+   //for(RooAbsArg * server : servers()) {
+      //newServers.addOwned(server->compileForNormSet({}, serverNormSet));
+   //}
+
+   //auto newArg = RooAbsPdf::compileForNormSet(normSet, serverNormSet);
+
+   //newArg->recursiveRedirectServers(newServers);
+   //newArg->addOwnedComponents(std::move(newServers));
+
+   //return newArg;
+//}

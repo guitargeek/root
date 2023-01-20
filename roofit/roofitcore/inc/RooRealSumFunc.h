@@ -58,6 +58,8 @@ public:
    CacheMode canNodeBeCached() const override { return RooAbsArg::NotAdvised; };
    void setCacheAndTrackHints(RooArgSet &) override;
 
+   std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const override;
+
 protected:
    mutable RooObjCacheManager _normIntMgr; //! The integration cache manager
 
