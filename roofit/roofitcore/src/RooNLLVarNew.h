@@ -52,8 +52,6 @@ public:
 
    void applyWeightSquared(bool flag) override;
 
-   std::unique_ptr<RooArgSet> fillNormSetForServer(RooArgSet const &normSet, RooAbsArg const &server) const override;
-
    void enableOffsetting(bool) override;
 
    void enableBinOffsetting(bool on = true) { _doBinOffset = on; }

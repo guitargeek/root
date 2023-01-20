@@ -122,11 +122,6 @@ std::unique_ptr<RooAbsArg> RooConstraintSum::compileForNormSet(RooArgSet const &
 }
 
 
-std::unique_ptr<RooArgSet> RooConstraintSum::fillNormSetForServer(RooArgSet const& /*normSet*/, RooAbsArg const& /*server*/) const {
-  return std::make_unique<RooArgSet>(_paramSet);
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Replace the variables in this RooConstraintSum with the global observables
 /// in the dataset if they match by name. This function will do nothing if this

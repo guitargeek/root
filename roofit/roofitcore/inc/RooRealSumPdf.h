@@ -68,10 +68,6 @@ public:
   CacheMode canNodeBeCached() const override { return RooAbsArg::NotAdvised ; } ;
   void setCacheAndTrackHints(RooArgSet&) override ;
 
-  std::unique_ptr<RooArgSet> fillNormSetForServer(RooArgSet const& /*normSet*/, RooAbsArg const& /*server*/) const override {
-     return std::make_unique<RooArgSet>();
-  }
-
 protected:
 
   class CacheElem : public RooAbsCacheElement {
