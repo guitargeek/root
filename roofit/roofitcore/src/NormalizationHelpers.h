@@ -24,6 +24,18 @@ class RooAbsArg;
 
 namespace RooFit {
 
+namespace Detail {
+
+std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet const &normSet);
+
+}
+
+template <class T>
+std::unique_ptr<T> compileForNormSet(RooAbsArg const &arg, RooArgSet const &normSet)
+{
+   return std::unique_ptr<T>{static_cast<T *>(Detail::compileForNormSetImpl(arg, normSet).release())};
+}
+
 class NormalizationIntegralUnfolder {
 public:
    NormalizationIntegralUnfolder(RooAbsArg const &topNode, RooArgSet const &normSet);
