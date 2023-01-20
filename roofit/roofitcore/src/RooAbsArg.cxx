@@ -153,6 +153,7 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
      _namePtr(name ? RooNameReg::instance().constPtr(name) : other._namePtr),
      _isConstant(other._isConstant), _localNoInhibitDirty(other._localNoInhibitDirty), _myws(0)
 {
+  _serverList.reserve(other._serverList.size());
 
   // Copy server list by hand
   bool valueProp, shapeProp ;

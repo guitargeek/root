@@ -30,6 +30,8 @@
 #include <ROOT/StringUtils.hxx>
 #include <TClass.h>
 
+#include <unordered_map>
+
 namespace RooHelpers {
 
 LocalChangeMsgLevel::LocalChangeMsgLevel(RooFit::MsgLevel lvl,
@@ -295,4 +297,41 @@ BinnedLOutput getBinnedL(RooAbsPdf &pdf)
    return {nullptr, false};
 }
 
+namespace Detail {
+
+void addServerClonesToList(RooAbsArg& arg, RooArgList& clonedArgs, std::unordered_map<TNamed const*, RooAbsArg*> & clonedArgsSet, RooArgSet const* observables, std::vector<std::unique_ptr<RooArgList>>& working, std::size_t recursionDepth)
+{
+  if(working.size() < recursionDepth + 1) working.emplace_back(std::make_unique<RooArgList>());
+  RooArgList& serverClones = *working[recursionDepth];
+  serverClones.clear();
+  for (const auto server : arg.servers()) {
+    auto existingServerClone = clonedArgsSet.find(server->namePtr());
+    if (existingServerClone != clonedArgsSet.end()) {
+      serverClones.add(*existingServerClone->second);
+    } else if(!server->isFundamental() || (observables && observables->find(*server))) {
+      auto * serverClone = static_cast<RooAbsArg*>(server->Clone());
+      clonedArgs.add(*serverClone);
+      clonedArgsSet.emplace(serverClone->namePtr(), serverClone);
+      serverClones.add(*serverClone);
+      addServerClonesToList(*serverClone, clonedArgs, clonedArgsSet, observables, working, recursionDepth + 1);
+    }
+  }
+  arg.redirectServers(serverClones, false);
 }
+
+std::unique_ptr<RooAbsArg> cloneTreeWithSameParametersImpl(RooAbsArg const& arg, RooArgSet const* observables)
+{
+  std::unique_ptr<RooAbsArg> head{static_cast<RooAbsArg*>(arg.Clone())};
+  RooArgList clonedArgs;
+  std::unordered_map<TNamed const*, RooAbsArg*> clonedArgsSet;
+  std::vector<std::unique_ptr<RooArgList>> working;
+  addServerClonesToList(*head, clonedArgs, clonedArgsSet, observables, working, 0);
+
+  head->addOwnedComponents(std::move(clonedArgs)) ;
+
+  return head;
+}
+
+} // namespace Detail
+
+} // namespace RooHelpers

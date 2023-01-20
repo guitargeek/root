@@ -407,7 +407,7 @@ void RooAbsTestStatistic::initMPMode(RooAbsReal* real, RooAbsData* data, const R
     cfg.integrateOverBinsPrecision = thisAsRooAbsOptTestStatistic->_integrateBinsPrecision;
   }
   RooAbsTestStatistic* gof = create(GetName(),GetTitle(),*real,*data,*projDeps,cfg);
-  gof->recursiveRedirectServers(_paramSet);
+  //gof->recursiveRedirectServers(_paramSet);
 
   for (Int_t i = 0; i < _nCPU; ++i) {
     gof->setMPSet(i,_nCPU);
@@ -501,13 +501,13 @@ void RooAbsTestStatistic::initSimMode(RooSimultaneous* simpdf, RooAbsData* data,
 
       // Servers may have been redirected between instantiation and (deferred) initialization
 
-      RooArgSet *actualParams = binnedInfo.binnedPdf ? binnedInfo.binnedPdf->getParameters(dset) : pdf->getParameters(dset);
-      RooArgSet* selTargetParams = (RooArgSet*) _paramSet.selectCommon(*actualParams);
+      //RooArgSet *actualParams = binnedInfo.binnedPdf ? binnedInfo.binnedPdf->getParameters(dset) : pdf->getParameters(dset);
+      //RooArgSet* selTargetParams = (RooArgSet*) _paramSet.selectCommon(*actualParams);
 
-      _gofArray.back()->recursiveRedirectServers(*selTargetParams);
+      //_gofArray.back()->recursiveRedirectServers(*selTargetParams);
 
-      delete selTargetParams;
-      delete actualParams;
+      //delete selTargetParams;
+      //delete actualParams;
     }
   }
   for(auto& gof : _gofArray) {
