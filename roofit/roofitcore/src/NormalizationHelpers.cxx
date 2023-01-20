@@ -316,46 +316,35 @@ std::vector<std::unique_ptr<RooAbsArg>> unfoldIntegrals(RooAbsArg const &topNode
    return newNodes;
 }
 
-std::unique_ptr<RooAbsArg> compile(RooAbsArg &arg, RooArgSet const &normSet, bool skipCompiling = false)
+void addServerClonesToList(RooAbsArg &arg, std::unordered_map<TNamed const *, RooAbsArg *> &clonedArgsSet,
+                           RooArgSet const &normSet)
 {
-   std::unique_ptr<RooAbsArg> newArg;
-   auto *pdf = dynamic_cast<RooAbsPdf *>(&arg);
-   if (!skipCompiling && pdf && !normSet.empty() && !(pdf->selfNormalized() && !dynamic_cast<RooAbsCachedPdf *>(pdf)) &&
-       !arg.getAttribute("_COMPILED")) {
-      newArg = std::make_unique<RooNormalizedPdf>(*pdf, normSet);
-      arg.setAttribute("_COMPILED"); // to avoid that this arg is compiled again
-   } else {
-      newArg = std::unique_ptr<RooAbsArg>{static_cast<RooAbsArg *>(arg.Clone())};
-      arg.setAttribute("_COMPILED", false); // we are dont with this node and can reset the _COMPILED attribute
-   }
-   const std::string attrib = std::string("ORIGNAME:") + arg.GetName();
-   newArg->setAttribute(attrib.c_str());
-   return newArg;
-}
-
-void addServerClonesToList(RooAbsArg &arg, RooArgList &clonedArgs,
-                           std::unordered_map<TNamed const *, RooAbsArg *> &clonedArgsSet, RooArgSet const &normSet,
-                           std::vector<std::unique_ptr<RooArgList>> &working, std::size_t recursionDepth)
-{
-   const bool skipCompiling = dynamic_cast<RooAbsCachedPdf const *>(&arg);
-   if (working.size() < recursionDepth + 1) {
-      working.emplace_back(std::make_unique<RooArgList>());
-   }
-   RooArgList &serverClones = *working[recursionDepth];
-   serverClones.clear();
+   RooArgList serverClones;
+   RooArgList owned;
    for (const auto server : arg.servers()) {
       auto existingServerClone = clonedArgsSet.find(server->namePtr());
       if (existingServerClone != clonedArgsSet.end()) {
          serverClones.add(*existingServerClone->second);
       } else if (!server->isFundamental() || normSet.find(*server)) {
-         std::unique_ptr<RooAbsArg> serverClone = compile(*server, normSet, skipCompiling);
-         clonedArgsSet.emplace(serverClone->namePtr(), serverClone.get());
-         serverClones.add(*serverClone);
-         addServerClonesToList(*serverClone, clonedArgs, clonedArgsSet, normSet, working, recursionDepth + 1);
-         clonedArgs.addOwned(std::move(serverClone));
+
+         if (!server->getAttribute("_COMPILED")) {
+
+            std::unique_ptr<RooAbsArg> serverClone = server->compileForNormSet(normSet, normSet);
+            const std::string attrib = std::string("ORIGNAME:") + server->GetName();
+            serverClone->setAttribute(attrib.c_str());
+            clonedArgsSet.emplace(serverClone->namePtr(), serverClone.get());
+            addServerClonesToList(*serverClone, clonedArgsSet, normSet);
+            serverClones.add(*serverClone);
+            owned.addOwned(std::move(serverClone));
+
+         } else {
+            addServerClonesToList(*server, clonedArgsSet, normSet);
+         }
       }
    }
    arg.redirectServers(serverClones, false, true);
+   owned.releaseOwnership();
+   // arg.addOwnedComponents(std::move(serverClones));
 }
 
 } // namespace
@@ -366,14 +355,9 @@ namespace Detail {
 
 std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet const &normSet)
 {
-   const bool skipCompiling = dynamic_cast<RooAbsCachedPdf const *>(&arg);
-   std::unique_ptr<RooAbsArg> head = compile(const_cast<RooAbsArg &>(arg), normSet, skipCompiling);
-   RooArgList clonedArgs;
+   std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, normSet);
    std::unordered_map<TNamed const *, RooAbsArg *> clonedArgsSet;
-   std::vector<std::unique_ptr<RooArgList>> working;
-   addServerClonesToList(*head, clonedArgs, clonedArgsSet, normSet, working, 0);
-
-   head->addOwnedComponents(std::move(clonedArgs));
+   addServerClonesToList(*head, clonedArgsSet, normSet);
 
    return head;
 }

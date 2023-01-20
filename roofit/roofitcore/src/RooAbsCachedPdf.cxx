@@ -401,3 +401,21 @@ void RooAbsCachedPdf::computeBatch(cudaStream_t* stream, double* output, size_t 
   auto * cachePdf = getCachePdf(_normSet);
   cachePdf->computeBatch(stream, output, nEvents, dataMap);
 }
+
+
+std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+   std::unique_ptr<RooAbsPdf> newArg{static_cast<RooAbsPdf*>(this->Clone())};
+
+   RooArgList newServers;
+   for(RooAbsArg * server : servers()) {
+      std::unique_ptr<RooAbsArg> serverClone{static_cast<RooAbsArg*>(server->Clone())};
+      serverClone->setAttribute("_COMPILED");
+      newServers.addOwned(std::move(serverClone));
+   }
+
+   newArg->redirectServers(newServers, true);
+   newArg->setAttribute("_COMPILED");
+   newArg->addOwnedComponents(std::move(newServers));
+
+   return newArg;
+}

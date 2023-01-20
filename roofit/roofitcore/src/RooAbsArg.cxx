@@ -2496,6 +2496,13 @@ void RooAbsArg::applyWeightSquared(bool flag) {
 }
 
 
+std::unique_ptr<RooAbsArg> RooAbsArg::compileForNormSet(RooArgSet const & /*normSet*/, RooArgSet const& /*serverNormSet*/) const {
+   auto newArg = std::unique_ptr<RooAbsArg>{static_cast<RooAbsArg *>(Clone())};
+   newArg->setAttribute("_COMPILED");
+   return newArg;
+}
+
+
 /// Fills a RooArgSet to be used as the normalization set for a server, given a
 /// normalization set for this RooAbsArg. If the output is a `nullptr`, it
 /// means that the normalization set doesn't change.

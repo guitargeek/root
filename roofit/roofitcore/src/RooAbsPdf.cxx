@@ -136,6 +136,7 @@ called for each data event.
 
 #include "RooAbsPdf.h"
 
+#include "RooNormalizedPdf.h"
 #include "RooMsgService.h"
 #include "RooDataSet.h"
 #include "RooArgSet.h"
@@ -3610,4 +3611,17 @@ bool RooAbsPdf::redirectServersHook(const RooAbsCollection & newServerList, bool
   // the right observables anymore. We need to reset it.
   setActiveNormSet(nullptr);
   return RooAbsReal::redirectServersHook(newServerList, mustReplaceAll, nameChange, isRecursiveStep);
+}
+
+
+std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+   if(normSet.empty() || selfNormalized()) {
+      return RooAbsReal::compileForNormSet(normSet, serverNormSet);
+   }
+   std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
+   auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
+   newArg->setAttribute("_COMPILED");
+   pdfClone->setAttribute("_COMPILED");
+   newArg->addOwnedComponents(std::move(pdfClone));
+   return newArg;
 }
