@@ -98,6 +98,8 @@ public:
 
   void writeCacheToStream(std::ostream& os, RooArgSet const* nset) const;
 
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const override;
+
   std::unique_ptr<RooArgSet> fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const override;
 
 private:

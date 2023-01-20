@@ -2348,3 +2348,25 @@ std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const& nor
     return nullptr;
   }
 }
+
+std::unique_ptr<RooAbsArg> RooProdPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+   auto newArg = RooAbsPdf::compileForNormSet(normSet, serverNormSet);
+
+   RooArgList newServers;
+
+   for(RooAbsArg * server : newArg->servers()) {
+
+      auto nsetForServer = fillNormSetForServer(normSet, *server);
+      RooArgSet const& nset = nsetForServer ? *nsetForServer : normSet;
+      auto clone = server->compileForNormSet(nset, nset);
+      const std::string attrib = std::string("ORIGNAME:") + server->GetName();
+      clone->setAttribute(attrib.c_str());
+      newServers.addOwned(std::move(clone));
+   }
+
+   newArg->redirectServers(newServers, true, true);
+
+   newArg->addOwnedComponents(std::move(newServers));
+
+   return newArg;
+}
