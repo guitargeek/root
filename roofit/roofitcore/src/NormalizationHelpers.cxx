@@ -330,10 +330,10 @@ void addServerClonesToList(RooAbsArg &arg, std::unordered_map<TNamed const *, Ro
          if (!server->getAttribute("_COMPILED")) {
 
             std::unique_ptr<RooAbsArg> serverClone = server->compileForNormSet(normSet, normSet);
+            addServerClonesToList(*serverClone, clonedArgsSet, normSet);
             const std::string attrib = std::string("ORIGNAME:") + server->GetName();
             serverClone->setAttribute(attrib.c_str());
             clonedArgsSet.emplace(serverClone->namePtr(), serverClone.get());
-            addServerClonesToList(*serverClone, clonedArgsSet, normSet);
             serverClones.add(*serverClone);
             owned.addOwned(std::move(serverClone));
 
@@ -343,8 +343,7 @@ void addServerClonesToList(RooAbsArg &arg, std::unordered_map<TNamed const *, Ro
       }
    }
    arg.redirectServers(serverClones, false, true);
-   owned.releaseOwnership();
-   // arg.addOwnedComponents(std::move(serverClones));
+   arg.addOwnedComponents(std::move(owned));
 }
 
 } // namespace

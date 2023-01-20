@@ -403,7 +403,7 @@ void RooAbsCachedPdf::computeBatch(cudaStream_t* stream, double* output, size_t 
 }
 
 
-std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& /*serverNormSet*/) const {
    std::unique_ptr<RooAbsPdf> newArg{static_cast<RooAbsPdf*>(this->Clone())};
 
    RooArgList newServers;
@@ -416,6 +416,12 @@ std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & 
    newArg->redirectServers(newServers, true);
    newArg->setAttribute("_COMPILED");
    newArg->addOwnedComponents(std::move(newServers));
+
+   // The call to getVal() sets up cached states for this normalization
+   // set, which is important in case this pdf is also used by clients
+   // using the getVal() interface (without this, test 28 in stressRooFit
+   // is failing for example).
+   newArg->getVal(normSet);
 
    return newArg;
 }
