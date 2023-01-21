@@ -418,15 +418,7 @@ std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & 
       newArg->addOwnedComponents(std::move(pdfClone));
    }
 
-   RooArgList newServers;
-   for(RooAbsArg * server : servers()) {
-      if (!server->isFundamental() || normSet.find(*server)) {
-         newServers.addOwned(server->compileForNormSet({}, ctx));
-      }
-   }
-
-   pdf->redirectServers(newServers, false);
-   pdf->addOwnedComponents(std::move(newServers));
+   ctx.compileServers(*pdf, {});
 
    return newArg;
 }

@@ -37,11 +37,8 @@ void RooFit::CompileContext::compileServers(RooAbsArg &arg, RooArgSet const &nor
 {
    auto serverClones = std::make_unique<RooArgList>();
    for (const auto server : arg.servers()) {
-      auto serverClone = this->compile(*server, arg, normSet);
-      if (serverClone) {
+      if (auto serverClone = this->compile(*server, arg, normSet)) {
          serverClones->add(*serverClone);
-      } else {
-         this->compileServers(*server, normSet);
       }
    }
    arg.redirectServers(*serverClones, false, true);
@@ -56,11 +53,13 @@ RooAbsArg *RooFit::CompileContext::compile(RooAbsArg &arg, RooAbsArg &caller, Ro
       return nullptr;
    }
    if (arg.getAttribute("_COMPILED")) {
+      this->compileServers(arg, normSet);
       return nullptr;
    }
 
    std::unique_ptr<RooAbsArg> newArg = arg.compileForNormSet(normSet, *this);
    this->compileServers(*newArg, normSet);
+   newArg->setAttribute("_COMPILED");
    const std::string attrib = std::string("ORIGNAME:") + arg.GetName();
    newArg->setAttribute(attrib.c_str());
    this->add(*newArg);
