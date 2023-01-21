@@ -239,44 +239,18 @@ void RooNLLVarNew::getParametersHook(const RooArgSet * /*nset*/, RooArgSet *para
 /// parameter nodes. Used for simultaneous fits.
 /// \return A RooArgSet with the new observable args.
 /// \param[in] prefix The prefix to add to the observables and weight names.
-RooArgSet RooNLLVarNew::prefixArgNames(std::string const &prefix)
+void RooNLLVarNew::setPrefix(std::string const &prefix)
 {
    _prefix = prefix;
 
-   std::unique_ptr<RooAbsReal> pdfClone = RooHelpers::cloneTreeWithSameParameters(*_pdf, &_observables);
-
-   redirectServers(RooArgList{*pdfClone});
-
-   RooArgSet parameters;
-   pdfClone->getParameters(&_observables, parameters);
-
-   _observables.clear();
-
-   RooArgSet nodes;
-   pdfClone->treeNodeServerList(&nodes);
-   for (RooAbsArg *arg : nodes) {
-      if (!parameters.find(*arg)) {
-         arg->SetName((prefix + arg->GetName()).c_str());
-         if (dynamic_cast<RooRealVar *>(arg)) {
-            // It's an observable
-            static_cast<RooRealVar *>(arg)->setConstant();
-            _observables.add(*arg);
-            arg->setAttribute("__obs__");
-         }
-      }
-   }
-
-   addOwnedComponents(std::move(pdfClone));
-
    resetWeightVarNames();
-
-   return _observables;
 }
 
 void RooNLLVarNew::resetWeightVarNames()
 {
    _weightVar->SetName((_prefix + weightVarName).c_str());
    _weightSquaredVar->SetName((_prefix + weightVarNameSumW2).c_str());
+   _binVolumeVar->SetName((_prefix + "_bin_volume").c_str());
 }
 
 ////////////////////////////////////////////////////////////////////////////////

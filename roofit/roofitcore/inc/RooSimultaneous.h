@@ -94,14 +94,16 @@ public:
   RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype=nullptr,
                                   const RooArgSet* auxProto=nullptr, bool verbose= false) const override ;
 
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const override;
+
+  RooArgSet const& flattenedCatList() const;
+
 protected:
 
   void initialize(RooAbsCategoryLValue& inIndexCat, std::map<std::string,RooAbsPdf*> pdfMap) ;
 
   void selectNormalization(const RooArgSet* depSet=nullptr, bool force=false) override ;
   void selectNormalizationRange(const char* rangeName=nullptr, bool force=false) override ;
-
-  RooArgSet const& flattenedCatList() const;
 
   mutable RooSetProxy _plotCoefNormSet ;
   const TNamed* _plotCoefNormRange = nullptr;

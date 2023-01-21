@@ -48,7 +48,7 @@ public:
    void computeBatch(cudaStream_t *, double *output, size_t nOut, RooFit::Detail::DataMap const &) const override;
    inline bool isReducerNode() const override { return true; }
 
-   RooArgSet prefixArgNames(std::string const &prefix);
+   void setPrefix(std::string const &prefix);
 
    void applyWeightSquared(bool flag) override;
 

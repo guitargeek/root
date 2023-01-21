@@ -14,6 +14,7 @@
 
 #include <RooAbsArg.h>
 #include <RooArgList.h>
+#include <RooSimultaneous.h>
 
 #include <unordered_map>
 
@@ -58,8 +59,34 @@ namespace Detail {
 std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet const &normSet)
 {
    std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, normSet);
-   std::unordered_map<TNamed const *, RooAbsArg *> clonedArgsSet;
-   addServerClonesToList(*head, clonedArgsSet, normSet);
+
+   if (auto *simPdf = dynamic_cast<RooSimultaneous *>(head.get())) {
+      for (auto *cat : static_range_cast<RooAbsCategoryLValue *>(simPdf->flattenedCatList())) {
+
+         for (auto const &catState : *cat) {
+            std::string const &catName = catState.first;
+
+            RooArgList newServers;
+            if (RooAbsPdf *pdf = simPdf->getPdf(catName.c_str())) {
+
+               std::unique_ptr<RooArgSet> pdfNormSet(static_cast<RooArgSet *>(
+                  std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
+
+               std::unique_ptr<RooAbsArg> pdfClone = compileForNormSetImpl(*pdf, *pdfNormSet);
+               const std::string attrib = std::string("ORIGNAME:") + pdf->GetName();
+               pdfClone->setAttribute(attrib.c_str());
+
+               newServers.addOwned(std::move(pdfClone));
+            }
+            simPdf->redirectServers(newServers, false, true);
+
+            simPdf->addOwnedComponents(std::move(newServers));
+         }
+      }
+   } else {
+      std::unordered_map<TNamed const *, RooAbsArg *> clonedArgsSet;
+      addServerClonesToList(*head, clonedArgsSet, normSet);
+   }
 
    return head;
 }

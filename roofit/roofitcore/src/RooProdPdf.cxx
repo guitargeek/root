@@ -2332,18 +2332,28 @@ std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const& nor
   if(normSet.empty()) return nullptr;
   auto * pdfNset = findPdfNSet(static_cast<RooAbsPdf const&>(server));
   if (pdfNset && !pdfNset->empty()) {
+    std::unique_ptr<RooArgSet> out;
     if (0 == strcmp("cset", pdfNset->GetName())) {
       // If the name of the normalization set is "cset", it doesn't contain the
       // normalization set but the conditional observables that should *not* be
       // normalized over.
-      auto out = std::make_unique<RooArgSet>(normSet);
+      out = std::make_unique<RooArgSet>(normSet);
       RooArgSet common;
       out->selectCommon(*pdfNset, common);
       out->remove(common);
-      return out;
     } else {
-      return std::make_unique<RooArgSet>(*pdfNset);
+      out = std::make_unique<RooArgSet>(*pdfNset);
     }
+    // prefix also the arguments in the normSets if they have not already been
+    if (auto prefix = getStringAttribute("__prefix__")) {
+       for(RooAbsArg* arg : *out) {
+           if(!arg->getStringAttribute("__prefix__")) {
+              arg->SetName((std::string(prefix) + arg->GetName()).c_str());
+              arg->setStringAttribute("__prefix__",prefix);
+           }
+       }
+    }
+    return out;
   } else {
     return nullptr;
   }
@@ -2380,7 +2390,7 @@ public:
    }
 
    ExtendMode extendMode() const override { return _prodPdf->extendMode(); }
-   double expectedEvents(const RooArgSet *nset) const override { return _prodPdf->expectedEvents(nset); }
+   double expectedEvents(const RooArgSet * /*nset*/) const override { return _prodPdf->expectedEvents(&_normSet); }
 
    // Analytical Integration handling
    bool forceAnalyticalInt(const RooAbsArg &dep) const override { return _prodPdf->forceAnalyticalInt(dep); }
@@ -2439,6 +2449,7 @@ std::unique_ptr<RooAbsArg> RooProdPdf::compileForNormSet(RooArgSet const & normS
 
       auto nsetForServer = fillNormSetForServer(normSet, *server);
       RooArgSet const& nset = nsetForServer ? *nsetForServer : normSet;
+      //RooArgSet const& nset = normSet;
 
       auto depList = new RooArgSet; // INTENTIONAL LEAK FOR NOW!
       server->getObservables(&nset, *depList);

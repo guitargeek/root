@@ -39,7 +39,6 @@ std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, 
 
    // Prepare the NLL terms for each component
    RooArgList nllTerms;
-   RooArgSet newObservables;
    for (auto const &catState : simCat) {
       std::string const &catName = catState.first;
       RooAbsCategory::value_type catIndex = catState.second;
@@ -67,7 +66,7 @@ std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, 
          auto nll = std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), *pdf, observables, isExtended, offset,
                                                    binnedInfo.isBinnedL);
          // Rename the observables and weights
-         newObservables.add(nll->prefixArgNames(std::string("_") + catName + "_"));
+         nll->setPrefix(std::string("_") + catName + "_");
          nllTerms.addOwned(std::move(nll));
       }
    }
@@ -75,9 +74,6 @@ std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, 
    for (auto *nll : static_range_cast<RooNLLVarNew *>(nllTerms)) {
       nll->setSimCount(nllTerms.size());
    }
-
-   observables.clear();
-   observables.add(newObservables);
 
    // Time to sum the NLLs
    auto nll = std::make_unique<RooAddition>("mynll", "mynll", nllTerms);

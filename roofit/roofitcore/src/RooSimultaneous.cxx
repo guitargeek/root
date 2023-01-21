@@ -1166,3 +1166,51 @@ RooArgSet const& RooSimultaneous::flattenedCatList() const
    }
    return *_indexCatSet;
 }
+
+namespace {
+
+void prefixArgs(RooAbsArg* arg, std::string const& prefix, RooArgSet const& normSet)
+{
+   if(!arg->getStringAttribute("__prefix__")) {
+      arg->SetName((prefix + arg->GetName()).c_str());
+      arg->setStringAttribute("__prefix__",prefix.c_str());
+   }
+   for(RooAbsArg* server : arg->servers()) {
+      if(server->isFundamental() && normSet.find(*server)) {
+         prefixArgs(server, prefix, normSet);
+         server->setAttribute("__obs__");
+      } else if (!server->isFundamental()) {
+         prefixArgs(server, prefix, normSet);
+      }
+   }
+}
+
+} // namespace
+
+std::unique_ptr<RooAbsArg> RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const
+{
+    auto newArg = RooAbsPdf::compileForNormSet(normSet, serverNormSet);
+    RooArgList newPdfs;
+
+    for(auto * cat : static_range_cast<RooAbsCategoryLValue*>(flattenedCatList())) {
+
+        for(auto const& catState : *cat) {
+            std::string const &catName = catState.first;
+            const std::string prefix = "_" + catName + "_";
+
+            if (RooAbsPdf *pdf = getPdf(catName.c_str())) {
+               auto pdfClone = RooHelpers::cloneTreeWithSameParameters(*pdf, &normSet);
+               prefixArgs(pdfClone.get(), prefix, normSet);
+               const std::string attrib = std::string("ORIGNAME:") + pdf->GetName();
+               pdfClone->setAttribute(attrib.c_str());
+               newPdfs.addOwned(std::move(pdfClone));
+            }
+        }
+
+    }
+
+    newArg->redirectServers(newPdfs, false, true);
+    const_cast<RooSimultaneous*>(this)->addOwnedComponents(std::move(newPdfs));
+
+    return newArg;
+}
