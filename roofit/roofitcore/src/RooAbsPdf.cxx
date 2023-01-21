@@ -3631,8 +3631,12 @@ std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSe
    std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
    auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
 
+   // The direct servers are this pdf and the normalization integral, which
+   // don't need to be compiled further.
+   for(RooAbsArg * server : newArg->servers()) {
+      server->setAttribute("_COMPILED");
+   }
    newArg->setAttribute("_COMPILED");
-   pdfClone->setAttribute("_COMPILED");
    newArg->addOwnedComponents(std::move(pdfClone));
 
    return newArg;

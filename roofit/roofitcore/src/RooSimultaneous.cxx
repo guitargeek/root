@@ -1188,30 +1188,78 @@ void prefixArgs(RooAbsArg *arg, std::string const &prefix, RooArgSet const &norm
 } // namespace
 
 std::unique_ptr<RooAbsArg>
-RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const
+RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext &ctx) const
 {
-   auto newArg = RooAbsPdf::compileForNormSet(normSet, ctx);
-   auto *newSimPdf = static_cast<RooSimultaneous *>(newArg.get());
-   RooArgList newPdfs;
 
-   for (auto *cat : static_range_cast<RooAbsCategoryLValue *>(newSimPdf->flattenedCatList())) {
+   std::unique_ptr<RooAbsArg> head;
+   {
+      head = RooAbsPdf::compileForNormSet(normSet, ctx);
+      auto *newSimPdf = static_cast<RooSimultaneous *>(head.get());
+      RooArgList newPdfs;
+
+      for (auto *cat : static_range_cast<RooAbsCategoryLValue *>(newSimPdf->flattenedCatList())) {
+
+         for (auto const &catState : *cat) {
+            std::string const &catName = catState.first;
+            const std::string prefix = "_" + catName + "_";
+
+            if (RooAbsPdf *pdf = getPdf(catName.c_str())) {
+               auto pdfClone = RooHelpers::cloneTreeWithSameParameters(*pdf, &normSet);
+               prefixArgs(pdfClone.get(), prefix, normSet);
+               const std::string attrib = std::string("ORIGNAME:") + pdf->GetName();
+               pdfClone->setAttribute(attrib.c_str());
+               newPdfs.addOwned(std::move(pdfClone));
+            }
+         }
+      }
+
+      head->redirectServers(newPdfs, false, true);
+      const_cast<RooSimultaneous *>(this)->addOwnedComponents(std::move(newPdfs));
+   }
+
+   auto *simPdf = static_cast<RooSimultaneous *>(head.get());
+
+   RooArgList newServers;
+
+   for (auto *cat : static_range_cast<RooAbsCategoryLValue *>(simPdf->flattenedCatList())) {
 
       for (auto const &catState : *cat) {
          std::string const &catName = catState.first;
-         const std::string prefix = "_" + catName + "_";
 
-         if (RooAbsPdf *pdf = getPdf(catName.c_str())) {
-            auto pdfClone = RooHelpers::cloneTreeWithSameParameters(*pdf, &normSet);
-            prefixArgs(pdfClone.get(), prefix, normSet);
-            const std::string attrib = std::string("ORIGNAME:") + pdf->GetName();
-            pdfClone->setAttribute(attrib.c_str());
-            newPdfs.addOwned(std::move(pdfClone));
+         if (RooAbsPdf *pdf = simPdf->getPdf(catName.c_str())) {
+
+            auto binnedInfo = RooHelpers::getBinnedL(*pdf);
+
+            const std::string origname = pdf->GetName();
+            pdf = binnedInfo.actualPdf ? binnedInfo.actualPdf : pdf;
+
+            if (binnedInfo.isBinnedL) {
+               pdf->setAttribute("BinnedLikelihoodActive");
+            }
+
+            std::unique_ptr<RooArgSet> pdfNormSet(static_cast<RooArgSet *>(
+               std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
+
+            std::unique_ptr<RooAbsArg> pdfClone = RooFit::Detail::compileForNormSetImpl(*pdf, *pdfNormSet);
+
+            pdfClone->setAttribute(("ORIGNAME:" + origname).c_str());
+            newServers.addOwned(std::move(pdfClone));
          }
       }
    }
 
-   newArg->redirectServers(newPdfs, false, true);
-   const_cast<RooSimultaneous *>(this)->addOwnedComponents(std::move(newPdfs));
+   std::unique_ptr<RooAbsArg> indexCatClone = RooFit::Detail::compileForNormSetImpl(simPdf->indexCat(), normSet);
+   indexCatClone->setAttribute((std::string("ORIGNAME:") + indexCatClone->GetName()).c_str());
+   newServers.addOwned(std::move(indexCatClone));
 
-   return newArg;
+   simPdf->redirectServers(newServers, true, true);
+
+   // This hack is necessary because the owned components can't contain two
+   // args with the same name, as the container is a RooArgSet. We work
+   // around this by letting the first owned components own the new owned
+   // components.
+   // const_cast<RooArgSet &>(*simPdf->ownedComponents())[0]->addOwnedComponents(std::move(newServers));
+   newServers.releaseOwnership(); // INTENTIONAL LEAK FOR NOW!
+
+   return head;
 }
