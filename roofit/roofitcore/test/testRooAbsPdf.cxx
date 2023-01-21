@@ -16,6 +16,7 @@
 #include <RooProduct.h>
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>
+#include <RooSimWSTool.h>
 #include <RooWorkspace.h>
 
 #include <TClass.h>
@@ -181,7 +182,7 @@ TEST(RooAbsPdf, MultiRangeFit)
    for (auto *model : {static_cast<RooAbsPdf *>(&modelSimple), static_cast<RooAbsPdf *>(&modelExtended)}) {
 
       std::unique_ptr<RooAbsData> dataSet{model->generate(x, nEvents)};
-      std::unique_ptr<RooAbsData> dataHist{static_cast<RooDataSet&>(*dataSet).binnedClone()};
+      std::unique_ptr<RooAbsData> dataHist{static_cast<RooDataSet &>(*dataSet).binnedClone()};
 
       // loop over binned fit and unbinned fit
       for (auto *data : {dataSet.get(), dataHist.get()}) {
@@ -291,22 +292,18 @@ TEST(RooAbsPdf, ProblemsWith2DSimultaneousFit)
    ws.factory("ProdPdf::sig(sig_y, sig_x)");
 
    // Complete model
-   ws.factory("AddPdf::model({sig, sig_y, uniform2, uniform1}, {yield[100], yield, yield, yield})");
-
-   RooAbsPdf &model = *ws.pdf("model");
+   ws.factory("SUM::model(yield[100] * sig, yield * sig_y, yield * uniform2, yield * uniform1)");
 
    // Define category to distinguish d0 and d0bar samples events
-   RooCategory sample("sample", "sample", {{"cat0", 0}, {"cat1", 1}});
+   ws.import(RooCategory{"sample", "sample", {{"cat0", 0}, {"cat1", 1}}});
+
+   RooSimWSTool wst(ws);
+   wst.build("simPdf", "model", SplitParam("yield", "sample"));
 
    // Construct a dummy dataset
-   RooDataSet data("data", "data", RooArgSet(sample, *ws.var("x"), *ws.var("y")));
+   RooDataSet data("data", "data", {*ws.cat("sample"), *ws.var("x"), *ws.var("y")});
 
-   // Construct a simultaneous pdf using category sample as index
-   RooSimultaneous simPdf("simPdf", "simultaneous pdf", sample);
-   simPdf.addPdf(model, "cat0");
-   simPdf.addPdf(model, "cat1");
-
-   simPdf.fitTo(data, PrintLevel(-1));
+   ws.pdf("simPdf")->fitTo(data, PrintLevel(-1));
 }
 
 // Verifies that a server pdf gets correctly reevaluated when the normalization
