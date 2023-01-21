@@ -62,12 +62,14 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
    std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, normSet);
 
    if (auto *simPdf = dynamic_cast<RooSimultaneous *>(head.get())) {
+
+      RooArgList newServers;
+
       for (auto *cat : static_range_cast<RooAbsCategoryLValue *>(simPdf->flattenedCatList())) {
 
          for (auto const &catState : *cat) {
             std::string const &catName = catState.first;
 
-            RooArgList newServers;
             if (RooAbsPdf *pdf = simPdf->getPdf(catName.c_str())) {
 
                auto binnedInfo = RooHelpers::getBinnedL(*pdf);
@@ -83,15 +85,25 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
                   std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
 
                std::unique_ptr<RooAbsArg> pdfClone = compileForNormSetImpl(*pdf, *pdfNormSet);
-               pdfClone->setAttribute(("ORIGNAME:" + origname).c_str());
 
+               pdfClone->setAttribute(("ORIGNAME:" + origname).c_str());
                newServers.addOwned(std::move(pdfClone));
             }
-            simPdf->redirectServers(newServers, false, true);
-
-            simPdf->addOwnedComponents(std::move(newServers));
          }
       }
+
+      std::unique_ptr<RooAbsArg> indexCatClone = compileForNormSetImpl(simPdf->indexCat(), normSet);
+      indexCatClone->setAttribute((std::string("ORIGNAME:") + indexCatClone->GetName()).c_str());
+      newServers.addOwned(std::move(indexCatClone));
+
+      simPdf->redirectServers(newServers, true, true);
+
+      // This hack is necessary because the owned components can't contain two
+      // args with the same name, as the container is a RooArgSet. We work
+      // around this by letting the first owned components own the new owned
+      // components.
+      // const_cast<RooArgSet &>(*simPdf->ownedComponents())[0]->addOwnedComponents(std::move(newServers));
+      newServers.releaseOwnership(); // INTENTIONAL LEAK FOR NOW!
    } else {
       std::unordered_map<TNamed const *, RooAbsArg *> clonedArgsSet;
       addServerClonesToList(*head, clonedArgsSet, normSet);

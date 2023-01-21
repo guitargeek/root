@@ -2328,35 +2328,37 @@ void RooProdPdf::writeCacheToStream(std::ostream& os, RooArgSet const* nset) con
   getCacheElem(nset)->writeToStream(os);
 }
 
-std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const {
-  if(normSet.empty()) return nullptr;
-  auto * pdfNset = findPdfNSet(static_cast<RooAbsPdf const&>(server));
-  if (pdfNset && !pdfNset->empty()) {
-    std::unique_ptr<RooArgSet> out;
-    if (0 == strcmp("cset", pdfNset->GetName())) {
-      // If the name of the normalization set is "cset", it doesn't contain the
-      // normalization set but the conditional observables that should *not* be
-      // normalized over.
-      out = std::make_unique<RooArgSet>(normSet);
-      RooArgSet common;
-      out->selectCommon(*pdfNset, common);
-      out->remove(common);
-    } else {
-      out = std::make_unique<RooArgSet>(*pdfNset);
-    }
-    // prefix also the arguments in the normSets if they have not already been
-    if (auto prefix = getStringAttribute("__prefix__")) {
-       for(RooAbsArg* arg : *out) {
-           if(!arg->getStringAttribute("__prefix__")) {
-              arg->SetName((std::string(prefix) + arg->GetName()).c_str());
-              arg->setStringAttribute("__prefix__",prefix);
-           }
-       }
-    }
-    return out;
-  } else {
-    return nullptr;
-  }
+std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const &normSet, RooAbsArg const &server) const
+{
+   if (normSet.empty())
+      return nullptr;
+   auto *pdfNset = findPdfNSet(static_cast<RooAbsPdf const &>(server));
+   if (pdfNset && !pdfNset->empty()) {
+      std::unique_ptr<RooArgSet> out;
+      if (0 == strcmp("cset", pdfNset->GetName())) {
+         // If the name of the normalization set is "cset", it doesn't contain the
+         // normalization set but the conditional observables that should *not* be
+         // normalized over.
+         out = std::make_unique<RooArgSet>(normSet);
+         RooArgSet common;
+         out->selectCommon(*pdfNset, common);
+         out->remove(common);
+      } else {
+         out = std::make_unique<RooArgSet>(*pdfNset);
+      }
+      // prefix also the arguments in the normSets if they have not already been
+      if (auto prefix = getStringAttribute("__prefix__")) {
+         for (RooAbsArg *arg : *out) {
+            if (!arg->getStringAttribute("__prefix__")) {
+               arg->SetName((std::string(prefix) + arg->GetName()).c_str());
+               arg->setStringAttribute("__prefix__", prefix);
+            }
+         }
+      }
+      return out;
+   } else {
+      return nullptr;
+   }
 }
 
 /// A RooProdPdf with a fixed normalization set can be replaced by this class.
@@ -2365,17 +2367,17 @@ std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const& nor
 /// normalization set.
 class RooFixedProdPdf : public RooAbsPdf {
 public:
-   RooFixedProdPdf(std::unique_ptr<RooProdPdf> && prodPdf, RooArgSet const &normSet)
+   RooFixedProdPdf(std::unique_ptr<RooProdPdf> &&prodPdf, RooArgSet const &normSet)
       : RooAbsPdf(prodPdf->GetName(), prodPdf->GetTitle()), _normSet{normSet},
         _servers("!servers", "List of servers", this), _prodPdf{std::move(prodPdf)}
    {
-       initialize();
+      initialize();
    }
    RooFixedProdPdf(const RooFixedProdPdf &other, const char *name = nullptr)
       : RooAbsPdf(other, name), _normSet{other._normSet},
-        _servers("!servers", "List of servers", this), _prodPdf{static_cast<RooProdPdf*>(other._prodPdf->Clone())}
+        _servers("!servers", "List of servers", this), _prodPdf{static_cast<RooProdPdf *>(other._prodPdf->Clone())}
    {
-       initialize();
+      initialize();
    }
    TObject *clone(const char *newname) const override { return new RooFixedProdPdf(*this, newname); }
 
@@ -2413,7 +2415,8 @@ public:
    }
 
 private:
-   void initialize() {
+   void initialize()
+   {
       _cache = _prodPdf->createCacheElem(&_normSet, nullptr);
       auto &cache = *_cache;
 
@@ -2438,18 +2441,19 @@ private:
    std::unique_ptr<RooProdPdf> _prodPdf;
 };
 
-std::unique_ptr<RooAbsArg> RooProdPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& /*serverNormSet*/) const
+std::unique_ptr<RooAbsArg>
+RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooArgSet const & /*serverNormSet*/) const
 {
-   std::unique_ptr<RooProdPdf> prodPdfClone{static_cast<RooProdPdf*>(this->Clone())};
+   std::unique_ptr<RooProdPdf> prodPdfClone{static_cast<RooProdPdf *>(this->Clone())};
    prodPdfClone->setAttribute("_COMPILED");
 
    RooArgList newServers;
 
-   for(RooAbsArg * server : prodPdfClone->servers()) {
+   for (RooAbsArg *server : prodPdfClone->servers()) {
 
       auto nsetForServer = fillNormSetForServer(normSet, *server);
-      RooArgSet const& nset = nsetForServer ? *nsetForServer : normSet;
-      //RooArgSet const& nset = normSet;
+      RooArgSet const &nset = nsetForServer ? *nsetForServer : normSet;
+      // RooArgSet const& nset = normSet;
 
       auto depList = new RooArgSet; // INTENTIONAL LEAK FOR NOW!
       server->getObservables(&nset, *depList);
