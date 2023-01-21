@@ -24,6 +24,7 @@
 #include "RooAbsCache.h"
 #include "RooNameReg.h"
 #include "RooLinkedListIter.h"
+#include <NormalizationHelpers.h>
 #include <RooStringView.h>
 
 #include <deque>

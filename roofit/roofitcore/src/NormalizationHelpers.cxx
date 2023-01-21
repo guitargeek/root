@@ -19,31 +19,44 @@
 
 #include <unordered_map>
 
+void RooFit::CompileContext::add(RooAbsArg &arg)
+{
+   _clonedArgsSet.emplace(arg.namePtr(), &arg);
+}
+
+RooAbsArg *RooFit::CompileContext::request(RooAbsArg &arg) const
+{
+   auto existingServerClone = _clonedArgsSet.find(arg.namePtr());
+   if (existingServerClone != _clonedArgsSet.end()) {
+      return existingServerClone->second;
+   }
+   return nullptr;
+}
+
+RooFit::CompileContext::~CompileContext() {}
+
 namespace {
 
-using ArgMap = std::unordered_map<TNamed const *, RooAbsArg *>;
+RooAbsArg *jonas(RooAbsArg &arg, RooFit::CompileContext &context, RooAbsArg &owner, RooArgSet const &normSet);
 
-RooAbsArg *jonas(RooAbsArg &arg, ArgMap &clonedArgsSet, RooAbsArg &owner, RooArgSet const &normSet);
-
-void addServerClonesToList(RooAbsArg &arg, ArgMap &clonedArgsSet, RooArgSet const &normSet)
+void addServerClonesToList(RooAbsArg &arg, RooFit::CompileContext &context, RooArgSet const &normSet)
 {
    RooArgList serverClones;
    for (const auto server : arg.servers()) {
-      auto serverClone = jonas(*server, clonedArgsSet, arg, normSet);
+      auto serverClone = jonas(*server, context, arg, normSet);
       if (serverClone) {
          serverClones.add(*serverClone);
       } else {
-         addServerClonesToList(*server, clonedArgsSet, normSet);
+         addServerClonesToList(*server, context, normSet);
       }
    }
    arg.redirectServers(serverClones, false, true);
 }
 
-RooAbsArg *jonas(RooAbsArg &arg, ArgMap &clonedArgsSet, RooAbsArg &owner, RooArgSet const &normSet)
+RooAbsArg *jonas(RooAbsArg &arg, RooFit::CompileContext &context, RooAbsArg &owner, RooArgSet const &normSet)
 {
-   auto existingServerClone = clonedArgsSet.find(arg.namePtr());
-   if (existingServerClone != clonedArgsSet.end()) {
-      return existingServerClone->second;
+   if (auto existingServerClone = context.request(arg)) {
+      return existingServerClone;
    }
    if (arg.isFundamental() && !normSet.find(arg)) {
       return nullptr;
@@ -53,10 +66,10 @@ RooAbsArg *jonas(RooAbsArg &arg, ArgMap &clonedArgsSet, RooAbsArg &owner, RooArg
    }
 
    std::unique_ptr<RooAbsArg> newArg = arg.compileForNormSet(normSet, normSet);
-   addServerClonesToList(*newArg, clonedArgsSet, normSet);
+   addServerClonesToList(*newArg, context, normSet);
    const std::string attrib = std::string("ORIGNAME:") + arg.GetName();
    newArg->setAttribute(attrib.c_str());
-   clonedArgsSet.emplace(newArg->namePtr(), newArg.get());
+   context.add(*newArg);
    RooAbsArg *out = newArg.get();
    owner.addOwnedComponents(std::move(newArg));
    return out;
@@ -116,8 +129,8 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
       // const_cast<RooArgSet &>(*simPdf->ownedComponents())[0]->addOwnedComponents(std::move(newServers));
       newServers.releaseOwnership(); // INTENTIONAL LEAK FOR NOW!
    } else {
-      std::unordered_map<TNamed const *, RooAbsArg *> clonedArgsSet;
-      addServerClonesToList(*head, clonedArgsSet, normSet);
+      RooFit::CompileContext context;
+      addServerClonesToList(*head, context, normSet);
    }
 
    return head;
