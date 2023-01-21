@@ -21,34 +21,45 @@
 
 namespace {
 
-void addServerClonesToList(RooAbsArg &arg, std::unordered_map<TNamed const *, RooAbsArg *> &clonedArgsSet,
-                           RooArgSet const &normSet)
+using ArgMap = std::unordered_map<TNamed const *, RooAbsArg *>;
+
+RooAbsArg *jonas(RooAbsArg &arg, ArgMap &clonedArgsSet, RooAbsArg &owner, RooArgSet const &normSet);
+
+void addServerClonesToList(RooAbsArg &arg, ArgMap &clonedArgsSet, RooArgSet const &normSet)
 {
    RooArgList serverClones;
-   RooArgList owned;
    for (const auto server : arg.servers()) {
-      auto existingServerClone = clonedArgsSet.find(server->namePtr());
-      if (existingServerClone != clonedArgsSet.end()) {
-         serverClones.add(*existingServerClone->second);
-      } else if (!server->isFundamental() || normSet.find(*server)) {
-
-         if (!server->getAttribute("_COMPILED")) {
-
-            std::unique_ptr<RooAbsArg> serverClone = server->compileForNormSet(normSet, normSet);
-            addServerClonesToList(*serverClone, clonedArgsSet, normSet);
-            const std::string attrib = std::string("ORIGNAME:") + server->GetName();
-            serverClone->setAttribute(attrib.c_str());
-            clonedArgsSet.emplace(serverClone->namePtr(), serverClone.get());
-            serverClones.add(*serverClone);
-            owned.addOwned(std::move(serverClone));
-
-         } else {
-            addServerClonesToList(*server, clonedArgsSet, normSet);
-         }
+      auto serverClone = jonas(*server, clonedArgsSet, arg, normSet);
+      if (serverClone) {
+         serverClones.add(*serverClone);
+      } else {
+         addServerClonesToList(*server, clonedArgsSet, normSet);
       }
    }
    arg.redirectServers(serverClones, false, true);
-   arg.addOwnedComponents(std::move(owned));
+}
+
+RooAbsArg *jonas(RooAbsArg &arg, ArgMap &clonedArgsSet, RooAbsArg &owner, RooArgSet const &normSet)
+{
+   auto existingServerClone = clonedArgsSet.find(arg.namePtr());
+   if (existingServerClone != clonedArgsSet.end()) {
+      return existingServerClone->second;
+   }
+   if (arg.isFundamental() && !normSet.find(arg)) {
+      return nullptr;
+   }
+   if (arg.getAttribute("_COMPILED")) {
+      return nullptr;
+   }
+
+   std::unique_ptr<RooAbsArg> newArg = arg.compileForNormSet(normSet, normSet);
+   addServerClonesToList(*newArg, clonedArgsSet, normSet);
+   const std::string attrib = std::string("ORIGNAME:") + arg.GetName();
+   newArg->setAttribute(attrib.c_str());
+   clonedArgsSet.emplace(newArg->namePtr(), newArg.get());
+   RooAbsArg *out = newArg.get();
+   owner.addOwnedComponents(std::move(newArg));
+   return out;
 }
 
 } // namespace
