@@ -209,7 +209,7 @@ void RooFitDriver::setData(RooAbsData const &data, std::string const &rangeName,
             continue;
          }
          datas.emplace_back(std::string("_") + d->GetName() + "_", d);
-         isBinnedL.emplace_back(RooHelpers::getBinnedL(*simComponent).isBinnedL);
+         isBinnedL.emplace_back(simComponent->getAttribute("BinnedLikelihoodActive"));
          // The dataset need to be kept alive because the datamap points to their content
          _splittedDataSets.emplace_back(d);
       }

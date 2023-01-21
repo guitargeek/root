@@ -491,7 +491,7 @@ void RooAbsTestStatistic::initSimMode(RooSimultaneous* simpdf, RooAbsData* data,
       }
       cfg.rangeName = RooHelpers::getRangeNameForSimComponent(rangeName, _splitRange, catName);
       cfg.nCPU = _nCPU;
-      _gofArray.emplace_back(create(catName.c_str(),catName.c_str(),(binnedInfo.binnedPdf?*binnedInfo.binnedPdf:*pdf),*dset,*projDeps,cfg));
+      _gofArray.emplace_back(create(catName.c_str(),catName.c_str(),(binnedInfo.actualPdf?*binnedInfo.actualPdf:*pdf),*dset,*projDeps,cfg));
       // *** END HERE
 
       // Fill per-component split mode with Bulk Partition for now so that Auto will map to bulk-splitting of all components
@@ -501,7 +501,7 @@ void RooAbsTestStatistic::initSimMode(RooSimultaneous* simpdf, RooAbsData* data,
 
       // Servers may have been redirected between instantiation and (deferred) initialization
 
-      RooArgSet *actualParams = binnedInfo.binnedPdf ? binnedInfo.binnedPdf->getParameters(dset) : pdf->getParameters(dset);
+      RooArgSet *actualParams = binnedInfo.actualPdf ? binnedInfo.actualPdf->getParameters(dset) : pdf->getParameters(dset);
       RooArgSet* selTargetParams = (RooArgSet*) _paramSet.selectCommon(*actualParams);
 
       _gofArray.back()->recursiveRedirectServers(*selTargetParams);

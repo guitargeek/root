@@ -14,6 +14,7 @@
 
 #include <RooAbsArg.h>
 #include <RooArgList.h>
+#include <RooHelpers.h>
 #include <RooSimultaneous.h>
 
 #include <unordered_map>
@@ -69,12 +70,20 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
             RooArgList newServers;
             if (RooAbsPdf *pdf = simPdf->getPdf(catName.c_str())) {
 
+               auto binnedInfo = RooHelpers::getBinnedL(*pdf);
+
+               const std::string origname = pdf->GetName();
+               pdf = binnedInfo.actualPdf ? binnedInfo.actualPdf : pdf;
+
+               if (binnedInfo.isBinnedL) {
+                  pdf->setAttribute("BinnedLikelihoodActive");
+               }
+
                std::unique_ptr<RooArgSet> pdfNormSet(static_cast<RooArgSet *>(
                   std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
 
                std::unique_ptr<RooAbsArg> pdfClone = compileForNormSetImpl(*pdf, *pdfNormSet);
-               const std::string attrib = std::string("ORIGNAME:") + pdf->GetName();
-               pdfClone->setAttribute(attrib.c_str());
+               pdfClone->setAttribute(("ORIGNAME:" + origname).c_str());
 
                newServers.addOwned(std::move(pdfClone));
             }

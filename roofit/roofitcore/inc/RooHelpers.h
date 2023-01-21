@@ -151,7 +151,7 @@ std::unique_ptr<T> cloneTreeWithSameParameters(T const& arg, RooArgSet const* ob
 std::string getRangeNameForSimComponent(std::string const& rangeName, bool splitRange, std::string const& catName);
 
 struct BinnedLOutput {
-    RooAbsPdf * binnedPdf = nullptr;
+    RooAbsPdf * actualPdf = nullptr;
     bool isBinnedL = false;
 };
 

@@ -31,7 +31,7 @@ using ROOT::Experimental::RooNLLVarNew;
 
 namespace {
 
-std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, RooArgSet &observables, bool isExtended,
+std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, bool isExtended,
                                                  std::string const &rangeName, RooFit::OffsetMode offset,
                                                  bool splitRange)
 {
@@ -55,17 +55,14 @@ std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, 
       }
 
       if (RooAbsPdf *pdf = simPdf.getPdf(catName.c_str())) {
-         auto binnedInfo = RooHelpers::getBinnedL(*pdf);
-         if (binnedInfo.binnedPdf) {
-            pdf = binnedInfo.binnedPdf;
-         }
          auto name = std::string("nll_") + pdf->GetName();
          if (!rangeName.empty()) {
             pdf->setNormRange(RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, catName).c_str());
          }
-         auto nll = std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), *pdf, observables, isExtended, offset,
-                                                   binnedInfo.isBinnedL);
-         // Rename the observables and weights
+         std::unique_ptr<RooArgSet> observables(
+            static_cast<RooArgSet *>(std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
+         auto nll = std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), *pdf, *observables, isExtended, offset);
+         // Rename the special variables
          nll->setPrefix(std::string("_") + catName + "_");
          nllTerms.addOwned(std::move(nll));
       }
@@ -205,8 +202,7 @@ RooFit::BatchModeHelpers::createNLL(std::unique_ptr<RooAbsPdf> &&pdf, RooAbsData
    auto simPdf = dynamic_cast<RooSimultaneous *>(&finalPdf);
    if (simPdf) {
       simPdf->wrapPdfsInBinSamplingPdfs(data, integrateOverBinsPrecision);
-      // Warning! This mutates "observables"
-      nllTerms.addOwned(createSimultaneousNLL(*simPdf, observables, isExtended, rangeName, offset, splitRange));
+      nllTerms.addOwned(createSimultaneousNLL(*simPdf, isExtended, rangeName, offset, splitRange));
    } else {
       nllTerms.addOwned(
          std::make_unique<RooNLLVarNew>("RooNLLVarNew", "RooNLLVarNew", finalPdf, observables, isExtended, offset));

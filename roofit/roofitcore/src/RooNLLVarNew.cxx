@@ -77,10 +77,10 @@ RooRealVar *dummyVar(const char *name)
 \param isExtended Set to true if this is an extended fit
 **/
 RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsPdf &pdf, RooArgSet const &observables,
-                           bool isExtended, RooFit::OffsetMode offsetMode, bool binnedL)
+                           bool isExtended, RooFit::OffsetMode offsetMode)
    : RooAbsReal(name, title), _pdf{"pdf", "pdf", this, pdf}, _observables{getObs(pdf, observables)},
-     _isExtended{isExtended}, _binnedL{binnedL}, _weightVar{"weightVar", "weightVar", this, *dummyVar(weightVarName),
-                                                            true,        false,       true},
+     _isExtended{isExtended}, _binnedL{pdf.getAttribute("BinnedLikelihoodActive")},
+     _weightVar{"weightVar", "weightVar", this, *dummyVar(weightVarName), true, false, true},
      _weightSquaredVar{weightVarNameSumW2, weightVarNameSumW2, this, *dummyVar("weightSquardVar"), true, false, true},
      _binVolumeVar{"binVolumeVar", "binVolumeVar", this, *dummyVar("_bin_volume"), true, false, true}
 {
@@ -229,8 +229,7 @@ void RooNLLVarNew::computeBatch(cudaStream_t * /*stream*/, double *output, size_
 
 void RooNLLVarNew::getParametersHook(const RooArgSet * /*nset*/, RooArgSet *params, bool /*stripDisconnected*/) const
 {
-   // strip away the observables and weights
-   params->remove(_observables, true, true);
+   // strip away the special variables
    params->remove(RooArgList{*_weightVar, *_weightSquaredVar, *_binVolumeVar}, true, true);
 }
 
