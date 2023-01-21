@@ -3624,9 +3624,9 @@ bool RooAbsPdf::redirectServersHook(const RooAbsCollection & newServerList, bool
 }
 
 
-std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSet, RooFit::CompileContext & ctx) const {
    if(normSet.empty() || selfNormalized()) {
-      return RooAbsReal::compileForNormSet(normSet, serverNormSet);
+      return RooAbsReal::compileForNormSet(normSet, ctx);
    }
    std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
    auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);

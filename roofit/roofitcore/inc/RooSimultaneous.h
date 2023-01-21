@@ -94,7 +94,7 @@ public:
   RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype=nullptr,
                                   const RooArgSet* auxProto=nullptr, bool verbose= false) const override ;
 
-  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const override;
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const override;
 
   RooArgSet const& flattenedCatList() const;
 

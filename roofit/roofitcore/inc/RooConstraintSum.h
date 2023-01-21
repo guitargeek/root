@@ -43,7 +43,7 @@ public:
 
   void computeBatch(cudaStream_t*, double* output, size_t size, RooFit::Detail::DataMap const&) const override;
 
-  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const override;
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const override;
 
 protected:
 

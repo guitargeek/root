@@ -24,7 +24,7 @@ void RooFit::CompileContext::add(RooAbsArg &arg)
    _clonedArgsSet.emplace(arg.namePtr(), &arg);
 }
 
-RooAbsArg *RooFit::CompileContext::request(RooAbsArg &arg) const
+RooAbsArg *RooFit::CompileContext::find(RooAbsArg &arg) const
 {
    auto existingServerClone = _clonedArgsSet.find(arg.namePtr());
    if (existingServerClone != _clonedArgsSet.end()) {
@@ -35,27 +35,23 @@ RooAbsArg *RooFit::CompileContext::request(RooAbsArg &arg) const
 
 RooFit::CompileContext::~CompileContext() {}
 
-namespace {
-
-RooAbsArg *jonas(RooAbsArg &arg, RooFit::CompileContext &context, RooAbsArg &owner, RooArgSet const &normSet);
-
-void addServerClonesToList(RooAbsArg &arg, RooFit::CompileContext &context, RooArgSet const &normSet)
+void RooFit::CompileContext::compileServers(RooAbsArg &arg, RooArgSet const &normSet)
 {
-   RooArgList serverClones;
+   auto serverClones = std::make_unique<RooArgList>();
    for (const auto server : arg.servers()) {
-      auto serverClone = jonas(*server, context, arg, normSet);
+      auto serverClone = this->compile(*server, arg, normSet);
       if (serverClone) {
-         serverClones.add(*serverClone);
+         serverClones->add(*serverClone);
       } else {
-         addServerClonesToList(*server, context, normSet);
+         this->compileServers(*server, normSet);
       }
    }
-   arg.redirectServers(serverClones, false, true);
+   arg.redirectServers(*serverClones, false, true);
 }
 
-RooAbsArg *jonas(RooAbsArg &arg, RooFit::CompileContext &context, RooAbsArg &owner, RooArgSet const &normSet)
+RooAbsArg *RooFit::CompileContext::compile(RooAbsArg &arg, RooAbsArg &caller, RooArgSet const &normSet)
 {
-   if (auto existingServerClone = context.request(arg)) {
+   if (auto existingServerClone = this->find(arg)) {
       return existingServerClone;
    }
    if (arg.isFundamental() && !normSet.find(arg)) {
@@ -65,17 +61,15 @@ RooAbsArg *jonas(RooAbsArg &arg, RooFit::CompileContext &context, RooAbsArg &own
       return nullptr;
    }
 
-   std::unique_ptr<RooAbsArg> newArg = arg.compileForNormSet(normSet, normSet);
-   addServerClonesToList(*newArg, context, normSet);
+   std::unique_ptr<RooAbsArg> newArg = arg.compileForNormSet(normSet, *this);
+   this->compileServers(*newArg, normSet);
    const std::string attrib = std::string("ORIGNAME:") + arg.GetName();
    newArg->setAttribute(attrib.c_str());
-   context.add(*newArg);
+   this->add(*newArg);
    RooAbsArg *out = newArg.get();
-   owner.addOwnedComponents(std::move(newArg));
+   caller.addOwnedComponents(std::move(newArg));
    return out;
 }
-
-} // namespace
 
 namespace RooFit {
 
@@ -83,9 +77,10 @@ namespace Detail {
 
 std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet const &normSet)
 {
-   std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, normSet);
-
-   if (auto *simPdf = dynamic_cast<RooSimultaneous *>(head.get())) {
+   if (dynamic_cast<RooSimultaneous const *>(&arg)) {
+      RooFit::CompileContext ctx;
+      std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, ctx);
+      auto *simPdf = static_cast<RooSimultaneous *>(head.get());
 
       RooArgList newServers;
 
@@ -128,12 +123,14 @@ std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet
       // components.
       // const_cast<RooArgSet &>(*simPdf->ownedComponents())[0]->addOwnedComponents(std::move(newServers));
       newServers.releaseOwnership(); // INTENTIONAL LEAK FOR NOW!
-   } else {
-      RooFit::CompileContext context;
-      addServerClonesToList(*head, context, normSet);
-   }
 
-   return head;
+      return head;
+   } else {
+      RooFit::CompileContext ctx;
+      std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, ctx);
+      ctx.compileServers(*head, normSet);
+      return head;
+   }
 }
 
 } // namespace Detail

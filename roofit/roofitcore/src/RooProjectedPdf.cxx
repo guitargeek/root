@@ -279,7 +279,7 @@ void RooProjectedPdf::CacheElem::printCompactTreeHook(std::ostream& os, const ch
 }
 
 
-std::unique_ptr<RooAbsArg> RooProjectedPdf::compileForNormSet(RooArgSet const &normSet, RooArgSet const& /*serverNormSet*/) const
+std::unique_ptr<RooAbsArg> RooProjectedPdf::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & /*ctx*/) const
 {
   RooArgSet nset2;
   intpdf->getObservables(&normSet, nset2);

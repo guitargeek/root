@@ -2442,7 +2442,7 @@ private:
 };
 
 std::unique_ptr<RooAbsArg>
-RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooArgSet const & /*serverNormSet*/) const
+RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const
 {
    std::unique_ptr<RooProdPdf> prodPdfClone{static_cast<RooProdPdf *>(this->Clone())};
    prodPdfClone->setAttribute("_COMPILED");
@@ -2458,7 +2458,7 @@ RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooArgSet const & /*serv
       auto depList = new RooArgSet; // INTENTIONAL LEAK FOR NOW!
       server->getObservables(&nset, *depList);
 
-      auto clone = server->compileForNormSet(*depList, *depList);
+      auto clone = server->compileForNormSet(*depList, ctx);
       const std::string attrib = std::string("ORIGNAME:") + server->GetName();
       clone->setAttribute(attrib.c_str());
       newServers.addOwned(std::move(clone));

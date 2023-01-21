@@ -1188,9 +1188,9 @@ void prefixArgs(RooAbsArg *arg, std::string const &prefix, RooArgSet const &norm
 } // namespace
 
 std::unique_ptr<RooAbsArg>
-RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooArgSet const &serverNormSet) const
+RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const
 {
-   auto newArg = RooAbsPdf::compileForNormSet(normSet, serverNormSet);
+   auto newArg = RooAbsPdf::compileForNormSet(normSet, ctx);
    auto *newSimPdf = static_cast<RooSimultaneous *>(newArg.get());
    RooArgList newPdfs;
 

@@ -166,14 +166,14 @@ void RooRealSumFunc::printMetaArgs(std::ostream &os) const
    RooRealSumPdf::printMetaArgs(_funcList, _coefList, os);
 }
 
-std::unique_ptr<RooAbsArg> RooRealSumFunc::compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const
+std::unique_ptr<RooAbsArg> RooRealSumFunc::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const
 {
-   auto newArg = RooAbsReal::compileForNormSet(normSet, serverNormSet);
+   auto newArg = RooAbsReal::compileForNormSet(normSet, ctx);
 
    RooArgList newServers;
 
    for(RooAbsArg * server : newArg->servers()) {
-      newServers.addOwned(server->compileForNormSet({}, serverNormSet));
+      newServers.addOwned(server->compileForNormSet({}, ctx));
    }
 
    newArg->redirectServers(newServers, true);

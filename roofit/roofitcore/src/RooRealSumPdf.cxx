@@ -731,7 +731,7 @@ void RooRealSumPdf::printMetaArgs(RooArgList const& funcList, RooArgList const& 
   os << " " ;
 }
 
-//std::unique_ptr<RooAbsArg> RooRealSumPdf::compileForNormSet(RooArgSet const &normSet, RooArgSet const& serverNormSet) const
+//std::unique_ptr<RooAbsArg> RooRealSumPdf::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const
 //{
    //RooArgList newServers;
 

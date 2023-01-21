@@ -404,14 +404,14 @@ void RooAbsCachedPdf::computeBatch(cudaStream_t* stream, double* output, size_t 
 }
 
 
-std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooArgSet const& serverNormSet) const {
+std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & normSet, RooFit::CompileContext & ctx) const {
    std::unique_ptr<RooAbsArg> newArg;
    RooAbsArg * pdf = nullptr;
    if(normSet.empty()) {
-      newArg = RooAbsReal::compileForNormSet(normSet, serverNormSet);
+      newArg = RooAbsReal::compileForNormSet(normSet, ctx);
       pdf = newArg.get();
    } else {
-      std::unique_ptr<RooAbsArg> pdfClone = RooAbsPdf::compileForNormSet(normSet, serverNormSet);
+      std::unique_ptr<RooAbsArg> pdfClone = RooAbsPdf::compileForNormSet(normSet, ctx);
       newArg = std::make_unique<RooNormalizedPdf>(static_cast<RooAbsPdf&>(*pdfClone), normSet);
       newArg->setAttribute("_COMPILED");
       pdf = pdfClone.get();
@@ -421,7 +421,7 @@ std::unique_ptr<RooAbsArg> RooAbsCachedPdf::compileForNormSet(RooArgSet const & 
    RooArgList newServers;
    for(RooAbsArg * server : servers()) {
       if (!server->isFundamental() || normSet.find(*server)) {
-         newServers.addOwned(server->compileForNormSet({}, serverNormSet));
+         newServers.addOwned(server->compileForNormSet({}, ctx));
       }
    }
 
