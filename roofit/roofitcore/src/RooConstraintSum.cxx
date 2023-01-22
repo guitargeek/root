@@ -112,7 +112,7 @@ std::unique_ptr<RooAbsArg> RooConstraintSum::compileForNormSet(RooArgSet const &
          serverClones.add(*serverClone);
       }
    }
-   newArg->redirectServers(serverClones, true, true);
+   newArg->redirectServers(serverClones, false, true);
 
    return newArg;
 }

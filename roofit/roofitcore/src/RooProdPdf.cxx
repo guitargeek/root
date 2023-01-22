@@ -2459,7 +2459,7 @@ RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext &
          serverClones.add(*serverClone);
       }
    }
-   prodPdfClone->redirectServers(serverClones, true, true);
+   prodPdfClone->redirectServers(serverClones, false, true);
 
    auto fixedProdPdf = std::make_unique<RooFixedProdPdf>(std::move(prodPdfClone), normSet);
    fixedProdPdf->setAttribute("_COMPILED");
