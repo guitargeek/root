@@ -3624,11 +3624,14 @@ bool RooAbsPdf::redirectServersHook(const RooAbsCollection & newServerList, bool
 }
 
 
-std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSet, RooFit::CompileContext & ctx) const {
+std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSet, RooFit::CompileContext & ctx) const
+{
    if(normSet.empty() || selfNormalized()) {
       return RooAbsReal::compileForNormSet(normSet, ctx);
    }
    std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
+   ctx.compileServers(*pdfClone, normSet);
+
    auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
 
    // The direct servers are this pdf and the normalization integral, which
@@ -3638,6 +3641,5 @@ std::unique_ptr<RooAbsArg> RooAbsPdf::compileForNormSet(RooArgSet const & normSe
    }
    newArg->setAttribute("_COMPILED");
    newArg->addOwnedComponents(std::move(pdfClone));
-
    return newArg;
 }

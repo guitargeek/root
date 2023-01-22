@@ -96,9 +96,9 @@ public:
 
   std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const override;
 
-  RooArgSet const& flattenedCatList() const;
-
 protected:
+
+  RooArgSet const& flattenedCatList() const;
 
   void initialize(RooAbsCategoryLValue& inIndexCat, std::map<std::string,RooAbsPdf*> pdfMap) ;
 

@@ -2447,26 +2447,19 @@ RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext &
    std::unique_ptr<RooProdPdf> prodPdfClone{static_cast<RooProdPdf *>(this->Clone())};
    prodPdfClone->setAttribute("_COMPILED");
 
-   RooArgList newServers;
-
-   for (RooAbsArg *server : prodPdfClone->servers()) {
-
+   RooArgList serverClones;
+   for (const auto server : prodPdfClone->servers()) {
       auto nsetForServer = fillNormSetForServer(normSet, *server);
       RooArgSet const &nset = nsetForServer ? *nsetForServer : normSet;
-      // RooArgSet const& nset = normSet;
 
       auto depList = new RooArgSet; // INTENTIONAL LEAK FOR NOW!
       server->getObservables(&nset, *depList);
 
-      auto clone = server->compileForNormSet(*depList, ctx);
-      const std::string attrib = std::string("ORIGNAME:") + server->GetName();
-      clone->setAttribute(attrib.c_str());
-      newServers.addOwned(std::move(clone));
+      if (auto serverClone = ctx.compile(*server, *prodPdfClone, *depList)) {
+         serverClones.add(*serverClone);
+      }
    }
-
-   prodPdfClone->redirectServers(newServers, true, true);
-
-   prodPdfClone->addOwnedComponents(std::move(newServers));
+   prodPdfClone->redirectServers(serverClones, true, true);
 
    auto fixedProdPdf = std::make_unique<RooFixedProdPdf>(std::move(prodPdfClone), normSet);
    fixedProdPdf->setAttribute("_COMPILED");

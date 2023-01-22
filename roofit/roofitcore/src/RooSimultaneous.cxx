@@ -1240,7 +1240,7 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
             std::unique_ptr<RooArgSet> pdfNormSet(static_cast<RooArgSet *>(
                std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
 
-            std::unique_ptr<RooAbsArg> pdfClone = RooFit::Detail::compileForNormSetImpl(*pdf, *pdfNormSet);
+            std::unique_ptr<RooAbsPdf> pdfClone = RooFit::compileForNormSet(*pdf, *pdfNormSet);
 
             pdfClone->setAttribute(("ORIGNAME:" + origname).c_str());
             newServers.addOwned(std::move(pdfClone));
@@ -1248,7 +1248,7 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
       }
    }
 
-   std::unique_ptr<RooAbsArg> indexCatClone = RooFit::Detail::compileForNormSetImpl(simPdf->indexCat(), normSet);
+   auto indexCatClone = RooFit::compileForNormSet(simPdf->indexCat(), normSet);
    indexCatClone->setAttribute((std::string("ORIGNAME:") + indexCatClone->GetName()).c_str());
    newServers.addOwned(std::move(indexCatClone));
 

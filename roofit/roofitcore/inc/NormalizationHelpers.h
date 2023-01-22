@@ -25,28 +25,28 @@ namespace RooFit {
 
 class CompileContext {
 public:
+   CompileContext(RooArgSet const &topLevelNormSet);
+
    ~CompileContext();
 
-   RooAbsArg *compile(RooAbsArg &arg, RooAbsArg &caller, RooArgSet const &normSet);
+   RooAbsArg *compile(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet);
 
    void compileServers(RooAbsArg &arg, RooArgSet const &normSet);
 
 private:
    void add(RooAbsArg &arg);
    RooAbsArg *find(RooAbsArg &arg) const;
+
+   RooArgSet const &_topLevelNormSet;
    std::unordered_map<TNamed const *, RooAbsArg *> _clonedArgsSet;
 };
-
-namespace Detail {
-
-std::unique_ptr<RooAbsArg> compileForNormSetImpl(RooAbsArg const &arg, RooArgSet const &normSet);
-
-}
 
 template <class T>
 std::unique_ptr<T> compileForNormSet(T const &arg, RooArgSet const &normSet)
 {
-   return std::unique_ptr<T>{static_cast<T *>(Detail::compileForNormSetImpl(arg, normSet).release())};
+   RooFit::CompileContext ctx{normSet};
+   std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, ctx);
+   return std::unique_ptr<T>{static_cast<T *>(head.release())};
 }
 
 } // namespace RooFit

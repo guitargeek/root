@@ -2496,8 +2496,10 @@ void RooAbsArg::applyWeightSquared(bool flag) {
 }
 
 
-std::unique_ptr<RooAbsArg> RooAbsArg::compileForNormSet(RooArgSet const & normSet, RooFit::CompileContext & ctx) const {
+std::unique_ptr<RooAbsArg> RooAbsArg::compileForNormSet(RooArgSet const & normSet, RooFit::CompileContext & ctx) const
+{
    auto newArg = std::unique_ptr<RooAbsArg>{static_cast<RooAbsArg *>(Clone())};
    newArg->setAttribute("_COMPILED");
+   ctx.compileServers(*newArg, normSet);
    return newArg;
 }
