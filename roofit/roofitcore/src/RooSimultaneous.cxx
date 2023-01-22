@@ -1190,6 +1190,8 @@ void prefixArgs(RooAbsArg *arg, std::string const &prefix, RooArgSet const &norm
 std::unique_ptr<RooAbsArg>
 RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileContext & ctx) const
 {
+   RooArgSet params;
+   this->getParameters(&normSet, params);
 
    std::unique_ptr<RooSimultaneous> newSimPdf{static_cast<RooSimultaneous *>(this->Clone())};
 
@@ -1206,7 +1208,8 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
          if (RooAbsPdf *pdf = getPdf(catName.c_str())) {
             const std::string origname = pdf->GetName();
 
-            auto pdfClone = RooHelpers::cloneTreeWithSameParameters(*pdf, &normSet);
+            std::unique_ptr<RooAbsPdf> pdfClone{static_cast<RooAbsPdf*>(pdf->cloneTree())};
+
             prefixArgs(pdfClone.get(), prefix, normSet);
 
             auto binnedInfo = RooHelpers::getBinnedL(*pdfClone);
@@ -1225,6 +1228,10 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
             }
 
             auto * pdfFinal = RooFit::CompileContext{*pdfNormSet}.compile(*pdf, *newSimPdf, *pdfNormSet);
+            pdfFinal->fixAddCoefNormalization(*pdfNormSet, false);
+
+            pdfClone->SetName((std::string("_") + pdfClone->GetName()).c_str());
+            pdfFinal->addOwnedComponents(std::move(pdfClone));
 
             pdfFinal->setAttribute(("ORIGNAME:" + origname).c_str());
             newPdfs.add(*pdfFinal);
@@ -1235,6 +1242,8 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
    newSimPdf->redirectServers(newPdfs, false, true);
 
    ctx.compileServers(*newSimPdf, normSet); // to trigger compling also the index category
+
+   newSimPdf->recursiveRedirectServers(params);
 
    return newSimPdf;
 }
