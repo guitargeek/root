@@ -47,7 +47,7 @@ public:
    RooFitDriver(const RooAbsReal &absReal, RooFit::BatchModeOption batchMode = RooFit::BatchModeOption::Cpu);
 
    void setData(RooAbsData const &data, std::string const &rangeName = "", RooSimultaneous const *simPdf = nullptr,
-                bool splitRange = false, bool skipZeroWeights = false, bool takeGlobalObservablesFromData = true);
+                bool skipZeroWeights = false, bool takeGlobalObservablesFromData = true);
    void setData(DataSpansMap const &dataSpans);
 
    ~RooFitDriver();

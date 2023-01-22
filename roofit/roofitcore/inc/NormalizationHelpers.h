@@ -13,13 +13,13 @@
 #ifndef RooFit_NormalizationHelpers_h
 #define RooFit_NormalizationHelpers_h
 
-#include <TNamed.h>
-
 #include <memory>
 #include <unordered_map>
 
 class RooAbsArg;
 class RooArgSet;
+
+class TNamed;
 
 namespace RooFit {
 
@@ -29,11 +29,16 @@ public:
 
    ~CompileContext();
 
-   RooAbsArg *compile(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet);
+   template <class T>
+   T *compile(T &arg, RooAbsArg &owner, RooArgSet const &normSet)
+   {
+      return static_cast<T *>(compileImpl(arg, owner, normSet));
+   }
 
    void compileServers(RooAbsArg &arg, RooArgSet const &normSet);
 
 private:
+   RooAbsArg *compileImpl(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet);
    void add(RooAbsArg &arg);
    RooAbsArg *find(RooAbsArg &arg) const;
 

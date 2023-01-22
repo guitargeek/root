@@ -1193,6 +1193,9 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
 
    std::unique_ptr<RooSimultaneous> newSimPdf{static_cast<RooSimultaneous *>(this->Clone())};
 
+   const char* rangeName = newSimPdf->getStringAttribute("RangeName");
+   bool splitRange = newSimPdf->getAttribute("SplitRange");
+
    RooArgSet newPdfs;
    for (auto *cat : static_range_cast<RooAbsCategoryLValue *>(newSimPdf->flattenedCatList())) {
 
@@ -1216,6 +1219,10 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::CompileCont
 
             std::unique_ptr<RooArgSet> pdfNormSet(static_cast<RooArgSet *>(
                std::unique_ptr<RooArgSet>(pdf->getVariables())->selectByAttrib("__obs__", true)));
+
+            if(rangeName) {
+               pdf->setNormRange(RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, catName).c_str());
+            }
 
             auto * pdfFinal = RooFit::CompileContext{*pdfNormSet}.compile(*pdf, *newSimPdf, *pdfNormSet);
 

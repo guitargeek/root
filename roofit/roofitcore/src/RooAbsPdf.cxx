@@ -1133,7 +1133,14 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
     getObservables(data.get(), *normSet);
     normSet->remove(projDeps, true, true);
 
+    this->setAttribute("SplitRange", splitRange);
+    this->setStringAttribute("RangeName", rangeName);
+
     std::unique_ptr<RooAbsPdf> pdfClone = RooFit::compileForNormSet(*this, *normSet);
+
+    // reset attributes
+    this->setAttribute("SplitRange", false);
+    this->setStringAttribute("RangeName", nullptr);
 
     // Reset the normalization range
     _normRange = oldNormRange;
@@ -1160,7 +1167,6 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
                                                pc.getDouble("IntegrateBins"),
                                                batchMode,
                                                offset,
-                                               static_cast<bool>(splitRange),
                                                takeGlobalObservablesFromData).release();
   }
 

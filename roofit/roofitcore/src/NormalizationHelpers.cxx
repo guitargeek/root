@@ -16,6 +16,8 @@
 #include <RooArgList.h>
 #include <RooArgSet.h>
 
+#include <TNamed.h>
+
 RooFit::CompileContext::CompileContext(RooArgSet const &topLevelNormSet) : _topLevelNormSet{topLevelNormSet} {}
 
 RooFit::CompileContext::~CompileContext() {}
@@ -45,7 +47,7 @@ void RooFit::CompileContext::compileServers(RooAbsArg &arg, RooArgSet const &nor
    arg.redirectServers(serverClones, false, true);
 }
 
-RooAbsArg *RooFit::CompileContext::compile(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet)
+RooAbsArg *RooFit::CompileContext::compileImpl(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet)
 {
    if (auto existingServerClone = this->find(arg)) {
       return existingServerClone;

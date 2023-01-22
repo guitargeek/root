@@ -194,10 +194,11 @@ RooFitDriver::RooFitDriver(const RooAbsReal &absReal, RooFit::BatchModeOption ba
 }
 
 void RooFitDriver::setData(RooAbsData const &data, std::string const &rangeName, RooSimultaneous const *simPdf,
-                           bool splitRange, bool skipZeroWeights, bool takeGlobalObservablesFromData)
+                           bool skipZeroWeights, bool takeGlobalObservablesFromData)
 {
    std::vector<std::pair<std::string, RooAbsData const *>> datas;
    std::vector<bool> isBinnedL;
+   bool splitRange = false;
 
    if (simPdf) {
       _splittedDataSets.clear();
@@ -213,6 +214,7 @@ void RooFitDriver::setData(RooAbsData const &data, std::string const &rangeName,
          // The dataset need to be kept alive because the datamap points to their content
          _splittedDataSets.emplace_back(d);
       }
+      splitRange = simPdf->getAttribute("SplitRange");
    } else {
       datas.emplace_back("", &data);
       isBinnedL.emplace_back(false);
