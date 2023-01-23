@@ -740,7 +740,10 @@ std::unique_ptr<RooAbsArg> RooRealSumPdf::compileForNormSet(RooArgSet const &nor
    std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf*>(this->Clone()));
    ctx.compileServers(*pdfClone, {});
 
-   auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, normSet);
+   auto depList = new RooArgSet; // INTENTIONAL LEAK FOR NOW!
+   pdfClone->getObservables(&normSet, *depList);
+
+   auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, *depList);
 
    // The direct servers are this pdf and the normalization integral, which
    // don't need to be compiled further.
