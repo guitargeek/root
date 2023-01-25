@@ -49,7 +49,7 @@ protected:
   /// No shape recomputation is necessary. This category does not depend on other categories.
   void recomputeShape() override { }
 
-  ClassDefOverride(RooThresholdCategory, 3) // Real-to-Category function defined by series of thresholds
+  ClassDefOverride(RooThresholdCategory, 3); // Real-to-Category function defined by series of thresholds
 };
 
 #endif

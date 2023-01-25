@@ -58,7 +58,7 @@ protected:
   RooAbsBinning* _input{nullptr};    ///< Input binning
   mutable double *_array{nullptr}; ///<! Array of transformed bin boundaries
 
-  ClassDefOverride(RooLinTransBinning,1) // Linear transformation of binning specification
+  ClassDefOverride(RooLinTransBinning,1); // Linear transformation of binning specification
 };
 
 #endif

@@ -184,7 +184,7 @@ private:
 
   RooMCStudy* _mcs ; ///< Pointer to RooMCStudy object module is attached to
 
-  ClassDefOverride(RooAbsMCStudyModule,0) // Monte Carlo study manager add-on module
+  ClassDefOverride(RooAbsMCStudyModule,0); // Monte Carlo study manager add-on module
 } ;
 
 

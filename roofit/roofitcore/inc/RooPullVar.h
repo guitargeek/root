@@ -39,7 +39,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooPullVar,1) // Calculation of pull of measurement w.r.t a truth value
+  ClassDefOverride(RooPullVar,1); // Calculation of pull of measurement w.r.t a truth value
 };
 
 #endif

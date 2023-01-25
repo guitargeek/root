@@ -222,7 +222,7 @@ protected:
 
   Int_t _debugCode ;
 
-  ClassDefOverride(RooMsgService,0) // RooFit Message Service Singleton class
+  ClassDefOverride(RooMsgService,0); // RooFit Message Service Singleton class
 };
 
 #endif

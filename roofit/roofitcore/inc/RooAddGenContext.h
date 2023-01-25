@@ -64,7 +64,7 @@ protected:
   bool _isModel ;                 ///< Are we generating from a RooAddPdf or a RooAddModel
   AddCacheElem* _pcache = nullptr;   ///<! RooAddPdf cache element
 
-  ClassDefOverride(RooAddGenContext,0) // Specialized context for generating a dataset from a RooAddPdf
+  ClassDefOverride(RooAddGenContext,0); // Specialized context for generating a dataset from a RooAddPdf
 };
 
 

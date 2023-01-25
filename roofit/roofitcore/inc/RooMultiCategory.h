@@ -53,7 +53,7 @@ protected:
   RooSetProxy _catSet ; ///< Set of input category
 
   friend class RooSuperCategory;
-  ClassDefOverride(RooMultiCategory,1) // Product operator for categories
+  ClassDefOverride(RooMultiCategory,1); // Product operator for categories
 };
 
 #endif

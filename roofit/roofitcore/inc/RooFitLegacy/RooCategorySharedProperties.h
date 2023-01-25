@@ -49,7 +49,7 @@ protected:
 
   RooLinkedList _altRanges ;  ///< Optional alternative ranges
 
-  ClassDefOverride(RooCategorySharedProperties,1) // Shared properties of a RooCategory clone set
+  ClassDefOverride(RooCategorySharedProperties,1); // Shared properties of a RooCategory clone set
 };
 
 

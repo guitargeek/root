@@ -163,7 +163,7 @@ private:
       }
    }
 
-   ClassDefOverride(RooCollectionProxy, 1)
+   ClassDefOverride(RooCollectionProxy, 1);
 };
 
 ////////////////////////////////////////////////////////////////////////////////

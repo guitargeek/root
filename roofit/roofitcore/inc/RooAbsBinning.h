@@ -122,7 +122,7 @@ public:
 
 protected:
 
-  ClassDefOverride(RooAbsBinning,2) // Abstract base class for binning specification
+  ClassDefOverride(RooAbsBinning,2); // Abstract base class for binning specification
 };
 
 #endif

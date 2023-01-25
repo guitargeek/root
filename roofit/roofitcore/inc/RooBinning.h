@@ -85,7 +85,7 @@ protected:
   mutable double* _array;          ///<! Array of boundaries
   mutable Int_t _blo;                ///<! bin number for _xlo
 
-  ClassDefOverride(RooBinning,3) // Generic binning specification
+  ClassDefOverride(RooBinning,3); // Generic binning specification
 };
 
 #endif

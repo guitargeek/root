@@ -52,7 +52,7 @@ protected:
   RooDataHist* _hist ;          ///< Histogram
   bool _expectedData ;        ///< Asimov?
 
-  ClassDefOverride(RooBinnedGenContext,0) // Specialized context for generating a dataset from a binned pdf
+  ClassDefOverride(RooBinnedGenContext,0); // Specialized context for generating a dataset from a binned pdf
 };
 
 #endif

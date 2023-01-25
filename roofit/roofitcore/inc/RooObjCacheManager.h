@@ -60,7 +60,7 @@ protected:
 
   static bool _clearObsList ; ///< Clear obslist on sterilize?
 
-  ClassDefOverride(RooObjCacheManager,3) ///< Cache manager for generic caches that contain RooAbsArg objects
+  ClassDefOverride(RooObjCacheManager,3); ///< Cache manager for generic caches that contain RooAbsArg objects
 } ;
 
 

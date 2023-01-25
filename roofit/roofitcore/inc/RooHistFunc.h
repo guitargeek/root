@@ -118,7 +118,7 @@ protected:
   mutable double _totVolume = 0.0;             ///<! Total volume of space (product of ranges of observables)
   bool _unitNorm = false;                      ///<! Assume contents is unit normalized (for use as pdf cache)
 
-  ClassDefOverride(RooHistFunc,2) // Histogram based function
+  ClassDefOverride(RooHistFunc,2); // Histogram based function
 };
 
 #endif

@@ -71,7 +71,7 @@ public:
   RooArgSet* _params ; ///<!
   RooArgSet* _initParams; ///<!
 
-  ClassDefOverride(RooGenFitStudy,1) // Generate-and-Fit study module
+  ClassDefOverride(RooGenFitStudy,1); // Generate-and-Fit study module
 } ;
 
 

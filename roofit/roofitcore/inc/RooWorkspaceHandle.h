@@ -31,7 +31,7 @@ public:
    ///Retrieve the workspace.
    virtual RooWorkspace *GetWS() const = 0;
 
-   ClassDef(RooWorkspaceHandle, 0)
+   ClassDef(RooWorkspaceHandle, 0);
 };
 
 #endif /* ROOFIT_ROOFITCORE_INC_ROOWORKSPACEHANDLE_H_ */

@@ -200,7 +200,7 @@ protected:
 
   std::vector<std::pair<std::string,int> > _statusHistory ; ///< History of status codes
 
-  ClassDefOverride(RooFitResult,5) // Container class for fit result
+  ClassDefOverride(RooFitResult,5); // Container class for fit result
 };
 
 #endif

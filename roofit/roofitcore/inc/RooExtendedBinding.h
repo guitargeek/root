@@ -29,7 +29,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooExtendedBinding,1) // Your description goes here...
+  ClassDefOverride(RooExtendedBinding,1); // Your description goes here...
 };
 
 #endif

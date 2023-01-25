@@ -52,7 +52,7 @@ protected:
     return *this ;
   }
 
-  ClassDefOverride(RooDataHistSliceIter,0) // Iterator over a one-dimensional slice of a RooDataHist
+  ClassDefOverride(RooDataHistSliceIter,0); // Iterator over a one-dimensional slice of a RooDataHist
 };
 
 #endif

@@ -50,7 +50,7 @@ protected:
 
   double evaluate() const override { return 1 ; }
 
-  ClassDefOverride(RooChangeTracker,1) // Meta object that tracks changes in set of other arguments
+  ClassDefOverride(RooChangeTracker,1); // Meta object that tracks changes in set of other arguments
 };
 
 #endif

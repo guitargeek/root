@@ -69,7 +69,7 @@ public:
     std::map<TString,Int_t> _catRefParams ; ///< Names and values of discrete-valued reference parameters
     TString _ownerName ; ///< Name of RooAbsArg object that is associated to cache contents
 
-    ClassDef(ExpensiveObject,2) ; // Cache element containing expensive object and parameter values for which object is valid
+    ClassDef(ExpensiveObject,2); // Cache element containing expensive object and parameter values for which object is valid
 } ;
 
 
@@ -80,7 +80,7 @@ protected:
   std::map<TString,ExpensiveObject*> _map ;
 
 
-  ClassDefOverride(RooExpensiveObjectCache,2) // Singleton class that serves as session repository for expensive objects
+  ClassDefOverride(RooExpensiveObjectCache,2); // Singleton class that serves as session repository for expensive objects
 };
 
 #endif

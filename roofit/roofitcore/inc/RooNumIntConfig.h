@@ -83,7 +83,7 @@ protected:
   RooCategory _methodNDOpen ; ///< Selects integration method for open ended ND integrals
   RooLinkedList _configSets ; ///< List of configuration sets for individual integration methods
 
-  ClassDefOverride(RooNumIntConfig,1) // Numeric Integrator configuration
+  ClassDefOverride(RooNumIntConfig,1); // Numeric Integrator configuration
 };
 
 #endif

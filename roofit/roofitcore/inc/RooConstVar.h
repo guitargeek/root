@@ -60,7 +60,7 @@ protected:
     return _value;
   }
 
-  ClassDefOverride(RooConstVar,2) // Constant RooAbsReal value object
+  ClassDefOverride(RooConstVar,2); // Constant RooAbsReal value object
 };
 
 #endif

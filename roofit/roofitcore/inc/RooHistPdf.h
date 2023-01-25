@@ -141,7 +141,7 @@ private:
                                              double xlo,
                                              double xhi);
 
-  ClassDefOverride(RooHistPdf,4) // Histogram based PDF
+  ClassDefOverride(RooHistPdf,4); // Histogram based PDF
 };
 
 #endif

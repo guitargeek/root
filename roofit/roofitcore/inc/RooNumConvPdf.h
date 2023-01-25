@@ -75,7 +75,7 @@ protected:
 
   friend class RooConvGenContext ;
 
-  ClassDefOverride(RooNumConvPdf,1)     // Operator PDF implementing numeric convolution of 2 input PDFs
+  ClassDefOverride(RooNumConvPdf,1);     // Operator PDF implementing numeric convolution of 2 input PDFs
 };
 
 #endif

@@ -60,7 +60,7 @@ class RooRefArray : public TObjArray {
   RooRefArray& operator=(const RooRefArray& other) = default;
   ~RooRefArray() override {} ;
  protected:
-  ClassDefOverride(RooRefArray,1) // Helper class for proxy lists
+  ClassDefOverride(RooRefArray,1); // Helper class for proxy lists
 } ;
 
 class RooAbsArg;
@@ -746,7 +746,7 @@ private:
   static std::stack<RooAbsArg*> _ioReadStack ; // reading stack
   /// \endcond
 
-  ClassDefOverride(RooAbsArg,9) // Abstract variable
+  ClassDefOverride(RooAbsArg,9); // Abstract variable
 };
 
 std::ostream& operator<<(std::ostream& os, const RooAbsArg &arg);

@@ -43,7 +43,7 @@ public:
 
 protected:
 
-  ClassDef(RooAbsLValue,1) // Abstract variable
+  ClassDef(RooAbsLValue,1); // Abstract variable
 };
 
 #endif

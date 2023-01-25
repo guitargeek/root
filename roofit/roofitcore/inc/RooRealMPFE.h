@@ -84,7 +84,7 @@ public:
   mutable bool _retrieveDispatched ; ///<!
   mutable double _evalCarry; ///<!
 
-  ClassDefOverride(RooRealMPFE,2) // Multi-process front-end for parallel calculation of a real valued function
+  ClassDefOverride(RooRealMPFE,2); // Multi-process front-end for parallel calculation of a real valued function
 };
 
 #endif

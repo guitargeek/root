@@ -50,7 +50,7 @@ protected:
   RooRealProxy _convPdf ; ///< RooAbsAnaConv object implementing our coefficient
   Int_t    _coefIdx  ;    ///< Index code of the coefficient
 
-  ClassDefOverride(RooConvCoefVar,1) // Auxiliary class representing the coefficient of a RooAbsAnaConvPdf as a RooAbsReal
+  ClassDefOverride(RooConvCoefVar,1); // Auxiliary class representing the coefficient of a RooAbsAnaConvPdf as a RooAbsReal
 };
 
 #endif

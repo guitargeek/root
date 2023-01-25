@@ -71,7 +71,7 @@ and increment the class version of the owner.
 // In .h: Declare member
 RooRealProxy pdfProxy;
 
-ClassDefOverride(MyPdf, 1)
+ClassDefOverride(MyPdf, 1);
 };
 
 // In .cxx: Initialise proxy in constructor
@@ -94,7 +94,7 @@ pdf->fitTo(...);
 // In .h: Declare member
 RooTemplateProxy<RooAbsPdf> pdfProxy;
 
-ClassDefOverride(MyPdf, 2)
+ClassDefOverride(MyPdf, 2);
 };
 
 // In .cxx: Initialise proxy in constructor
@@ -379,7 +379,7 @@ private:
     return real.getVal(_nset);
   }
 
-  ClassDefOverride(RooTemplateProxy,1) // Proxy for a RooAbsReal object
+  ClassDefOverride(RooTemplateProxy,1); // Proxy for a RooAbsReal object
 };
 
 #endif

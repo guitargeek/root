@@ -282,7 +282,7 @@ public:
     bool _openTrans = false; ///<! Is there a transaction open?
     RooArgSet _sandboxNodes; ///<! Sandbox for incoming objects in a transaction
 
-    ClassDefOverride(RooWorkspace, 8) // Persistable project container for (composite) pdfs, functions, variables and datasets
+    ClassDefOverride(RooWorkspace, 8); // Persistable project container for (composite) pdfs, functions, variables and datasets
 } ;
 
 #endif

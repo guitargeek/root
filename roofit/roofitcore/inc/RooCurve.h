@@ -90,7 +90,7 @@ protected:
 
   bool _showProgress ; ///<! Show progress indication when adding points
 
-  ClassDefOverride(RooCurve,1) // 1-dimensional smooth curve for use in RooPlots
+  ClassDefOverride(RooCurve,1); // 1-dimensional smooth curve for use in RooPlots
 };
 
 #endif

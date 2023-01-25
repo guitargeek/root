@@ -67,7 +67,7 @@ protected:
   RooRealProxy _slope ;                    ///< Slope of transformation
   RooRealProxy _offset ;                   ///< Offset of transformation
 
-  ClassDefOverride(RooLinearVar,2) // Lvalue linear transformation function
+  ClassDefOverride(RooLinearVar,2); // Lvalue linear transformation function
 };
 
 #endif

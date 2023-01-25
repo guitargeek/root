@@ -60,7 +60,7 @@ protected:
 
   bool initialize();
 
-  ClassDefOverride(RooSegmentedIntegrator1D,0) // 1-dimensional piece-wise numerical integration engine
+  ClassDefOverride(RooSegmentedIntegrator1D,0); // 1-dimensional piece-wise numerical integration engine
 };
 
 #endif

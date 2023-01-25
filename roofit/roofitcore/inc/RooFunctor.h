@@ -59,7 +59,7 @@ protected:
   Int_t           _npar ;       ///<! Number of parameters ;
   Int_t           _nobs ;       ///<! Number of observables ;
 
-  ClassDef(RooFunctor,0) // Export RooAbsReal as functor
+  ClassDef(RooFunctor,0); // Export RooAbsReal as functor
 };
 
 #endif

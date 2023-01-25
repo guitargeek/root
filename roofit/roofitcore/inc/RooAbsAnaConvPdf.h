@@ -117,7 +117,7 @@ protected:
 
   mutable RooAICRegistry _codeReg ;         ///<! Registry of analytical integration codes
 
-  ClassDefOverride(RooAbsAnaConvPdf,3) // Abstract Composite Convoluted PDF
+  ClassDefOverride(RooAbsAnaConvPdf,3); // Abstract Composite Convoluted PDF
 };
 
 #endif

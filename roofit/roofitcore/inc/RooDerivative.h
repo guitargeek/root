@@ -56,7 +56,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooDerivative,1) // Representation of derivative of any RooAbsReal
+  ClassDefOverride(RooDerivative,1); // Representation of derivative of any RooAbsReal
 };
 
 #endif

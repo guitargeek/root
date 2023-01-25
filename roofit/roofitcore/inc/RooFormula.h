@@ -93,7 +93,7 @@ private:
   std::vector<bool> _isCategory; ///<! Whether an element of the _origList is a category.
   std::unique_ptr<TFormula> _tFormula; ///<! The formula used to compute values
 
-  ClassDefOverride(RooFormula,0)
+  ClassDefOverride(RooFormula,0);
 };
 
 #endif

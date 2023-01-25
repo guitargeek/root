@@ -179,7 +179,7 @@ public:
 
   RooArgSet _attachedBuffers ; ///<! Currently attached buffers (if different from _varsww)
 
-  ClassDefOverride(RooTreeDataStore, 2) // TTree-based Data Storage class
+  ClassDefOverride(RooTreeDataStore, 2); // TTree-based Data Storage class
 };
 
 

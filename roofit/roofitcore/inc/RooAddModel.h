@@ -127,7 +127,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooAddModel,3) // Resolution model representing a sum of resolution models
+  ClassDefOverride(RooAddModel,3); // Resolution model representing a sum of resolution models
 };
 
 #endif

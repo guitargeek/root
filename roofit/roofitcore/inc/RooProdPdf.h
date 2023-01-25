@@ -190,7 +190,7 @@ private:
 
 
 
-  ClassDefOverride(RooProdPdf,6) // PDF representing a product of PDFs
+  ClassDefOverride(RooProdPdf,6); // PDF representing a product of PDFs
 };
 
 

@@ -55,7 +55,7 @@ protected:
   const TNamed* _rangeName ;         ///< Name of subset range
 
 
-  ClassDefOverride(RooExtendPdf,2) // Wrapper p.d.f adding an extended likelihood term to an existing p.d.f
+  ClassDefOverride(RooExtendPdf,2); // Wrapper p.d.f adding an extended likelihood term to an existing p.d.f
 };
 
 #endif

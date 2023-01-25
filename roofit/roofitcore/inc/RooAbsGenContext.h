@@ -86,7 +86,7 @@ protected:
 
   RooDataSet* _genData ;        ///<! Data being generated
 
-  ClassDefOverride(RooAbsGenContext,0) // Abstract context for generating a dataset from a PDF
+  ClassDefOverride(RooAbsGenContext,0); // Abstract context for generating a dataset from a PDF
 };
 
 #endif

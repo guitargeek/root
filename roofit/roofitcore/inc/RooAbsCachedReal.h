@@ -113,7 +113,7 @@ private:
 
   bool _disableCache ; // Flag to run object in passthrough (= non-caching mode)
 
-  ClassDefOverride(RooAbsCachedReal,1) // Abstract base class for cached p.d.f.s
+  ClassDefOverride(RooAbsCachedReal,1); // Abstract base class for cached p.d.f.s
 };
 
 #endif

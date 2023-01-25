@@ -93,7 +93,7 @@ public:
   mutable RooArgSet* _nset{nullptr}; ///<! Normalization set to be passed along to contents
   TString _formExpr ;            ///< Formula expression string
 
-  ClassDefOverride(RooFormulaVar,1) // Real-valued function of other RooAbsArgs calculated by a TFormula expression
+  ClassDefOverride(RooFormulaVar,1); // Real-valued function of other RooAbsArgs calculated by a TFormula expression
 };
 
 #endif

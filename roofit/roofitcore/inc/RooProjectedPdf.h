@@ -66,7 +66,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooProjectedPdf,1) // Operator p.d.f calculating projection of another p.d.f
+  ClassDefOverride(RooProjectedPdf,1); // Operator p.d.f calculating projection of another p.d.f
 };
 
 #endif

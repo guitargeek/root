@@ -46,7 +46,7 @@ protected:
   RooRealProxy _effFunc ; ///< Efficiency modeling function
   TString _sigCatName ;   ///< Name of accept state of accept/reject category
 
-  ClassDefOverride(RooEfficiency,1) // Generic PDF defined by string expression and list of variables
+  ClassDefOverride(RooEfficiency,1); // Generic PDF defined by string expression and list of variables
 };
 
 #endif

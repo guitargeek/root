@@ -96,7 +96,7 @@ protected:
   // Forbidden
   RooLinkedListElem(const RooLinkedListElem&) ;
 
-  ClassDef(RooLinkedListElem,1) // Element of RooLinkedList container class
+  ClassDef(RooLinkedListElem,1); // Element of RooLinkedList container class
 } ;
 
 

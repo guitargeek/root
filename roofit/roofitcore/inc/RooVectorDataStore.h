@@ -334,7 +334,7 @@ public:
     double* _nativeBuf ; ///<!
     RooChangeTracker* _tracker ;
     RooArgSet* _nset ; ///<!
-    ClassDef(RealVector,1) // STL-vector-based Data Storage class
+    ClassDef(RealVector,1); // STL-vector-based Data Storage class
   } ;
 
 
@@ -519,7 +519,7 @@ public:
     double *_nativeBufEL ; ///<!
     double *_nativeBufEH ; ///<!
     std::vector<double> *_vecE, *_vecEL, *_vecEH ;
-    ClassDefOverride(RealFullVector,1) // STL-vector-based Data Storage class
+    ClassDefOverride(RealFullVector,1); // STL-vector-based Data Storage class
   } ;
 
 
@@ -631,7 +631,7 @@ public:
     RooAbsCategory::value_type* _buf;  ///<!
     RooAbsCategory::value_type* _nativeBuf;  ///<!
     std::vector<RooAbsCategory::value_type> _vec;
-    ClassDef(CatVector,2) // STL-vector-based Data Storage class
+    ClassDef(CatVector,2); // STL-vector-based Data Storage class
   } ;
 
   std::vector<RealVector*>& realStoreList() { return _realStoreList ; }
@@ -685,7 +685,7 @@ public:
 
   bool _forcedUpdate = false; ///<! Request for forced cache update
 
-  ClassDefOverride(RooVectorDataStore, 7) // STL-vector-based Data Storage class
+  ClassDefOverride(RooVectorDataStore, 7); // STL-vector-based Data Storage class
 };
 
 

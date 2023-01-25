@@ -103,7 +103,7 @@ protected:
   Int_t _value ;     ///< Index value
   char _label[256] ; ///< State name
 
-  ClassDefOverride(RooCatType,1) // Category state, (name,index) pair
+  ClassDefOverride(RooCatType,1); // Category state, (name,index) pair
 } R__SUGGEST_ALTERNATIVE("Instead of RooCatType, directly use the category number returned by RooAbsCategory::getIndex().\n"
     "Convert it into a name using RooAbsCategory::lookupName(index).");
 

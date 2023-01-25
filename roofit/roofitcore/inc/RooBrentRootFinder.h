@@ -35,7 +35,7 @@ protected:
 
   double _tol ;
 
-  ClassDefOverride(RooBrentRootFinder,0) // Abstract interface for 1-dim real-valued function root finders
+  ClassDefOverride(RooBrentRootFinder,0); // Abstract interface for 1-dim real-valued function root finders
 };
 
 #endif

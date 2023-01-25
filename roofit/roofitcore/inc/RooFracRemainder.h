@@ -38,7 +38,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooFracRemainder,1) // Utility function calculating remainder fraction, i.e. 1-sum_i(a_i)
+  ClassDefOverride(RooFracRemainder,1); // Utility function calculating remainder fraction, i.e. 1-sum_i(a_i)
 };
 
 #endif

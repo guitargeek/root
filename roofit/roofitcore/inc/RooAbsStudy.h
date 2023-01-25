@@ -69,7 +69,7 @@ public:
   RooLinkedList*  _detailData ;  ///<!
   bool      _ownDetailData ;
 
-  ClassDefOverride(RooAbsStudy,1) // Abstract base class for RooStudyManager modules
+  ClassDefOverride(RooAbsStudy,1); // Abstract base class for RooStudyManager modules
 } ;
 
 

@@ -182,7 +182,7 @@ private:
 
   mutable std::unique_ptr<std::vector<double>> _sumW2Buffer; ///<! Buffer for sumW2 in case a batch of values is requested.
 
-  ClassDefOverride(RooDataSet,2) // Unbinned data set
+  ClassDefOverride(RooDataSet,2); // Unbinned data set
 };
 
 #endif

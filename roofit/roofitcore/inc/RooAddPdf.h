@@ -143,7 +143,7 @@ private:
 
   void finalizeConstruction();
 
-  ClassDefOverride(RooAddPdf,5) // PDF representing a sum of PDFs
+  ClassDefOverride(RooAddPdf,5); // PDF representing a sum of PDFs
 };
 
 #endif

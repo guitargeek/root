@@ -44,7 +44,7 @@ protected:
   /// The shape of this category does not need to be recomputed, as it creates states on the fly.
   void recomputeShape() override { }
 
-  ClassDefOverride(RooBinningCategory,1) // RealVar-to-Category function defined by bin boundaries on input var
+  ClassDefOverride(RooBinningCategory,1); // RealVar-to-Category function defined by bin boundaries on input var
 };
 
 #endif

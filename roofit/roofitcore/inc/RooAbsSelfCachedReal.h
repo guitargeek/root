@@ -38,7 +38,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooAbsSelfCachedReal,0) // Abstract base class for self-caching functions
+  ClassDefOverride(RooAbsSelfCachedReal,0); // Abstract base class for self-caching functions
 };
 
 #endif

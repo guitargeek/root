@@ -58,7 +58,7 @@ protected:
 
   RooArgSet _allVarsPdf ; ///< All pdf variables
 
-  ClassDefOverride(RooSimSplitGenContext,0) // Context for efficiently generating a dataset from a RooSimultaneous PDF
+  ClassDefOverride(RooSimSplitGenContext,0); // Context for efficiently generating a dataset from a RooSimultaneous PDF
 };
 
 #endif

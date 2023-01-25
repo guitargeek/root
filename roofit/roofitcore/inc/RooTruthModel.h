@@ -57,7 +57,7 @@ protected:
   double evaluate() const override ;
   void changeBasis(RooFormulaVar* basis) override ;
 
-  ClassDefOverride(RooTruthModel,1) // Truth resolution model (delta function)
+  ClassDefOverride(RooTruthModel,1); // Truth resolution model (delta function)
 };
 
 #endif

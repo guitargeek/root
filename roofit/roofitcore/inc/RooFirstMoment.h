@@ -46,7 +46,7 @@ protected:
   RooRealProxy _if ;                     ///< Int(F(x))dx ;
   double evaluate() const override;
 
-  ClassDefOverride(RooFirstMoment,1) // Representation of moment in a RooAbsReal in a given RooRealVar
+  ClassDefOverride(RooFirstMoment,1); // Representation of moment in a RooAbsReal in a given RooRealVar
 };
 
 #endif

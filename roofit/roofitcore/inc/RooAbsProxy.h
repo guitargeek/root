@@ -61,7 +61,7 @@ protected:
   friend class RooAbsPdf ;
   virtual void changeNormSet(const RooArgSet* newNormSet) ;
 
-  ClassDef(RooAbsProxy,1) // Abstract proxy interface
+  ClassDef(RooAbsProxy,1); // Abstract proxy interface
 } ;
 
 #endif

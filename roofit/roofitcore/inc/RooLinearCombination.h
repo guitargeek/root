@@ -50,7 +50,7 @@ public:
                                                 double xlo,
                                                 double xhi) const override;
 
-  ClassDefOverride(RooLinearCombination, 1)
+  ClassDefOverride(RooLinearCombination, 1);
 };
 
 #endif

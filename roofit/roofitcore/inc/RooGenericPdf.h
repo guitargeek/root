@@ -65,7 +65,7 @@ protected:
   std::unique_ptr<RooFormula> _formula{nullptr}; ///<! Formula engine
   TString _formExpr ;            ///< Formula expression string
 
-  ClassDefOverride(RooGenericPdf,1) // Generic PDF defined by string expression and list of variables
+  ClassDefOverride(RooGenericPdf,1); // Generic PDF defined by string expression and list of variables
 };
 
 #endif

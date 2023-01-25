@@ -56,7 +56,7 @@ protected:
   std::unordered_map<std::string,std::unique_ptr<TNamed>> _map;
   std::size_t _renameCounter = 0;
 
-//  ClassDefOverride(RooNameReg,1) // String name registry
+//  ClassDefOverride(RooNameReg,1); // String name registry
 };
 
 #endif

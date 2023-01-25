@@ -124,7 +124,7 @@ public:
   mutable std::unique_ptr<std::vector<double>> _weightBuffer; ///<! Buffer for weights in case a batch of values is requested.
   bool _ownComps = false; ///<!
 
-  ClassDefOverride(RooCompositeDataStore,1) // Composite Data Storage class
+  ClassDefOverride(RooCompositeDataStore,1); // Composite Data Storage class
 };
 
 

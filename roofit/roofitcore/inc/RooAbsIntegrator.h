@@ -69,7 +69,7 @@ protected:
   bool _valid;               ///< Is integrator in valid state?
   bool _printEvalCounter ;   ///< If true print number of function evaluation required for integration
 
-  ClassDefOverride(RooAbsIntegrator,0) // Abstract interface for real-valued function integrators
+  ClassDefOverride(RooAbsIntegrator,0); // Abstract interface for real-valued function integrators
 };
 
 #endif

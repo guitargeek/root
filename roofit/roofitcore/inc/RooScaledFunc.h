@@ -39,7 +39,7 @@ protected:
   const RooAbsFunc *_func;
   double _scaleFactor;
 
-  ClassDefOverride(RooScaledFunc,0) // Function binding applying scaling to another function binding
+  ClassDefOverride(RooScaledFunc,0); // Function binding applying scaling to another function binding
 };
 
 #endif

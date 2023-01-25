@@ -146,7 +146,7 @@ private:
   void processArg(const char* name) { _name = name; }
   void processArg(double value);
 
-  ClassDefOverride(RooArgList,1) // Ordered list of RooAbsArg objects
+  ClassDefOverride(RooArgList,1); // Ordered list of RooAbsArg objects
 };
 
 

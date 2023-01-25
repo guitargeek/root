@@ -67,7 +67,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooProfileLL,0) // Real-valued function representing profile likelihood of external (likelihood) function
+  ClassDefOverride(RooProfileLL,0); // Real-valued function representing profile likelihood of external (likelihood) function
 };
 
 #endif

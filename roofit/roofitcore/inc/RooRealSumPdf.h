@@ -128,7 +128,7 @@ private:
 
   static void setCacheAndTrackHints(RooArgList const& funcList, RooArgSet& trackNodes);
 
-  ClassDefOverride(RooRealSumPdf, 5) // PDF constructed from a sum of (non-pdf) functions
+  ClassDefOverride(RooRealSumPdf, 5); // PDF constructed from a sum of (non-pdf) functions
 };
 
 #endif

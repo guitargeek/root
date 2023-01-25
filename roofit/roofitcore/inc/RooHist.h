@@ -102,7 +102,7 @@ private:
 
   std::vector<double> _originalWeights; ///< The original bin weights that were passed to the `RooHist::addBin` functions before scaling and bin width correction
 
-  ClassDefOverride(RooHist,2) // 1-dimensional histogram with error bars
+  ClassDefOverride(RooHist,2); // 1-dimensional histogram with error bars
 };
 
 #endif

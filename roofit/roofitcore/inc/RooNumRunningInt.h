@@ -60,7 +60,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooNumRunningInt,1) // Numeric calculator for running integral of a given function
+  ClassDefOverride(RooNumRunningInt,1); // Numeric calculator for running integral of a given function
 
 };
 

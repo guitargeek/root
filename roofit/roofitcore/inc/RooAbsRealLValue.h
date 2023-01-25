@@ -162,7 +162,7 @@ protected:
   bool fitRangeOKForPlotting() const ;
   void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
 
-  ClassDefOverride(RooAbsRealLValue,1) // Abstract modifiable real-valued object
+  ClassDefOverride(RooAbsRealLValue,1); // Abstract modifiable real-valued object
 };
 
 #endif

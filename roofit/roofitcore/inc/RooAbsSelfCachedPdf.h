@@ -38,7 +38,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooAbsSelfCachedPdf,0) // Abstract base class for self-caching p.d.f.s
+  ClassDefOverride(RooAbsSelfCachedPdf,0); // Abstract base class for self-caching p.d.f.s
 };
 
 #endif

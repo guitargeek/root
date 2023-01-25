@@ -67,7 +67,7 @@ public:
     mutable TRegexp* _regexp{nullptr}; ///<!
     RooAbsCategory::value_type _catIdx;
 
-    ClassDef(Entry, 2) // Map cat entry definition
+    ClassDef(Entry, 2); // Map cat entry definition
   };
 
 protected:
@@ -85,7 +85,7 @@ protected:
 
   friend class RooMappedCategoryCache;
 
-  ClassDefOverride(RooMappedCategory, 2) // Index variable, derived from another index using pattern-matching based mapping
+  ClassDefOverride(RooMappedCategory, 2); // Index variable, derived from another index using pattern-matching based mapping
 };
 
 #endif

@@ -92,7 +92,7 @@ public:
     TString _dsetName ;
     bool _init ;
 
-    ClassDef(GenSpec,0) // Generation specification
+    ClassDef(GenSpec,0); // Generation specification
   } ;
 
   ///Prepare GenSpec configuration object for efficient generation of multiple datasets from identical specification.
@@ -403,7 +403,7 @@ private:
   int calcAsymptoticCorrectedCovariance(RooMinimizer& minimizer, RooAbsData const& data);
   int calcSumW2CorrectedCovariance(RooMinimizer& minimizer, RooAbsReal & nll) const;
 
-  ClassDefOverride(RooAbsPdf,5) // Abstract PDF with normalization support
+  ClassDefOverride(RooAbsPdf,5); // Abstract PDF with normalization support
 };
 
 

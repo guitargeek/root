@@ -46,7 +46,7 @@ public:
 
   static double _Infinity ;
 
-  ClassDef(RooNumber,0) // wrapper class for portable numerics
+  ClassDef(RooNumber,0); // wrapper class for portable numerics
 };
 
 #endif

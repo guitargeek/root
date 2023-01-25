@@ -64,7 +64,7 @@ protected:
 private:
   RooTemplateProxy<RooMultiCategory> _multiCat;
 
-  ClassDefOverride(RooSuperCategory,2) // Lvalue product operator for category lvalues
+  ClassDefOverride(RooSuperCategory,2); // Lvalue product operator for category lvalues
 };
 
 #endif

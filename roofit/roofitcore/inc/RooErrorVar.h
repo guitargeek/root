@@ -98,7 +98,7 @@ protected:
   RooRealProxy _realVar ;   ///< RealVar with the original error
   RooAbsBinning* _binning ; ///<! Pointer to default binning definition
 
-  ClassDefOverride(RooErrorVar,1) // RooAbsRealLValue representation of an error of a RooRealVar
+  ClassDefOverride(RooErrorVar,1); // RooAbsRealLValue representation of an error of a RooRealVar
 };
 
 #endif

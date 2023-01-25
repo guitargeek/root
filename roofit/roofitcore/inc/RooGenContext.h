@@ -52,7 +52,7 @@ protected:
   RooRealVar *_maxVar ;               ///< Variable holding maximum value of p.d.f
   Int_t _updateFMaxPerEvent ;         ///< If true, maximum p.d.f value needs to be recalculated for each event
 
-  ClassDefOverride(RooGenContext,0) // Universal context for generating toy MC data from any p.d.f
+  ClassDefOverride(RooGenContext,0); // Universal context for generating toy MC data from any p.d.f
 };
 
 #endif

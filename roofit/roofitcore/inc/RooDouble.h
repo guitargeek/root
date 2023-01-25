@@ -51,7 +51,7 @@ public:
 protected:
 
   double _value ; ///< Value payload
-  ClassDefOverride(RooDouble,1) // Container class for double
+  ClassDefOverride(RooDouble,1); // Container class for double
 };
 
 #endif

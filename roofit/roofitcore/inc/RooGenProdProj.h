@@ -49,7 +49,7 @@ protected:
   RooListProxy _intList ; ///< Master integrals representing numerator and denominator
   bool _haveD ;         ///< Do we have a denominator term?
 
-  ClassDefOverride(RooGenProdProj,1) // General form of projected integral of product of PDFs, utility class for RooProdPdf
+  ClassDefOverride(RooGenProdProj,1); // General form of projected integral of product of PDFs, utility class for RooProdPdf
 };
 
 #endif

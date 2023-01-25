@@ -198,7 +198,7 @@ protected:
 
   RooFactoryWSTool(const RooFactoryWSTool&) ;
 
-  ClassDefOverride(RooFactoryWSTool,0) // RooFit class code and instance factory
+  ClassDefOverride(RooFactoryWSTool,0); // RooFit class code and instance factory
 
 } ;
 

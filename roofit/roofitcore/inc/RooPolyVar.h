@@ -50,7 +50,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooPolyVar,1) // Polynomial function
+  ClassDefOverride(RooPolyVar,1); // Polynomial function
 };
 
 #endif

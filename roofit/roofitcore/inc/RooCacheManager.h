@@ -111,7 +111,7 @@ protected:
   std::vector<T*> _object ;                 ///<! Payload
   bool _wired ;               ///<! In wired mode, there is a single payload which is returned always
 
-  ClassDefOverride(RooCacheManager,2) // Cache Manager class generic objects
+  ClassDefOverride(RooCacheManager,2); // Cache Manager class generic objects
 } ;
 
 

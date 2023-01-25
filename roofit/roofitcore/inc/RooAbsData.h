@@ -368,7 +368,7 @@ private:
 
   const RooFit::UniqueId<RooAbsData> _uniqueId; ///<!
 
-   ClassDefOverride(RooAbsData, 7) // Abstract data collection
+   ClassDefOverride(RooAbsData, 7); // Abstract data collection
 };
 
 #endif

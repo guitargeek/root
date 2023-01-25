@@ -33,7 +33,7 @@ public:
 protected:
   const RooAbsFunc *_func; ///< Input function binding
 
-  ClassDefOverride(RooInvTransform,0) // Function binding returning inverse of other function binding
+  ClassDefOverride(RooInvTransform,0); // Function binding returning inverse of other function binding
 };
 
 #endif

@@ -44,7 +44,7 @@ private:
   RooRealVar* _sig0h ;     ///< Container variable for NLL result with signal
   double    _nullValue ; ///< Numeric value of Nsignal parameter representing the null hypothesis
 
-  ClassDefOverride(RooDLLSignificanceMCSModule,0) // MCStudy module to calculate Delta(-logL) significance w.r.t given null hypothesis
+  ClassDefOverride(RooDLLSignificanceMCSModule,0); // MCStudy module to calculate Delta(-logL) significance w.r.t given null hypothesis
 } ;
 
 

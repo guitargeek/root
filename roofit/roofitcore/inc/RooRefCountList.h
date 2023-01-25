@@ -30,7 +30,7 @@ public:
   Int_t refCount(TObject* obj) const;
 
 protected:
-  ClassDefOverride(RooRefCountList,1) // RooLinkedList with reference counting
+  ClassDefOverride(RooRefCountList,1); // RooLinkedList with reference counting
 };
 
 #endif

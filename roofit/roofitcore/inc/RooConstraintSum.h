@@ -53,7 +53,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooConstraintSum,4) // sum of -log of set of RooAbsPdf representing parameter constraints
+  ClassDefOverride(RooConstraintSum,4); // sum of -log of set of RooAbsPdf representing parameter constraints
 };
 
 #endif

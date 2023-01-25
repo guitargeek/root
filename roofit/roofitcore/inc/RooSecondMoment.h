@@ -47,7 +47,7 @@ protected:
   double _xfOffset ;                   ///< offset
   double evaluate() const override;
 
-  ClassDefOverride(RooSecondMoment,1) // Representation of moment in a RooAbsReal in a given RooRealVar
+  ClassDefOverride(RooSecondMoment,1); // Representation of moment in a RooAbsReal in a given RooRealVar
 };
 
 #endif

@@ -121,7 +121,7 @@ private:
 
   void prepareFFTBinning(RooRealVar& convVar) const;
 
-  ClassDefOverride(RooFFTConvPdf,1) // Convolution operator p.d.f based on numeric Fourier transforms
+  ClassDefOverride(RooFFTConvPdf,1); // Convolution operator p.d.f based on numeric Fourier transforms
 };
 
 #endif

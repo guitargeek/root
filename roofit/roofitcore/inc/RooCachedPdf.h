@@ -49,7 +49,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooCachedPdf,1) // P.d.f class that wraps another p.d.f and caches its output
+  ClassDefOverride(RooCachedPdf,1); // P.d.f class that wraps another p.d.f and caches its output
 
 };
 

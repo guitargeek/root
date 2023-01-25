@@ -78,7 +78,7 @@ protected:
   RooFormulaVar* _basis ;    ///< Basis function convolved with this resolution model
   bool _ownBasis ;         ///< Flag indicating ownership of _basis
 
-  ClassDefOverride(RooResolutionModel, 2) // Abstract Resolution Model
+  ClassDefOverride(RooResolutionModel, 2); // Abstract Resolution Model
 };
 
 #endif

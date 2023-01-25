@@ -82,7 +82,7 @@ protected:
   bool _isFund = true;          ///< If true proxy contains an lvalue
   bool _ownArg = false;         ///< If true proxy owns contents
 
-  ClassDefOverride(RooArgProxy,1) // Abstract proxy for RooAbsArg objects
+  ClassDefOverride(RooArgProxy,1); // Abstract proxy for RooAbsArg objects
 };
 
 #endif

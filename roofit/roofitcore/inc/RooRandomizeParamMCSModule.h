@@ -91,7 +91,7 @@ private:
   RooArgSet _genParSet ;
   RooDataSet* _data ;
 
-  ClassDefOverride(RooRandomizeParamMCSModule,0) // MCStudy module to vary one or more input parameters during fit/generation cycle
+  ClassDefOverride(RooRandomizeParamMCSModule,0); // MCStudy module to vary one or more input parameters during fit/generation cycle
 } ;
 
 

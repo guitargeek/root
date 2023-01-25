@@ -35,7 +35,7 @@ protected:
 
   static RooArgList& constDB();
 
-  ClassDef(RooRealConstant,0) // RooRealVar constants factory
+  ClassDef(RooRealConstant,0); // RooRealVar constants factory
 };
 
 

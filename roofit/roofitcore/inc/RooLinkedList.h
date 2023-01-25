@@ -140,7 +140,7 @@ private:
 
   std::vector<RooLinkedListElem *> _at; ///<! index list for quick index through ::At
 
-  ClassDefOverride(RooLinkedList,3) // Doubly linked list for storage of RooAbsArg objects
+  ClassDefOverride(RooLinkedList,3); // Doubly linked list for storage of RooAbsArg objects
 };
 
 #endif

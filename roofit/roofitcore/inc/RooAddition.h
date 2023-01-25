@@ -71,7 +71,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooAddition,3) // Sum of RooAbsReal objects
+  ClassDefOverride(RooAddition,3); // Sum of RooAbsReal objects
 };
 
 #endif

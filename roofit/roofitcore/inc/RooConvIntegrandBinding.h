@@ -48,7 +48,7 @@ protected:
   mutable bool _xvecValid; ///< If true _xvec defines a valid point
   bool _clipInvalid ;      ///< If true, invalid x values are clipped into their valid range
 
-  ClassDefOverride(RooConvIntegrandBinding,0) // RooAbsFunc representation of convolution integrands
+  ClassDefOverride(RooConvIntegrandBinding,0); // RooAbsFunc representation of convolution integrands
 };
 
 #endif

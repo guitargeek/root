@@ -36,7 +36,7 @@ protected:
   RooRealProxy _pdf ;               ///< Probability Density function
   RooRealProxy _eff;                ///< Efficiency function
 
-  ClassDefOverride(RooEffProd,2) // Product operator p.d.f of (PDF x efficiency) implementing optimized generator context
+  ClassDefOverride(RooEffProd,2); // Product operator p.d.f of (PDF x efficiency) implementing optimized generator context
 };
 
 #endif

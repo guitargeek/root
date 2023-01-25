@@ -56,7 +56,7 @@ protected:
 
   static Int_t _nameLength ;
 
-  ClassDef(RooPrintable,1) // Interface for printable objects
+  ClassDef(RooPrintable,1); // Interface for printable objects
 
 
 };

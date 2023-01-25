@@ -27,7 +27,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooNumCdf,1) // Numeric calculator for CDF for a given PDF
+  ClassDefOverride(RooNumCdf,1); // Numeric calculator for CDF for a given PDF
 
 };
 

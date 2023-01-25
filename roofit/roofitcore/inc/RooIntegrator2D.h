@@ -51,7 +51,7 @@ protected:
   RooIntegrator1D* _xIntegrator ; ///< Integrator in first dimension
   RooAbsFunc* _xint ; ///< Function binding representing integral over first dimension
 
-  ClassDefOverride(RooIntegrator2D,0) // 2-dimensional numerical integration engine
+  ClassDefOverride(RooIntegrator2D,0); // 2-dimensional numerical integration engine
 };
 
 #endif

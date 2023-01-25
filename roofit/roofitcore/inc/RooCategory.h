@@ -138,7 +138,7 @@ private:
   /// Helper for restoring shared ranges from current versions of this class read from files. Maps category names to shared ranges.
   static std::map<std::string, std::weak_ptr<RangeMap_t>> _sharedRangeIOHelper;
 
-  ClassDefOverride(RooCategory, 3) // Discrete valued variable type
+  ClassDefOverride(RooCategory, 3); // Discrete valued variable type
 };
 
 #endif

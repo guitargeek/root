@@ -249,7 +249,7 @@ protected:
 
   static bool _addDirStatus ; ///< static flag controlling AutoDirectoryAdd feature
 
-  ClassDefOverride(RooPlot,3)        // Plot frame and container for graphics objects
+  ClassDefOverride(RooPlot,3);        // Plot frame and container for graphics objects
 };
 
 #endif

@@ -62,7 +62,7 @@ protected:
   double  _total ;             ///< Total number of entries
   double  _nOverflow ;         ///< Number of overflow entries
 
-  ClassDefOverride(Roo1DTable,1) // 1-dimensional table
+  ClassDefOverride(Roo1DTable,1); // 1-dimensional table
 };
 
 #endif

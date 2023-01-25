@@ -48,7 +48,7 @@ protected:
 
   double _range[2] ;
 
-  ClassDefOverride(RooRangeBinning,1) // Binning that only defines the total range
+  ClassDefOverride(RooRangeBinning,1); // Binning that only defines the total range
 };
 
 #endif

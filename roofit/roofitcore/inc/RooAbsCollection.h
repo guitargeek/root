@@ -398,7 +398,7 @@ private:
 
   void insert(RooAbsArg*);
 
-  ClassDefOverride(RooAbsCollection,3) // Collection of RooAbsArg objects
+  ClassDefOverride(RooAbsCollection,3); // Collection of RooAbsArg objects
 };
 
 #endif

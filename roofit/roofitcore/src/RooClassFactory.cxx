@@ -531,7 +531,7 @@ bool RooClassFactory::makeClass(const char* baseName, const char* className, con
      << "" << endl
      << "private:" << endl
      << "" << endl
-     << "  ClassDefOverride(" << className << ",1) // Your description goes here..." << endl
+     << "  ClassDefOverride(" << className << ",1); // Your description goes here..." << endl
      << "};" << endl
      << " " << endl
      << "#endif" << endl ;

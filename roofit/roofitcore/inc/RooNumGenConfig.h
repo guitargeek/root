@@ -72,7 +72,7 @@ protected:
 
   RooLinkedList _configSets ; ///< List of configuration sets for individual integration methods
 
-  ClassDefOverride(RooNumGenConfig,1) // Numeric (MC) Event generator configuration
+  ClassDefOverride(RooNumGenConfig,1); // Numeric (MC) Event generator configuration
 };
 
 #endif

@@ -48,7 +48,7 @@ private:
   static struct Guard guard;
   friend struct RooRandom::Guard;
 
-  ClassDef(RooRandom,0) // Random number generator interface
+  ClassDef(RooRandom,0); // Random number generator interface
 };
 
 #endif

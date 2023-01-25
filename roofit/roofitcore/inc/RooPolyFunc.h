@@ -65,7 +65,7 @@ protected:
    /// Evaluation
    double evaluate() const override;
 
-   ClassDefOverride(RooPolyFunc, 1) // Polynomial Function
+   ClassDefOverride(RooPolyFunc, 1); // Polynomial Function
 };
 
 #endif

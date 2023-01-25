@@ -55,7 +55,7 @@ protected:
   RooRealProxy _numerator;
   RooRealProxy _denominator;
 
-  ClassDefOverride(RooRatio, 2) // Ratio of two RooAbsReal and/or numbers
+  ClassDefOverride(RooRatio, 2); // Ratio of two RooAbsReal and/or numbers
 };
 
 #endif

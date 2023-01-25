@@ -52,7 +52,7 @@ private:
   void init();
 
 
-  ClassDefOverride(RooNumIntFactory, 0) // Numeric Integrator factory
+  ClassDefOverride(RooNumIntFactory, 0); // Numeric Integrator factory
 };
 
 #endif

@@ -63,7 +63,7 @@ protected:
   mutable std::unique_ptr<RooIntegrator1D> _integrator2; ///< Piece integrator 2
   mutable std::unique_ptr<RooIntegrator1D> _integrator3; ///< Piece integrator 3
 
-  ClassDefOverride(RooImproperIntegrator1D,0) // 1-dimensional improper integration engine
+  ClassDefOverride(RooImproperIntegrator1D,0); // 1-dimensional improper integration engine
 };
 
 #endif

@@ -42,7 +42,7 @@ public:
   inline double getFitRangeNEvt(double, double) const override { return 0; }
   inline double getFitRangeBinW() const override { return 0; }
 
-  ClassDefOverride(RooEllipse,1) // 2-dimensional contour
+  ClassDefOverride(RooEllipse,1); // 2-dimensional contour
 };
 
 #endif

@@ -72,7 +72,7 @@ protected:
 
 private:
   std::string _string;
-  ClassDefOverride(RooStringVar,2) // String-valued variable
+  ClassDefOverride(RooStringVar,2); // String-valued variable
 };
 
 #endif

@@ -104,7 +104,7 @@ private:
     return _func;
   }
 
-  ClassDefOverride(RooWrapperPdf,1)
+  ClassDefOverride(RooWrapperPdf,1);
 };
 
 #endif

@@ -64,7 +64,7 @@ protected:
   mutable double _funcSave ; ///<!
   mutable std::unique_ptr<RooBatchCompute::RunContext> _evalData; ///< Memory for batch evaluations
 
-  ClassDefOverride(RooRealBinding,0) // Function binding to RooAbsReal object
+  ClassDefOverride(RooRealBinding,0); // Function binding to RooAbsReal object
 };
 
 #endif

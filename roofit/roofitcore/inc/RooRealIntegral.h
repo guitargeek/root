@@ -146,7 +146,7 @@ protected:
   bool _cacheNum = false;           ///< Cache integral if numeric
   static Int_t _cacheAllNDim ; ///<! Cache all integrals with given numeric dimension
 
-  ClassDefOverride(RooRealIntegral,4) // Real-valued function representing an integral over a RooAbsReal object
+  ClassDefOverride(RooRealIntegral,4); // Real-valued function representing an integral over a RooAbsReal object
 };
 
 #endif

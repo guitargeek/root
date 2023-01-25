@@ -35,7 +35,7 @@ protected:
   RooArgSet       _nset ;
   RooRealBinding* _binding ;
 
-  ClassDefOverride(RooTFoamBinding,0) // Function binding to RooAbsReal object
+  ClassDefOverride(RooTFoamBinding,0); // Function binding to RooAbsReal object
 };
 
 #endif

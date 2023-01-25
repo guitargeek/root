@@ -73,7 +73,7 @@ protected:
    static bool _doFloorGlobal;      ///< Global flag for introducing floor at zero in pdf
 
 private:
-   ClassDefOverride(RooRealSumFunc, 4) // PDF constructed from a sum of (non-pdf) functions
+   ClassDefOverride(RooRealSumFunc, 4); // PDF constructed from a sum of (non-pdf) functions
 };
 
 #endif

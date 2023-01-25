@@ -46,7 +46,7 @@ protected:
   RooRealProxy _x     ;                  ///< Observable
   RooRealProxy _mean ;                   ///< Mean (if calculated for central moment)
 
-  ClassDefOverride(RooAbsMoment,1) // Abstract representation of moment in a RooAbsReal in a given RooRealVar
+  ClassDefOverride(RooAbsMoment,1); // Abstract representation of moment in a RooAbsReal in a given RooRealVar
 };
 
 #endif

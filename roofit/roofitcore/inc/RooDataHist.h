@@ -266,7 +266,7 @@ private:
   VarInfo _varInfo; ///<!
   std::vector<double> _interpolationBuffer; ///<! Buffer to contain values used for weight interpolation
 
-  ClassDefOverride(RooDataHist, 8) // Binned data set
+  ClassDefOverride(RooDataHist, 8); // Binned data set
 };
 
 #endif

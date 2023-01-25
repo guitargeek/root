@@ -52,7 +52,7 @@ protected:
 
   RooAbsArg* _owner ; ///<! Pointer to owning RooAbsArg
 
-  ClassDef(RooAbsCacheElement,1) // Base class for cache elements
+  ClassDef(RooAbsCacheElement,1); // Base class for cache elements
 
 } ;
 

@@ -60,7 +60,7 @@ protected:
 
   RooAbsArg* _owner ; ///< Pointer to owning RooAbsArg
 
-  ClassDef(RooAbsCache,1) // Base class for cache managers
+  ClassDef(RooAbsCache,1); // Base class for cache managers
 
 } ;
 

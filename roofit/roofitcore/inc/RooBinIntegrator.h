@@ -72,7 +72,7 @@ protected:
 
   std::vector<double> _x ; ///<! do not persist
 
-  ClassDefOverride(RooBinIntegrator,0) // 1-dimensional numerical integration engine
+  ClassDefOverride(RooBinIntegrator,0); // 1-dimensional numerical integration engine
 };
 
 #endif

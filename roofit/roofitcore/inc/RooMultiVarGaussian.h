@@ -110,7 +110,7 @@ protected:
 
 private:
 
-  ClassDefOverride(RooMultiVarGaussian,1) // Multivariate Gaussian PDF with correlations
+  ClassDefOverride(RooMultiVarGaussian,1); // Multivariate Gaussian PDF with correlations
 };
 
 #endif

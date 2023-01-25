@@ -149,7 +149,7 @@ private:
 
   RooMCStudy(const RooMCStudy&) ;
 
-  ClassDefOverride(RooMCStudy,0) // A general purpose toy Monte Carlo study manager
+  ClassDefOverride(RooMCStudy,0); // A general purpose toy Monte Carlo study manager
 } ;
 
 

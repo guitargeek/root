@@ -38,7 +38,7 @@ public:
 protected:
 
   Int_t _value ; ///< Payload
-  ClassDefOverride(RooInt,1) // Container class for Int_t
+  ClassDefOverride(RooInt,1); // Container class for Int_t
 };
 
 #endif

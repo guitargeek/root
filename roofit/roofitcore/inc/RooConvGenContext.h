@@ -63,7 +63,7 @@ protected:
   RooRealVar* _cvPdf{nullptr};                   ///< Convolution variable in PDFxTruth event
   RooRealVar* _cvOut{nullptr};                   ///< Convolution variable in output event
 
-  ClassDefOverride(RooConvGenContext,0) // Context for generating a dataset from a PDF
+  ClassDefOverride(RooConvGenContext,0); // Context for generating a dataset from a PDF
 };
 
 #endif

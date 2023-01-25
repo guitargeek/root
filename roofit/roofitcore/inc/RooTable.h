@@ -35,7 +35,7 @@ public:
 
 protected:
 
-  ClassDefOverride(RooTable,1) // Abstract interface for tables
+  ClassDefOverride(RooTable,1); // Abstract interface for tables
 };
 
 #endif

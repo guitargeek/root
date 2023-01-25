@@ -63,7 +63,7 @@ protected:
   Int_t _refCount ; ///<! Use count
   Int_t _inSharedList ; ///<! Is in shared list
 
-  ClassDefOverride(RooSharedProperties,1) // Abstract interface for shared property implementations
+  ClassDefOverride(RooSharedProperties,1); // Abstract interface for shared property implementations
 };
 
 

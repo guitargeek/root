@@ -230,7 +230,7 @@ private:
 #endif
   const RooFit::UniqueId<RooArgSet> _uniqueId; //!
 
-  ClassDefOverride(RooArgSet,1) // Set of RooAbsArg objects
+  ClassDefOverride(RooArgSet,1); // Set of RooAbsArg objects
 };
 
 

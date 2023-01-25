@@ -43,7 +43,7 @@ protected:
 
   double evaluate() const override;
 
-  ClassDefOverride(RooRangeBoolean,1) // Polynomial function
+  ClassDefOverride(RooRangeBoolean,1); // Polynomial function
 };
 
 #endif

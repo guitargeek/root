@@ -44,7 +44,7 @@ protected:
   bool _isArray ;
   bool _owning ;
   RooLinkedList _list ;
-  ClassDefOverride(RooTObjWrap,2) // Container class for Int_t
+  ClassDefOverride(RooTObjWrap,2); // Container class for Int_t
 };
 
 #endif

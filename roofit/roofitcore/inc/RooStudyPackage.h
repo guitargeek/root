@@ -58,7 +58,7 @@ protected:
   std::list<RooAbsStudy*> _studies ;
 
 
-  ClassDefOverride(RooStudyPackage,1) // A general purpose workspace oriented parallelizing study manager
+  ClassDefOverride(RooStudyPackage,1); // A general purpose workspace oriented parallelizing study manager
 } ;
 
 

@@ -33,7 +33,7 @@ protected:
   RooAbsIntegrator* _integrator ;  ///< Numeric integrator
 
 
-  ClassDefOverride(RooIntegratorBinding,0) // Function binding representing output of numeric integrator
+  ClassDefOverride(RooIntegratorBinding,0); // Function binding representing output of numeric integrator
 };
 
 #endif

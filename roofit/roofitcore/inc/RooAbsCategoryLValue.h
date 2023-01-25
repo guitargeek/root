@@ -120,7 +120,7 @@ protected:
 
   void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
 
-  ClassDefOverride(RooAbsCategoryLValue,1) // Abstract modifiable index variable
+  ClassDefOverride(RooAbsCategoryLValue,1); // Abstract modifiable index variable
 };
 
 #endif

@@ -591,7 +591,7 @@ protected:
   mutable RooArgSet* _lastNSet ; ///<!
   static bool _hideOffset ;    ///< Offset hiding flag
 
-  ClassDefOverride(RooAbsReal,2) // Abstract real-valued variable
+  ClassDefOverride(RooAbsReal,2); // Abstract real-valued variable
 };
 
 

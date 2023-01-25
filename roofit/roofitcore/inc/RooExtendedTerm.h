@@ -38,7 +38,7 @@ protected:
 
   RooRealProxy _n ;          ///< Number of expected events
 
-  ClassDefOverride(RooExtendedTerm,1) // Meta-p.d.f flat in all observables introducing only extended ML term
+  ClassDefOverride(RooExtendedTerm,1); // Meta-p.d.f flat in all observables introducing only extended ML term
 };
 
 #endif

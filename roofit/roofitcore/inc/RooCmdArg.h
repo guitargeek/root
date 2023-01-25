@@ -121,7 +121,7 @@ private:
   RooLinkedList _argList ; ///< Payload sub-arguments
   bool _prefixSubArgs ;  ///< Prefix sub-arguments with container name?
 
-  ClassDefOverride(RooCmdArg,0) // Generic named argument container
+  ClassDefOverride(RooCmdArg,0); // Generic named argument container
 };
 
 #endif

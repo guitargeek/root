@@ -156,7 +156,7 @@ public:
 
   bool _doDirtyProp = true; ///< Switch do (de)activate dirty state propagation when loading a data point
 
-  ClassDefOverride(RooAbsDataStore,1) // Abstract Data Storage class
+  ClassDefOverride(RooAbsDataStore,1); // Abstract Data Storage class
 };
 
 

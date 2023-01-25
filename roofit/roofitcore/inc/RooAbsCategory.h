@@ -228,7 +228,7 @@ protected:
 private:
   std::unique_ptr<TreeReadBuffer> _treeReadBuffer; //! A buffer for reading values from trees
 
-  ClassDefOverride(RooAbsCategory, 4) // Abstract discrete variable
+  ClassDefOverride(RooAbsCategory, 4); // Abstract discrete variable
 };
 
 #endif

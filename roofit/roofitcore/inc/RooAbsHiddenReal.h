@@ -65,7 +65,7 @@ protected:
 
   RooCategoryProxy _state ; // Proxy to hiding state category
 
-  ClassDefOverride(RooAbsHiddenReal,1) // Abstract hidden real-valued variable
+  ClassDefOverride(RooAbsHiddenReal,1); // Abstract hidden real-valued variable
 };
 
 #endif

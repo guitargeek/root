@@ -54,7 +54,7 @@ protected:
   double _binw ;
 
 
-  ClassDefOverride(RooUniformBinning,1) // Uniform binning specification
+  ClassDefOverride(RooUniformBinning,1); // Uniform binning specification
 };
 
 #endif
