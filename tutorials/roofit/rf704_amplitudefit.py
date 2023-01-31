@@ -3,6 +3,8 @@
 ## \notebook
 ## Special pdf's: using a pdf defined by a sum of real-valued amplitude components
 ##
+## \macro_image
+## \macro_output
 ## \macro_code
 ##
 ## \date February 2018
@@ -15,7 +17,7 @@ import ROOT
 # -------------------------------------------------------
 
 # Observables
-t = ROOT.RooRealVar("t", "time", -1.0, 15.0)
+t = ROOT.RooRealVar("t", "time", 0.0, 15.0)
 cosa = ROOT.RooRealVar("cosa", "cos(alpha)", -1.0, 1.0)
 
 # Use ROOT.RooTruthModel to obtain compiled implementation of sinh/cosh

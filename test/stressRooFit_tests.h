@@ -4635,7 +4635,7 @@ public:
   // -------------------------------------------------------
 
   // Observables
-  RooRealVar t("t","time",-1.,15.);
+  RooRealVar t("t","time",0.,15.);
   RooRealVar cosa("cosa","cos(alpha)",-1.,1.);
 
   // Use RooTruthModel to obtain compiled implementation of sinh/cosh modulated decay functions
