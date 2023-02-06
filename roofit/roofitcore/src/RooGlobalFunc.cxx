@@ -69,7 +69,7 @@ namespace RooFit {
   namespace Experimental {
 
   std::string& defaultBatchMode() {
-    static std::string batchMode = "off";
+    static std::string batchMode = "cpu";
     return batchMode;
   }
 
