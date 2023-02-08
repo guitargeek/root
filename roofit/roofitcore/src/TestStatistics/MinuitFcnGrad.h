@@ -37,7 +37,7 @@ public:
                  LikelihoodGradientMode likelihoodGradientMode);
 
    /// Overridden from RooAbsMinimizerFcn to include gradient strategy synchronization.
-   bool Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameter_settings) override;
+   bool Synchronize() override;
 
    // used inside Minuit:
    inline bool returnsInMinuit2ParameterSpace() const { return gradient->usesMinuitInternalValues(); }

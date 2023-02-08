@@ -26,8 +26,6 @@
 #include "RooMinimizer.h"
 #include "RooRealVar.h"
 
-#include <Fit/Fitter.h>
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -46,7 +44,7 @@ public:
    /// its parameter_settings vector of RooFit parameter properties, but
    /// Synchronize can be overridden to e.g. also include gradient strategy
    /// synchronization in subclasses.
-   virtual bool Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameters);
+   virtual bool Synchronize();
 
    RooArgList *GetFloatParamList() { return _floatParamList.get(); }
    RooArgList *GetConstParamList() { return _constParamList.get(); }

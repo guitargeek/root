@@ -37,6 +37,8 @@ either use:
 #include "RooDataSet.h"
 #include "TStopwatch.h"
 
+#include <TMath.h>
+
 #include "RooStats/RooStatsUtils.h"
 
 using namespace std;

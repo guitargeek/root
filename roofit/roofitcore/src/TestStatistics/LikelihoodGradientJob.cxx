@@ -20,6 +20,8 @@
 #include "RooMsgService.h"
 #include "RooMinimizer.h"
 
+#include <Fit/Fitter.h>
+
 #include "Minuit2/MnStrategy.h"
 
 namespace RooFit {
@@ -38,8 +40,12 @@ LikelihoodGradientJob::LikelihoodGradientJob(std::shared_ptr<RooAbsL> likelihood
 }
 
 LikelihoodGradientJob::LikelihoodGradientJob(const LikelihoodGradientJob &other)
-   : MultiProcess::Job(other), LikelihoodGradientWrapper(other), grad_(other.grad_), gradf_(other.gradf_),
-     N_tasks_(other.N_tasks_), minuit_internal_x_(other.minuit_internal_x_)
+   : MultiProcess::Job(other),
+     LikelihoodGradientWrapper(other),
+     grad_(other.grad_),
+     gradf_(other.gradf_),
+     N_tasks_(other.N_tasks_),
+     minuit_internal_x_(other.minuit_internal_x_)
 {
 }
 
@@ -133,8 +139,8 @@ void LikelihoodGradientJob::update_workers_state()
    zmq::message_t gradient_message(grad_.begin(), grad_.end());
    zmq::message_t minuit_internal_x_message(minuit_internal_x_.begin(), minuit_internal_x_.end());
    ++state_id_;
-   get_manager()->messenger().publish_from_master_to_workers(id_, state_id_, isCalculating_, std::move(gradient_message),
-                                                             std::move(minuit_internal_x_message));
+   get_manager()->messenger().publish_from_master_to_workers(
+      id_, state_id_, isCalculating_, std::move(gradient_message), std::move(minuit_internal_x_message));
 }
 
 void LikelihoodGradientJob::update_workers_state_isCalculating()
@@ -227,9 +233,11 @@ void LikelihoodGradientJob::fillGradientWithPrevResult(double *grad, double *pre
       }
 
       if (!calculation_is_clean_->gradient) {
-         if (RooFit::MultiProcess::Config::getTimingAnalysis()) RooFit::MultiProcess::ProcessTimer::start_timer("master:gradient");
+         if (RooFit::MultiProcess::Config::getTimingAnalysis())
+            RooFit::MultiProcess::ProcessTimer::start_timer("master:gradient");
          calculate_all();
-         if (RooFit::MultiProcess::Config::getTimingAnalysis()) RooFit::MultiProcess::ProcessTimer::end_timer("master:gradient");
+         if (RooFit::MultiProcess::Config::getTimingAnalysis())
+            RooFit::MultiProcess::ProcessTimer::end_timer("master:gradient");
       }
 
       // put the results from _grad into *grad

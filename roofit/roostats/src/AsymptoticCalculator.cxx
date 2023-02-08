@@ -63,6 +63,8 @@ The calculator can generate Asimov datasets from two kinds of PDFs:
 #include <cmath>
 #include <typeinfo>
 
+#include <TMath.h>
+
 #include "Math/BrentRootFinder.h"
 #include "Math/WrappedFunction.h"
 

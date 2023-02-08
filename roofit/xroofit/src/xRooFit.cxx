@@ -52,6 +52,8 @@
 
 #include "RooRealProxy.h"
 
+#include <Fit/Fitter.h>
+
 #include "xRooFitVersion.h"
 
 #include <signal.h>

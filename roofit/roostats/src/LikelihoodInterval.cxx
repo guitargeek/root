@@ -60,6 +60,8 @@
 
 #include "TMinuitMinimizer.h"
 
+#include <TMath.h>
+
 #include <string>
 #include <algorithm>
 #include <functional>

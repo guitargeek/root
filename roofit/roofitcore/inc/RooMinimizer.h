@@ -21,7 +21,6 @@
 #include <RooFit/TestStatistics/LikelihoodWrapper.h>
 #include <RooFit/TestStatistics/LikelihoodGradientWrapper.h>
 
-#include <Fit/Fitter.h>
 #include <TStopwatch.h>
 #include <TMatrixDSymfwd.h>
 
@@ -39,6 +38,17 @@ class RooRealVar;
 class RooArgSet;
 class RooPlot;
 class RooDataSet;
+
+namespace ROOT {
+namespace Fit {
+class FitResult;
+class Fitter;
+} // namespace Fit
+namespace Math {
+class Minimizer;
+class MinimizerOptions;
+} // namespace Math
+} // namespace ROOT
 
 class RooMinimizer : public TObject {
 public:
@@ -149,10 +159,15 @@ public:
 
    void applyCovarianceMatrix(TMatrixDSym const &V);
 
+   ROOT::Math::MinimizerOptions &minimizerOptions() const;
+
 private:
    friend class RooAbsMinimizerFcn;
 
    std::unique_ptr<RooAbsReal::EvalErrorContext> makeEvalErrorContext() const;
+
+   static ROOT::Fit::FitResult const &result();
+   static ROOT::Math::Minimizer *minimizer();
 
    void addParamsToProcessTimer();
 

@@ -16,6 +16,8 @@
 #include "RooMsgService.h"
 #include "RooAbsPdf.h"
 
+#include <Fit/Fitter.h>
+
 #include <iomanip> // std::setprecision
 
 namespace RooFit {
@@ -292,8 +294,10 @@ void MinuitFcnGrad::GradientWithPrevResult(const double *x, double *grad, double
    calculating_gradient_ = false;
 }
 
-bool MinuitFcnGrad::Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameters)
+bool MinuitFcnGrad::Synchronize()
 {
+   std::vector<ROOT::Fit::ParameterSettings> &parameters = _context->fitter()->Config().ParamsSettings();
+
    bool returnee = synchronizeParameterSettings(parameters, _optConst);
    likelihood->synchronizeParameterSettings(parameters);
    if (likelihood != likelihood_in_gradient) {
@@ -301,11 +305,11 @@ bool MinuitFcnGrad::Synchronize(std::vector<ROOT::Fit::ParameterSettings> &param
    }
    gradient->synchronizeParameterSettings(parameters);
 
-   likelihood->synchronizeWithMinimizer(_context->fitter()->Config().MinimizerOptions());
+   likelihood->synchronizeWithMinimizer(_context->minimizerOptions());
    if (likelihood != likelihood_in_gradient) {
-      likelihood_in_gradient->synchronizeWithMinimizer(_context->fitter()->Config().MinimizerOptions());
+      likelihood_in_gradient->synchronizeWithMinimizer(_context->minimizerOptions());
    }
-   gradient->synchronizeWithMinimizer(_context->fitter()->Config().MinimizerOptions());
+   gradient->synchronizeWithMinimizer(_context->minimizerOptions());
    return returnee;
 }
 
