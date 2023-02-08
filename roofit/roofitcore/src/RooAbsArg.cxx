@@ -351,10 +351,13 @@ bool RooAbsArg::getTransientAttribute(const Text_t* name) const
 void RooAbsArg::addServer(RooAbsArg& server, bool valueProp, bool shapeProp, std::size_t refCount)
 {
   if (_prohibitServerRedirect) {
-    cxcoutF(LinkStateMgmt) << "RooAbsArg::addServer(" << this << "," << GetName()
+    std::stringstream ss;
+    ss << "RooAbsArg::addServer(" << this << "," << GetName()
             << "): PROHIBITED SERVER ADDITION REQUESTED: adding server " << server.GetName()
-            << "(" << &server << ") for " << (valueProp?"value ":"") << (shapeProp?"shape":"") << endl ;
-    throw std::logic_error("PROHIBITED SERVER ADDITION REQUESTED in RooAbsArg::addServer");
+            << "(" << &server << ") for " << (valueProp?"value ":"") << (shapeProp?"shape":"");
+    const std::string errorMsg = ss.str();
+    cxcoutF(LinkStateMgmt) << errorMsg << std::endl;
+    throw std::logic_error(errorMsg);
   }
 
   cxcoutD(LinkStateMgmt) << "RooAbsArg::addServer(" << this << "," << GetName() << "): adding server " << server.GetName()
@@ -402,9 +405,12 @@ void RooAbsArg::addServerList(RooAbsCollection& serverList, bool valueProp, bool
 void RooAbsArg::removeServer(RooAbsArg& server, bool force)
 {
   if (_prohibitServerRedirect) {
-    cxcoutF(LinkStateMgmt) << "RooAbsArg::addServer(" << this << "," << GetName() << "): PROHIBITED SERVER REMOVAL REQUESTED: removing server "
-            << server.GetName() << "(" << &server << ")" << endl ;
-    assert(0) ;
+    std::stringstream ss;
+    ss << "RooAbsArg::addServer(" << this << "," << GetName() << "): PROHIBITED SERVER REMOVAL REQUESTED: removing server "
+            << server.GetName() << "(" << &server << ")";
+    const std::string errorMsg = ss.str();
+    cxcoutF(LinkStateMgmt) << errorMsg << std::endl;
+    throw std::logic_error(errorMsg);
   }
 
   if (_verboseDirty) {
@@ -1136,29 +1142,28 @@ RooAbsArg *RooAbsArg::findNewServer(const RooAbsCollection &newSet, bool nameCha
   else {
     // Name changing server redirect:
     // use 'ORIGNAME:<oldName>' attribute instead of name of new server
-    TString nameAttrib("ORIGNAME:") ;
-    nameAttrib.Append(GetName()) ;
+    const std::string nameAttrib = std::string("ORIGNAME:") + GetName();
 
-    RooArgSet* tmp = (RooArgSet*) newSet.selectByAttrib(nameAttrib,true) ;
-    if(0 != tmp) {
+    if(std::unique_ptr<RooArgSet> tmp{static_cast<RooArgSet*>(newSet.selectByAttrib(nameAttrib.c_str(),true))}) {
 
       // Check if any match was found
       if (tmp->empty()) {
-        delete tmp ;
-        return 0 ;
+        return nullptr;
       }
 
       // Check if match is unique
-      if(tmp->getSize()>1) {
-        coutF(LinkStateMgmt) << "RooAbsArg::redirectServers(" << GetName() << "): FATAL Error, " << tmp->getSize() << " servers with "
-            << nameAttrib << " attribute" << endl ;
-        tmp->Print("v") ;
-        assert(0) ;
+      if(tmp->size() > 1) {
+        std::stringstream ss;
+        ss << "RooAbsArg::redirectServers(" << GetName() << "): FATAL Error, " << tmp->size() << " servers with "
+            << nameAttrib << " attribute";
+        tmp->Print("v");
+        const std::string errorMsg = ss.str();
+        cxcoutF(LinkStateMgmt) << errorMsg << std::endl;
+        throw std::logic_error(errorMsg);
       }
 
       // use the unique element in the set
       newServer= tmp->first();
-      delete tmp ;
     }
   }
   return newServer;
