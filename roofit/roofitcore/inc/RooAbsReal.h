@@ -328,12 +328,18 @@ public:
   // Evaluation error logging
   class EvalError {
   public:
-    EvalError() { }
-    EvalError(const EvalError& other) : _msg(other._msg), _srvval(other._srvval) { }
+    EvalError(RooAbsReal const& arg) : _arg{arg} {}
     void setMessage(const char* tmp) { std::string s(tmp); s.swap(_msg); }
     void setServerValues(const char* tmp) { std::string s(tmp); s.swap(_srvval); }
+
+    std::string const& message() const { return _msg; }
+    std::string const& serverValues() { if(_srvval.empty()) fillServerValues() ; return _srvval; }
+  private:
+    void fillServerValues();
+
     std::string _msg;
     std::string _srvval;
+    RooAbsReal const& _arg;
   } ;
 
   enum ErrorLoggingMode { PrintErrors, CollectErrors, CountErrors, Ignore } ;

@@ -333,9 +333,9 @@ void RooRealMPFE::serverLoop()
        list<EvalError>::const_iterator iter2 = iter->second.second.begin();
        for (; iter->second.second.end() != iter2; ++iter2) {
          ptr = iter->first;
-         *_pipe << ptr << iter2->_msg << iter2->_srvval << objidstr;
+         *_pipe << ptr << iter2->_msg << iter2->serverValues() << objidstr;
          if (_verboseServer) cout << "RooRealMPFE::serverLoop(" << GetName()
-      << ") IPC toClient> sending error log Arg " << iter->first << " Msg " << iter2->_msg << endl ;
+      << ") IPC toClient> sending error log Arg " << iter->first << " Msg " << iter2->message() << endl ;
        }
      }
      // let other end know that we're done with the list of errors

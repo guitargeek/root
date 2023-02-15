@@ -3562,7 +3562,7 @@ void RooAbsReal::logEvalError(const RooAbsReal* originator, const char* origName
   }
   inLogEvalError = true ;
 
-  EvalError ee ;
+  EvalError ee{*originator};
   ee.setMessage(message) ;
 
   if (serverValueString) {
@@ -3572,8 +3572,8 @@ void RooAbsReal::logEvalError(const RooAbsReal* originator, const char* origName
   if (_evalErrorMode==PrintErrors) {
    oocoutE(nullptr,Eval) << "RooAbsReal::logEvalError(" << "<STATIC>" << ") evaluation error, " << std::endl
          << " origin       : " << origName << std::endl
-         << " message      : " << ee._msg << std::endl
-         << " server values: " << ee._srvval << std::endl ;
+         << " message      : " << ee.message() << std::endl
+         << " server values: " << ee.serverValues() << std::endl ;
   } else if (_evalErrorMode==CollectErrors) {
     _evalErrorList[originator].first = origName ;
     _evalErrorList[originator].second.push_back(ee) ;
@@ -3583,6 +3583,24 @@ void RooAbsReal::logEvalError(const RooAbsReal* originator, const char* origName
   inLogEvalError = false ;
 }
 
+
+void RooAbsReal::EvalError::fillServerValues()
+{
+   std::ostringstream oss ;
+   bool first(true) ;
+   for (Int_t i=0 ; i < _arg.numProxies() ; i++) {
+      RooAbsProxy* p = _arg.getProxy(i) ;
+      if (!p) continue ;
+      //if (p->name()[0]=='!') continue ;
+      if (first) {
+         first=false ;
+      } else {
+         oss << ", " ;
+      }
+      p->print(oss,true) ;
+   }
+   _srvval = oss.str();
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3622,22 +3640,6 @@ void RooAbsReal::logEvalError(const char* message, const char* serverValueString
 
   if (serverValueString) {
     ee.setServerValues(serverValueString) ;
-  } else {
-    std::string srvval ;
-    std::ostringstream oss ;
-    bool first(true) ;
-    for (Int_t i=0 ; i<numProxies() ; i++) {
-      RooAbsProxy* p = getProxy(i) ;
-      if (!p) continue ;
-      //if (p->name()[0]=='!') continue ;
-      if (first) {
-   first=false ;
-      } else {
-   oss << ", " ;
-      }
-      p->print(oss,true) ;
-    }
-    ee.setServerValues(oss.str().c_str()) ;
   }
 
   if (_evalErrorMode==PrintErrors) {
@@ -3645,8 +3647,8 @@ void RooAbsReal::logEvalError(const char* message, const char* serverValueString
    printStream(oss2,kName|kClassName|kArgs,kInline)  ;
    coutE(Eval) << "RooAbsReal::logEvalError(" << GetName() << ") evaluation error, " << std::endl
           << " origin       : " << oss2.str() << std::endl
-          << " message      : " << ee._msg << std::endl
-          << " server values: " << ee._srvval << std::endl ;
+          << " message      : " << ee.message() << std::endl
+          << " server values: " << ee.serverValues() << std::endl ;
   } else if (_evalErrorMode==CollectErrors) {
     if (_evalErrorList[this].second.size() >= 2048) {
        // This check is to avoid the expensive call to printStream() if debug
