@@ -1170,7 +1170,6 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   }
 
   // Construct NLL
-  RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
   std::unique_ptr<RooAbsReal> nll ;
   RooAbsTestStatistic::Configuration cfg;
   cfg.addCoefRangeName = addCoefRangeName ? addCoefRangeName : "";
@@ -1183,11 +1182,13 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   cfg.binnedL = false;
   cfg.takeGlobalObservablesFromData = takeGlobalObservablesFromData;
   cfg.rangeName = rangeName ? rangeName : "";
-  auto nllVar = std::make_unique<RooNLLVar>(baseName.c_str(),"-log(likelihood)",*this,data,projDeps, ext, cfg);
-  nllVar->batchMode(batchMode == RooFit::BatchModeOption::Old);
-  nllVar->enableBinOffsetting(offset == RooFit::OffsetMode::Bin);
-  nll = std::move(nllVar);
-  RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
+  {
+    RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
+    auto nllVar = std::make_unique<RooNLLVar>(baseName.c_str(),"-log(likelihood)",*this,data,projDeps, ext, cfg);
+    nllVar->batchMode(batchMode == RooFit::BatchModeOption::Old);
+    nllVar->enableBinOffsetting(offset == RooFit::OffsetMode::Bin);
+    nll = std::move(nllVar);
+  }
 
   // Include constraints, if any, in likelihood
   if (std::unique_ptr<RooAbsReal> constraintTerm = createConstr(*this)) {
@@ -1802,7 +1803,7 @@ RooAbsReal* RooAbsPdf::createChi2(RooDataHist& data, const RooCmdArg& arg1,  con
   const char* rangeName = pc.getString("rangeName",0,true) ;
 
   // Construct Chi2
-  RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
+  RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
   RooAbsReal* chi2 ;
   string baseName = Form("chi2_%s_%s",GetName(),data.GetName()) ;
 
@@ -1842,8 +1843,6 @@ RooAbsReal* RooAbsPdf::createChi2(RooDataHist& data, const RooCmdArg& arg1,  con
     }
     chi2 = new RooAddition(baseName.c_str(),"chi^2",chi2List,true) ;
   }
-  RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
-
 
   return chi2 ;
 }

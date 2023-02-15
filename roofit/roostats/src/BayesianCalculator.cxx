@@ -848,8 +848,7 @@ RooAbsReal* BayesianCalculator::GetPosteriorFunction() const
 
    // try to reduce some error messages
    //bool silentMode = (RooMsgService::instance().globalKillBelow() >= RooFit::ERROR || RooMsgService::instance().silentMode()) ;
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CountErrors);
-
+   RooAbsReal::EvalErrorContext(RooAbsReal::CountErrors);
 
    coutI(Eval) <<  "BayesianCalculator::GetPosteriorFunction : "
                << " nll value " <<  nllVal << " poi value = " << poi->getVal() << std::endl;
@@ -968,7 +967,6 @@ RooAbsReal* BayesianCalculator::GetPosteriorFunction() const
       coutW(Eval) << "BayesianCalculator::GetPosteriorFunction : " << RooAbsReal::numEvalErrors() << " errors reported in evaluating log-likelihood function "
                    << std::endl;
    RooAbsReal::clearEvalErrorLog();
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors);
 
    return fIntegratedLikelihood;
 
@@ -1041,7 +1039,7 @@ RooPlot* BayesianCalculator::GetPosteriorPlot(bool norm, double precision ) cons
    if (!plot) return 0;
 
    // try to reduce some error messages
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CountErrors);
+   RooAbsReal::EvalErrorContext(RooAbsReal::CountErrors);
 
    plot->SetTitle(TString("Posterior probability of parameter \"")+TString(poi->GetName())+TString("\""));
    posterior->plotOn(plot,RooFit::Range(fLower,fUpper,false),RooFit::VLines(),RooFit::DrawOption("F"),RooFit::MoveToBack(),RooFit::FillColor(kGray),RooFit::Precision(precision));
@@ -1050,7 +1048,6 @@ RooPlot* BayesianCalculator::GetPosteriorPlot(bool norm, double precision ) cons
 
    // reset the counts and default mode
    RooAbsReal::clearEvalErrorLog();
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors);
 
    return plot;
 }

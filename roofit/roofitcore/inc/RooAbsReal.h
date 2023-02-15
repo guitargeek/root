@@ -337,6 +337,15 @@ public:
   } ;
 
   enum ErrorLoggingMode { PrintErrors, CollectErrors, CountErrors, Ignore } ;
+
+  class EvalErrorContext {
+  public:
+     EvalErrorContext(ErrorLoggingMode m) : _old{evalErrorLoggingMode()} { setEvalErrorLoggingMode(m); }
+     ~EvalErrorContext() { setEvalErrorLoggingMode(_old); }
+  private:
+     ErrorLoggingMode _old;
+  };
+
   static ErrorLoggingMode evalErrorLoggingMode() ;
   static void setEvalErrorLoggingMode(ErrorLoggingMode m) ;
   void logEvalError(const char* message, const char* serverValueString=nullptr) const ;

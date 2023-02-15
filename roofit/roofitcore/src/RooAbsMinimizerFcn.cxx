@@ -460,7 +460,7 @@ void RooAbsMinimizerFcn::finishDoEval() const
 
 void RooAbsMinimizerFcn::setOptimizeConst(int flag)
 {
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors);
+   RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
 
    if (_optConst && !flag) {
       if (_context->getPrintLevel() > -1)
@@ -483,15 +483,13 @@ void RooAbsMinimizerFcn::setOptimizeConst(int flag)
          oocoutI(_context, Minimization) << "RooAbsMinimizerFcn::setOptimizeConst: const optimization wasn't active"
                                          << endl;
    }
-
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors);
 }
 
 void RooAbsMinimizerFcn::optimizeConstantTerms(bool constStatChange, bool constValChange)
 {
    if (constStatChange) {
 
-      RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors);
+      RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
 
       oocoutI(_context, Minimization)
          << "RooAbsMinimizerFcn::optimizeConstantTerms: set of constant parameters changed, rerunning const optimizer"
@@ -503,8 +501,6 @@ void RooAbsMinimizerFcn::optimizeConstantTerms(bool constStatChange, bool constV
          << endl;
       setOptimizeConstOnFunction(RooAbsArg::ValueChange, true);
    }
-
-   RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors);
 }
 
 std::vector<double> RooAbsMinimizerFcn::getParameterValues() const

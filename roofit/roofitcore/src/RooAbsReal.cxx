@@ -1096,7 +1096,7 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
 
   // Loop over the input histogram's bins and fill each one with our projection's
   // value, calculated at the center.
-  RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
+  RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
   Int_t xbin(0),ybin(0),zbin(0);
   Int_t bins= xbins*ybins*zbins;
   for(Int_t bin= 0; bin < bins; bin++) {
@@ -1140,7 +1140,6 @@ TH1 *RooAbsReal::fillHistogram(TH1 *hist, const RooArgList &plotVars,
 
     //cout << "bin " << bin << " -> (" << xbin << "," << ybin << "," << zbin << ") = " << result << std::endl;
   }
-  RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
 
   // cleanup
   delete cloneSet;
@@ -2169,10 +2168,12 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
     }
 
     // Curve constructor for data weighted average
-    RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-    RooCurve *curve = new RooCurve(projection->GetName(),projection->GetTitle(),scaleBind,
-               o.rangeLo,o.rangeHi,frame->GetNbinsX(),o.precision,o.precision,o.shiftToZero,o.wmode,o.numee,o.doeeval,o.eeval) ;
-    RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
+    RooCurve * curve = nullptr;
+    {
+       RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
+       curve = new RooCurve(projection->GetName(),projection->GetTitle(),scaleBind,
+                  o.rangeLo,o.rangeHi,frame->GetNbinsX(),o.precision,o.precision,o.shiftToZero,o.wmode,o.numee,o.doeeval,o.eeval) ;
+    }
 
     curve->SetName(curveName.Data()) ;
 
@@ -2239,9 +2240,11 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
 
     TString opt(o.drawOptions);
     if(opt.Contains("P")){
-      RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-      RooHist *graph= new RooHist(*projection,*plotVar,1.,o.scaleFactor,frame->getNormVars(),o.errorFR);
-      RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
+      RooHist *graph = nullptr;
+      {
+         RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
+         graph= new RooHist(*projection,*plotVar,1.,o.scaleFactor,frame->getNormVars(),o.errorFR);
+      }
 
       // Override name of curve by user name, if specified
       if (o.curveName) {
@@ -2251,10 +2254,12 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
       // add this new curve to the specified plot frame
       frame->addPlotable(graph, o.drawOptions, o.curveInvisible);
     } else {
-      RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-      RooCurve *curve = new RooCurve(*projection,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
+      RooCurve *curve = nullptr;
+      {
+         RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
+         curve = new RooCurve(*projection,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
                                      o.scaleFactor,0,o.precision,o.precision,o.shiftToZero,o.wmode,o.numee,o.doeeval,o.eeval,o.progress);
-      RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
+      }
       curve->SetName(curveName.Data()) ;
 
       // Add self to other curve if requested
@@ -2535,10 +2540,12 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
     }
 
 
-    RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-    RooCurve *curve = new RooCurve(funcAsym.GetName(),funcAsym.GetTitle(),scaleBind,
-               o.rangeLo,o.rangeHi,frame->GetNbinsX(),o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval) ;
-    RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
+    RooCurve *curve = nullptr;
+    {
+       RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
+       curve = new RooCurve(funcAsym.GetName(),funcAsym.GetTitle(),scaleBind,
+                  o.rangeLo,o.rangeHi,frame->GetNbinsX(),o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval) ;
+    }
 
     dynamic_cast<TAttLine*>(curve)->SetLineColor(2) ;
     // add this new curve to the specified plot frame
@@ -2556,10 +2563,12 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
       o.rangeHi = frame->GetXaxis()->GetXmax() ;
     }
 
-    RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-    RooCurve* curve= new RooCurve(funcAsym,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
-              o.scaleFactor,0,o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval);
-    RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
+    RooCurve *curve = nullptr;
+    {
+       RooAbsReal::EvalErrorContext(RooAbsReal::CollectErrors);
+       curve = new RooCurve(funcAsym,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
+                 o.scaleFactor,0,o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval);
+    }
 
     dynamic_cast<TAttLine*>(curve)->SetLineColor(2) ;
 
