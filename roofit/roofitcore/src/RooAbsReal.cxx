@@ -3640,29 +3640,40 @@ void RooAbsReal::logEvalError(const char* message, const char* serverValueString
     ee.setServerValues(oss.str().c_str()) ;
   }
 
-  std::ostringstream oss2 ;
-  printStream(oss2,kName|kClassName|kArgs,kInline)  ;
-
   if (_evalErrorMode==PrintErrors) {
+   std::ostringstream oss2 ;
+   printStream(oss2,kName|kClassName|kArgs,kInline)  ;
    coutE(Eval) << "RooAbsReal::logEvalError(" << GetName() << ") evaluation error, " << std::endl
           << " origin       : " << oss2.str() << std::endl
           << " message      : " << ee._msg << std::endl
           << " server values: " << ee._srvval << std::endl ;
   } else if (_evalErrorMode==CollectErrors) {
     if (_evalErrorList[this].second.size() >= 2048) {
-       // avoid overflowing the error std::list, so if there are very many, print
-       // the oldest one first, and pop it off the std::list
-       const EvalError& oee = _evalErrorList[this].second.front();
-       // print to debug stream, since these would normally be suppressed, and
-       // we do not want to increase the error count in the message service...
-       ccoutD(Eval) << "RooAbsReal::logEvalError(" << GetName()
-              << ") delayed evaluation error, " << std::endl
-                   << " origin       : " << oss2.str() << std::endl
-                   << " message      : " << oee._msg << std::endl
-                   << " server values: " << oee._srvval << std::endl ;
+       // This check is to avoid the expensive call to printStream() if debug
+       // printing is not active anyway.
+       if (RooMsgService::instance().isActive(this, RooFit::Eval, RooFit::DEBUG)) {
+          std::ostringstream oss2 ;
+          printStream(oss2,kName|kClassName|kArgs,kInline)  ;
+          // avoid overflowing the error std::list, so if there are very many, print
+          // the oldest one first, and pop it off the std::list
+          const EvalError& oee = _evalErrorList[this].second.front();
+          // print to debug stream, since these would normally be suppressed, and
+          // we do not want to increase the error count in the message service...
+          ccoutD(Eval) << "RooAbsReal::logEvalError(" << GetName()
+                 << ") delayed evaluation error, " << std::endl
+                      << " origin       : " << oss2.str() << std::endl
+                      << " message      : " << oee._msg << std::endl
+                      << " server values: " << oee._srvval << std::endl ;
+       }
        _evalErrorList[this].second.pop_front();
     }
-    _evalErrorList[this].first = oss2.str().c_str() ;
+    // The first element used to contain the output of the same printStream()
+    // command above. However, this would mean calling printStream() every time
+    // there is an evaluation error, even if logging is disabled! This would be
+    // a very large overhead that is not necessary because the string in the
+    // _evalErrorList isn't even used anywhere. That's why we just fill it with
+    // the name now.
+    _evalErrorList[this].first = GetName();
     _evalErrorList[this].second.push_back(ee) ;
   }
 
