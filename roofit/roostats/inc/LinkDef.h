@@ -12,7 +12,6 @@
 
 #pragma link off all globals;
 #pragma link off all classes;
-#pragma link off all functions;
 
 #pragma link C++ namespace RooStats;
 #pragma link C++ namespace RooStats::NumberCountingUtils;
@@ -102,26 +101,6 @@
 #pragma link C++ class RooStats::LikelihoodIntervalPlot+;
 
 #pragma link C++ class RooStats::UpperLimitMCSModule+;
-
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialExpZ(double , double ,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialWithTauExpZ(double,double,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialObsZ(double,double,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialWithTauObsZ(double,double,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialExpP(double,double,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialWithTauExpP(double,double,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialObsP(double,double,double);
-#pragma link C++ function RooStats::NumberCountingUtils::BinomialWithTauObsP(double,double,double);
-
-#pragma link C++ function RooStats::PValueToSignificance(double);
-#pragma link C++ function RooStats::SignificanceToPValue(double);
-#pragma link C++ function RooStats::RemoveConstantParameters(RooArgSet* set);
-#pragma link C++ function RooStats::RemoveConstantParameters(RooArgList& set);
-#pragma link C++ function RooStats::SetParameters(const RooArgSet* , RooArgSet* );
-#pragma link C++ function RooStats::SetAllConstant(const RooAbsCollection & , bool );
-#pragma link C++ function RooStats::MakeNuisancePdf(RooAbsPdf & , const RooArgSet &, const char * );
-#pragma link C++ function RooStats::MakeNuisancePdf(const RooStats::ModelConfig & , const char * );
-#pragma link C++ function RooStats::GetAsTTree(TString, TString, const RooDataSet&);
-
 
 // need for unique_ptr object in Likelihoodinterval since they are forwd declared
 #pragma extra_include "Math/IFunction.h";
