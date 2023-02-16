@@ -73,7 +73,7 @@ public:
    /// Set a workspace that owns all the necessary components for the analysis.
    void SetWS(RooWorkspace & ws) override;
    //// alias for SetWS(...)
-   virtual void SetWorkspace(RooWorkspace & ws) { SetWS(ws); }
+   void SetWorkspace(RooWorkspace & ws) { SetWS(ws); }
 
    /// Remove the existing reference to a workspace and replace it with this new one.
    void ReplaceWS(RooWorkspace *ws) override {
@@ -82,51 +82,51 @@ public:
    }
 
    /// Set the proto DataSet, add to the workspace if not already there
-   virtual void SetProtoData(RooAbsData & data) {
+   void SetProtoData(RooAbsData & data) {
       ImportDataInWS(data);
       SetProtoData( data.GetName() );
    }
 
    /// Set the Pdf, add to the workspace if not already there
-   virtual void SetPdf(const RooAbsPdf& pdf) {
+   void SetPdf(const RooAbsPdf& pdf) {
       ImportPdfInWS(pdf);
       SetPdf( pdf.GetName() );
    }
 
    /// Set the Prior Pdf, add to the workspace if not already there
-   virtual void SetPriorPdf(const RooAbsPdf& pdf) {
+   void SetPriorPdf(const RooAbsPdf& pdf) {
       ImportPdfInWS(pdf);
       SetPriorPdf( pdf.GetName() );
    }
 
    /// Specify parameters of the PDF.
-   virtual void SetParameters(const RooArgSet& set) {
+   void SetParameters(const RooArgSet& set) {
      if (!SetHasOnlyParameters(set,"ModelConfig::SetParameters")) return ;
      fPOIName=std::string(GetName()) + "_POI";
      DefineSetInWS(fPOIName.c_str(), set);
    }
 
    /// Specify parameters of interest.
-   virtual void SetParametersOfInterest(const RooArgSet& set) {
+   void SetParametersOfInterest(const RooArgSet& set) {
      if (!SetHasOnlyParameters(set,"ModelConfig::SetParametersOfInterest")) return ;
       SetParameters(set);
    }
 
    /// Specify parameters
    /// using a list of comma-separated list of arguments already in the workspace.
-   virtual void SetParameters(const char *argList) {
+   void SetParameters(const char *argList) {
       if(!GetWS()) return;
       SetParameters(GetWS()->argSet(argList));
    }
 
    /// Specify parameters of interest
    /// using a comma-separated list of arguments already in the workspace.
-   virtual void SetParametersOfInterest(const char *argList) {
+   void SetParametersOfInterest(const char *argList) {
       SetParameters(argList);
    }
 
    /// Specify the nuisance parameters (parameters that are not POI).
-   virtual void SetNuisanceParameters(const RooArgSet& set) {
+   void SetNuisanceParameters(const RooArgSet& set) {
      if (!SetHasOnlyParameters(set,"ModelConfig::SetNuisanceParameters")) return ;
       fNuisParamsName=std::string(GetName()) + "_NuisParams";
       DefineSetInWS(fNuisParamsName.c_str(), set);
@@ -134,52 +134,52 @@ public:
 
    /// Specify the nuisance parameters
    /// using a comma-separated list of arguments already in the workspace.
-   virtual void SetNuisanceParameters(const char *argList) {
+   void SetNuisanceParameters(const char *argList) {
       if(!GetWS()) return;
       SetNuisanceParameters(GetWS()->argSet(argList));
    }
 
    /// Specify the constraint parameters
-   virtual void SetConstraintParameters(const RooArgSet& set) {
+   void SetConstraintParameters(const RooArgSet& set) {
      if (!SetHasOnlyParameters(set,"ModelConfig::SetConstainedParameters")) return ;
       fConstrParamsName=std::string(GetName()) + "_ConstrainedParams";
       DefineSetInWS(fConstrParamsName.c_str(), set);
    }
    /// Specify the constraint parameters
    /// through a comma-separated list of arguments already in the workspace.
-   virtual void SetConstraintParameters(const char *argList) {
+   void SetConstraintParameters(const char *argList) {
       if(!GetWS()) return;
       SetConstraintParameters(GetWS()->argSet(argList));
    }
 
    /// Specify the observables.
-   virtual void SetObservables(const RooArgSet& set) {
+   void SetObservables(const RooArgSet& set) {
      if (!SetHasOnlyParameters(set,"ModelConfig::SetObservables")) return ;
       fObservablesName=std::string(GetName()) + "_Observables";
       DefineSetInWS(fObservablesName.c_str(), set);
    }
    /// specify the observables
    /// through a comma-separated list of arguments already in the workspace.
-   virtual void SetObservables(const char *argList) {
+   void SetObservables(const char *argList) {
       if(!GetWS()) return;
       SetObservables(GetWS()->argSet(argList));
    }
 
    /// Specify the conditional observables.
-   virtual void SetConditionalObservables(const RooArgSet& set) {
+   void SetConditionalObservables(const RooArgSet& set) {
      if (!SetHasOnlyParameters(set,"ModelConfig::SetConditionalObservables")) return ;
       fConditionalObsName=std::string(GetName()) + "_ConditionalObservables";
       DefineSetInWS(fConditionalObsName.c_str(), set);
    }
    /// Specify the conditional observables
    /// through a comma-separated list of arguments already in the workspace.
-   virtual void SetConditionalObservables(const char *argList) {
+   void SetConditionalObservables(const char *argList) {
       if(!GetWS()) return;
       SetConditionalObservables(GetWS()->argSet(argList));
    }
 
    /// Specify the global observables.
-   virtual void SetGlobalObservables(const RooArgSet& set) {
+   void SetGlobalObservables(const RooArgSet& set) {
 
      if (!SetHasOnlyParameters(set,"ModelConfig::SetGlobalObservables")) return ;
 
@@ -193,17 +193,17 @@ public:
    }
    /// Specify the global observables
    /// through a comma-separated list of arguments already in the workspace.
-   virtual void SetGlobalObservables(const char *argList) {
+   void SetGlobalObservables(const char *argList) {
       if(!GetWS()) return;
       SetGlobalObservables(GetWS()->argSet(argList));
    }
 
    /// Set parameter values for a particular hypothesis if using a common PDF
    /// by saving a snapshot in the workspace.
-   virtual void SetSnapshot(const RooArgSet& set);
+   void SetSnapshot(const RooArgSet& set);
 
    /// Specify the name of the PDF in the workspace to be used.
-   virtual void SetPdf(const char* name) {
+   void SetPdf(const char* name) {
       if (! GetWS() ) return;
 
       if(GetWS()->pdf(name))
@@ -213,7 +213,7 @@ public:
    }
 
    /// Specify the name of the PDF in the workspace to be used.
-   virtual void SetPriorPdf(const char* name) {
+   void SetPriorPdf(const char* name) {
       if (! GetWS() ) return;
 
       if(GetWS()->pdf(name))
@@ -224,7 +224,7 @@ public:
 
 
    /// Specify the name of the dataset in the workspace to be used.
-   virtual void SetProtoData(const char* name){
+   void SetProtoData(const char* name){
       if (! GetWS() ) return;
 
       if(GetWS()->data(name))
@@ -278,7 +278,7 @@ public:
    /// overload the print method
    void Print(Option_t* option = "") const override;
 
-protected:
+private:
 
    /// helper function to check that content of a given set is exclusively parameters
    bool SetHasOnlyParameters(const RooArgSet& set, const char* errorMsgPrefix=nullptr) ;
