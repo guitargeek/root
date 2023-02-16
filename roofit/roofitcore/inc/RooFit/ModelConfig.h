@@ -203,34 +203,46 @@ public:
    void SetSnapshot(const RooArgSet& set);
 
    /// Specify the name of the PDF in the workspace to be used.
-   void SetPdf(const char* name) {
-      if (! GetWS() ) return;
+   /// Returns `false` if no workspace is set or if the PDF is not in the workspace.
+   bool SetPdf(RooStringView name) {
+      if (! GetWS() ) return false;
 
-      if(GetWS()->pdf(name))
+      if(GetWS()->pdf(name)) {
          fPdfName = name;
-      else
-         coutE(ObjectHandling) << "pdf "<<name<< " does not exist in workspace"<<std::endl;
+         return true;
+      }
+
+      coutE(ObjectHandling) << "pdf "<<name<< " does not exist in workspace"<<std::endl;
+      return false;
    }
 
    /// Specify the name of the PDF in the workspace to be used.
-   void SetPriorPdf(const char* name) {
-      if (! GetWS() ) return;
+   /// Returns `false` if no workspace is set or if the PDF is not in the workspace.
+   bool SetPriorPdf(RooStringView name) {
+      if (! GetWS() ) return false;
 
-      if(GetWS()->pdf(name))
+      if(GetWS()->pdf(name)) {
          fPriorPdfName = name;
-      else
-         coutE(ObjectHandling) << "pdf "<<name<< " does not exist in workspace"<<std::endl;
+         return true;
+      }
+
+      coutE(ObjectHandling) << "pdf "<<name<< " does not exist in workspace"<<std::endl;
+      return false;
    }
 
 
    /// Specify the name of the dataset in the workspace to be used.
-   void SetProtoData(const char* name){
-      if (! GetWS() ) return;
+   /// Returns `false` if no workspace is set or if the dataset is not in the workspace.
+   bool SetProtoData(RooStringView name){
+      if (! GetWS() ) return true;
 
-      if(GetWS()->data(name))
+      if(GetWS()->data(name)) {
          fProtoDataName = name;
-      else
-         coutE(ObjectHandling) << "dataset "<<name<< " does not exist in workspace"<<std::endl;
+         return true;
+      }
+
+      coutE(ObjectHandling) << "dataset "<<name<< " does not exist in workspace"<<std::endl;
+      return false;
    }
 
 
