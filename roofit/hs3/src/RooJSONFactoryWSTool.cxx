@@ -24,7 +24,7 @@
 #include <RooCategory.h>
 #include <RooDataSet.h>
 #include <RooDataHist.h>
-#include <RooStats/ModelConfig.h>
+#include <RooFit/ModelConfig.h>
 
 #include "TROOT.h"
 #include "TH1.h"
@@ -1063,10 +1063,10 @@ void RooJSONFactoryWSTool::configureToplevelPdf(const JSONNode &p, RooAbsPdf &pd
       }
    }
    {
-      RooStats::ModelConfig mc{mcname.c_str(), pdf.GetName()};
+      RooFit::ModelConfig mc{mcname.c_str(), pdf.GetName()};
       _workspace.import(mc);
    }
-   auto *inwsmc = dynamic_cast<RooStats::ModelConfig *>(_workspace.obj(mcname));
+   auto *inwsmc = dynamic_cast<RooFit::ModelConfig *>(_workspace.obj(mcname));
    if (inwsmc) {
       inwsmc->SetWS(_workspace);
       inwsmc->SetPdf(pdf);
@@ -1097,7 +1097,7 @@ void RooJSONFactoryWSTool::configureToplevelPdf(const JSONNode &p, RooAbsPdf &pd
       inwsmc->SetGlobalObservables(globs);
    } else {
       std::stringstream ss;
-      ss << "RooJSONFactoryWSTool() object '" << mcname << "' in workspace is not of type RooStats::ModelConfig!"
+      ss << "RooJSONFactoryWSTool() object '" << mcname << "' in workspace is not of type RooFit::ModelConfig!"
          << std::endl;
       logInputArgumentsError(std::move(ss));
    }
@@ -1200,12 +1200,12 @@ std::string RooJSONFactoryWSTool::name(const JSONNode &n)
 void RooJSONFactoryWSTool::exportAllObjects(JSONNode &n)
 {
    // export all ModelConfig objects and attached Pdfs
-   std::vector<RooStats::ModelConfig *> mcs;
+   std::vector<RooFit::ModelConfig *> mcs;
    std::vector<RooAbsPdf *> toplevel;
    _rootnode_output = &n;
    for (auto obj : _workspace.allGenericObjects()) {
-      if (obj->InheritsFrom(RooStats::ModelConfig::Class())) {
-         auto *mc = static_cast<RooStats::ModelConfig *>(obj);
+      if (obj->InheritsFrom(RooFit::ModelConfig::Class())) {
+         auto *mc = static_cast<RooFit::ModelConfig *>(obj);
          auto &vars = n["variables"];
          if (mc->GetObservables()) {
             for (auto obs : *mc->GetObservables()) {

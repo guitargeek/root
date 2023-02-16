@@ -5,7 +5,7 @@
 #include <RooFitHS3/RooJSONFactoryWSTool.h>
 #include <RooFitHS3/HistFactoryJSONTool.h>
 
-#include <RooStats/ModelConfig.h>
+#include <RooFit/ModelConfig.h>
 #include <RooStats/HistFactory/Measurement.h>
 #include <RooStats/HistFactory/MakeModelAndMeasurementsFast.h>
 
@@ -85,10 +85,10 @@ TEST(TestHS3HistFactoryJSON, Closure)
    std::unique_ptr<RooWorkspace> ws = toWS(*meas);
    std::unique_ptr<RooWorkspace> wsFromJson = importToWS("hf.json", "ws1");
 
-   auto *mc = dynamic_cast<RooStats::ModelConfig *>(ws->obj("ModelConfig"));
+   auto *mc = dynamic_cast<RooFit::ModelConfig *>(ws->obj("ModelConfig"));
    EXPECT_TRUE(mc != nullptr);
 
-   auto *mcFromJson = dynamic_cast<RooStats::ModelConfig *>(wsFromJson->obj("ModelConfig"));
+   auto *mcFromJson = dynamic_cast<RooFit::ModelConfig *>(wsFromJson->obj("ModelConfig"));
    EXPECT_TRUE(mcFromJson != nullptr);
 
    RooAbsPdf *pdf = mc->GetPdf();
@@ -130,10 +130,10 @@ TEST(TestHS3HistFactoryJSON, ClosureLoop)
    RooJSONFactoryWSTool newtool{newws};
    newtool.importJSONfromString(js);
 
-   auto *mc = dynamic_cast<RooStats::ModelConfig *>(ws->obj("ModelConfig"));
+   auto *mc = dynamic_cast<RooFit::ModelConfig *>(ws->obj("ModelConfig"));
    EXPECT_TRUE(mc != nullptr);
 
-   auto *newmc = dynamic_cast<RooStats::ModelConfig *>(newws.obj("ModelConfig"));
+   auto *newmc = dynamic_cast<RooFit::ModelConfig *>(newws.obj("ModelConfig"));
    EXPECT_TRUE(newmc != nullptr);
 
    RooAbsPdf *pdf = mc->GetPdf();

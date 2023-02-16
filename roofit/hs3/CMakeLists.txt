@@ -25,7 +25,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitHS3
   LIBRARIES
     RooFit
     RooFitCore
-    RooStats
     HistFactory
     RooFitJSONInterface
 )

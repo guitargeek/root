@@ -3,6 +3,7 @@
 //Old LinkDef1.h
 #pragma link off all globals;
 #pragma link off all classes;
+#pragma link C++ class RooStats::ModelConfig+;
 #pragma link C++ class Roo1DTable+ ;
 #pragma link C++ class RooAbsArg- ;
 #pragma link C++ class stack<RooAbsArg*,deque<RooAbsArg*> > ;
