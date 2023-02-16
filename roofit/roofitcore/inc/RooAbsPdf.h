@@ -45,9 +45,9 @@ public:
 
   // Constructors, assignment etc
   RooAbsPdf() ;
-  RooAbsPdf(const char *name, const char *title=nullptr) ;
-  RooAbsPdf(const char *name, const char *title, double minVal, double maxVal) ;
-  // RooAbsPdf(const RooAbsPdf& other, const char* name=nullptr);
+  explicit RooAbsPdf(const char *name, const char *title=nullptr) ;
+  explicit RooAbsPdf(const char *name, const char *title, double minVal, double maxVal) ;
+
   ~RooAbsPdf() override;
 
   // Toy MC generation
