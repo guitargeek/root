@@ -536,6 +536,59 @@ const RooAbsReal* RooAbsPdf::getNormObj(const RooArgSet* nset, const RooArgSet* 
 }
 
 
+std::unique_ptr<RooAbsReal> RooAbsPdf::createNormObj(RooArgSet const *nset) const
+{
+   RooArgSet depList;
+   getObservables(nset, depList);
+
+   if (_verboseEval > 0) {
+      if (!selfNormalized()) {
+         cxcoutD(Tracing) << ClassName() << "::syncNormalization(" << GetName()
+                          << ") recreating normalization integral " << std::endl;
+         depList.printStream(ccoutD(Tracing), kName | kValue | kArgs, kSingleLine);
+      } else {
+         cxcoutD(Tracing) << ClassName() << "::syncNormalization(" << GetName()
+                          << ") selfNormalized, creating unit norm" << std::endl;
+      }
+   }
+
+   if (selfNormalized() || !dependsOn(depList)) {
+      auto ntitle = std::string(GetTitle()) + " Unit Normalization";
+      auto nname = std::string(GetName()) + "_UnitNorm";
+      return std::make_unique<RooRealVar>(nname.c_str(), ntitle.c_str(), 1.0);
+   }
+
+   const char *nr = _normRangeOverride.Length() > 0 ? _normRangeOverride.Data()
+                                                    : (_normRange.Length() > 0 ? _normRange.Data() : nullptr);
+
+   std::unique_ptr<RooAbsReal> normInt{createIntegral(depList, *getIntegratorConfig(), nr)};
+   normInt->getVal();
+
+   const char *cacheParamsStr = getStringAttribute("CACHEPARAMINT");
+   if (cacheParamsStr && strlen(cacheParamsStr)) {
+
+      std::unique_ptr<RooArgSet> intParams{normInt->getVariables()};
+
+      RooArgSet cacheParams = RooHelpers::selectFromArgSet(*intParams, cacheParamsStr);
+
+      if (!cacheParams.empty()) {
+         cxcoutD(Caching) << "RooAbsReal::createIntObj(" << GetName() << ") INFO: constructing "
+                          << cacheParams.getSize() << "-dim value cache for integral over " << depList
+                          << " as a function of " << cacheParams << " in range " << (nr ? nr : "<default>") << endl;
+         string name = Form("%s_CACHE_[%s]", normInt->GetName(), cacheParams.contentsString().c_str());
+         auto cachedIntegral = std::make_unique<RooCachedReal>(name.c_str(), name.c_str(), *normInt, cacheParams);
+         cachedIntegral->setInterpolationOrder(2);
+         cachedIntegral->setCacheSource(true);
+         if (normInt->operMode() == ADirty) {
+            cachedIntegral->setOperMode(ADirty);
+         }
+         cachedIntegral->addOwnedComponents(std::move(normInt));
+         return cachedIntegral;
+      }
+   }
+   return normInt;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Verify that the normalization integral cached with this PDF
@@ -579,64 +632,14 @@ bool RooAbsPdf::syncNormalization(const RooArgSet* nset, bool adjustProxies) con
     ((RooAbsPdf*) this)->setProxyNormSet(nset) ;
   }
 
-  RooArgSet depList;
-  getObservables(nset, depList);
-
-  if (_verboseEval>0) {
-    if (!selfNormalized()) {
-      cxcoutD(Tracing) << ClassName() << "::syncNormalization(" << GetName()
-      << ") recreating normalization integral " << endl ;
-      depList.printStream(ccoutD(Tracing),kName|kValue|kArgs,kSingleLine) ;
-    } else {
-      cxcoutD(Tracing) << ClassName() << "::syncNormalization(" << GetName() << ") selfNormalized, creating unit norm" << endl;
-    }
-  }
-
-  // Destroy old normalization & create new
-  if (selfNormalized() || !dependsOn(depList)) {
-    auto ntitle = std::string(GetTitle()) + " Unit Normalization";
-    auto nname = std::string(GetName()) + "_UnitNorm";
-    _norm = new RooRealVar(nname.c_str(),ntitle.c_str(),1) ;
-  } else {
-    const char* nr = (_normRangeOverride.Length()>0 ? _normRangeOverride.Data() : (_normRange.Length()>0 ? _normRange.Data() : 0)) ;
-
-//     cout << "RooAbsPdf::syncNormalization(" << GetName() << ") rangeName for normalization is " << (nr?nr:"<null>") << endl ;
-    RooAbsReal* normInt = createIntegral(depList,*getIntegratorConfig(),nr) ;
-    normInt->getVal() ;
-//     cout << "resulting normInt = " << normInt->GetName() << endl ;
-
-    const char* cacheParamsStr = getStringAttribute("CACHEPARAMINT") ;
-    if (cacheParamsStr && strlen(cacheParamsStr)) {
-
-      std::unique_ptr<RooArgSet> intParams{normInt->getVariables()} ;
-
-      RooArgSet cacheParams = RooHelpers::selectFromArgSet(*intParams, cacheParamsStr);
-
-      if (!cacheParams.empty()) {
-   cxcoutD(Caching) << "RooAbsReal::createIntObj(" << GetName() << ") INFO: constructing " << cacheParams.getSize()
-          << "-dim value cache for integral over " << depList << " as a function of " << cacheParams << " in range " << (nr?nr:"<default>") <<  endl ;
-   string name = Form("%s_CACHE_[%s]",normInt->GetName(),cacheParams.contentsString().c_str()) ;
-   RooCachedReal* cachedIntegral = new RooCachedReal(name.c_str(),name.c_str(),*normInt,cacheParams) ;
-   cachedIntegral->setInterpolationOrder(2) ;
-   cachedIntegral->addOwnedComponents(*normInt) ;
-   cachedIntegral->setCacheSource(true) ;
-   if (normInt->operMode()==ADirty) {
-     cachedIntegral->setOperMode(ADirty) ;
-   }
-   normInt= cachedIntegral ;
-      }
-
-    }
-    _norm = normInt ;
-  }
+  _norm = createNormObj(nset).release();
 
   // Register new normalization with manager (takes ownership)
   cache = new CacheElem(*_norm) ;
   _normMgr.setObj(nset,cache) ;
 
 //   cout << "making new object " << _norm->GetName() << endl ;
-
-  return true ;
+  return true;
 }
 
 

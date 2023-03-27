@@ -368,7 +368,7 @@ protected:
 
   static Int_t _verboseEval ;
 
-  virtual bool syncNormalization(const RooArgSet* dset, bool adjustProxies=true) const ;
+  virtual bool syncNormalization(const RooArgSet* nset, bool adjustProxies=true) const ;
 
   mutable double _rawValue ;
   mutable RooAbsReal* _norm = nullptr; //! Normalization integral (owned by _normMgr)
@@ -403,6 +403,8 @@ private:
 
   int calcAsymptoticCorrectedCovariance(RooMinimizer& minimizer, RooAbsData const& data);
   int calcSumW2CorrectedCovariance(RooMinimizer& minimizer, RooAbsReal & nll) const;
+
+  std::unique_ptr<RooAbsReal> createNormObj(RooArgSet const* nset) const;
 
   ClassDefOverride(RooAbsPdf,5) // Abstract PDF with normalization support
 };
