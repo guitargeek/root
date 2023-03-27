@@ -399,12 +399,14 @@ protected:
   static TString _normRangeOverride ;
 
 private:
+  friend class RooNormalizedPdf;
+
   mutable RooFit::UniqueId<RooArgSet>::Value_t _normSetId = RooFit::UniqueId<RooArgSet>::nullval; ///<! Unique ID of the currently-active normalization set
 
   int calcAsymptoticCorrectedCovariance(RooMinimizer& minimizer, RooAbsData const& data);
   int calcSumW2CorrectedCovariance(RooMinimizer& minimizer, RooAbsReal & nll) const;
 
-  std::unique_ptr<RooAbsReal> createNormObj(RooArgSet const* nset) const;
+  std::unique_ptr<RooAbsReal> createNormalization(RooArgSet const& nset) const;
 
   ClassDefOverride(RooAbsPdf,5) // Abstract PDF with normalization support
 };

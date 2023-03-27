@@ -508,10 +508,14 @@ double RooAbsPdf::getNorm(const RooArgSet* nset) const
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
-/// Return pointer to RooAbsReal object that implements calculation of integral over observables iset in range
-/// rangeName, optionally taking the integrand normalized over observables nset
+/// Return pointer to RooAbsReal object that implements calculation of integral
+/// over observables iset in range rangeName, optionally taking the integrand
+/// normalized over observables nset \warning The object returned by
+/// getNormObj(nullptr, nset, nullptr) is not necessarily the integral object
+/// that is in the denominator when calling RooAbsPdf::getVal(nset)! This
+/// getNormObjFunction() is ignoring the RooAbsPdf::selfNormalized() and
+/// RooAbsPdf::rangeName() members.
 
 const RooAbsReal* RooAbsPdf::getNormObj(const RooArgSet* nset, const RooArgSet* iset, const TNamed* rangeName) const
 {
@@ -536,10 +540,14 @@ const RooAbsReal* RooAbsPdf::getNormObj(const RooArgSet* nset, const RooArgSet* 
 }
 
 
-std::unique_ptr<RooAbsReal> RooAbsPdf::createNormObj(RooArgSet const *nset) const
+////////////////////////////////////////////////////////////////////////////////
+/// Creates the normalization integral object that is in the denominator when
+/// calling RooAbsPdf::getVal(nset).
+
+std::unique_ptr<RooAbsReal> RooAbsPdf::createNormalization(RooArgSet const& nset) const
 {
    RooArgSet depList;
-   getObservables(nset, depList);
+   getObservables(&nset, depList);
 
    if (_verboseEval > 0) {
       if (!selfNormalized()) {
@@ -558,10 +566,11 @@ std::unique_ptr<RooAbsReal> RooAbsPdf::createNormObj(RooArgSet const *nset) cons
       return std::make_unique<RooRealVar>(nname.c_str(), ntitle.c_str(), 1.0);
    }
 
-   const char *nr = _normRangeOverride.Length() > 0 ? _normRangeOverride.Data()
-                                                    : (_normRange.Length() > 0 ? _normRange.Data() : nullptr);
+   const char *rangeName = nullptr;
+   if (_normRangeOverride.Length() > 0) rangeName = _normRangeOverride.Data();
+   else if (_normRange.Length() > 0) rangeName = _normRange.Data();
 
-   std::unique_ptr<RooAbsReal> normInt{createIntegral(depList, *getIntegratorConfig(), nr)};
+   std::unique_ptr<RooAbsReal> normInt{createIntegral(depList, *getIntegratorConfig(), rangeName)};
    normInt->getVal();
 
    const char *cacheParamsStr = getStringAttribute("CACHEPARAMINT");
@@ -574,7 +583,7 @@ std::unique_ptr<RooAbsReal> RooAbsPdf::createNormObj(RooArgSet const *nset) cons
       if (!cacheParams.empty()) {
          cxcoutD(Caching) << "RooAbsReal::createIntObj(" << GetName() << ") INFO: constructing "
                           << cacheParams.getSize() << "-dim value cache for integral over " << depList
-                          << " as a function of " << cacheParams << " in range " << (nr ? nr : "<default>") << endl;
+                          << " as a function of " << cacheParams << " in range " << (rangeName ? rangeName : "<default>") << endl;
          string name = Form("%s_CACHE_[%s]", normInt->GetName(), cacheParams.contentsString().c_str());
          auto cachedIntegral = std::make_unique<RooCachedReal>(name.c_str(), name.c_str(), *normInt, cacheParams);
          cachedIntegral->setInterpolationOrder(2);
@@ -632,7 +641,7 @@ bool RooAbsPdf::syncNormalization(const RooArgSet* nset, bool adjustProxies) con
     ((RooAbsPdf*) this)->setProxyNormSet(nset) ;
   }
 
-  _norm = createNormObj(nset).release();
+  _norm = createNormalization(*nset).release();
 
   // Register new normalization with manager (takes ownership)
   cache = new CacheElem(*_norm) ;
