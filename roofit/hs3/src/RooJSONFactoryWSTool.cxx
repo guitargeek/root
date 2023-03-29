@@ -950,7 +950,7 @@ void RooJSONFactoryWSTool::importFunction(const JSONNode &p, bool isPdf)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // exporting data
-void RooJSONFactoryWSTool::exportData(RooAbsData &data)
+void RooJSONFactoryWSTool::exportData(RooAbsData const& data)
 {
    // find category observables
    RooAbsCategory *cat = nullptr;
@@ -966,13 +966,22 @@ void RooJSONFactoryWSTool::exportData(RooAbsData &data)
    }
 
    if (cat) {
-      // this is a composite dataset
+      // this is a combined dataset
+      auto &miscinfo = (*_rootnodeOutput)["misc"];
+      miscinfo.set_map();
+      auto &rootinfo = miscinfo["ROOT_internal"];
+      rootinfo.set_map();
+      auto &child = appendNamedChild(rootinfo["combined_datasets"], data.GetName());
+      auto& labels = child["labels"];
+      labels.set_seq();
+      auto& indices = child["indices"];
+      indices.set_seq();
+
       std::unique_ptr<TList> dataList{data.split(*(cat), true)};
-      if (!dataList) {
-         RooJSONFactoryWSTool::error("unable to split dataset '" + std::string(data.GetName()) + "' at '" +
-                                     std::string(cat->GetName()) + "'");
-      }
-      for (RooAbsData *absData : static_range_cast<RooAbsData *>(*dataList)) {
+
+      for (auto *absData : static_range_cast<RooAbsData *>(*dataList)) {
+         labels.append_child() << absData->GetName();
+         indices.append_child() << cat->lookupIndex(absData->GetName());
          absData->SetName((std::string(data.GetName()) + "_" + absData->GetName()).c_str());
          this->exportData(*absData);
       }
@@ -1191,21 +1200,6 @@ std::string RooJSONFactoryWSTool::name(const JSONNode &n)
    return n.is_container() && n.has_child("name") ? n["name"].val() : (n.has_key() ? n.key() : n.val());
 }
 
-void RooJSONFactoryWSTool::writeCombinedDataName(JSONNode &rootnode, std::string const &pdfName,
-                                                 std::string const &dataName)
-{
-   auto &miscinfo = rootnode["misc"];
-   miscinfo.set_map();
-   auto &rootinfo = miscinfo["ROOT_internal"];
-   rootinfo.set_map();
-   auto &modelConfigs = rootinfo["ModelConfigs"];
-   modelConfigs.set_map();
-   auto &modelConfigAux = modelConfigs[pdfName];
-   modelConfigAux.set_map();
-
-   modelConfigAux["combined_data_name"] << dataName;
-}
-
 void RooJSONFactoryWSTool::exportModelConfig(JSONNode &rootnode, RooStats::ModelConfig const &mc)
 {
    auto pdf = dynamic_cast<RooSimultaneous const *>(mc.GetPdf());
@@ -1227,8 +1221,6 @@ void RooJSONFactoryWSTool::exportModelConfig(JSONNode &rootnode, RooStats::Model
    } else {
       throw std::runtime_error("Any exported RooSimultaneous must have the combined_data_name attribute (for now)!");
    }
-
-   writeCombinedDataName(rootnode, pdf->GetName(), basename);
 
    auto &nllNode = appendNamedChild(rootnode["likelihoods"], pdf->GetName());
    nllNode["distributions"].set_seq();

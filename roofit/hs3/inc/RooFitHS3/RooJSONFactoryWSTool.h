@@ -197,9 +197,6 @@ public:
       const char *what() const noexcept override { return _message.c_str(); }
    };
 
-   static void
-   writeCombinedDataName(RooFit::Detail::JSONNode &rootnode, std::string const &pdfName, std::string const &dataName);
-
    static void writeChannelNames(RooFit::Detail::JSONNode &rootnode, std::string const &simPdfName,
                                  std::vector<std::string> const &channelNames);
 
@@ -211,7 +208,7 @@ private:
    template <class T>
    T *requestImpl(const std::string &objname);
 
-   void exportData(RooAbsData &data);
+   void exportData(RooAbsData const &data);
 
    void importAllNodes(const RooFit::Detail::JSONNode &n);
 

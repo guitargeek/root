@@ -19,7 +19,7 @@
 namespace {
 
 // If the JSON files should be written out for debugging purpose.
-const bool writeJsonFiles = false;
+const bool writeJsonFiles = true;
 
 void createInputFile(std::string const &inputFileName)
 {
