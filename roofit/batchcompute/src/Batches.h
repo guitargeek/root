@@ -97,6 +97,7 @@ public:
 #endif // #ifdef __CUDACC__
 
    __roodevice__ std::size_t getNEvents() const { return _nEvents; }
+   __roodevice__ std::size_t getNBatches() const { return _nBatches; }
    __roodevice__ std::size_t getNExtraArgs() const { return _nExtraArgs; }
    __roodevice__ double extraArg(std::size_t i) const { return _extraArgs[i]; }
    __roodevice__ void setExtraArg(std::size_t i, double val) { _extraArgs[i] = val; }

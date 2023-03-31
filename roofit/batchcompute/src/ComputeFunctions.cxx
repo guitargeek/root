@@ -54,6 +54,16 @@ __rooglobal__ void computeAddPdf(BatchesHandle batches)
          batches._output[i] += batches.extraArg(pdf) * batches[pdf][i];
 }
 
+__rooglobal__ void computeAddition(BatchesHandle batches)
+{
+   const int nPdfs = batches.getNBatches();
+   for (size_t i = BEGIN; i < batches.getNEvents(); i += STEP)
+      batches._output[i] = batches[0][i];
+   for (int pdf = 1; pdf < nPdfs; pdf++)
+      for (size_t i = BEGIN; i < batches.getNEvents(); i += STEP)
+         batches._output[i] += batches[pdf][i];
+}
+
 __rooglobal__ void computeArgusBG(BatchesHandle batches)
 {
    Batch m = batches[0], m0 = batches[1], c = batches[2], p = batches[3];
@@ -731,6 +741,7 @@ __rooglobal__ void computeVoigtian(BatchesHandle batches)
 std::vector<void (*)(BatchesHandle)> getFunctions()
 {
    return {computeAddPdf,
+           computeAddition,
            computeArgusBG,
            computeBMixDecay,
            computeBernstein,

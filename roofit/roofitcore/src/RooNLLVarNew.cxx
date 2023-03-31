@@ -119,6 +119,8 @@ void RooNLLVarNew::fillBinWidthsFromPdfBoundaries(RooAbsReal const &pdf)
    }
 
    if (_observables.size() != 1) {
+      _pdf->Print("t");
+      _observables.Print();
       throw std::runtime_error("BinnedPdf optimization only works with a 1D pdf.");
    } else {
       auto *var = static_cast<RooRealVar *>(_observables.first());
@@ -137,7 +139,7 @@ void RooNLLVarNew::fillBinWidthsFromPdfBoundaries(RooAbsReal const &pdf)
    }
 }
 
-/** Compute multiple negative logs of propabilities
+/** Compute multiple negative logs of probabilities
 
 \param output An array of doubles where the computation results will be stored
 \param nOut not used

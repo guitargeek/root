@@ -39,6 +39,7 @@ enum class Architecture { AVX512, AVX2, AVX, SSE4, GENERIC, CUDA };
 
 enum Computer {
    AddPdf,
+   Addition,
    ArgusBG,
    BMixDecay,
    Bernstein,
