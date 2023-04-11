@@ -13,9 +13,7 @@
 #ifndef ROOT_ROOFIT_TESTSTATISTICS_RooAbsL
 #define ROOT_ROOFIT_TESTSTATISTICS_RooAbsL
 
-#include "RooArgSet.h"
 #include "RooAbsArg.h" // enum ConstOpCode
-#include "RooAbsPdf.h"
 
 #include "Math/Util.h" // KahanSum
 
@@ -25,6 +23,7 @@
 
 // forward declarations
 class RooAbsPdf;
+class RooArgSet;
 class RooAbsData;
 
 namespace RooFit {
@@ -50,7 +49,7 @@ public:
            Extended extended = Extended::Auto);
    RooAbsL(ClonePdfData in, std::size_t N_events, std::size_t N_components, Extended extended = Extended::Auto);
    RooAbsL(const RooAbsL &other);
-   virtual ~RooAbsL() = default;
+   virtual ~RooAbsL();
 
    void initClones(RooAbsPdf &inpdf, RooAbsData &indata);
 
@@ -74,7 +73,8 @@ public:
          }
       }
 
-      friend bool operator==(const Section& lhs, const Section& rhs) {
+      friend bool operator==(const Section &lhs, const Section &rhs)
+      {
          return lhs.begin_fraction == rhs.begin_fraction && lhs.end_fraction == rhs.end_fraction;
       }
 
@@ -109,7 +109,7 @@ public:
 
    virtual std::string GetName() const;
    virtual std::string GetTitle() const;
-   virtual std::string GetInfo() const { return GetClassName() + "::" + pdf_->GetName(); }
+   virtual std::string GetInfo() const;
    virtual std::string GetClassName() const = 0;
 
    // necessary in RooMinimizer (via LikelihoodWrapper)

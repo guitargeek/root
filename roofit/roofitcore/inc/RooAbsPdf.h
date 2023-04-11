@@ -16,6 +16,7 @@
 #ifndef ROO_ABS_PDF
 #define ROO_ABS_PDF
 
+#include "RooMinimizer.h"
 #include "RooAbsReal.h"
 #include "RooObjCacheManager.h"
 #include "RooGlobalFunc.h"
@@ -32,7 +33,6 @@ class TPaveText;
 class TH1F;
 class TH2F;
 class TList ;
-class RooMinimizer ;
 class RooNumGenConfig ;
 class RooRealIntegral ;
 
@@ -169,9 +169,8 @@ public:
   //values that also should be taked as the default values for
   //RooAbsPdf::fitTo.
   struct MinimizerConfig {
-      double recoverFromNaN = 10.;
+      RooMinimizer::Config minCfg;
       int optConst = 2;
-      int verbose = 0;
       int doSave = 0;
       int doTimer = 0;
       int printLevel = 1;
@@ -179,19 +178,11 @@ public:
       int initHesse = 0;
       int hesse = 1;
       int minos = 0;
-      int numee = 10;
-      int doEEWall = 1;
       int doWarn = 1;
       int doSumW2 = -1;
       int doAsymptotic = -1;
       int maxCalls = -1;
-      int doOffset = -1;
-      int parallelize = 0;
-      bool enableParallelGradient = true;
-      bool enableParallelDescent = false;
-      bool timingAnalysis = false;
       const RooArgSet* minosSet = nullptr;
-      std::string minType;
       std::string minAlg = "minuit";
   };
   std::unique_ptr<RooFitResult> minimizeNLL(RooAbsReal & nll, RooAbsData const& data, MinimizerConfig const& cfg);

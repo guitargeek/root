@@ -157,8 +157,6 @@ private:
    friend class RooAbsMinimizerFcn;
    friend class RooMinimizerFcn;
 
-   std::unique_ptr<RooAbsReal::EvalErrorContext> makeEvalErrorContext() const;
-
    void addParamsToProcessTimer();
 
    void profileStart();

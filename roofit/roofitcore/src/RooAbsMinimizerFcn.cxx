@@ -76,10 +76,17 @@ RooAbsMinimizerFcn::RooAbsMinimizerFcn(RooArgList paramList, RooMinimizer *conte
 }
 
 RooAbsMinimizerFcn::RooAbsMinimizerFcn(const RooAbsMinimizerFcn &other)
-   : _context(other._context), _maxFCN(other._maxFCN), _funcOffset(other._funcOffset), _numBadNLL(other._numBadNLL),
-     _evalCounter(other._evalCounter), _nDim(other._nDim), _optConst(other._optConst),
-     _floatParamList(new RooArgList(*other._floatParamList)), _constParamList(new RooArgList(*other._constParamList)),
-     _initFloatParamList(std::make_unique<RooArgList>()), _initConstParamList(std::make_unique<RooArgList>()),
+   : _context(other._context),
+     _maxFCN(other._maxFCN),
+     _funcOffset(other._funcOffset),
+     _numBadNLL(other._numBadNLL),
+     _evalCounter(other._evalCounter),
+     _nDim(other._nDim),
+     _optConst(other._optConst),
+     _floatParamList(new RooArgList(*other._floatParamList)),
+     _constParamList(new RooArgList(*other._constParamList)),
+     _initFloatParamList(std::make_unique<RooArgList>()),
+     _initConstParamList(std::make_unique<RooArgList>()),
      _logfile(other._logfile)
 {
    other._initFloatParamList->snapshot(*_initFloatParamList, false);
@@ -460,7 +467,7 @@ void RooAbsMinimizerFcn::finishDoEval() const
 
 void RooAbsMinimizerFcn::setOptimizeConst(int flag)
 {
-   auto ctx = _context->makeEvalErrorContext();
+   auto ctx = makeEvalErrorContext(_context->_cfg.printEvalErrors);
 
    if (_optConst && !flag) {
       if (_context->getPrintLevel() > -1)
@@ -487,7 +494,7 @@ void RooAbsMinimizerFcn::setOptimizeConst(int flag)
 
 void RooAbsMinimizerFcn::optimizeConstantTerms(bool constStatChange, bool constValChange)
 {
-   auto ctx = _context->makeEvalErrorContext();
+   auto ctx = makeEvalErrorContext(_context->_cfg.printEvalErrors);
 
    if (constStatChange) {
 
@@ -515,4 +522,14 @@ std::vector<double> RooAbsMinimizerFcn::getParameterValues() const
    }
 
    return values;
+}
+
+std::unique_ptr<RooAbsReal::EvalErrorContext> makeEvalErrorContext(int printEvalErrors)
+{
+   RooAbsReal::clearEvalErrorLog();
+   // If evaluation error printing is disabled, we don't need to collect the
+   // errors and only need to count them. This significantly reduces the
+   // performance overhead when having evaluation errors.
+   auto m = printEvalErrors < 0 ? RooAbsReal::CountErrors : RooAbsReal::CollectErrors;
+   return std::make_unique<RooAbsReal::EvalErrorContext>(m);
 }

@@ -131,4 +131,6 @@ protected:
    std::ofstream *_logfile = nullptr;
 };
 
+std::unique_ptr<RooAbsReal::EvalErrorContext> makeEvalErrorContext(int printEvalErrors);
+
 #endif

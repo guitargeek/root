@@ -327,7 +327,7 @@ int RooMinimizer::minimize(const char *type, const char *alg)
 
    profileStart();
    {
-      auto ctx = makeEvalErrorContext();
+      auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
       bool ret = fitFcn();
       _status = ((ret) ? _theFitter->Result().Status() : -1);
@@ -351,7 +351,7 @@ int RooMinimizer::migrad()
    _fcn->Synchronize(_theFitter->Config().ParamsSettings());
    profileStart();
    {
-      auto ctx = makeEvalErrorContext();
+      auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
       _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str(), "migrad");
       bool ret = fitFcn();
@@ -381,7 +381,7 @@ int RooMinimizer::hesse()
       _fcn->Synchronize(_theFitter->Config().ParamsSettings());
       profileStart();
       {
-         auto ctx = makeEvalErrorContext();
+         auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
          _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str());
          bool ret = _theFitter->CalculateHessErrors();
@@ -412,7 +412,7 @@ int RooMinimizer::minos()
       _fcn->Synchronize(_theFitter->Config().ParamsSettings());
       profileStart();
       {
-         auto ctx = makeEvalErrorContext();
+         auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
          _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str());
          bool ret = _theFitter->CalculateMinosErrors();
@@ -444,7 +444,7 @@ int RooMinimizer::minos(const RooArgSet &minosParamList)
       _fcn->Synchronize(_theFitter->Config().ParamsSettings());
       profileStart();
       {
-         auto ctx = makeEvalErrorContext();
+         auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
          // get list of parameters for Minos
          std::vector<unsigned int> paramInd;
@@ -487,7 +487,7 @@ int RooMinimizer::seek()
    _fcn->Synchronize(_theFitter->Config().ParamsSettings());
    profileStart();
    {
-      auto ctx = makeEvalErrorContext();
+      auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
       _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str(), "seek");
       bool ret = fitFcn();
@@ -512,7 +512,7 @@ int RooMinimizer::simplex()
    _fcn->Synchronize(_theFitter->Config().ParamsSettings());
    profileStart();
    {
-      auto ctx = makeEvalErrorContext();
+      auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
       _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str(), "simplex");
       bool ret = fitFcn();
@@ -537,7 +537,7 @@ int RooMinimizer::improve()
    _fcn->Synchronize(_theFitter->Config().ParamsSettings());
    profileStart();
    {
-      auto ctx = makeEvalErrorContext();
+      auto ctx = makeEvalErrorContext(_cfg.printEvalErrors);
 
       _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str(), "migradimproved");
       bool ret = fitFcn();
@@ -963,14 +963,4 @@ int RooMinimizer::Config::getDefaultWorkers()
 #else
    return 0;
 #endif
-}
-
-std::unique_ptr<RooAbsReal::EvalErrorContext> RooMinimizer::makeEvalErrorContext() const
-{
-   RooAbsReal::clearEvalErrorLog();
-   // If evaluation error printing is disabled, we don't need to collect the
-   // errors and only need to count them. This significantly reduces the
-   // performance overhead when having evaluation errors.
-   auto m = _cfg.printEvalErrors < 0 ? RooAbsReal::CountErrors : RooAbsReal::CollectErrors;
-   return std::make_unique<RooAbsReal::EvalErrorContext>(m);
 }
