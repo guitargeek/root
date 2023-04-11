@@ -245,6 +245,7 @@ namespace RooFit {
   RooCmdArg Timer(bool flag)           { return RooCmdArg("Timer",flag) ; }
   RooCmdArg PrintLevel(Int_t level)      { return RooCmdArg("PrintLevel",level) ; }
   RooCmdArg MaxCalls(int n)            { return RooCmdArg("MaxCalls",n) ; }
+  RooCmdArg Tolerance(double eps)      { return RooCmdArg("Tolerance",0,0,eps) ; }
   RooCmdArg Warnings(bool flag)        { return RooCmdArg("Warnings",flag) ; }
   RooCmdArg Strategy(Int_t code)         { return RooCmdArg("Strategy",code) ; }
   RooCmdArg InitialHesse(bool flag)    { return RooCmdArg("InitialHesse",flag) ; }

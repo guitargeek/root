@@ -47,6 +47,8 @@ public:
 
       Config() {}
 
+      double tolerance = 1.0; // the MINUIT epsilon
+
       std::function<void(double *)> gradFunc;
 
       double recoverFromNaN = 10.; // RooAbsMinimizerFcn config

@@ -162,7 +162,7 @@ void RooMinimizer::initMinimizerFirstPart()
 
    _theFitter = std::make_unique<ROOT::Fit::Fitter>();
    _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str());
-   setEps(1.0); // default tolerance
+   setEps(_cfg.tolerance); // default tolerance
 }
 
 /// Initialize the part of the minimizer that is dependent on the function to be minimized

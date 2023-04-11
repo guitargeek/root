@@ -1640,6 +1640,7 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
   pc.defineInt("doSumW2","SumW2Error",0,minimizerDefaults.doSumW2) ;
   pc.defineInt("doAsymptoticError","AsymptoticError",0,minimizerDefaults.doAsymptotic) ;
   pc.defineInt("maxCalls","MaxCalls",0,minimizerDefaults.maxCalls);
+  pc.defineDouble("tolerance","Tolerance",0,minimizerDefaults.minCfg.tolerance);
   pc.defineInt("doOffset","OffsetLikelihood",0,0) ;
   pc.defineInt("parallelize", "Parallelize", 0, 0); // Three parallelize arguments
   pc.defineInt("enableParallelGradient", "ParallelGradientOptions", 0, 0);
@@ -1737,6 +1738,7 @@ RooFitResult* RooAbsPdf::fitTo(RooAbsData& data, const RooLinkedList& cmdList)
   cfg.doSumW2 = pc.getInt("doSumW2");
   cfg.doAsymptotic = pc.getInt("doAsymptoticError");
   cfg.maxCalls = pc.getInt("maxCalls");
+  cfg.minCfg.tolerance = pc.getDouble("tolerance");
   cfg.minosSet = pc.getSet("minosSet");
   cfg.minCfg.minimizerType = pc.getString("mintype","");
   cfg.minAlg = pc.getString("minalg","minuit");
