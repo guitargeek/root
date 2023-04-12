@@ -1086,15 +1086,12 @@ bool RooAbsArg::redirectServers(const RooAbsCollection& newSetOrig, bool mustRep
     newSet = newSetOwned.get();
   }
 
+  bool ret(false) ;
+
   // Replace current servers with new servers with the same name from the given list
   for (auto oldServer : _serverList) {
 
     RooAbsArg * newServer= oldServer->findNewServer(*newSet, nameChange);
-
-    if (newServer && _verboseDirty) {
-      cxcoutD(LinkStateMgmt) << "RooAbsArg::redirectServers(" << (void*)this << "," << GetName() << "): server " << oldServer->GetName()
-                  << " redirected from " << oldServer << " to " << newServer << endl ;
-    }
 
     if (!newServer) {
       if (mustReplaceAll) {
@@ -1129,8 +1126,6 @@ bool RooAbsArg::redirectServers(const RooAbsCollection& newSetOrig, bool mustRep
   setValueDirty() ;
   setShapeDirty() ;
 
-  bool ret(false) ;
-
   // Process the proxies
   for (int i=0 ; i<numProxies() ; i++) {
     RooAbsProxy* p = getProxy(i) ;
@@ -1138,7 +1133,7 @@ bool RooAbsArg::redirectServers(const RooAbsCollection& newSetOrig, bool mustRep
     bool ret2 = p->changePointer(*newSet,nameChange,false) ;
 
     if (mustReplaceAll && !ret2) {
-      auto ap = static_cast<const RooArgProxy*>(p);
+      auto ap = dynamic_cast<const RooArgProxy*>(p);
       coutE(LinkStateMgmt) << "RooAbsArg::redirectServers(" << GetName()
               << "): ERROR, proxy '" << p->name()
               << "' with arg '" << (ap ? ap->absArg()->GetName() : "<could not cast>") << "' could not be adjusted" << endl;
@@ -1154,6 +1149,76 @@ bool RooAbsArg::redirectServers(const RooAbsCollection& newSetOrig, bool mustRep
   ret |= redirectServersHook(*newSet,mustReplaceAll,nameChange,isRecursionStep) ;
 
   return ret ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Replace some servers of this object. If there are proxies that correspond
+/// to the replaced servers, these proxies are adjusted as well.
+/// \param[in] oldServers The old servers that should be replaced.
+/// \param[in] newServers List of new servers that should be used instead of the oldServers.
+/// \param[in] mustReplaceAll A warning is printed and error status is returned if not all servers could be
+/// substituted successfully.
+/// \param[in] isRecursionStep Internal switch used when called from recursiveRedirectServers().
+bool RooAbsArg::redirectServers(std::unordered_map<RooAbsArg *, RooAbsArg *> const &replacements)
+{
+   bool ret(false);
+   bool nameChange = false;
+
+   RooArgList newList;
+
+   // Replace current servers with new servers with the same name from the given list
+   for (auto oldServer : _serverList) {
+
+      auto newServerFound = replacements.find(oldServer);
+      RooAbsArg *newServer = newServerFound != replacements.end() ? newServerFound->second : nullptr;
+
+      if (!newServer || newServer == this) {
+         continue;
+      }
+
+      if (nameChange == false)
+         nameChange = strcmp(newServerFound->first->GetName(), newServerFound->second->GetName()) != 0;
+
+      _serverList.Replace(oldServer, newServer);
+
+      const int clientListRefCount = oldServer->_clientList.Remove(this, true);
+      const int clientListValueRefCount = oldServer->_clientListValue.Remove(this, true);
+      const int clientListShapeRefCount = oldServer->_clientListShape.Remove(this, true);
+
+      newServer->_clientList.Add(this, clientListRefCount);
+      newServer->_clientListValue.Add(this, clientListValueRefCount);
+      newServer->_clientListShape.Add(this, clientListShapeRefCount);
+
+      if (clientListValueRefCount > 0 && newServer->operMode() == ADirty && operMode() != ADirty) {
+         setOperMode(ADirty);
+      }
+
+      newList.add(*newServer);
+   }
+
+   // No servers were replaced, we don't need to process proxies and call the
+   // redirectServersHook.
+   if (newList.empty())
+      return ret;
+
+   setValueDirty();
+   setShapeDirty();
+
+   // Process the proxies
+   for (int i = 0; i < numProxies(); i++) {
+      if (RooAbsProxy *p = getProxy(i)) {
+         p->changePointer(replacements);
+      }
+   }
+
+   // Optional subclass post-processing
+   for (Int_t i = 0; i < numCaches(); i++) {
+      ret |= getCache(i)->redirectServersHook(newList, false, nameChange, false);
+   }
+   ret |= redirectServersHook(newList, false, nameChange, false);
+
+   return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
