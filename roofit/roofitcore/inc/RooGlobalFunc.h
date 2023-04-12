@@ -282,6 +282,7 @@ RooCmdArg GlobalObservables(Args_t &&... argsOrArgSet) {
   out.setSet(0, RooArgSet{std::forward<Args_t>(argsOrArgSet)...});
   return out;
 }
+RooCmdArg GlobalObservables(const char* modeName);
 RooCmdArg GlobalObservablesSource(const char* sourceName);
 RooCmdArg GlobalObservablesTag(const char* tagName) ;
 RooCmdArg ExternalConstraints(const RooArgSet& constraintPdfs) ;

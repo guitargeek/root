@@ -923,6 +923,8 @@ double RooAbsPdf::extendedTerm(RooAbsData const& data, bool weightSquared, bool 
 /// <tr><td> `ExternalConstraints(const RooArgSet& )`   <td> Include given external constraints to likelihood by multiplying them with the original likelihood.
 /// <tr><td> `GlobalObservables(const RooArgSet&)`      <td> Define the set of normalization observables to be used for the constraint terms.
 ///                                                        If none are specified the constrained parameters are used.
+///                                                        Instead of passing a RooArgSet, you can also pass `"auto"`, in which case all parameters that are *not*
+///                                                        constrained parameters will be used. However, this will only work if each constraint term has at most one such parameter.
 /// <tr><td> `GlobalObservablesSource(const char* sourceName)` <td> Which source to prioritize for global observable values.
 ///                                                                 Can be either:
 ///                                                                 - `data`: to take the values from the dataset,
@@ -990,6 +992,7 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
   pc.defineSet("projDepSet","ProjectedObservables",0,0) ;
   pc.defineSet("cPars","Constrain",0,0) ;
   pc.defineSet("glObs","GlobalObservables",0,0) ;
+  pc.defineString("globsMode","GlobalObservables",0,"") ;
   pc.defineInt("doOffset","OffsetLikelihood",0,0) ;
   pc.defineSet("extCons","ExternalConstraints",0,0) ;
   pc.defineInt("BatchMode", "BatchMode", 0, defaultBatchModeInt);
@@ -1113,7 +1116,8 @@ RooAbsReal* RooAbsPdf::createNLL(RooAbsData& data, const RooLinkedList& cmdList)
             pc.getSet("cPars"), // Constrain RooCmdArg
             pc.getSet("extCons"), // ExternalConstraints RooCmdArg
             pc.getSet("glObs"), // GlobalObservables RooCmdArg
-            pc.getString("globstag",0,true), // GlobalObservablesTag RooCmdArg
+            pc.getString("globstag"), // GlobalObservablesTag RooCmdArg
+            pc.getString("globsMode"), // GlobalObservablesTag RooCmdArg
             takeGlobalObservablesFromData, // From GlobalObservablesSource RooCmdArg
             removeConstraintsFromPdf
     );

@@ -270,6 +270,7 @@ namespace RooFit {
     }
     return RooCmdArg("Constrain",0,0,0,0,0,0,0,0,0,0,&params);
   }
+  RooCmdArg GlobalObservables(const char* modeName)    { return RooCmdArg("GlobalObservables",0,0,0,0,modeName,0,0,0) ; }
   RooCmdArg GlobalObservablesSource(const char* sourceName) { return {"GlobalObservablesSource",0,0,0,0,sourceName,0,0,0}; }
   RooCmdArg GlobalObservablesTag(const char* tagName)    { return RooCmdArg("GlobalObservablesTag",0,0,0,0,tagName,0,0,0) ; }
   RooCmdArg ExternalConstraints(const RooArgSet& cpdfs)  { return RooCmdArg("ExternalConstraints",0,0,0,0,0,0,nullptr,nullptr,0,0,&cpdfs) ; }

@@ -20,10 +20,10 @@
 namespace {
 
 std::unique_ptr<RooArgSet>
-getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, const char *globalObservablesTag)
+getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, std::string &globalObservablesTag)
 {
 
-   if (globalObservables && globalObservablesTag) {
+   if (globalObservables && !globalObservablesTag.empty()) {
       // error!
       std::string errMsg = "RooAbsPdf::fitTo: GlobalObservables and GlobalObservablesTag options mutually exclusive!";
       oocoutE(&pdf, Minimization) << errMsg << std::endl;
@@ -34,7 +34,7 @@ getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, c
       return std::make_unique<RooArgSet>(*globalObservables);
    }
 
-   if (globalObservablesTag) {
+   if (!globalObservablesTag.empty()) {
       oocoutI(&pdf, Minimization) << "User-defined specification of global observables definition with tag named '"
                                   << globalObservablesTag << "'" << std::endl;
    } else {
@@ -48,13 +48,31 @@ getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, c
       }
    }
 
-   if (globalObservablesTag) {
+   if (!globalObservablesTag.empty()) {
       std::unique_ptr<RooArgSet> allVars{pdf.getVariables()};
-      return std::unique_ptr<RooArgSet>{static_cast<RooArgSet *>(allVars->selectByAttrib(globalObservablesTag, true))};
+      return std::unique_ptr<RooArgSet>{
+         static_cast<RooArgSet *>(allVars->selectByAttrib(globalObservablesTag.c_str(), true))};
    }
 
    // no global observables specified
    return nullptr;
+}
+
+void autoInferGlobs(RooArgSet const &constraints, RooArgSet const &cPars, RooArgSet &output)
+{
+   for (RooAbsArg *pdf : constraints) {
+      // Get the remaining parameters, excluding the constrained parameters.
+      RooArgSet candidates;
+      pdf->getParameters(&cPars, candidates);
+      if (candidates.size() <= 1) {
+         output.add(candidates);
+      } else {
+         std::string errMsg = "The automatic inferring of global observables did not work! Please pass the set of "
+                              "global observables explicitly.";
+         oocoutE(nullptr, Minimization) << errMsg << std::endl;
+         throw std::invalid_argument(errMsg);
+      }
+   }
 }
 
 } // namespace
@@ -95,7 +113,8 @@ getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, c
 std::unique_ptr<RooAbsReal> createConstraintTerm(std::string const &name, RooAbsPdf const &pdf, RooAbsData const &data,
                                                  RooArgSet const *constrainedParameters,
                                                  RooArgSet const *externalConstraints,
-                                                 RooArgSet const *globalObservables, const char *globalObservablesTag,
+                                                 RooArgSet const *globalObservables, std::string globalObservablesTag,
+                                                 std::string const &globalObservablesMode,
                                                  bool takeGlobalObservablesFromData, bool removeConstraintsFromPdf)
 {
    RooArgSet const &observables = *data.get();
@@ -162,12 +181,20 @@ std::unique_ptr<RooAbsReal> createConstraintTerm(std::string const &name, RooAbs
       } else {
          if (!glObs)
             oocoutI(&pdf, Minimization)
-               << "The global observables are not defined , normalize constraints with respect to the parameters "
+               << "The global observables are not defined, normalize constraints with respect to the parameters "
                << cPars << std::endl;
          takeGlobalObservablesFromData = false;
       }
 
-      return std::make_unique<RooConstraintSum>(name.c_str(), "nllCons", allConstraints, glObs ? *glObs : cPars,
+      std::unique_ptr<RooArgSet> autoGlobs;
+      RooArgSet const *normSet = glObs ? glObs.get() : &cPars;
+      if (!glObs && globalObservablesMode == "auto") {
+         autoGlobs = std::make_unique<RooArgSet>();
+         autoInferGlobs(allConstraints, cPars, *autoGlobs);
+         normSet = autoGlobs.get();
+      }
+
+      return std::make_unique<RooConstraintSum>(name.c_str(), "nllCons", allConstraints, *normSet,
                                                 takeGlobalObservablesFromData);
    }
 
