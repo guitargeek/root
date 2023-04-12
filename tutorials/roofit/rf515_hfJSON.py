@@ -30,7 +30,7 @@ pdf = model.GetPdf()
 
 # we are fitting a clone of the model now, such that we are not double-fitting
 # the model in the closure check
-result = pdf.cloneTree().fitTo(ws["observed"], Save=True, GlobalObservables=model.GetGlobalObservables(), PrintLevel=-1)
+result = pdf.cloneTree().fitTo(ws["observed"], Save=True, GlobalObservables="auto", PrintLevel=-1)
 result.Print()
 
 # in the end, you can again write to json
@@ -42,5 +42,5 @@ ws2 = ROOT.RooWorkspace("workspace")
 tool2 = ROOT.RooJSONFactoryWSTool(ws2)
 tool2.importJSON("myWorkspace.json")
 model2 = ws2["main_modelConfig"]
-result = model.GetPdf().fitTo(ws2["observed"], Save=True, GlobalObservables=model.GetGlobalObservables(), PrintLevel=-1)
+result = model.GetPdf().fitTo(ws2["observed"], Save=True, GlobalObservables="auto", PrintLevel=-1)
 result.Print()

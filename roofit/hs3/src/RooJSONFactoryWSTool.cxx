@@ -445,8 +445,6 @@ void importAnalysis(const RooFit::Detail::JSONNode &rootnode, const RooFit::Deta
    };
 
    mc.SetParametersOfInterest(readArgSet("parameters_of_interest"));
-   mc.SetNuisanceParameters(readArgSet("nps"));
-   mc.SetGlobalObservables(readArgSet("globs"));
 
    if (auto *mcAuxNode = findRooFitInternal(rootnode, "ModelConfigs", analysisNode["name"].val())) {
       if (auto found = mcAuxNode->find("combined_data_name")) {
@@ -1221,8 +1219,6 @@ void RooJSONFactoryWSTool::exportModelConfig(JSONNode &rootnode, RooStats::Model
    };
 
    writeList("parameters_of_interest", mc.GetParametersOfInterest());
-   writeList("nps", mc.GetNuisanceParameters());
-   writeList("globs", mc.GetGlobalObservables());
 }
 
 void RooJSONFactoryWSTool::exportAllObjects(JSONNode &n)
