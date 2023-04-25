@@ -955,7 +955,7 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createNLL(RooAbsData& data, const RooLi
   auto baseName = std::string("nll_") + GetName() + "_" + data.GetName();
 
   // Figure out the integer that corresponds to the default BatchMode option.
-  const int defaultBatchModeInt = RooFit::BatchMode(RooFit::Experimental::defaultBatchMode()).getInt(0);
+  const int defaultBackendInt = RooFit::Experimental::Backend(RooFit::Experimental::defaultBackend()).getInt(0);
 
   // Select the pdf-specific commands
   RooCmdConfig pc(Form("RooAbsPdf::createNLL(%s)",GetName())) ;
@@ -978,11 +978,15 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createNLL(RooAbsData& data, const RooLi
   pc.defineSet("glObs","GlobalObservables",0,0) ;
   pc.defineInt("doOffset","OffsetLikelihood",0,0) ;
   pc.defineSet("extCons","ExternalConstraints",0,0) ;
-  pc.defineInt("BatchMode", "BatchMode", 0, defaultBatchModeInt);
+  pc.defineInt("Backend", "Backend", 0, defaultBackendInt);
+  pc.defineInt("BatchMode", "BatchMode", 0, static_cast<int>(RooFit::BatchModeOption::Off));
   pc.defineDouble("IntegrateBins", "IntegrateBins", 0, -1.);
   pc.defineMutex("Range","RangeWithName") ;
   pc.defineMutex("GlobalObservables","GlobalObservablesTag") ;
   pc.defineInt("ModularL", "ModularL", 0, 0);
+
+  // The general Backend() option superseeds the BatchMode() option
+  pc.defineMutex("Backend", "BatchMode");
 
   // New style likelihoods define parallelization through Parallelize(...) on fitTo or attributes on RooMinimizer::Config.
   pc.defineMutex("ModularL", "NumCPU");
@@ -1107,7 +1111,12 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createNLL(RooAbsData& data, const RooLi
     );
   };
 
-  auto batchMode = static_cast<RooFit::BatchModeOption>(pc.getInt("BatchMode"));
+  auto batchMode = static_cast<RooFit::BatchModeOption>(pc.getInt("Backend"));
+  // If the backend was not set with the Backend() to be something else than
+  // the default, maybe it was set with the old BatchMode() option.
+  if (pc.hasProcessed("BatchMode")) {
+     batchMode = static_cast<RooFit::BatchModeOption>(pc.getInt("BatchMode"));
+  }
 
   // Construct BatchModeNLL if requested
   if (batchMode != RooFit::BatchModeOption::Off) {
@@ -1625,7 +1634,7 @@ RooFit::OwningPtr<RooFitResult> RooAbsPdf::fitTo(RooAbsData& data, const RooLink
   std::string nllCmdListString = "ProjectedObservables,Extended,Range,"
       "RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,"
       "CloneData,GlobalObservables,GlobalObservablesSource,GlobalObservablesTag,"
-      "BatchMode,IntegrateBins,ModularL";
+      "Backend,BatchMode,IntegrateBins,ModularL";
 
   if (((RooCmdArg*)cmdList.FindObject("ModularL")) && !((RooCmdArg*)cmdList.FindObject("ModularL"))->getInt(0))
     nllCmdListString += ",OffsetLikelihood";

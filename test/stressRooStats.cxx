@@ -295,7 +295,7 @@ int main(int argc, const char *argv[])
    bool dryRun      = false;
    bool doDump      = false;
    bool doTreeStore = false;
-   std::string batchMode = "off";
+   std::string backend = "legacy";
 
    //string refFileName = "http://root.cern.ch/files/stressRooStats_v534_ref.root" ;
    string refFileName = "stressRooStats_ref.root" ;
@@ -307,8 +307,8 @@ int main(int argc, const char *argv[])
 
       if (arg=="-b") {
          std::string mode = argv[i+1];
-         batchMode = mode;
-         std::cout << "stressRooStats: BatchMode set to " << mode << std::endl;
+         backend = mode;
+         std::cout << "stressRooStats: NLL backend set to " << mode << std::endl;
       } else if (arg == "-f") {
          cout << "stressRooStats: using reference file " << argv[i + 1] << endl ;
          refFileName = argv[++i] ;
@@ -390,8 +390,8 @@ int main(int argc, const char *argv[])
    }
    ROOT::Math::MinimizerOptions::SetDefaultMinimizer(minimizerName.c_str());
 
-   // set default BatchMode backend
-   RooFit::Experimental::defaultBatchMode() = batchMode;
+   // set default NLL backend
+   RooFit::Experimental::defaultBackend() = backend;
 
    gBenchmark = new TBenchmark();
    return stressRooStats(refFileName.c_str(), doWrite, verbose, allTests, oneTest, testNumber, dryRun, doDump, doTreeStore);

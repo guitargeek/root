@@ -68,9 +68,9 @@ namespace RooFit {
 
   namespace Experimental {
 
-  std::string& defaultBatchMode() {
-    static std::string batchMode = "off";
-    return batchMode;
+  std::string& defaultBackend() {
+    static std::string backend = "legacy";
+    return backend;
   }
 
   RooCmdArg ParallelGradientOptions(bool enable, int orderStrategy, int chainFactor) {
@@ -203,11 +203,21 @@ namespace RooFit {
       if(lower == "off") mode = BatchModeOption::Off;
       else if(lower == "cpu") mode = BatchModeOption::Cpu;
       else if(lower == "cuda") mode = BatchModeOption::Cuda;
-      else if(lower == "codegen") mode = BatchModeOption::CodeGen;
       // Note that the "old" argument is undocumented, because accessing the
       // old batch mode is an advanced developer feature.
       else throw std::runtime_error("Only supported string values for BatchMode() are \"off\", \"cpu\", or \"cuda\".");
       return RooCmdArg("BatchMode", static_cast<int>(mode));
+  }
+  RooCmdArg Experimental::Backend(std::string const& batchMode) {
+      std::string lower = batchMode;
+      std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c){ return std::tolower(c); });
+      BatchModeOption mode;
+      if(lower == "legacy") mode = BatchModeOption::Off;
+      else if(lower == "cpu") mode = BatchModeOption::Cpu;
+      else if(lower == "cuda") mode = BatchModeOption::Cuda;
+      else if(lower == "codegen") mode = BatchModeOption::CodeGen;
+      else throw std::runtime_error("Only supported string values for Backend() are \"legacy\", \"cpu\", \"cuda\", or \"codegen\".");
+      return RooCmdArg("Backend", static_cast<int>(mode));
   }
   /// Integrate the PDF over bins. Improves accuracy for binned fits. Switch off using `0.` as argument. \see RooAbsPdf::fitTo().
   RooCmdArg IntegrateBins(double precision) { return RooCmdArg("IntegrateBins", 0, 0, precision); }

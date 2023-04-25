@@ -74,13 +74,15 @@ enum class OffsetMode { None, Initial, Bin };
 
 namespace Experimental {
 
-/// Get a handle on the default BatchMode option that is used when creating
-/// likelihoods. \note Experimental, the interface might change in the future.
-std::string& defaultBatchMode();
+/// Get a handle on the default backend that is used when creating likelihoods.
+/// \note Experimental, the interface might change in the future.
+std::string& defaultBackend();
 
 /// Configuration options for parallel minimization with multiprocessing library
 RooCmdArg ParallelGradientOptions(bool enable=true, int orderStrategy=0, int chainFactor=1) ;
 RooCmdArg ParallelDescentOptions(bool enable=false, int splitStrategy=0, int numSplits=4) ;
+
+RooCmdArg Backend(std::string const& backend="legacy");
 
 } // Experimental
 
