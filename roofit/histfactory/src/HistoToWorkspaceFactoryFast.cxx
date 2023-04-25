@@ -368,6 +368,7 @@ namespace HistFactory{
     RooDataHist* histDHist = new RooDataHist((prefix+"nominalDHist").c_str(),"",observables,hist);
     RooHistFunc* histFunc = new RooHistFunc((prefix+"_nominal").c_str(),"",observables,*histDHist,0) ;
 
+    histFunc->forceNumInt(kTRUE);
     proto->import(*histFunc);
 
     /// now create the product of the overall efficiency times the sigma(params) for this estimate
@@ -510,8 +511,6 @@ namespace HistFactory{
     interp.setPositiveDefinite();
     interp.setAllInterpCodes(4); // LM: change to 4 (piece-wise linear to 6th order polynomial interpolation + linear extrapolation )
     // KC: interpo codes 1 etc. don't have proper analytic integral.
-    RooArgSet observableSet(observables);
-    interp.setBinIntegrator(observableSet);
     interp.forceNumInt();
 
     proto->import(interp); // individual params have already been imported in first loop of this function
@@ -794,7 +793,7 @@ namespace HistFactory{
     tot.specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator")  ;
     tot.specialIntegratorConfig(kTRUE)->method2D().setLabel("RooBinIntegrator")  ;
     tot.specialIntegratorConfig(kTRUE)->methodND().setLabel("RooBinIntegrator")  ;
-    tot.forceNumInt();
+    // tot.forceNumInt();
 
     // for mixed generation in RooSimultaneous
     tot.setAttribute("GenerateBinned"); // for use with RooSimultaneous::generate in mixed mode

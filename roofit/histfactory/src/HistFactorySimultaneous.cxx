@@ -123,6 +123,7 @@ RooAbsReal* RooStats::HistFactory::HistFactorySimultaneous::createNLL(RooAbsData
 
   // Create a standard nll
   RooNLLVar* nll = (RooNLLVar*) RooSimultaneous::createNLL( data, cmdList );
+  nll->enableOffsetting(kTRUE);
 
   RooBarlowBeestonLL* bbnll = new RooBarlowBeestonLL("bbnll", "bbnll", *nll); //, *observables);
   bbnll->setPdf( this );

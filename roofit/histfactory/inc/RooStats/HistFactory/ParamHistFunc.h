@@ -13,9 +13,6 @@
 #define ROO_PARAMHISTFUNC
 
 #include <map>
-#include <vector>
-#include <list>
-#include <string>
 
 #include "RooAbsReal.h"
 #include "RooRealProxy.h"
@@ -46,6 +43,7 @@ public:
 
   void setParamConst( Int_t, Bool_t=kTRUE );
   void setConstant(bool constant);
+  void setPrefix(const char*);
 
   void setShape(TH1* shape);
 
@@ -98,7 +96,9 @@ protected:
 
   Int_t _numBins;
   mutable std::map<Int_t, Int_t> _binMap;
+  mutable std::vector<std::string> _nameCache;
   mutable RooDataHist _dataSet;
+  std::string _prefix;
    //Bool_t _normalized;
 
   // std::vector< Double_t > _nominalVals; // The nominal vals when gamma = 1.0 ( = 1.0 by default)

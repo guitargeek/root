@@ -26,9 +26,12 @@
 #include "TBuffer.h"
 
 #include "RooAbsReal.h"
+#include "RooAbsSelfCachedReal.h"
 #include "RooAbsPdf.h"
 #include "RooErrorHandler.h"
 #include "RooArgSet.h"
+#include "RooNLLVar.h"
+#include "RooChi2Var.h"
 #include "RooRealVar.h"
 #include "RooMsgService.h"
 #include "RooNumIntConfig.h"
@@ -70,7 +73,8 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
 					       const RooArgList& highSet,
 					       const RooArgList& paramSet,
 					       Bool_t takeOwnership) :
-  RooAbsReal(name, title),
+  RooAbsSelfCachedReal(name, title, 0),
+  _depList("!depList","list of observables", this),
   _nominal("!nominal","nominal value", this, (RooAbsReal&)nominal),
   _lowSet("!lowSet","low-side variation",this),
   _highSet("!highSet","high-side variation",this),
@@ -78,6 +82,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
   _positiveDefinite(false)
 
 {
+  _depList.add(*(_nominal.arg().getObservables((((RooHistFunc&)_nominal.arg()).dataHist()))));
   // KC: check both sizes
   if (lowSet.getSize() != highSet.getSize()) {
     coutE(InputArguments) << "PiecewiseInterpolation::ctor(" << GetName() << ") ERROR: input lists should be of equal length" << endl ;
@@ -131,6 +136,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
   // Choose special integrator by default 
   specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator") ;
   TRACE_CREATE
+  // this->Print("V");
 }
 
 
@@ -139,7 +145,8 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
 /// Copy constructor
 
 PiecewiseInterpolation::PiecewiseInterpolation(const PiecewiseInterpolation& other, const char* name) :
-  RooAbsReal(other, name), 
+  RooAbsSelfCachedReal(other, name),
+  _depList("!depList",this,other._depList),
   _nominal("!nominal",this,other._nominal),
   _lowSet("!lowSet",this,other._lowSet),
   _highSet("!highSet",this,other._highSet),
@@ -162,6 +169,212 @@ PiecewiseInterpolation::~PiecewiseInterpolation()
 }
 
 
+
+RooArgSet* PiecewiseInterpolation::actualObservables(const RooArgSet &nset) const
+{
+  RooArgSet *myDeps = new RooArgSet;
+  for (auto comp : _depList) {
+    auto dep = static_cast<RooAbsArg*>(comp);
+    myDeps->add(*dep);
+  }
+  return myDeps;
+}
+
+
+RooArgSet* PiecewiseInterpolation::actualParameters(const RooArgSet &nset) const
+{
+  RooArgSet *myPars=new RooArgSet;
+  for (auto comp : _paramSet) {
+    auto par = static_cast<RooAbsArg*>(comp);
+    myPars->add(*par);
+  }
+  myPars->remove(nset, kTRUE, kTRUE);
+  return myPars;
+}
+
+
+Double_t PiecewiseInterpolation::getValV(const RooArgSet* nset) const
+{
+  return RooAbsCachedReal::getValV(((RooArgSet*)&_depList));
+}
+
+
+void PiecewiseInterpolation::fillCacheObject(RooAbsCachedReal::FuncCacheElem& cache) const
+{
+  RooDataHist& cacheHist = *(cache.hist()) ;
+  RooDataHist& nomHist=((RooHistFunc&)(_nominal.arg())).dataHist();
+
+  // Iterator over all bins of RooDataHist and fill weights
+  for (Int_t k=0 ; k<cacheHist.numEntries() ; k++) {
+    cacheHist.get(k) ;
+    nomHist.get(k);
+
+    Double_t nominal = nomHist.weight();
+    Double_t sum(nominal) ;
+
+  //  return sum;
+    RooAbsReal* param ;
+    RooHistFunc* high ;
+    RooHistFunc* low ;
+    int i=-1;
+
+    RooFIter lowIter(_lowSet.fwdIterator()) ;
+    RooFIter highIter(_highSet.fwdIterator()) ;
+    RooFIter paramIter(_paramSet.fwdIterator()) ;
+
+    while((param=(RooAbsReal*)paramIter.next())) {
+      ++i;
+      low = (RooHistFunc*)(lowIter.next()) ;
+      high = (RooHistFunc*)(highIter.next()) ;
+      low->dataHist().get(k);
+      high->dataHist().get(k);
+      Double_t highVal=high->dataHist().weight();
+      Double_t lowVal=low->dataHist().weight();
+      if ((lowVal==nominal)*(highVal==nominal))
+      {
+        continue;
+      }
+
+      Int_t icode = _interpCode[i] ;
+
+      switch(icode) {
+      case 0: {
+        // piece-wise linear
+        if(param->getVal()>0)
+    sum +=  param->getVal()*(highVal - nominal );
+        else
+    sum += param->getVal()*(nominal - lowVal);
+        break ;
+      }
+      case 1: {
+        // pice-wise log
+        if(param->getVal()>=0)
+    sum *= pow(highVal/nominal, +param->getVal());
+        else
+    sum *= pow(lowVal/nominal,  -param->getVal());
+        break ;
+      }
+      case 2: {
+        // parabolic with linear
+        double a = 0.5*(highVal+lowVal)-nominal;
+        double b = 0.5*(highVal-lowVal);
+        double c = 0;
+        double x = param->getVal();
+        if(x*x <= 1)
+        {
+          sum += a*x*x+b*x;
+        }
+        else
+        {
+          int sgn = 1-2*std::signbit(x);
+          sum += (b+2*sgn*a)*x-a;
+        }
+        /* can I do this with no branch?
+        if(param->getVal()>1 ){
+    sum += (2*a+b)*(param->getVal()-1)+highVal-nominal;
+        } else if(param->getVal()<-1 ) {
+    sum += -1*(2*a-b)*(param->getVal()+1)+lowVal-nominal;
+        } else {
+    sum +=  a*pow(param->getVal(),2) + b*param->getVal()+c;
+        }
+        */
+        break ;
+      }
+      case 3: {
+        //parabolic version of log-normal
+        double a = 0.5*(highVal+lowVal)-nominal;
+        double b = 0.5*(highVal-lowVal);
+        double c = 0;
+        if(param->getVal()>1 ){
+    sum += (2*a+b)*(param->getVal()-1)+highVal-nominal;
+        } else if(param->getVal()<-1 ) {
+    sum += -1*(2*a-b)*(param->getVal()+1)+lowVal-nominal;
+        } else {
+    sum +=  a*pow(param->getVal(),2) + b*param->getVal()+c;
+        }
+        break ;
+      }
+      case 4: {
+
+        // WVE ****************************************************************
+        // WVE *** THIS CODE IS CRITICAL TO HISTFACTORY FIT CPU PERFORMANCE ***
+        // WVE *** Do not modify unless you know what you are doing...      ***
+        // WVE ****************************************************************
+
+        double x  = param->getVal();
+        if (x>1) {
+    sum += x*(highVal - nominal );
+        } else if (x<-1) {
+    sum += x*(nominal - lowVal);
+        } else {
+    double eps_plus = highVal - nominal;
+    double eps_minus = nominal - lowVal;
+    double S = 0.5 * (eps_plus + eps_minus);
+    double A = 0.0625 * (eps_plus - eps_minus);
+    double val = nominal + x * (S + x * A * ( 15 + x * x * (-10 + x * x * 3  ) ) );
+
+    if (val < 0) val = 0;
+    sum += val-nominal;
+        }
+        break ;
+
+        // WVE ****************************************************************
+      }
+      case 5: {
+
+        double x0 = 1.0;//boundary;
+        double x  = param->getVal();
+
+        if (x > x0 || x < -x0)
+        {
+    if(x>0)
+      sum += x*(highVal - nominal );
+    else
+      sum += x*(nominal - lowVal);
+        }
+        else if (nominal != 0)
+        {
+    double eps_plus = highVal - nominal;
+    double eps_minus = nominal - lowVal;
+    double S = (eps_plus + eps_minus)/2;
+    double A = (eps_plus - eps_minus)/2;
+
+    //fcns+der are eq at bd
+    double a = S;
+    double b = 3*A/(2*x0);
+    //double c = 0;
+    double d = -A/(2*x0*x0*x0);
+
+    double val = nominal + a*x + b*pow(x, 2) + 0/*c*pow(x, 3)*/ + d*pow(x, 4);
+    if (val < 0) val = 0;
+
+    //cout << "Using interp code 5, val = " << val << endl;
+
+    sum += val-nominal;
+        }
+        break ;
+      }
+      default: {
+        coutE(InputArguments) << "PiecewiseInterpolation::evaluate ERROR:  " << param->GetName() 
+            << " with unknown interpolation code" << icode << endl ;
+        break ;
+      }
+      }
+    }
+
+    if(_positiveDefinite && (sum<0)){
+      sum = 1e-6;
+      sum = 0;
+      //     cout <<"sum < 0 forcing  positive definite"<<endl;
+      //     int code = 1;
+      //     RooArgSet* myset = new RooArgSet();
+      //     cout << "integral = " << analyticalIntegralWN(code, myset) << endl;
+    } else if(sum<0){
+       cxcoutD(Tracing) <<"PiecewiseInterpolation::evaluate -  sum < 0, not forcing positive definite"<<endl;
+    }
+    cacheHist.set(sum);
+  }
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -330,100 +543,12 @@ Bool_t PiecewiseInterpolation::setBinIntegrator(RooArgSet& allVars)
 ////////////////////////////////////////////////////////////////////////////////
 /// Advertise that all integrals can be handled internally.
 
-Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, 
-						      const RooArgSet* normSet, const char* /*rangeName*/) const 
-{
-  /*
-  cout << "---------------------------\nin PiecewiseInterpolation get analytic integral " <<endl;
-  cout << "all vars = "<<endl;
-  allVars.Print("v");
-  cout << "anal vars = "<<endl;
-  analVars.Print("v");
-  cout << "normset vars = "<<endl;
-  if(normSet2)
-    normSet2->Print("v");
-  */
-
-
-  // Handle trivial no-integration scenario
-  if (allVars.getSize()==0) return 0 ;
-  if (_forceNumInt) return 0 ;
-
-
-  // Force using numeric integration
-  // use special numeric integrator  
-  return 0;
-  
-
-  // KC: check if interCode=0 for all 
-  RooFIter paramIterExtra(_paramSet.fwdIterator()) ;
-  int i=0;
-  while( paramIterExtra.next() ) {
-    if(!_interpCode.empty() && _interpCode[i]!=0){
-      // can't factorize integral
-      cout <<"can't factorize integral"<<endl;
-      return 0;
-    }
-    ++i;
-  }
-
-  // Select subset of allVars that are actual dependents
-  analVars.add(allVars) ;
-  //  RooArgSet* normSet = normSet2 ? getObservables(normSet2) : 0 ;
-  //  RooArgSet* normSet = getObservables();
-  //  RooArgSet* normSet = 0;
-
-
-  // Check if this configuration was created before
-  Int_t sterileIdx(-1) ;
-  CacheElem* cache = (CacheElem*) _normIntMgr.getObj(normSet,&analVars,&sterileIdx) ;
-  if (cache) {
-    return _normIntMgr.lastIndex()+1 ;
-  }
-  
-  // Create new cache element
-  cache = new CacheElem ;
-
-  // Make list of function projection and normalization integrals 
-  RooAbsReal *func ;
-  //  const RooArgSet* nset = _paramList.nset() ;
-
-  // do nominal
-  func = (RooAbsReal*)(&_nominal.arg()) ;
-  RooAbsReal* funcInt = func->createIntegral(analVars) ;
-  cache->_funcIntList.addOwned(*funcInt) ;
-
-  // do variations
-  RooFIter lowIter(_lowSet.fwdIterator()) ;
-  RooFIter highIter(_highSet.fwdIterator()) ;
-  RooFIter paramIter(_paramSet.fwdIterator()) ;
-
-  //  int i=0;
-  i=0;
-  while(paramIter.next() ) {
-    func = (RooAbsReal*)lowIter.next() ;
-    funcInt = func->createIntegral(analVars) ;
-    cache->_lowIntList.addOwned(*funcInt) ;
-
-    func = (RooAbsReal*)highIter.next() ;
-    funcInt = func->createIntegral(analVars) ;
-    cache->_highIntList.addOwned(*funcInt) ;
-    ++i;
-  }
-
-  // Store cache element
-  Int_t code = _normIntMgr.setObj(normSet,&analVars,(RooAbsCacheElement*)cache,0) ;
-
-  return code+1 ; 
-}
-
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Implement analytical integrations by doing appropriate weighting from  component integrals
 /// functions to integrators of components
 
+#if 0
 Double_t PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSet* /*normSet2*/,const char* /*rangeName*/) const 
 {
   /*
@@ -603,6 +728,7 @@ Double_t PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSe
   //  cout << "value = " << value <<endl;
   return value;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////////

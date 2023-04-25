@@ -17,17 +17,17 @@
 #define ROO_PIECEWISEINTERPOLATION
 
 #include "RooAbsReal.h"
+#include "RooAbsSelfCachedReal.h"
 #include "RooRealProxy.h"
 #include "RooListProxy.h"
 
 #include "RooObjCacheManager.h"
 #include <vector>
-#include <list>
 
 class RooRealVar;
 class RooArgList;
 
-class PiecewiseInterpolation : public RooAbsReal {
+class PiecewiseInterpolation : public RooAbsSelfCachedReal {
 public:
 
   PiecewiseInterpolation() ;
@@ -44,12 +44,12 @@ public:
   const RooArgList& lowList() const { return _lowSet ; }
   const RooArgList& highList() const { return _highSet ; }
   const RooArgList& paramList() const { return _paramSet ; }
+  const std::vector<int>&  interpolationCodes() const { return _interpCode; }
 
   //virtual Bool_t forceAnalyticalInt(const RooAbsArg&) const { return kTRUE ; }
   Bool_t setBinIntegrator(RooArgSet& allVars) ;
 
-  Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, const RooArgSet* normSet,const char* rangeName=0) const ;
-  Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const ;
+  // Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, const RooArgSet* normSet,const char* rangeName=0) const ;
 
   void setPositiveDefinite(bool flag=true){_positiveDefinite=flag;}
 
@@ -60,6 +60,7 @@ public:
   virtual std::list<Double_t>* binBoundaries(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const ;
   virtual std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const ; 
   virtual Bool_t isBinnedDistribution(const RooArgSet& obs) const ;
+  virtual Double_t getValV(const RooArgSet* nset) const;
 
 protected:
 
@@ -78,8 +79,12 @@ protected:
     RooArgList _highIntList ;
     // will want std::vector<RooRealVar*> for low and high also
   } ;
+  virtual RooArgSet* actualParameters(const RooArgSet &nset) const ;
+  virtual RooArgSet* actualObservables(const RooArgSet &nset) const ;
+  virtual void fillCacheObject(RooAbsCachedReal::FuncCacheElem& cache) const;
   mutable RooObjCacheManager _normIntMgr ; // The integration cache manager
 
+  RooListProxy _depList;
   RooRealProxy _nominal;           // The nominal value
   RooArgList   _ownedList ;       // List of owned components
   RooListProxy _lowSet ;            // Low-side variation

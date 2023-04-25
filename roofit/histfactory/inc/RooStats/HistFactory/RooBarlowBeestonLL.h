@@ -17,7 +17,6 @@
 #include <map>
 #include <set>
 #include <string>
-#include <vector>
 
 class RooMinuit ;
 
@@ -43,12 +42,15 @@ public:
 		    tau(NULL), nom_pois_mean(NULL),
 		    sumPdf(NULL),  nData(-1) {}
     bool hasStatUncert;
+    bool onlyStatUncert;
     RooRealVar* gamma;
     RooArgSet* observables;
     RooArgSet* bin_center; // Snapshot
     RooRealVar* tau;
     RooAbsReal* nom_pois_mean;
     RooAbsReal* sumPdf;
+    RooAbsReal* sumPdf0;
+    RooAbsReal* sumPdf1;
     double nData;
     double binVolume;
     void SetBinCenter() const;
