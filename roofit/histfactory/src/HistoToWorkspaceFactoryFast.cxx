@@ -328,6 +328,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     RooDataHist histDHist((prefix + "DHist").c_str(),"",observables,hist);
     RooHistFunc histFunc(prefix.c_str(),"",observables,histDHist,0);
 
+    histFunc.forceNumInt(true);
     proto->import(histFunc, RecycleConflictNodes());
     auto histFuncInWS = static_cast<RooHistFunc*>(proto->arg(prefix.c_str()));
 
@@ -400,8 +401,6 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     interp.setPositiveDefinite();
     interp.setAllInterpCodes(4); // LM: change to 4 (piece-wise linear to 6th order polynomial interpolation + linear extrapolation )
     // KC: interpo codes 1 etc. don't have proper analytic integral.
-    RooArgSet observableSet(observables);
-    interp.setBinIntegrator(observableSet);
     interp.forceNumInt();
 
     proto->import(interp, RecycleConflictNodes()); // individual params have already been imported in first loop of this function
@@ -657,7 +656,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     tot.specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator")  ;
     tot.specialIntegratorConfig(true)->method2D().setLabel("RooBinIntegrator")  ;
     tot.specialIntegratorConfig(true)->methodND().setLabel("RooBinIntegrator")  ;
-    tot.forceNumInt();
+    //tot.forceNumInt();
 
     // for mixed generation in RooSimultaneous
     tot.setAttribute("GenerateBinned"); // for use with RooSimultaneous::generate in mixed mode

@@ -17,7 +17,6 @@
 #include <map>
 #include <set>
 #include <string>
-#include <vector>
 
 namespace RooStats{
   namespace HistFactory{
@@ -36,12 +35,15 @@ public:
   class BarlowCache {
   public:
     bool hasStatUncert = false;
+    bool onlyStatUncert;
     RooRealVar* gamma = nullptr;
     RooArgSet* observables = nullptr;
     RooArgSet* bin_center = nullptr; // Snapshot
     RooRealVar* tau = nullptr;
     RooAbsReal* nom_pois_mean = nullptr;
     RooAbsReal* sumPdf = nullptr;
+    RooAbsReal* sumPdf0 = nullptr;
+    RooAbsReal* sumPdf1 = nullptr;
     double nData = -1;
     double binVolume = 0;
     void SetBinCenter() const;

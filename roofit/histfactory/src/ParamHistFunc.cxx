@@ -46,6 +46,7 @@
 #include "RooRealVar.h"
 #include "RooArgList.h"
 #include "RooWorkspace.h"
+#include "RooBinning.h"
 
 #include "TH1.h"
 
@@ -62,7 +63,7 @@ ClassImp(ParamHistFunc);
 ParamHistFunc::ParamHistFunc()
   : _normIntMgr(this)
 {
-  _dataSet.removeSelfFromDir(); // files must not delete _dataSet.
+  ;
 }
 
 
@@ -91,8 +92,6 @@ ParamHistFunc::ParamHistFunc(const char* name, const char* title,
 
   //  _dataSet = RooDataSet("
 
-  _dataSet.removeSelfFromDir(); // files must not delete _dataSet.
-
   // Set the binning
   // //_binning = var.getBinning().clone() ;
 
@@ -105,6 +104,7 @@ ParamHistFunc::ParamHistFunc(const char* name, const char* title,
   // Add the parameters (with checking)
   addVarSet( vars );
   addParamSet( paramSet );
+  _paramSet.useHashMapForFind(true);
 }
 
 
@@ -132,14 +132,14 @@ ParamHistFunc::ParamHistFunc(const char* name, const char* title,
   _dataSet( (std::string(name)+"_dataSet").c_str(), "", vars, Hist)
 {
 
-  _dataSet.removeSelfFromDir(); // files must not delete _dataSet.
-
   // Get the number of bins
   _numBins = GetNumBins( vars );
 
   // Add the parameters (with checking)
   addVarSet( vars );
   addParamSet( paramSet );
+  _paramSet.useHashMapForFind(true);
+ 
 }
 
 
@@ -176,10 +176,15 @@ ParamHistFunc::ParamHistFunc(const ParamHistFunc& other, const char* name) :
   _dataVars("!dataVars", this, other._dataVars ),
   _paramSet("!paramSet", this, other._paramSet),
   _numBins( other._numBins ),
-  _dataSet( other._dataSet )
+  _dataSet( other._dataSet ),
+  _prefix(other._prefix )
 {
-  _dataSet.removeSelfFromDir(); // files must not delete _dataSet.
+  _paramSet.useHashMapForFind(true);
 
+  for (auto comp : _dataVars) {
+    auto var = static_cast<RooRealVar*>(comp);
+    addServer(*var);
+  }
   // Copy constructor
   // Member _ownedList is intentionally not copy-constructed -- ownership is not transferred
 }
@@ -230,6 +235,11 @@ void ParamHistFunc::setConstant( bool constant ) {
   for( int i=0; i < numBins(); ++i) {
     setParamConst(i, constant);
   }
+}
+
+
+void ParamHistFunc::setPrefix(const char* name) {
+  _prefix=name;
 }
 
 
@@ -398,8 +408,8 @@ RooArgList ParamHistFunc::createParamSet(RooWorkspace& w, const std::string& Pre
     std::cout << " Error: ParamHistFunc doesn't support dimensions > 3D " <<  std::endl;
   }
 
+  paramSet.useHashMapForFind(true);
   return paramSet;
-
 }
 
 
@@ -434,6 +444,7 @@ RooArgList ParamHistFunc::createParamSet(RooWorkspace& w, const std::string& Pre
     var->setMax( gamma_max );
   }
 
+  params.useHashMapForFind(true);
   return params;
 
 }
@@ -485,6 +496,7 @@ RooArgList ParamHistFunc::createParamSet(const std::string& Prefix, Int_t numBin
 
   }
 
+  paramSet.useHashMapForFind(true);
   return paramSet;
 
 }
@@ -573,7 +585,8 @@ Int_t ParamHistFunc::addParamSet( const RooArgList& params ) {
 
     _paramSet.add( *comp );
   }
-
+  _paramSet.useHashMapForFind(true);
+  
   return 0;
 }
 
@@ -696,6 +709,7 @@ double ParamHistFunc::analyticalIntegralWN(Int_t /*code*/, const RooArgSet* /*no
 std::list<double>* ParamHistFunc::plotSamplingHint(RooAbsRealLValue& obs, double xlo,
                   double xhi) const
 {
+  return 0;
   // copied and edited from RooHistFunc
   RooAbsLValue* lvarg = &obs;
 
@@ -731,6 +745,7 @@ std::list<double>* ParamHistFunc::plotSamplingHint(RooAbsRealLValue& obs, double
 std::list<double>* ParamHistFunc::binBoundaries(RooAbsRealLValue& obs, double xlo,
                     double xhi) const
 {
+  return 0;
   // copied and edited from RooHistFunc
   RooAbsLValue* lvarg = &obs;
 

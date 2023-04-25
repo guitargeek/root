@@ -30,7 +30,7 @@ namespace HistFactory{
 
   RooAbsPdf* getSumPdfFromChannel( RooAbsPdf* sim_channel ) {
 
-    bool verbose=false;
+    bool verbose=true;
 
     if(verbose) std::cout << "Getting the RooRealSumPdf for the channel: "
            << sim_channel->GetName() << std::endl;

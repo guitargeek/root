@@ -17,6 +17,8 @@
 #include "RooObjCacheManager.h"
 #include "RooDataHist.h"
 
+#include <map>
+
 // Forward Declarations
 class RooRealVar;
 class RooWorkspace;
@@ -37,6 +39,7 @@ public:
 
   void setParamConst( Int_t, bool=true );
   void setConstant(bool constant);
+  void setPrefix(const char*);
 
   void setShape(TH1* shape);
 
@@ -95,7 +98,9 @@ protected:
     int xyz = 0;
   };
   mutable NumBins _numBinsPerDim; //!
+  mutable std::vector<std::string> _nameCache;
   mutable RooDataHist _dataSet;
+  std::string _prefix;
 
   Int_t getCurrentBin() const;
   Int_t addVarSet( const RooArgList& vars );

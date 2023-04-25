@@ -17,17 +17,17 @@
 #define ROO_PIECEWISEINTERPOLATION
 
 #include "RooAbsReal.h"
+#include "RooAbsSelfCachedReal.h"
 #include "RooRealProxy.h"
 #include "RooListProxy.h"
 
 #include "RooObjCacheManager.h"
 #include <vector>
-#include <list>
 
 class RooRealVar;
 class RooArgList;
 
-class PiecewiseInterpolation : public RooAbsReal {
+class PiecewiseInterpolation : public RooAbsSelfCachedReal {
 public:
 
   PiecewiseInterpolation() ;
@@ -54,9 +54,6 @@ public:
   //virtual bool forceAnalyticalInt(const RooAbsArg&) const { return true ; }
   bool setBinIntegrator(RooArgSet& allVars) ;
 
-  Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, const RooArgSet* normSet,const char* rangeName=nullptr) const override ;
-  double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=nullptr) const override ;
-
   void setPositiveDefinite(bool flag=true){_positiveDefinite=flag;}
   bool positiveDefinite() const {return _positiveDefinite;}
 
@@ -67,6 +64,7 @@ public:
   std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
   std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
   bool isBinnedDistribution(const RooArgSet& obs) const override ;
+  Double_t getValV(const RooArgSet* nset) const override;
 
 protected:
 
@@ -85,8 +83,14 @@ protected:
     RooArgList _highIntList ;
     // will want std::vector<RooRealVar*> for low and high also
   } ;
+
+  RooArgSet* actualParameters(const RooArgSet &nset) const override;
+  RooArgSet* actualObservables(const RooArgSet &nset) const override;
+  void fillCacheObject(RooAbsCachedReal::FuncCacheElem& cache) const override;
+
   mutable RooObjCacheManager _normIntMgr ; ///<! The integration cache manager
 
+  RooListProxy _depList;
   RooRealProxy _nominal;           ///< The nominal value
   RooArgList   _ownedList ;        ///< List of owned components
   RooListProxy _lowSet ;           ///< Low-side variation
