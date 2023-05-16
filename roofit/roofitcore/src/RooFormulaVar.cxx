@@ -84,7 +84,6 @@ RooFormulaVar::RooFormulaVar(const char *name, const char *title, const char* in
     _value = traceEval(nullptr);
   } else {
     _formula = new RooFormula(GetName(), _formExpr, dependents, checkVariables);
-    _formExpr = _formula->formulaString().c_str();
     _actualVars.add(_formula->actualDependents());
   }
 }
@@ -107,7 +106,6 @@ RooFormulaVar::RooFormulaVar(const char *name, const char *title, const RooArgLi
     _value = traceEval(0);
   } else {
     _formula = new RooFormula(GetName(), _formExpr, dependents, checkVariables);
-    _formExpr = _formula->formulaString().c_str();
     _actualVars.add(_formula->actualDependents());
   }
 }
@@ -124,7 +122,6 @@ RooFormulaVar::RooFormulaVar(const RooFormulaVar& other, const char* name) :
 {
   if (other._formula && other._formula->ok()) {
     _formula = new RooFormula(*other._formula);
-    _formExpr = _formula->formulaString().c_str();
   }
 }
 
@@ -137,7 +134,6 @@ RooFormula& RooFormulaVar::getFormula() const
   if (!_formula) {
     // After being read from file, the formula object might not exist, yet:
     _formula = new RooFormula(GetName(), _formExpr, _actualVars);
-    const_cast<TString&>(_formExpr) = _formula->formulaString().c_str();
   }
 
   return *_formula;
@@ -171,8 +167,6 @@ void RooFormulaVar::computeBatch(cudaStream_t* stream, double* output, size_t nE
 bool RooFormulaVar::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool isRecursive)
 {
   bool error = getFormula().changeDependents(newServerList,mustReplaceAll,nameChange);
-
-  _formExpr = getFormula().GetTitle();
   return error || RooAbsReal::redirectServersHook(newServerList, mustReplaceAll, nameChange, isRecursive);
 }
 

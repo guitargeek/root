@@ -73,7 +73,6 @@ RooGenericPdf::RooGenericPdf(const char *name, const char *title, const RooArgLi
     _value = traceEval(nullptr);
   } else {
     _formula = new RooFormula(GetName(), _formExpr, dependents);
-    _formExpr = _formula->formulaString().c_str();
     _actualVars.add(_formula->actualDependents());
   }
 }
@@ -93,7 +92,6 @@ RooGenericPdf::RooGenericPdf(const char *name, const char *title,
     _value = traceEval(0);
   } else {
     _formula = new RooFormula(GetName(), _formExpr, dependents);
-    _formExpr = _formula->formulaString().c_str();
     _actualVars.add(_formula->actualDependents());
   }
 }
@@ -118,7 +116,6 @@ RooFormula& RooGenericPdf::formula() const
 {
   if (!_formula) {
     _formula = new RooFormula(GetName(),_formExpr.Data(),_actualVars);
-    const_cast<TString&>(_formExpr) = _formula->formulaString().c_str();
   }
   return *_formula ;
 }
