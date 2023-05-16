@@ -215,19 +215,16 @@ RooFormula::RooFormula(const char* name, const char* formula, const RooArgList& 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
-RooFormula::RooFormula(const RooFormula& other, const char* name) :
-  TNamed(name ? name : other.GetName(), other.GetTitle()), RooPrintable(other)
+RooFormula::RooFormula(const RooFormula &other, const char *name)
+   : TNamed(name ? name : other.GetName(), other.GetTitle()),
+     RooPrintable(other),
+     _origList{other._origList},
+     _isCategory{other._isCategory}
 {
-  _origList.add(other._origList);
-  _isCategory = findCategoryServers(_origList);
-
-  std::unique_ptr<TFormula> newTF;
-  if (other._tFormula) {
-    newTF = std::make_unique<TFormula>(*other._tFormula);
-    newTF->SetName(GetName());
-  }
-
-  _tFormula = std::move(newTF);
+   if (other._tFormula) {
+      _tFormula = std::make_unique<TFormula>(*other._tFormula);
+      _tFormula->SetName(GetName());
+   }
 }
 
 
@@ -335,7 +332,7 @@ std::string RooFormula::reconstructFormula(std::string internalRepr) const {
     regexStr << "x\\[" << i << "\\]|@" << i;
     std::regex regex(regexStr.str());
 
-    std::string replacement = std::string("[") + var.GetName() + "]";
+    std::string replacement = var.GetName();
     internalRepr = std::regex_replace(internalRepr, regex, replacement);
   }
 
@@ -379,6 +376,13 @@ bool RooFormula::changeDependents(const RooAbsCollection& newDeps, bool mustRepl
   }
 
   _isCategory = findCategoryServers(_origList);
+
+   // The title of the RooFormula represents the original formula expression
+   // that may contain RooFit variable names. If their names were changed, the
+   // original formula needs to be reconstructed.
+   if(nameChange) {
+      SetTitle(reconstructFormula(_tFormula->GetTitle()).c_str());
+   }
 
   return errorStat;
 }
@@ -439,10 +443,8 @@ void RooFormula::printMultiline(ostream& os, Int_t /*contents*/, bool /*verbose*
 {
   os << indent << "--- RooFormula ---" << std::endl;
   os << indent << " Formula:        '" << GetTitle() << "'" << std::endl;
-  os << indent << " Interpretation: '" << reconstructFormula(GetTitle()) << "'" << std::endl;
   indent.Append("  ");
-  os << indent << "Servers: " << _origList << "\n";
-  os << indent << "In use : " << actualDependents() << std::endl;
+  os << indent << "Servers: " << actualDependents() << "\n";
 }
 
 

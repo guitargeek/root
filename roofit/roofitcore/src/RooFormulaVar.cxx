@@ -167,6 +167,7 @@ void RooFormulaVar::computeBatch(cudaStream_t* stream, double* output, size_t nE
 bool RooFormulaVar::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool isRecursive)
 {
   bool error = getFormula().changeDependents(newServerList,mustReplaceAll,nameChange);
+  _formExpr = getFormula().GetTitle();
   return error || RooAbsReal::redirectServersHook(newServerList, mustReplaceAll, nameChange, isRecursive);
 }
 

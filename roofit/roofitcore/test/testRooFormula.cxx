@@ -63,9 +63,9 @@ TEST(RooFormula, TestDangerousVariableNames)
    RooFormula formula("formula", "exp(-abs(@0)/@1)*cos(@0*@2)", {dt, x, zero});
 }
 
-/// Check that the RooFormulaVar has the right number of servers when some
-/// variables are unused.
-TEST(RooFormula, UnusedVariables)
+/// Check that the RooFormulaVar is in a consistent state after server changing
+/// with renaming.
+TEST(RooFormula, ServerRenaming)
 {
    RooRealVar x{"x", "x", 1};
    RooRealVar y{"y", "y", 2};
@@ -76,4 +76,15 @@ TEST(RooFormula, UnusedVariables)
    // There are expected to be two servers only because "z" is not used in the
    // formula.
    EXPECT_EQ(func.servers().size(), 2);
+
+   // Check that the original expression is fine
+   EXPECT_STREQ(func.expression(), "x * y");
+
+   // Change "y" to a renamed version
+   RooRealVar yNew{"yNew", "yNew", 2};
+   yNew.setAttribute("ORIGNAME:y");
+   func.recursiveRedirectServers(RooArgSet{yNew}, false, true);
+
+   // The expression should reflect the new server names
+   EXPECT_STREQ(func.expression(), "x * yNew");
 }

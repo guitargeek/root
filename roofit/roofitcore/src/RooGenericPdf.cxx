@@ -143,7 +143,8 @@ void RooGenericPdf::computeBatch(cudaStream_t* stream, double* output, size_t nE
 
 bool RooGenericPdf::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool isRecursive)
 {
-  bool error = _formula ? _formula->changeDependents(newServerList,mustReplaceAll,nameChange) : true;
+  bool error = formula().changeDependents(newServerList,mustReplaceAll,nameChange);
+  _formExpr = formula().GetTitle();
   return error || RooAbsPdf::redirectServersHook(newServerList, mustReplaceAll, nameChange, isRecursive);
 }
 
