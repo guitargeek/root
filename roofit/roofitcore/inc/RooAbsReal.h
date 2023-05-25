@@ -484,7 +484,9 @@ protected:
   double _plotMin = 0.0;       ///< Minimum of plot range
   double _plotMax = 0.0;       ///< Maximum of plot range
   Int_t _plotBins = 100;       ///< Number of plot bins
+ public:
   mutable double _value = 0.0; ///< Cache for current value of object
+ protected:
   TString _unit ;              ///< Unit for objects value
   TString _label ;             ///< Plot label for objects value
   bool _forceNumInt = false;   ///< Force numerical integration if flag set
