@@ -28,7 +28,7 @@ namespace Detail {
 
 class CompileContext {
 public:
-   CompileContext(RooArgSet const &topLevelNormSet);
+   CompileContext(RooArgSet const &topLevelNormSet, RooArgSet const& variablesToClone);
 
    ~CompileContext();
 
@@ -43,6 +43,8 @@ public:
 
    void markAsCompiled(RooAbsArg &arg) const;
 
+   RooArgSet const& variablesToClone() const { return _variablesToClone; }
+
 private:
    RooAbsArg *compileImpl(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet);
    void add(RooAbsArg &arg);
@@ -50,14 +52,15 @@ private:
    bool isMarkedAsCompiled(RooAbsArg const &arg) const;
 
    RooArgSet const &_topLevelNormSet;
+   RooArgSet const &_variablesToClone;
    std::unordered_map<TNamed const *, RooAbsArg *> _clonedArgsSet;
    std::unordered_map<RooAbsArg *, RooAbsArg *> _replacements;
 };
 
 template <class T>
-std::unique_ptr<T> compileForNormSet(T const &arg, RooArgSet const &normSet)
+std::unique_ptr<T> compileForNormSet(T const &arg, RooArgSet const &normSet, RooArgSet const& variablesToClone)
 {
-   RooFit::Detail::CompileContext ctx{normSet};
+   RooFit::Detail::CompileContext ctx{normSet, variablesToClone};
    std::unique_ptr<RooAbsArg> head = arg.compileForNormSet(normSet, ctx);
    return std::unique_ptr<T>{static_cast<T *>(head.release())};
 }

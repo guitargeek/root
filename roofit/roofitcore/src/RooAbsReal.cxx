@@ -269,7 +269,8 @@ RooSpan<const double> RooAbsReal::getValues(RooBatchCompute::RunContext& evalDat
     dataSpans[evalDataItem.first] = evalDataItem.second;
   }
 
-  std::unique_ptr<RooAbsReal> clone = RooFit::Detail::compileForNormSet<RooAbsReal>(*this, normSet ? *normSet : RooArgSet{});
+  std::unique_ptr<RooAbsReal> clone = RooFit::Detail::compileForNormSet<RooAbsReal>(*this, normSet ? *normSet : RooArgSet{}, normSet ? *normSet : RooArgSet{});
+
   ROOT::Experimental::RooFitDriver driver(*clone);
   driver.setData(dataSpans);
   auto& results = evalData.ownedMemory[this];
@@ -281,7 +282,7 @@ RooSpan<const double> RooAbsReal::getValues(RooBatchCompute::RunContext& evalDat
 ////////////////////////////////////////////////////////////////////////////////
 
 std::vector<double> RooAbsReal::getValues(RooAbsData const& data) const {
-  std::unique_ptr<RooAbsReal> clone = RooFit::Detail::compileForNormSet<RooAbsReal>(*this, *data.get());
+  std::unique_ptr<RooAbsReal> clone = RooFit::Detail::compileForNormSet<RooAbsReal>(*this, *data.get(), *data.get());
   ROOT::Experimental::RooFitDriver driver(*clone, RooFit::BatchModeOption::Cpu);
   driver.setData(data, "");
   return driver.getValues();

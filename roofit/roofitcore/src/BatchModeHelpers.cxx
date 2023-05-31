@@ -19,6 +19,7 @@
 #include <RooCategory.h>
 #include <RooConstraintSum.h>
 #include <RooDataSet.h>
+#include <RooHelpers.h>
 #include "RooNLLVarNew.h"
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>

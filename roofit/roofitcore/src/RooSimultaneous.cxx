@@ -1216,7 +1216,7 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::Com
          pdf.setNormRange(RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, catName).c_str());
       }
 
-      auto *pdfFinal = RooFit::Detail::CompileContext{*pdfNormSet}.compile(pdf, *newSimPdf, *pdfNormSet);
+      auto *pdfFinal = RooFit::Detail::CompileContext{*pdfNormSet, ctx.variablesToClone()}.compile(pdf, *newSimPdf, *pdfNormSet);
       pdfFinal->fixAddCoefNormalization(*pdfNormSet, false);
 
       pdfClone->SetName((std::string("_") + pdfClone->GetName()).c_str());

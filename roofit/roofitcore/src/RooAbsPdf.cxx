@@ -1120,10 +1120,16 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createNLL(RooAbsData& data, const RooLi
     getObservables(data.get(), *normSet);
     normSet->remove(projDeps, true, true);
 
+    RooArgSet variablesToClone;
+    variablesToClone.add(*data.get());
+    if(auto globsInData = data.getGlobalObservables()) {
+       variablesToClone.add(*globsInData);
+    }
+
     this->setAttribute("SplitRange", splitRange);
     this->setStringAttribute("RangeName", rangeName);
 
-    std::unique_ptr<RooAbsPdf> pdfClone = RooFit::Detail::compileForNormSet(*this, *normSet);
+    std::unique_ptr<RooAbsPdf> pdfClone = RooFit::Detail::compileForNormSet(*this, *normSet, variablesToClone);
 
     // reset attributes
     this->setAttribute("SplitRange", false);
@@ -1141,7 +1147,12 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createNLL(RooAbsData& data, const RooLi
 
     std::unique_ptr<RooAbsReal> compiledConstr;
     if(std::unique_ptr<RooAbsReal> constr = createConstr(*this)) {
-       compiledConstr = RooFit::Detail::compileForNormSet(*constr, *data.get());
+       RooArgSet variablesToClone;
+       variablesToClone.add(*data.get());
+       if(auto globsInData = data.getGlobalObservables()) {
+          variablesToClone.add(*globsInData);
+       }
+       compiledConstr = RooFit::Detail::compileForNormSet(*constr, *data.get(), variablesToClone);
        compiledConstr->addOwnedComponents(std::move(constr));
     }
 

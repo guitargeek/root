@@ -43,7 +43,7 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal c
 
    // Compile the computation graph for the norm set, such that we also get the
    // integrals explicitly in the graph.
-   std::unique_ptr<RooAbsReal> pdf{RooFit::Detail::compileForNormSet(obj, normSet)};
+   std::unique_ptr<RooAbsReal> pdf{RooFit::Detail::compileForNormSet(obj, normSet, normSet)};
    // Get the parameters.
    RooArgSet paramSet;
    obj.getParameters(data ? data->get() : nullptr, paramSet);

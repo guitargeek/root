@@ -194,6 +194,9 @@ TEST_F(TestGlobalObservables, ExternalConstraints)
 
    // constrained fit with external constraints
    resetParameters();
+   auto nll1 = model().createNLL(data(), ExternalConstraints({mconstraint, sconstraint}), GlobalObservables(gm, gs));
+   nll1->getVal();
+   nll1->Print("v");
    auto res1 = doFit(model(), data(), ExternalConstraints({mconstraint, sconstraint}), GlobalObservables(gm, gs));
    resetParameters();
    // vary global observable to verify true value is picked up from the dataset
@@ -201,6 +204,12 @@ TEST_F(TestGlobalObservables, ExternalConstraints)
    gs.setVal(gs.getVal() + 2.5);
    double gmVaryVal = gm.getVal();
    double gsVaryVal = gs.getVal();
+   ws().var("s")->setVal(2.1);
+   auto nll2 = model().createNLL(dataWithMeanSigmaGlobs(), ExternalConstraints({mconstraint, sconstraint}));
+   nll2->getVal();
+   nll2->Print("v");
+   ws().var("s")->setVal(2.0);
+   dataWithMeanSigmaGlobs().getGlobalObservables()->Print("v");
    auto res2 = doFit(model(), dataWithMeanSigmaGlobs(), ExternalConstraints({mconstraint, sconstraint}));
    EXPECT_TRUE(res1->isIdentical(*res2))
       << "fitting an model with external "

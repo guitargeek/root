@@ -46,7 +46,7 @@ RooAbsL::ClonePdfData clonePdfData(RooAbsPdf &pdf, RooAbsData &data, RooFit::Bat
    }
    // For the evaluation with the BatchMode, the pdf needs to be "compiled" for
    // a given normalization set.
-   return {RooFit::Detail::compileForNormSet(pdf, *data.get()), &data};
+   return {RooFit::Detail::compileForNormSet(pdf, *data.get(), *data.get()), &data};
 }
 
 } // namespace

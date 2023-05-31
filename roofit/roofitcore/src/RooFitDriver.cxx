@@ -240,13 +240,19 @@ void RooFitDriver::setData(DataSpansMap const &dataSpans)
          _dataMapCPU.set(info.absArg, found->second);
          info.fromDataset = true;
          info.isDirty = false;
-         totalSize += found->second.size();
+         std::cout << info.absArg->ClassName() << "::" << info.absArg->GetName() << "  " << found->second.size() << std::endl;
+         std::size_t n = found->second.size();
+         if(n == 1) {
+           static_cast<RooRealVar*>(info.absArg)->setVal(found->second[0]);
+         }
+         totalSize += n;
       } else {
          info.fromDataset = false;
          info.isDirty = true;
       }
       ++iNode;
    }
+   std::cout << std::endl;
 
    for (auto &info : _nodes) {
       info.outputSize = outputSizeMap.at(info.absArg);
@@ -531,7 +537,7 @@ void RooFitDriver::print(std::ostream &os) const
 {
    std::cout << "--- RooFit BatchMode evaluation ---\n";
 
-   std::vector<int> widths{9, 37, 20, 9, 10, 20};
+   std::vector<int> widths{15, 9, 37, 20, 9, 10, 20};
 
    auto printElement = [&](int iCol, auto const &t) {
       const char separator = ' ';
@@ -553,12 +559,13 @@ void RooFitDriver::print(std::ostream &os) const
    printHorizontalRow();
 
    os << "|";
-   printElement(0, "Index");
-   printElement(1, "Name");
-   printElement(2, "Class");
-   printElement(3, "Size");
-   printElement(4, "From Data");
-   printElement(5, "1st value");
+   printElement(0, "Address");
+   printElement(1, "Index");
+   printElement(2, "Name");
+   printElement(3, "Class");
+   printElement(4, "Size");
+   printElement(5, "From Data");
+   printElement(6, "1st value");
    std::cout << "\n";
 
    printHorizontalRow();
@@ -570,12 +577,13 @@ void RooFitDriver::print(std::ostream &os) const
       auto span = _dataMapCPU.at(node);
 
       os << "|";
-      printElement(0, iNode);
-      printElement(1, node->GetName());
-      printElement(2, node->ClassName());
-      printElement(3, nodeInfo.outputSize);
-      printElement(4, nodeInfo.fromDataset);
-      printElement(5, span[0]);
+      printElement(0, nodeInfo.absArg);
+      printElement(1, iNode);
+      printElement(2, node->GetName());
+      printElement(3, node->ClassName());
+      printElement(4, nodeInfo.outputSize);
+      printElement(5, nodeInfo.fromDataset);
+      printElement(6, span[0]);
 
       std::cout << "\n";
    }
