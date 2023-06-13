@@ -47,7 +47,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooGaussian.h
     RooGaussModel.h
     RooGExpModel.h
-    RooHistConstraint.h
     RooIntegralMorph.h
     RooJeffreysPrior.h
     RooKeysPdf.h
@@ -63,7 +62,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooNonCPEigenDecay.h
     RooNovosibirsk.h
     RooParametricStepFunction.h
-    RooParamHistFunc.h
     RooPoisson.h
     RooPolynomial.h
     RooStepFunction.h
@@ -77,6 +75,8 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooUniform.h
     RooVoigtian.h
     RooJohnson.h
+    RooFit/Legacy/RooHistConstraint.h
+    RooFit/Legacy/RooParamHistFunc.h
   SOURCES
     src/Roo2DKeysPdf.cxx
     src/RooArgusBG.cxx

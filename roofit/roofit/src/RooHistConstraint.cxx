@@ -16,9 +16,9 @@
  *
  */
 
-#include <RooHistConstraint.h>
+#include <RooFit/Legacy/RooHistConstraint.h>
 
-#include <RooParamHistFunc.h>
+#include <RooFit/Legacy/RooParamHistFunc.h>
 #include <RooRealVar.h>
 
 #include <Math/PdfFuncMathCore.h>

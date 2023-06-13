@@ -2,7 +2,7 @@
 // Author: Jonas Rembser, CERN  03/2020
 
 #include <RooHelpers.h>
-#include <RooParamHistFunc.h>
+#include <RooFit/Legacy/RooParamHistFunc.h>
 #include <RooRealSumPdf.h>
 #include <RooRealVar.h>
 #include <RooUniform.h>

@@ -20,7 +20,7 @@
  */
 
 #include "Riostream.h"
-#include "RooParamHistFunc.h"
+#include "RooFit/Legacy/RooParamHistFunc.h"
 #include "RooAbsCategory.h"
 #include "RooRealVar.h"
 #include "RooHelpers.h"

@@ -46,7 +46,7 @@ describe the same process or not.
 #include "RooHistFunc.h"
 #include "RooLagrangianMorphFunc.h"
 #include "RooLinearCombination.h"
-#include "RooParamHistFunc.h"
+#include "RooFit/Legacy/RooParamHistFunc.h"
 #include "RooProduct.h"
 #include "RooRealVar.h"
 #include "RooWorkspace.h"
