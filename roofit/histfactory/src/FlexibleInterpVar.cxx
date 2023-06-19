@@ -452,6 +452,26 @@ double FlexibleInterpVar::evaluate() const
   return total;
 }
 
+void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
+{
+   unsigned int n = _interpCode.size();
+   std::string codes = "codes_" + ctx.makeValidVarName(GetName());
+   std::string codesDecl = "unsigned int " + codes + "[" + std::to_string(n) + "] = {";
+   for (unsigned int i = 0; i < n; i++) {
+      if (_interpCode[i] > 4) {
+         coutE(InputArguments) << "FlexibleInterpVar::evaluate ERROR:  param " << i
+                               << " with unknown interpolation code" << endl;
+      }
+      codesDecl += " " + std::to_string(_interpCode[i]) + ",";
+   }
+   codesDecl.back() = '}';
+   codesDecl += '\n';
+   ctx.addToCodeBody(this, codesDecl);
+
+   ctx.addResult(this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::flexibleInterpVarEvaluate", codes, _paramList,
+                                     _paramList.size(), _low, _high, _nominal, _interpBoundary));
+}
+
 void FlexibleInterpVar::computeBatch(cudaStream_t* /*stream*/, double* output, size_t /*nEvents*/, RooFit::Detail::DataMap const& dataMap) const
 {
   double total(_nominal) ;
@@ -483,5 +503,3 @@ void FlexibleInterpVar::printFlexibleInterpVars(ostream& os) const
        <<endl;
   }
 }
-
-
