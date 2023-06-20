@@ -105,7 +105,7 @@ inline double polyInterpValue(unsigned int i, double *polCoeff, double const *lo
 
    // cache the polynomial coefficient values
    // which do not depend on x but on the boundaries values
-   if (!logInit) {
+   if (logInit == 0) {
       logInit = 1;
       for (unsigned int j = 0; j < n; j++) {
          // location of the 6 coefficient for the j-th variable
@@ -151,8 +151,8 @@ inline double polyInterpValue(unsigned int i, double *polCoeff, double const *lo
    return 1. + x * (a + x * (b + x * (c + x * (d + x * (e + x * f)))));
 }
 
-inline double flexibleInterpVarProcessParam(unsigned int code, unsigned int i, double *polCoeff, double const *low,
-                                            double const *high, double n, double boundary, double nominal,
+inline double flexibleInterpVarProcessParam(double code, unsigned int i, double *polCoeff, double *low,
+                                            double *high, double n, double boundary, double nominal,
                                             double paramVal, double total, unsigned int &logInit)
 {
    if (code == 0) {
@@ -205,8 +205,8 @@ inline double flexibleInterpVarProcessParam(unsigned int code, unsigned int i, d
    return 0;
 }
 
-inline double flexibleInterpVarEvaluate(unsigned int const *code, double const *params, unsigned int paramSize,
-                                        double const *low, double const *high, double nominal, double boundary)
+inline double flexibleInterpVarEvaluate(double *code, double *params, unsigned int paramSize,
+                                        double *low, double *high, double nominal, double boundary)
 {
    double polCoeff[6 * paramSize];
    double total = nominal;

@@ -20,7 +20,7 @@ ws = ROOT.RooWorkspace("workspace")
 tool = ROOT.RooJSONFactoryWSTool(ws)
 
 # use it to import the information from your JSON file
-tool.importJSON(ROOT.gROOT.GetTutorialDir().Data() + "/roofit/rf515_hfJSON.json")
+tool.importJSON("rf515_hfJSON.json")
 ws.Print()
 
 # now, you can easily use your workspace to run your fit (as you usually would)
@@ -43,5 +43,15 @@ ws2 = ROOT.RooWorkspace("workspace")
 tool2 = ROOT.RooJSONFactoryWSTool(ws2)
 tool2.importJSON("myWorkspace.json")
 model2 = ws2["main_modelConfig"]
-result = model.GetPdf().fitTo(ws2["observed"], Save=True, GlobalObservablesTag="globs", PrintLevel=-1)
+
+nll = model.GetPdf().createNLL(ws2["observed"], ROOT.RooFit.Experimental.Backend("codegen"), GlobalObservablesTag="globs")
+
+cfg = ROOT.RooMinimizer.Config()
+cfg.useGradient = False
+minimizer = ROOT.RooMinimizer(nll, cfg)
+
+minimizer.setPrintLevel(-1)
+minimizer.minimize("Minuit2", "")
+result = minimizer.save()
+
 result.Print()

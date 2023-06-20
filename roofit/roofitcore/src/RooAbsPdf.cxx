@@ -1173,8 +1173,10 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createNLL(RooAbsData& data, const RooLi
     if(batchMode == RooFit::BatchModeOption::CodeGen) {
        static int iFuncWrapper = 0;
        std::string wrapperName = "nll_func_wrapper_" + std::to_string(iFuncWrapper++);
-       nllWrapper = std::make_unique<RooFuncWrapper>(wrapperName.c_str(), wrapperName.c_str(), *nll, normSet, &data,
+       auto funcWrapper = std::make_unique<RooFuncWrapper>(wrapperName.c_str(), wrapperName.c_str(), *nll, normSet, &data,
                                                      dynamic_cast<RooSimultaneous const *>(pdfClone.get()));
+       //funcWrapper->dumpCode();
+       nllWrapper = std::move(funcWrapper);
     } else {
       auto driver = std::make_unique<ROOT::Experimental::RooFitDriver>(*nll, batchMode);
       nllWrapper = std::make_unique<ROOT::Experimental::RooAbsRealWrapper>(

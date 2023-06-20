@@ -456,7 +456,7 @@ void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
 {
    unsigned int n = _interpCode.size();
    std::string codes = "codes_" + ctx.makeValidVarName(GetName());
-   std::string codesDecl = "unsigned int " + codes + "[" + std::to_string(n) + "] = {";
+   std::string codesDecl = "double " + codes + "[" + std::to_string(n) + "] = {";
    for (unsigned int i = 0; i < n; i++) {
       if (_interpCode[i] > 4) {
          coutE(InputArguments) << "FlexibleInterpVar::evaluate ERROR:  param " << i
@@ -465,7 +465,7 @@ void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
       codesDecl += " " + std::to_string(_interpCode[i]) + ",";
    }
    codesDecl.back() = '}';
-   codesDecl += '\n';
+   codesDecl += ";\n";
    ctx.addToCodeBody(this, codesDecl);
 
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::flexibleInterpVarEvaluate", codes, _paramList,

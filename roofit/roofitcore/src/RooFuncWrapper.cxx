@@ -119,7 +119,7 @@ void RooFuncWrapper::declareAndDiffFunction(std::string funcName, std::string co
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs) {\n" << funcBody << "\n}";
+   bodyWithSigStrm << "double " << funcName << "(double const* params, double const* obs) {\n" << funcBody << "\n}";
    bool comp = gInterpreter->Declare(bodyWithSigStrm.str().c_str());
    if (!comp) {
       std::stringstream errorMsg;
@@ -152,7 +152,7 @@ void RooFuncWrapper::declareAndDiffFunction(std::string funcName, std::string co
    // disable clang-format for making the following code unreadable.
    // clang-format off
    std::stringstream dWrapperStrm;
-   dWrapperStrm << "void " << wrapperName << "(double* params, double const* obs, double* out) {\n"
+   dWrapperStrm << "void " << wrapperName << "(double const* params, double const* obs, double* out) {\n"
                    "  clad::array_ref<double> cladOut(out, " << _params.size() << ");\n"
                    "  " << gradName << "(params, obs, cladOut);\n"
                    "}";

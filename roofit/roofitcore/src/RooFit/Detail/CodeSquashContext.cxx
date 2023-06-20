@@ -260,8 +260,8 @@ std::string CodeSquashContext::buildArg(std::vector<double> const &arr)
       arrDecl += " " + std::to_string(arr[i]) + ",";
    }
    arrDecl.back() = '}';
-   arrDecl += '\n';
-   addToCodeBody(arrDecl);
+   arrDecl += ";\n";
+   addToCodeBody(arrDecl, true);
 
    return arrName;
 }

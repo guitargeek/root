@@ -66,8 +66,8 @@ private:
 
    void buildFuncAndGradFunctors();
 
-   using Func = double (*)(double *, double const *);
-   using Grad = void (*)(double *, double const *, double *);
+   using Func = double (*)(double const *, double const *);
+   using Grad = void (*)(double const *, double const *, double *);
 
    struct ObsInfo {
       ObsInfo(std::size_t i, std::size_t n) : idx{i}, size{n} {}
