@@ -34,6 +34,47 @@ ClassImp(RooStats::HistFactory::FlexibleInterpVar);
 using namespace RooStats;
 using namespace HistFactory;
 
+namespace {
+
+void fillPolCoeff(double *polCoeff, double const *low, double const *high, double boundary, unsigned int n, double nominal) {
+   // code for polynomial interpolation used when interpCode=4
+   double x0 = boundary;
+
+   // cache the polynomial coefficient values
+   // which do not depend on x but on the boundaries values
+   for (unsigned int j = 0; j < n; j++) {
+      // location of the 6 coefficient for the j-th variable
+      unsigned int offset = j * 6;
+
+      // GHL: Swagato's suggestions
+      double pow_up = std::pow(high[j] / nominal, x0);
+      double pow_down = std::pow(low[j] / nominal, x0);
+      double logHi = std::log(high[j]);
+      double logLo = std::log(low[j]);
+      double pow_up_log = high[j] <= 0.0 ? 0.0 : pow_up * logHi;
+      double pow_down_log = low[j] <= 0.0 ? 0.0 : -pow_down * logLo;
+      double pow_up_log2 = high[j] <= 0.0 ? 0.0 : pow_up_log * logHi;
+      double pow_down_log2 = low[j] <= 0.0 ? 0.0 : -pow_down_log * logLo;
+
+      double S0 = (pow_up + pow_down) / 2;
+      double A0 = (pow_up - pow_down) / 2;
+      double S1 = (pow_up_log + pow_down_log) / 2;
+      double A1 = (pow_up_log - pow_down_log) / 2;
+      double S2 = (pow_up_log2 + pow_down_log2) / 2;
+      double A2 = (pow_up_log2 - pow_down_log2) / 2;
+
+      // cache  coefficient of the polynomial
+      polCoeff[0 + offset] = 1. / (8 * x0) * (15 * A0 - 7 * x0 * S1 + x0 * x0 * A2);
+      polCoeff[1 + offset] = 1. / (8 * x0 * x0) * (-24 + 24 * S0 - 9 * x0 * A1 + x0 * x0 * S2);
+      polCoeff[2 + offset] = 1. / (4 * std::pow(x0, 3)) * (-5 * A0 + 5 * x0 * S1 - x0 * x0 * A2);
+      polCoeff[3 + offset] = 1. / (4 * std::pow(x0, 4)) * (12 - 12 * S0 + 7 * x0 * A1 - x0 * x0 * S2);
+      polCoeff[4 + offset] = 1. / (8 * std::pow(x0, 5)) * (+3 * A0 - 3 * x0 * S1 + x0 * x0 * A2);
+      polCoeff[5 + offset] = 1. / (8 * std::pow(x0, 6)) * (-8 + 8 * S0 - 5 * x0 * A1 + x0 * x0 * S2);
+   }
+}
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
@@ -468,8 +509,11 @@ void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
    codesDecl += ";\n";
    ctx.addToCodeBody(this, codesDecl);
 
+   std::vector<double> polCoeff(6 * _paramList.size());
+   fillPolCoeff(polCoeff.data(), _low.data(), _high.data(), _interpBoundary, _paramList.size(), _nominal);
+
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::flexibleInterpVarEvaluate", codes, _paramList,
-                                     _paramList.size(), _low, _high, _nominal, _interpBoundary));
+                                     _paramList.size(), _low, _high, _nominal, _interpBoundary, polCoeff));
 }
 
 void FlexibleInterpVar::computeBatch(cudaStream_t* /*stream*/, double* output, size_t /*nEvents*/, RooFit::Detail::DataMap const& dataMap) const

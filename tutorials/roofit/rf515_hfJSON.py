@@ -44,6 +44,9 @@ tool2 = ROOT.RooJSONFactoryWSTool(ws2)
 tool2.importJSON("myWorkspace.json")
 model2 = ws2["main_modelConfig"]
 
+# result = model.GetPdf().fitTo(ws2["observed"], ROOT.RooFit.Experimental.Backend("codegen"), GlobalObservablesTag="globs", PrintLevel=-1, Save=True)
+# result.Print()
+
 nll = model.GetPdf().createNLL(ws2["observed"], ROOT.RooFit.Experimental.Backend("codegen"), GlobalObservablesTag="globs")
 
 cfg = ROOT.RooMinimizer.Config()
@@ -55,3 +58,7 @@ minimizer.minimize("Minuit2", "")
 result = minimizer.save()
 
 result.Print()
+
+del result
+del minimizer
+del nll
