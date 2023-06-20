@@ -49,8 +49,13 @@ model2 = ws2["main_modelConfig"]
 
 nll = model.GetPdf().createNLL(ws2["observed"], ROOT.RooFit.Experimental.Backend("codegen"), GlobalObservablesTag="globs")
 
+# cfg = ROOT.RooAbsPdf.MinimizerConfig()
+# cfg.doSave = True
+# cfg.printLevel = -1
+# result = model.GetPdf().minimizeNLL(nll, ws2["observed"], cfg)
+
 cfg = ROOT.RooMinimizer.Config()
-cfg.useGradient = False
+# cfg.useGradient = False
 minimizer = ROOT.RooMinimizer(nll, cfg)
 
 minimizer.setPrintLevel(-1)
@@ -59,6 +64,12 @@ result = minimizer.save()
 
 result.Print()
 
-del result
-del minimizer
+ROOT.SetOwnership(result, True)
+ROOT.SetOwnership(nll, True)
+
+minimizer.cleanup()
+
 del nll
+del minimizer
+
+del result
