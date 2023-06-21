@@ -25,6 +25,7 @@
 #include <RooSimultaneous.h>
 #include <RooFit/ModelConfig.h>
 
+#include "JSONIOUtils.h"
 #include "Domains.h"
 
 #include <TROOT.h>
@@ -657,7 +658,7 @@ RooAbsReal *RooJSONFactoryWSTool::requestImpl<RooAbsReal>(const std::string &obj
       return var;
    if (auto functionNode = _rootnodeInput->find("functions")) {
       if (auto child = findNamedChild(*functionNode, objname)) {
-         this->importFunction(*child, false);
+         this->importFunction(*child, true);
          if (RooAbsReal *retval = _workspace.function(objname))
             return retval;
       }
@@ -847,7 +848,7 @@ void RooJSONFactoryWSTool::exportObject(RooAbsArg const &func, std::set<std::str
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // importing functions
-void RooJSONFactoryWSTool::importFunction(const JSONNode &p, bool isPdf)
+void RooJSONFactoryWSTool::importFunction(const JSONNode &p, bool importAllDependants)
 {
    auto const &importers = RooFit::JSONIO::importers();
    auto const &pdfFactoryExpressions = RooFit::JSONIO::pdfImportExpressions();
@@ -855,6 +856,7 @@ void RooJSONFactoryWSTool::importFunction(const JSONNode &p, bool isPdf)
 
    // some preparations: what type of function are we dealing with here?
    std::string name(RooJSONFactoryWSTool::name(p));
+   bool isPdf = endsWith(p["type"].val(), "_dist"); 
 
    // if the function already exists, we don't need to do anything
    if ((isPdf && _workspace.pdf(name)) || _workspace.function(name)) {
@@ -878,7 +880,11 @@ void RooJSONFactoryWSTool::importFunction(const JSONNode &p, bool isPdf)
    }
 
    std::string functype(p["type"].val());
-   this->importDependants(p);
+
+   // import all dependents if importing a workspace, not for creating new objects
+   if(!importAllDependants){
+      this->importDependants(p);
+   }
 
    // check for specific implementations
    auto it = importers.find(functype);
@@ -1221,8 +1227,8 @@ void RooJSONFactoryWSTool::importDependants(const JSONNode &n)
       }
    }
    if (auto seq = n.find("functions")) {
-      for (const auto &p : seq->children()) {
-         importFunction(p, false);
+      for(const auto &p: seq->children()){
+         this->importFunction(p, true);
       }
    }
    if (auto seq = n.find("distributions")) {
@@ -1582,6 +1588,50 @@ bool RooJSONFactoryWSTool::importYML(std::string const &filename)
       return false;
    }
    return this->importYML(infile);
+}
+
+void RooJSONFactoryWSTool::importFunctionfromString(const std::string &jsonString){
+   std::stringstream is(jsonString);
+   this->importFunction(JSONTree::create(is)->rootnode(), false);
+}
+
+void RooJSONFactoryWSTool::importVarfromString(const std::string &jsonString){
+   std::stringstream is(jsonString);
+   std::unique_ptr<JSONTree> tree = JSONTree::create(is);
+   const JSONNode &n = tree->rootnode();
+
+   _domains = std::make_unique<Domains>();
+   if (auto domains = n.find("domains"))
+      _domains->readJSON(*domains);
+
+   _rootnodeInput = &n;
+   _attributesNode = findRooFitInternal(*_rootnodeInput, "attributes");
+
+   JSONNode const *varsNode = getVariablesNode(n);
+   const auto &p = varsNode->child(0);
+   importVariable(p);
+
+   auto paramPointsNode = n.find("parameter_points");
+   const auto &snsh = paramPointsNode->child(0);
+   std::string name = RooJSONFactoryWSTool::name(snsh);
+   RooArgSet vars;
+   const auto &var = snsh["parameters"].child(0);
+   if (RooRealVar *rrv = _workspace.var(RooJSONFactoryWSTool::name(var))) {
+      configureVariable(*_domains, var, *rrv);
+      vars.add(*rrv);
+   }
+
+   // Import attributes
+   if (_attributesNode) {
+      for (const auto &elem : _attributesNode->children()) {
+         if (RooAbsArg *arg = _workspace.arg(elem.key()))
+            importAttributes(arg, elem);
+      }
+   }
+
+   _attributesNode = nullptr;
+   _rootnodeInput = nullptr;
+   _domains.reset();
 }
 
 std::ostream &RooJSONFactoryWSTool::log(int level)

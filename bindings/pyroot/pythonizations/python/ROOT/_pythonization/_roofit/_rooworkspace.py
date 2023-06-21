@@ -11,6 +11,29 @@
 
 from ._utils import _kwargs_to_roocmdargs, cpp_signature
 
+def make_json_for_variable(var_name, var_dict):
+    val, max_value, min_value, is_constant = [None, None, None, True]
+    if "value" in var_dict:
+        val = var_dict["value"]
+    if ("max" in var_dict) and ("min" in var_dict):
+        max_value, min_value, is_constant = var_dict["max"], var_dict["min"], False
+    if not (val is None) or not ((max_value is None) and (min_value is None)):
+        if(val is None):
+            val = (max_value+min_value)/2
+        # Create dictionary with domains and parameter points
+        json_dict = {
+            "domains": [ { "axes": [ {"name": var_name} ], "name": "default_domain", "type": "product_domain" } ],
+            "parameter_points": [ { "name": "default_values", "parameters": [ { "name": var_name, "value": val } ] } ] 
+        }
+        if is_constant:
+            json_dict["parameter_points"][0]["parameters"][0]["const"] = True
+            json_dict["misc"] = { "ROOT_internal": { var_name: { "tags" : "Constant" } } }
+        if not ((max_value is None) and (min_value is None)):
+            json_dict["domains"][0]["axes"][0]["max"] = max_value
+            json_dict["domains"][0]["axes"][0]["min"] = min_value
+        return json_dict
+    else:
+        raise SyntaxError("Invalid Syntax: Please provide either 'value' or 'min' and 'max' or both")
 
 class RooWorkspace(object):
     r"""The RooWorkspace::import function can't be used in PyROOT because `import` is a reserved python keyword.
@@ -61,8 +84,23 @@ class RooWorkspace(object):
                     raise SyntaxError("Invalid syntax")
             else:
                 raise RuntimeError("ERROR importing object named " + key + " another instance with same name already in the workspace and no conflict resolution protocol specified")
+        elif(isinstance(value, dict)):
+            import ROOT
+            import json
+            # Add name attribute to the dictionary, and create the JSON string for the object's JSONTree
+            is_variable = not "type" in value
+            if is_variable:
+                # Import variable
+                json_dict = make_json_for_variable(key, value)
+                json_string = json.dumps(json_dict, separators=(',',':'))
+                ROOT.RooJSONFactoryWSTool(self).importVarfromString(json_string)
+            else:
+                # Imports functions/p.d.f.s
+                value["name"] = key
+                json_string = json.dumps(value, separators=(',', ':'))
+                ROOT.RooJSONFactoryWSTool(self).importFunctionfromString(json_string)
         else:
-            raise TypeError("Object of type 'str' expected but " + type(value) + " was given")
+            raise TypeError("Object of type 'str' or 'dict' expected but " + type(value) + " was given")
 
     @cpp_signature(
         [
