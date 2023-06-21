@@ -105,7 +105,7 @@ inline double interpolate6thDegreeHornerPolynomial(double const *p, double x)
 }
 
 inline double flexibleInterp(unsigned int code, double low, double high, double boundary, double nominal,
-                             double paramVal, double total, double *polCoeff)
+                             double paramVal, double total)
 {
    if (code == 0) {
       // piece-wise linear
@@ -150,8 +150,13 @@ inline double flexibleInterp(unsigned int code, double low, double high, double 
       } else if (x <= -boundary) {
          return total * std::pow(low / nominal, -paramVal);
       }
+      double logNominal = std::log(nominal);
+      double eps_plus = std::log(high) - logNominal;
+      double eps_minus = logNominal - std::log(low);
+      double S = 0.5 * (eps_plus + eps_minus);
+      double A = 0.0625 * (eps_plus - eps_minus);
 
-      return total * interpolate6thDegreeHornerPolynomial(polCoeff, x);
+      return total * std::exp(x * (S + x * A * (15 + x * x * (-10 + x * x * 3))));
    }
 
    return total;
