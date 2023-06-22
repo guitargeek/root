@@ -26,6 +26,7 @@
 #include <TROOT.h>
 #include <TSystem.h>
 
+#include <chrono>
 #include <fstream>
 #include <set>
 
@@ -75,9 +76,14 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal &
 
    gInterpreter->Declare("#pragma cling optimize(2)");
 
+   auto start = std::chrono::high_resolution_clock::now();
    // Declare the function and create its derivative.
    _funcName = declareFunction(func);
    _func = reinterpret_cast<Func>(gInterpreter->ProcessLine((_funcName + ";").c_str()));
+   std::cout << "Function JIT time: "
+             << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start)
+                   .count()
+             << " [ms]" << std::endl;
 }
 
 RooFuncWrapper::RooFuncWrapper(const RooFuncWrapper &other, const char *name)
@@ -162,6 +168,7 @@ void RooFuncWrapper::createGradient()
    std::string gradName = _funcName + "_grad_0";
    std::string requestName = _funcName + "_req";
 
+   auto start = std::chrono::high_resolution_clock::now();
    // Calculate gradient
    gInterpreter->Declare("#include <Math/CladDerivator.h>\n");
    // disable clang-format for making the following code unreadable.
@@ -179,8 +186,17 @@ void RooFuncWrapper::createGradient()
       oocoutE(nullptr, InputArguments) << errorMsg.str() << std::endl;
       throw std::runtime_error(errorMsg.str().c_str());
    }
+   std::cout << "clad JIT time: "
+             << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start)
+                   .count()
+             << " [ms]" << std::endl;
 
+   start = std::chrono::high_resolution_clock::now();
    _grad = reinterpret_cast<Grad>(gInterpreter->ProcessLine((gradName + ";").c_str()));
+   std::cout << "IR to mach time: "
+             << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start)
+                   .count()
+             << " [ms]" << std::endl;
    _hasGradient = true;
 }
 
