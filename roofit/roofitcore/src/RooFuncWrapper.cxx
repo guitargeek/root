@@ -19,33 +19,26 @@
 #include <RooHelpers.h>
 #include <RooFit/Detail/CodeSquashContext.h>
 #include "RooFit/BatchModeDataHelpers.h"
+#include "RooFitDriver.h"
 
 #include <TROOT.h>
 #include <TSystem.h>
 
 #include <chrono>
 
-RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, std::string const &funcBody,
-                               RooArgSet const &paramSet, const RooAbsData *data /*=nullptr*/,
-                               RooSimultaneous const *simPdf)
-   : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}
-{
-   // Declare the function and create its derivative.
-   declareAndDiffFunction(name, funcBody);
-
-   // Load the parameters and observables.
-   loadParamsAndData(name, nullptr, paramSet, data, simPdf);
-}
-
-RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal const &obj, RooArgSet const &normSet,
+RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal const &obj,
                                const RooAbsData *data /*=nullptr*/, RooSimultaneous const *simPdf)
    : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}
 {
+   auto driver = std::make_unique<ROOT::Experimental::RooFitDriver>(obj, RooFit::BatchModeOption::Cpu);
+   auto absReal = std::make_unique<ROOT::Experimental::RooAbsRealWrapper>(std::move(driver), "", simPdf, false);
+   if (data) {
+      absReal->setData(const_cast<RooAbsData &>(*data), false);
+   }
+   _absReal = std::move(absReal);
+
    std::string func;
 
-   // Compile the computation graph for the norm set, such that we also get the
-   // integrals explicitly in the graph.
-   std::unique_ptr<RooAbsReal> pdf{RooFit::Detail::compileForNormSet(obj, normSet)};
    // Get the parameters.
    RooArgSet paramSet;
    obj.getParameters(data ? data->get() : nullptr, paramSet);
@@ -57,9 +50,9 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal c
    }
 
    // Load the parameters and observables.
-   loadParamsAndData(name, pdf.get(), floatingParamSet, data, simPdf);
+   loadParamsAndData(name, &obj, floatingParamSet, data, simPdf);
 
-   func = buildCode(*pdf);
+   func = buildCode(obj);
 
    // Declare the function and create its derivative.
    declareAndDiffFunction(name, func);
@@ -200,8 +193,9 @@ void RooFuncWrapper::updateGradientVarBuffer() const
 
 double RooFuncWrapper::evaluate() const
 {
+   if (_absReal)
+      return _absReal->getVal();
    updateGradientVarBuffer();
-
    return _func(_gradientVarBuffer.data(), _observables.data());
 }
 

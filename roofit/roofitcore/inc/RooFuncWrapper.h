@@ -28,11 +28,8 @@ class RooSimultaneous;
 /// represents the data entry.
 class RooFuncWrapper final : public RooAbsReal {
 public:
-   RooFuncWrapper(const char *name, const char *title, std::string const &funcBody, RooArgSet const &paramSet,
-                  const RooAbsData *data = nullptr, RooSimultaneous const *simPdf = nullptr);
-
-   RooFuncWrapper(const char *name, const char *title, RooAbsReal const &obj, RooArgSet const &normSet,
-                  const RooAbsData *data = nullptr, RooSimultaneous const *simPdf = nullptr);
+   RooFuncWrapper(const char *name, const char *title, RooAbsReal const &obj, const RooAbsData *data = nullptr,
+                  RooSimultaneous const *simPdf = nullptr);
 
    RooFuncWrapper(const RooFuncWrapper &other, const char *name = nullptr);
 
@@ -75,6 +72,7 @@ private:
       std::size_t size = 0;
    };
 
+   std::unique_ptr<RooAbsReal> _absReal;
    RooListProxy _params;
    Func _func;
    Grad _grad;
