@@ -19,6 +19,7 @@
 #include "RooStats/HistFactory/Sample.h"
 
 #include "Domains.h"
+#include "JSONIOUtils.h"
 
 #include "TH1.h"
 
@@ -81,25 +82,44 @@ void writeObservables(const TH1 &h, JSONNode &n, const std::vector<std::string> 
    }
 }
 
-void exportHistogram(const TH1 &histo, JSONNode &node, const std::vector<std::string> &varnames,
-                     const TH1 *errH = nullptr, bool doWriteObservables = true, bool writeErrors = true)
+void exportHistogram(const TH1 &histo, JSONNode &node, const std::vector<std::string> &varnames, const TH1 *errH,
+                     bool doWriteObservables, bool writeErrors)
 {
    node.set_map();
    auto &weights = node["contents"].set_seq();
-   JSONNode *errors = nullptr;
-   if (writeErrors) {
-      errors = &node["errors"].set_seq();
-   }
    if (doWriteObservables) {
       writeObservables(histo, node, varnames);
    }
    const int nBins = histo.GetNbinsX() * histo.GetNbinsY() * histo.GetNbinsZ();
+
+   std::vector<double> errorVals;
+   bool allErrorsAreTrivial = true;
+   if (writeErrors) {
+      errorVals.resize(nBins);
+      for (int i = 1; i <= nBins; ++i) {
+         const double val = histo.GetBinContent(i);
+         const double err = errH ? val * errH->GetBinContent(i) : histo.GetBinError(i);
+         if (val != 0.0 && roundPrecision((err * err) / val) != 1.0) {
+            allErrorsAreTrivial = false;
+            errorVals[i] = roundPrecision(err);
+         } else {
+            errorVals[i] = 0.0;
+         }
+      }
+   }
+   if (allErrorsAreTrivial)
+      writeErrors = false;
+
+   JSONNode *errors = nullptr;
+   if (writeErrors) {
+      errors = &node["errors"].set_seq();
+   }
+
    for (int i = 1; i <= nBins; ++i) {
       const double val = histo.GetBinContent(i);
       weights.append_child() << val;
       if (writeErrors) {
-         const double err = errH ? val * errH->GetBinContent(i) : histo.GetBinError(i);
-         errors->append_child() << err;
+         errors->append_child() << errorVals[i];
       }
    }
 }
@@ -138,8 +158,8 @@ void exportSample(const RooStats::HistFactory::Sample &sample, JSONNode &channel
          auto &node = RooJSONFactoryWSTool::appendNamedChild(modifiers, sys.GetName());
          node["type"] << "histosys";
          auto &data = node["data"].set_map();
-         exportHistogram(*(sys.GetHistoLow()), data["lo"], obsnames, nullptr, false);
-         exportHistogram(*(sys.GetHistoHigh()), data["hi"], obsnames, nullptr, false);
+         exportHistogram(*(sys.GetHistoLow()), data["lo"], obsnames, nullptr, false, false);
+         exportHistogram(*(sys.GetHistoHigh()), data["hi"], obsnames, nullptr, false, false);
       }
    }
 
@@ -153,11 +173,13 @@ void exportSample(const RooStats::HistFactory::Sample &sample, JSONNode &channel
    auto &data = s["data"];
    const bool useStatError = sample.GetStatError().GetActivate() && sample.GetStatError().GetUseHisto();
    TH1 const *errH = useStatError ? sample.GetStatError().GetErrorHist() : nullptr;
+   // TH1 const *errH = sample.GetStatError().GetErrorHist();
 
    if (!channelNode.has_child("axes")) {
       writeObservables(*sample.GetHisto(), channelNode, obsnames);
    }
-   exportHistogram(*sample.GetHisto(), data, obsnames, errH, false);
+   exportHistogram(*sample.GetHisto(), data, obsnames, errH, false, true);
+   // exportHistogram(*sample.GetHisto(), data, obsnames, errH, false, errH);
 }
 
 void exportChannel(const RooStats::HistFactory::Channel &c, JSONNode &ch)
@@ -333,7 +355,7 @@ void exportMeasurement(RooStats::HistFactory::Measurement &measurement, JSONNode
       JSONNode &dataOutput = RooJSONFactoryWSTool::appendNamedChild(n["data"], std::string("obsData_") + c.GetName());
       dataOutput["type"] << "binned";
 
-      exportHistogram(*c.GetData().GetHisto(), dataOutput, getObsnames(c));
+      exportHistogram(*c.GetData().GetHisto(), dataOutput, getObsnames(c), nullptr, true, false);
       channelNames.push_back(c.GetName());
    }
 

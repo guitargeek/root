@@ -59,17 +59,6 @@ inline void writeAxis(JSONNode &axis, RooRealVar const &obs)
    }
 }
 
-double round_prec(double d, int nSig)
-{
-   if (d == 0.0)
-      return 0.0;
-   int ndigits = std::floor(std::log10(std::abs(d))) + 1 - nSig;
-   double sf = std::pow(10, ndigits);
-   if (std::abs(d / sf) < 2)
-      ndigits--;
-   return sf * std::round(d / sf);
-}
-
 // To avoid repeating the same string literals that can potentially get out of
 // sync.
 namespace Literals {
@@ -269,7 +258,7 @@ bool importHistSample(RooJSONFactoryWSTool &tool, RooDataHist &dh, RooArgSet con
       for (const auto &mod : p["modifiers"].children()) {
          std::string const &modtype = mod["type"].val();
          std::string const &sysname = RooJSONFactoryWSTool::name(mod);
-         if (modtype == "staterror") {
+         if (modtype == ::Literals::staterror) {
             // this is dealt with at a different place, ignore it for now
          } else if (modtype == "normfactor") {
             normElems.add(getOrCreate<RooRealVar>(ws, sysname, 1., -3, 5));
@@ -372,8 +361,6 @@ public:
          if (staterr.has_child("constraint"))
             statErrType = staterr["constraint"].val();
       }
-      std::vector<double> sumW;
-      std::vector<double> sumW2;
       RooArgSet observables;
       for (auto const &obsNode : p["axes"].children()) {
          if (obsNode.has_child("bounds")) {
@@ -400,6 +387,8 @@ public:
       std::string fprefix = name;
 
       std::vector<std::unique_ptr<RooDataHist>> data;
+      std::vector<double> sumW;
+      std::vector<double> sumW2;
       for (const auto &comp : p["samples"].children()) {
          std::unique_ptr<RooDataHist> dh = RooJSONFactoryWSTool::readBinnedData(
             comp["data"], fprefix + "_" + RooJSONFactoryWSTool::name(comp) + "_dataHist", observables);
@@ -853,7 +842,7 @@ bool tryExportHistFactory(RooJSONFactoryWSTool *tool, const std::string &pdfname
             const double count = sample.hist[i - 1];
             // this reconstruction is inherently unprecise, so we truncate it at some decimal places to make sure that
             // we don't carry around too many useless digits
-            sample.histError[i - 1] = round_prec(relerr_tot * tot_yield[i] / std::sqrt(tot_yield2[i]) * count, 7);
+            sample.histError[i - 1] = roundPrecision(relerr_tot * tot_yield[i] / std::sqrt(tot_yield2[i]) * count);
          }
       }
    }

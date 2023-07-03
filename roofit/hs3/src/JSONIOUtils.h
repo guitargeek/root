@@ -5,5 +5,6 @@
 
 bool startsWith(std::string_view str, std::string_view prefix);
 bool endsWith(std::string_view str, std::string_view suffix);
+double roundPrecision(double d, int nSig=7);
 
 #endif
