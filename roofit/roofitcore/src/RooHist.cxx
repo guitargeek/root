@@ -747,9 +747,9 @@ void RooHist::fillResidHist(RooHist & residHist, const RooCurve& curve,bool norm
 /// If normalize is true, the residuals are normalized by the histogram
 /// errors creating a RooHist with pull values
 
-RooHist* RooHist::makeResidHist(const RooCurve& curve, bool normalize, bool useAverage) const
+RooFit::OwningPtr<RooHist> RooHist::makeResidHist(const RooCurve& curve, bool normalize, bool useAverage) const
 {
-  RooHist* hist = createEmptyResidHist(curve, normalize).release();
+  auto hist = createEmptyResidHist(curve, normalize);
   fillResidHist(*hist, curve, normalize, useAverage);
-  return hist ;
+  return RooFit::Detail::owningPtr(std::move(hist));
 }

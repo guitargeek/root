@@ -1415,7 +1415,7 @@ RooPlot* RooDataSet::plotOnXY(RooPlot* frame, const RooCmdArg& arg1, const RooCm
 
 
   // Make RooHist representing XY contents of data
-  RooHist* graph = new RooHist ;
+  auto graph = std::make_unique<RooHist>();
   if (histName) {
     graph->SetName(histName) ;
   } else {
@@ -1459,7 +1459,7 @@ RooPlot* RooDataSet::plotOnXY(RooPlot* frame, const RooCmdArg& arg1, const RooCm
   if (fillStyle!=-999) graph->SetFillStyle(fillStyle) ;
 
   // Add graph to frame
-  frame->addPlotable(graph,drawOptions,histInvisible) ;
+  frame->addPlotable(std::move(graph),drawOptions,histInvisible) ;
 
   return frame ;
 }
@@ -1515,7 +1515,7 @@ RooPlot* RooDataSet::plotOnXY(RooPlot* frame, const RooCmdArg& arg1, const RooCm
 /// or `file1.txt,file2.txt:FOO,file3.txt:BAR`.
 ///
 
-RooDataSet *RooDataSet::read(const char *fileList, const RooArgList &varList,
+RooFit::OwningPtr<RooDataSet> RooDataSet::read(const char *fileList, const RooArgList &varList,
               const char *verbOpt, const char* commonPath,
               const char* indexCatName) {
   // Make working copy of variables list
@@ -1532,7 +1532,7 @@ RooDataSet *RooDataSet::read(const char *fileList, const RooArgList &varList,
     if (blindState->IsA()!=RooCategory::Class()) {
       oocoutE(nullptr,DataHandling) << "RooDataSet::read: ERROR: variable list already contains"
           << "a non-RooCategory blindState member" << endl ;
-      return 0 ;
+      return nullptr;
     }
     oocoutW(nullptr,DataHandling) << "RooDataSet::read: WARNING: recycling existing "
         << "blindState category in variable list" << endl ;
@@ -1614,7 +1614,7 @@ RooDataSet *RooDataSet::read(const char *fileList, const RooArgList &varList,
         if (indexCat->defineType(newLabel,fileSeqNum)) {
           oocoutE(data.get(), DataHandling) << "RooDataSet::read: Error, cannot register automatic type name " << newLabel
               << " in index category " << indexCat->GetName() << endl ;
-          return 0 ;
+          return nullptr;
         }
         // Assign new category number
         indexCat->setIndex(fileSeqNum) ;
@@ -1688,7 +1688,7 @@ RooDataSet *RooDataSet::read(const char *fileList, const RooArgList &varList,
   oocoutI(data.get(),DataHandling) << "RooDataSet::read: read " << data->numEntries()
                     << " events (ignored " << outOfRange << " out of range events)" << endl;
 
-  return data.release();
+  return RooFit::Detail::owningPtr(std::move(data));
 }
 
 

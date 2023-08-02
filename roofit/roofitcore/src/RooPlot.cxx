@@ -48,7 +48,6 @@ object onto a one-dimensional plot.
 #include "RooPlotable.h"
 #include "RooArgSet.h"
 #include "RooCurve.h"
-#include "RooHist.h"
 #include "RooMsgService.h"
 
 #include "TClass.h"
@@ -528,34 +527,42 @@ namespace {
 /// is zero unless we are plotting an object that takes on negative values.
 /// This call transfers ownership of the plotable object to this class.
 /// The plotable object will be deleted when this plot object is deleted.
-void RooPlot::addPlotable(RooPlotable *plotable, Option_t *drawOptions, bool invisible, bool refreshNorm)
+void RooPlot::addPlotable(std::unique_ptr<RooPlotable> plotable, Option_t *drawOptions, bool invisible, bool refreshNorm)
 {
   // update our y-axis label and limits
   updateYAxis(plotable->getYAxisMin(),plotable->getYAxisMax(),plotable->getYAxisLabel());
 
   // use this object's normalization if necessary
-  updateFitRangeNorm(plotable,refreshNorm) ;
+  updateFitRangeNorm(plotable.get(),refreshNorm) ;
 
   // add this element to our list and remember its drawing option
-  TObject *obj= plotable->crossCast();
-  if(0 == obj) {
+  std::unique_ptr<TObject> obj{plotable.release()->crossCast()};
+  if(nullptr == obj) {
     coutE(InputArguments) << fName << "::add: cross-cast to TObject failed (nothing added)" << endl;
   }
   else {
     // if the frame axis is alphanumeric, the coordinates of the graph need to be translated to this binning
     if(_hist->GetXaxis()->IsAlphanumeric()){
       if(obj->InheritsFrom(RooCurve::Class())){
-        ::translateGraph(_hist,_plotVar,static_cast<RooCurve*>(obj));
+        ::translateGraph(_hist,_plotVar,static_cast<RooCurve*>(obj.get()));
       } else if(obj->InheritsFrom(RooHist::Class())){
-        ::translateGraph(_hist,_plotVar,static_cast<RooHist*>(obj));
+        ::translateGraph(_hist,_plotVar,static_cast<RooHist*>(obj.get()));
       }
     }
 
     DrawOpt opt(drawOptions) ;
     opt.invisible = invisible ;
-    _items.emplace_back(obj,opt.rawOpt());
+    _items.emplace_back(obj.release(),opt.rawOpt());
   }
 }
+
+#ifndef ROOFIT_MEMORY_SAFE_INTERFACES
+/// \copydoc RooPlot::addPlotable(std::unique_ptr<RooPlotable>, Option_t *, bool, bool)
+void RooPlot::addPlotable(RooPlotable *plotable, Option_t *drawOptions, bool invisible, bool refreshNorm)
+{
+   addPlotable(std::unique_ptr<RooPlotable>{plotable}, drawOptions, invisible, refreshNorm);
+}
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1113,7 +1120,7 @@ double RooPlot::chiSquare(const char* curvename, const char* histname, int nFitP
 /// of the histogram, effectively returning a pull histogram.
 /// \param useAverage If true, the histogram is compared with the curve averaged in each bin.
 /// Otherwise, the curve is evaluated at the bin centres, which is not accurate for strongly curved distributions.
-RooHist* RooPlot::residHist(const char* histname, const char* curvename, bool normalize, bool useAverage) const
+RooFit::OwningPtr<RooHist> RooPlot::residHist(const char* histname, const char* curvename, bool normalize, bool useAverage) const
 {
   // Find all curve objects with the name "curvename" or the name of the last
   // plotted curve (there might be multiple in the case of multi-range fits).
@@ -1170,7 +1177,7 @@ RooHist* RooPlot::residHist(const char* histname, const char* curvename, bool no
   residHist->GetHistogram()->GetXaxis()->SetRangeUser(_hist->GetXaxis()->GetXmin(), _hist->GetXaxis()->GetXmax());
   residHist->GetHistogram()->GetXaxis()->SetTitle(_hist->GetXaxis()->GetTitle());
   residHist->GetHistogram()->GetYaxis()->SetTitle(normalize ? "(Data - curve) / #sigma_{data}" : "Data - curve");
-  return residHist.release();
+  return RooFit::Detail::owningPtr(std::move(residHist));
 }
 
 

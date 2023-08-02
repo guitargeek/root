@@ -16,8 +16,10 @@
 #ifndef ROO_PLOT
 #define ROO_PLOT
 
-#include "RooPrintable.h"
-#include "TNamed.h"
+#include <RooHist.h>
+#include <RooPrintable.h>
+
+#include <TNamed.h>
 
 #include <memory>
 #include <float.h>
@@ -27,7 +29,6 @@ class TH1 ;
 class RooAbsReal;
 class RooAbsRealLValue;
 class RooArgSet ;
-class RooHist;
 class RooCurve ;
 class RooPlotable;
 class TDirectory ;
@@ -112,7 +113,10 @@ public:
   TObject* getObject(Int_t idx) const ;
   Stat_t numItems() const {return _items.size();}
 
+#ifndef ROOFIT_MEMORY_SAFE_INTERFACES
   void addPlotable(RooPlotable *plotable, Option_t *drawOptions= "", bool invisible=false, bool refreshNorm=false);
+#endif
+  void addPlotable(std::unique_ptr<RooPlotable> plotable, Option_t *drawOptions= "", bool invisible=false, bool refreshNorm=false);
   void addObject(TObject* obj, Option_t* drawOptions= "", bool invisible=false);
   void addTH1(TH1 *hist, Option_t* drawOptions= "", bool invisible=false);
   std::unique_ptr<TLegend> BuildLegend() const;
@@ -174,9 +178,9 @@ public:
   double chiSquare(int nFitParam=0) const { return chiSquare(nullptr,nullptr,nFitParam) ; }
   double chiSquare(const char* pdfname, const char* histname, int nFitParam=0) const ;
 
-  RooHist* residHist(const char* histname=nullptr, const char* pdfname=nullptr,bool normalize=false, bool useAverage=true) const ;
+  RooFit::OwningPtr<RooHist> residHist(const char* histname=nullptr, const char* pdfname=nullptr,bool normalize=false, bool useAverage=true) const ;
   ///Uses residHist() and sets normalize=true
-  RooHist* pullHist(const char* histname=nullptr, const char* pdfname=nullptr, bool useAverage=true) const
+  RooFit::OwningPtr<RooHist> pullHist(const char* histname=nullptr, const char* pdfname=nullptr, bool useAverage=true) const
     { return residHist(histname,pdfname,true,useAverage); }
 
   void Browse(TBrowser *b) override ;

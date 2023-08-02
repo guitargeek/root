@@ -109,7 +109,7 @@ public:
 
   /// Read data from a text file and create a dataset from it.
   /// The possible options are: (D)ebug, (Q)uiet.
-  static RooDataSet *read(const char *filename, const RooArgList &variables,
+  static RooFit::OwningPtr<RooDataSet> read(const char *filename, const RooArgList &variables,
            const char *opts= "", const char* commonPath="",
            const char *indexCatName=nullptr) ;
   bool write(const char* filename) const;

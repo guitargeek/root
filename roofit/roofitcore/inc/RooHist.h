@@ -75,8 +75,8 @@ public:
 
   bool hasIdenticalBinning(const RooHist& other) const ;
 
-  RooHist* makeResidHist(const RooCurve& curve,bool normalize=false, bool useAverage=false) const;
-  RooHist* makePullHist(const RooCurve& curve, bool useAverage=false) const
+  RooFit::OwningPtr<RooHist> makeResidHist(const RooCurve& curve,bool normalize=false, bool useAverage=false) const;
+  RooFit::OwningPtr<RooHist> makePullHist(const RooCurve& curve, bool useAverage=false) const
     {return makeResidHist(curve,true,useAverage); }
 
   bool isIdentical(const RooHist& other, double tol=1e-6, bool verbose=true) const ;

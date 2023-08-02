@@ -267,9 +267,9 @@ RooPlot *RooFitResult::plotOn(RooPlot *frame, const char *parName1, const char *
 
   // add a 1-sigma error ellipse, if requested
   if(opt.Contains("E")) {
-    RooEllipse *contour= new RooEllipse("contour",x1,x2,s1,s2,rho);
+    auto contour= std::make_unique<RooEllipse>("contour",x1,x2,s1,s2,rho);
     contour->SetLineWidth(2) ;
-    frame->addPlotable(contour);
+    frame->addPlotable(std::move(contour));
   }
 
   // add the error bar for parameter 1, if requested

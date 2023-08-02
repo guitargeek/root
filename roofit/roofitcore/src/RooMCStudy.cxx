@@ -206,7 +206,6 @@ RooMCStudy::RooMCStudy(const RooAbsPdf& model, const RooArgSet& observables,
 
   // Extract generator and fit models
   _genModel = const_cast<RooAbsPdf*>(&model) ;
-  _genSample = 0 ;
   RooAbsPdf* fitModel = static_cast<RooAbsPdf*>(pc.getObject("fitModel",0)) ;
   _fitModel = fitModel ? fitModel : _genModel ;
 
@@ -350,7 +349,7 @@ bool RooMCStudy::run(bool doGenerate, bool DoFit, Int_t nSamples, Int_t nEvtPerS
     }
 
     _genSample = 0;
-    bool existingData = false ;
+    std::unique_ptr<RooAbsData> newGenSample;
     if (doGenerate) {
       // Generate sample
       Int_t nEvt(nEvtPerSample) ;
@@ -383,7 +382,7 @@ bool RooMCStudy::run(bool doGenerate, bool DoFit, Int_t nSamples, Int_t nEvtPerS
    }
 
    // Binned generation
-   _genSample = std::unique_ptr<RooDataHist>{_genModel->generateBinned(_dependents,nEvt)}.release();
+   newGenSample = std::unique_ptr<RooDataHist>{_genModel->generateBinned(_dependents,nEvt)};
 
       } else {
 
@@ -405,13 +404,14 @@ bool RooMCStudy::run(bool doGenerate, bool DoFit, Int_t nSamples, Int_t nEvtPerS
 
    // Actual generation of events
    if (nEvt>0) {
-     _genSample = _genContext->generate(nEvt) ;
+     newGenSample = std::unique_ptr<RooDataSet>{_genContext->generate(nEvt)};
    } else {
      // Make empty dataset
-     _genSample = new RooDataSet("emptySample","emptySample",_dependents) ;
+     newGenSample = std::make_unique<RooDataSet>("emptySample","emptySample",_dependents);
    }
       }
 
+      _genSample = newGenSample.get();
 
     //} else if (asciiFilePat && &asciiFilePat) { //warning: the address of 'asciiFilePat' will always evaluate as 'true'
     } else if (asciiFilePat) {
@@ -420,13 +420,14 @@ bool RooMCStudy::run(bool doGenerate, bool DoFit, Int_t nSamples, Int_t nEvtPerS
       char asciiFile[1024] ;
       snprintf(asciiFile,1024,asciiFilePat,nSamples) ;
       RooArgList depList(_allDependents) ;
-      _genSample = RooDataSet::read(asciiFile,depList,"q") ;
+      newGenSample = std::unique_ptr<RooDataSet>{RooDataSet::read(asciiFile,depList,"q")};
+
+      _genSample = newGenSample.get();
 
     } else {
 
       // Load sample from internal list
       _genSample = (RooDataSet*) _genDataList.At(nSamples) ;
-      existingData = true ;
       if (!_genSample) {
       oocoutW(_fitModel,Generation) << "RooMCStudy::run: WARNING: Sample #" << nSamples << " not loaded, skipping" << endl ;
       continue ;
@@ -462,12 +463,8 @@ bool RooMCStudy::run(bool doGenerate, bool DoFit, Int_t nSamples, Int_t nEvtPerS
     }
 
     // Add to list or delete
-    if (!existingData) {
-      if (keepGenData) {
-   _genDataList.Add(_genSample) ;
-      } else {
-   delete _genSample ;
-      }
+    if (newGenSample && keepGenData) {
+      _genDataList.Add(newGenSample.release()) ;
     }
   }
 

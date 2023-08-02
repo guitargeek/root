@@ -1882,12 +1882,7 @@ RooPlot *RooAbsData::plotOn(RooPlot *frame, PlotOpt o) const
   }
 
   // convert this histogram to a RooHist object on the heap
-  RooHist *graph= new RooHist(*hist,nomBinWidth,1,o.etype,o.xErrorSize,o.correctForBinWidth,o.scaleFactor);
-  if(0 == graph) {
-    coutE(Plotting) << ClassName() << "::" << GetName()
-    << ":plotOn: unable to create a RooHist object" << endl;
-    return nullptr;
-  }
+  auto graph = std::make_unique<RooHist>(*hist,nomBinWidth,1,o.etype,o.xErrorSize,o.correctForBinWidth,o.scaleFactor);
 
   // If the dataset variable has a wide range than the plot variable,
   // calculate the number of entries in the dataset in the plot variable fit range
@@ -1910,13 +1905,11 @@ RooPlot *RooAbsData::plotOn(RooPlot *frame, PlotOpt o) const
 
     if (!graph->hasIdenticalBinning(*otherGraph)) {
       coutE(Plotting) << "RooTreeData::plotOn: ERROR Histogram to be added to, '" << o.addToHistName << "',has different binning" << endl ;
-      delete graph ;
       return frame ;
     }
 
-    RooHist* sumGraph = new RooHist(*graph,*otherGraph,o.addToWgtSelf,o.addToWgtOther,o.etype) ;
-    delete graph ;
-    graph = sumGraph ;
+    auto sumGraph = std::make_unique<RooHist>(*graph,*otherGraph,o.addToWgtSelf,o.addToWgtOther,o.etype) ;
+    graph = std::move(sumGraph);
   }
 
   // Rename graph if requested
@@ -1938,7 +1931,7 @@ RooPlot *RooAbsData::plotOn(RooPlot *frame, PlotOpt o) const
 
 
   // add the RooHist to the specified plot
-  frame->addPlotable(graph,o.drawOptions,o.histInvisible,o.refreshFrameNorm);
+  frame->addPlotable(std::move(graph),o.drawOptions,o.histInvisible,o.refreshFrameNorm);
 
   return frame;
 }
@@ -2007,7 +2000,7 @@ RooPlot* RooAbsData::plotAsymOn(RooPlot* frame, const RooAbsCategoryLValue& asym
   }
 
   // convert this histogram to a RooHist object on the heap
-  RooHist *graph= new RooHist(*hist1,*hist2,0,1,o.etype,o.xErrorSize,false,o.scaleFactor);
+  auto graph = std::make_unique<RooHist>(*hist1,*hist2,0,1,o.etype,o.xErrorSize,false,o.scaleFactor);
   graph->setYAxisLabel(Form("Asymmetry in %s",asymCat.GetName())) ;
 
   // initialize the frame's normalization setup, if necessary
@@ -2028,7 +2021,7 @@ RooPlot* RooAbsData::plotAsymOn(RooPlot* frame, const RooAbsCategoryLValue& asym
   }
 
   // add the RooHist to the specified plot
-  frame->addPlotable(graph,o.drawOptions,o.histInvisible,o.refreshFrameNorm);
+  frame->addPlotable(std::move(graph),o.drawOptions,o.histInvisible,o.refreshFrameNorm);
 
   return frame;
 }
@@ -2097,7 +2090,7 @@ RooPlot* RooAbsData::plotEffOn(RooPlot* frame, const RooAbsCategoryLValue& effCa
   }
 
   // convert this histogram to a RooHist object on the heap
-  RooHist *graph= new RooHist(*hist1,*hist2,0,1,o.etype,o.xErrorSize,true);
+  auto graph = std::make_unique<RooHist>(*hist1,*hist2,0,1,o.etype,o.xErrorSize,true);
   graph->setYAxisLabel(Form("Efficiency of %s=%s", effCat.GetName(), effCat.lookupName(1).c_str()));
 
   // initialize the frame's normalization setup, if necessary
@@ -2118,7 +2111,7 @@ RooPlot* RooAbsData::plotEffOn(RooPlot* frame, const RooAbsCategoryLValue& effCa
   }
 
   // add the RooHist to the specified plot
-  frame->addPlotable(graph,o.drawOptions,o.histInvisible,o.refreshFrameNorm);
+  frame->addPlotable(std::move(graph),o.drawOptions,o.histInvisible,o.refreshFrameNorm);
 
   return frame;
 }

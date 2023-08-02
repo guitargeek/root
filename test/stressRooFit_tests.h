@@ -663,26 +663,23 @@ public:
 
     // Construct a histogram with the residuals of the data w.r.t. the curve
     // we set `useAverage` to false for this test because this was done for the reference histogram
-    RooHist* hresid = frame1->residHist(nullptr, nullptr, false, false) ;
+    std::unique_ptr<RooHist> hresid{frame1->residHist(nullptr, nullptr, false, false)};
 
     // Construct a histogram with the pulls of the data w.r.t the curve
     // we set `useAverage` to false for this test because this was done for the reference histogram
-    RooHist* hpull = frame1->pullHist(nullptr, nullptr, false) ;
+    std::unique_ptr<RooHist> hpull{frame1->pullHist(nullptr, nullptr, false)};
 
     // Create a new frame to draw the residual distribution and add the distribution to the frame
     RooPlot* frame2 = x.frame(Title("Residual Distribution")) ;
-    frame2->addPlotable(hresid,"P") ;
+    frame2->addPlotable(std::move(hresid),"P") ;
 
     // Create a new frame to draw the pull distribution and add the distribution to the frame
     RooPlot* frame3 = x.frame(Title("Pull Distribution")) ;
-    frame3->addPlotable(hpull,"P") ;
+    frame3->addPlotable(std::move(hpull),"P") ;
 
     regPlot(frame1,"rf109_plot1") ;
     regPlot(frame2,"rf109_plot2") ;
     regPlot(frame3,"rf109_plot3") ;
-
-    //delete hresid ;
-    //delete hpull ;
 
     return true ;
   }

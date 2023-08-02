@@ -2176,7 +2176,7 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
 
     // Curve constructor for data weighted average
     RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-    RooCurve *curve = new RooCurve(projection->GetName(),projection->GetTitle(),scaleBind,
+    auto curve = std::make_unique<RooCurve>(projection->GetName(),projection->GetTitle(),scaleBind,
                o.rangeLo,o.rangeHi,frame->GetNbinsX(),o.precision,o.precision,o.shiftToZero,o.wmode,o.numee,o.doeeval,o.eeval) ;
     RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
 
@@ -2187,10 +2187,9 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
       RooCurve* otherCurve = static_cast<RooCurve*>(frame->findObject(o.addToCurveName,RooCurve::Class())) ;
 
       // Curve constructor for sum of curves
-      RooCurve* sumCurve = new RooCurve(projection->GetName(),projection->GetTitle(),*curve,*otherCurve,o.addToWgtSelf,o.addToWgtOther) ;
+      auto sumCurve = std::make_unique<RooCurve>(projection->GetName(),projection->GetTitle(),*curve,*otherCurve,o.addToWgtSelf,o.addToWgtOther) ;
       sumCurve->SetName(Form("%s_PLUS_%s",curve->GetName(),otherCurve->GetName())) ;
-      delete curve ;
-      curve = sumCurve ;
+      curve = std::move(sumCurve);
 
     }
 
@@ -2199,7 +2198,7 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
     }
 
     // add this new curve to the specified plot frame
-    frame->addPlotable(curve, o.drawOptions, o.curveInvisible);
+    frame->addPlotable(std::move(curve), o.drawOptions, o.curveInvisible);
 
   } else {
 
@@ -2244,7 +2243,7 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
     TString opt(o.drawOptions);
     if(opt.Contains("P")){
       RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-      RooHist *graph= new RooHist(*projection,*plotVar,1.,o.scaleFactor,frame->getNormVars(),o.errorFR);
+      auto graph = std::make_unique<RooHist>(*projection,*plotVar,1.,o.scaleFactor,frame->getNormVars(),o.errorFR);
       RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
 
       // Override name of curve by user name, if specified
@@ -2253,21 +2252,20 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
       }
 
       // add this new curve to the specified plot frame
-      frame->addPlotable(graph, o.drawOptions, o.curveInvisible);
+      frame->addPlotable(std::move(graph), o.drawOptions, o.curveInvisible);
     } else {
       RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-      RooCurve *curve = new RooCurve(*projection,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
-                                     o.scaleFactor,0,o.precision,o.precision,o.shiftToZero,o.wmode,o.numee,o.doeeval,o.eeval,o.progress);
+      auto curve = std::make_unique<RooCurve>(*projection,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
+                                     o.scaleFactor,nullptr,o.precision,o.precision,o.shiftToZero,o.wmode,o.numee,o.doeeval,o.eeval,o.progress);
       RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
       curve->SetName(curveName.c_str()) ;
 
       // Add self to other curve if requested
       if (o.addToCurveName) {
         RooCurve* otherCurve = static_cast<RooCurve*>(frame->findObject(o.addToCurveName,RooCurve::Class())) ;
-        RooCurve* sumCurve = new RooCurve(projection->GetName(),projection->GetTitle(),*curve,*otherCurve,o.addToWgtSelf,o.addToWgtOther) ;
+        auto sumCurve = std::make_unique<RooCurve>(projection->GetName(),projection->GetTitle(),*curve,*otherCurve,o.addToWgtSelf,o.addToWgtOther) ;
         sumCurve->SetName(Form("%s_PLUS_%s",curve->GetName(),otherCurve->GetName())) ;
-        delete curve ;
-        curve = sumCurve ;
+        curve = std::move(sumCurve);
       }
 
       // Override name of curve by user name, if specified
@@ -2276,7 +2274,7 @@ RooPlot* RooAbsReal::plotOn(RooPlot *frame, PlotOpt o) const
       }
 
       // add this new curve to the specified plot frame
-      frame->addPlotable(curve, o.drawOptions, o.curveInvisible);
+      frame->addPlotable(std::move(curve), o.drawOptions, o.curveInvisible);
     }
   }
 
@@ -2410,7 +2408,7 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
 
   // Clone the plot variable
   RooAbsReal* realVar = (RooRealVar*) frame->getPlotVar() ;
-  RooRealVar* plotVar = (RooRealVar*) realVar->Clone() ;
+  std::unique_ptr<RooRealVar> plotVar{static_cast<RooRealVar*>(realVar->Clone())};
 
   // Inform user about projections
   if (!projectedVars.empty()) {
@@ -2528,13 +2526,14 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
 
 
     RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-    RooCurve *curve = new RooCurve(funcAsym.GetName(),funcAsym.GetTitle(),scaleBind,
+    auto curve = std::make_unique<RooCurve>(funcAsym.GetName(),funcAsym.GetTitle(),scaleBind,
                o.rangeLo,o.rangeHi,frame->GetNbinsX(),o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval) ;
     RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
 
-    dynamic_cast<TAttLine*>(curve)->SetLineColor(2) ;
+    // cross cast
+    dynamic_cast<TAttLine*>(curve.get())->SetLineColor(2) ;
     // add this new curve to the specified plot frame
-    frame->addPlotable(curve, o.drawOptions);
+    frame->addPlotable(std::move(curve), o.drawOptions);
 
     ccoutW(Eval) << std::endl ;
   } else {
@@ -2546,11 +2545,12 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
     }
 
     RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::CollectErrors) ;
-    RooCurve* curve= new RooCurve(funcAsym,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
-              o.scaleFactor,0,o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval);
+    auto curve= std::make_unique<RooCurve>(funcAsym,*plotVar,o.rangeLo,o.rangeHi,frame->GetNbinsX(),
+              o.scaleFactor,nullptr,o.precision,o.precision,false,o.wmode,o.numee,o.doeeval,o.eeval);
     RooAbsReal::setEvalErrorLoggingMode(RooAbsReal::PrintErrors) ;
 
-    dynamic_cast<TAttLine*>(curve)->SetLineColor(2) ;
+    // cross cast
+    dynamic_cast<TAttLine*>(curve.get())->SetLineColor(2) ;
 
 
     // Set default name of curve
@@ -2565,15 +2565,13 @@ RooPlot* RooAbsReal::plotAsymOn(RooPlot *frame, const RooAbsCategoryLValue& asym
     curve->SetName(curveName.Data()) ;
 
     // add this new curve to the specified plot frame
-    frame->addPlotable(curve, o.drawOptions);
+    frame->addPlotable(std::move(curve), o.drawOptions);
 
   }
 
   // Cleanup
   delete posProjCompList ;
   delete negProjCompList ;
-
-  delete plotVar ;
 
   return frame;
 }
@@ -2758,7 +2756,7 @@ RooPlot* RooAbsReal::plotOnWithErrorBand(RooPlot* frame,const RooFitResult& fr, 
   }
   frame->remove(0,false) ;
 
-  RooCurve* band(0) ;
+  std::unique_ptr<RooCurve> band;
   if (!linMethod) {
 
     // *** Interval method ***
@@ -2799,7 +2797,7 @@ RooPlot* RooAbsReal::plotOnWithErrorBand(RooPlot* frame,const RooFitResult& fr, 
 
 
     // Generate upper and lower curve points from 68% interval around each point of central curve
-    band = cenCurve->makeErrorBand(cvec,Z) ;
+    band = std::unique_ptr<RooCurve>{cenCurve->makeErrorBand(cvec,Z)};
 
     // Cleanup
     delete paramPdf ;
@@ -2895,7 +2893,7 @@ RooPlot* RooAbsReal::plotOnWithErrorBand(RooPlot* frame,const RooFitResult& fr, 
       }
     }
 
-    band = cenCurve->makeErrorBand(plusVar,minusVar,C,Z) ;
+    band = std::unique_ptr<RooCurve>{cenCurve->makeErrorBand(plusVar,minusVar,C,Z)};
 
 
     // Cleanup
@@ -2936,7 +2934,7 @@ RooPlot* RooAbsReal::plotOnWithErrorBand(RooPlot* frame,const RooFitResult& fr, 
   }
 
   // Insert error band in plot frame
-  frame->addPlotable(band,pc.getString("drawOption"),pc.getInt("curveInvisible")) ;
+  frame->addPlotable(std::move(band),pc.getString("drawOption"),pc.getInt("curveInvisible")) ;
 
   // Optionally adjust line/fill attributes
   Int_t lineColor = pc.getInt("lineColor") ;
