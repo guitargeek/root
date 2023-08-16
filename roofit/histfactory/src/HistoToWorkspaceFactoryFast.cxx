@@ -365,7 +365,9 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     RooArgList params( ("alpha_Hist") );
 
     for(auto const& histoSys : histoSysList) {
-      params.add(getOrCreate<RooRealVar>(proto, "alpha_" + histoSys.GetName(), alphaLow, alphaHigh));
+      RooRealVar &alphaVar = getOrCreate<RooRealVar>(proto, "alpha_" + histoSys.GetName(), 0.0, alphaLow, alphaHigh);
+      alphaVar.setError(1.0);
+      params.add(alphaVar);
     }
 
     return params;
@@ -534,7 +536,8 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
 
       }
       else {
-         RooRealVar* alpha = &getOrCreate<RooRealVar>(*proto, prefix + sys.GetName(), 0, alphaLow, alphaHigh);
+         RooRealVar* alpha = &getOrCreate<RooRealVar>(*proto, prefix + sys.GetName(), 0.0, alphaLow, alphaHigh);
+         alpha->setError(1.0);
          // add the Gaussian constraint part
          const bool isUniform = meas.GetUniformSyst().count(sys.GetName()) > 0;
          makeGaussianConstraint(*alpha, *proto, isUniform, constraintTermNames);
