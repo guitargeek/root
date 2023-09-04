@@ -192,11 +192,6 @@ class ROOTFacade(types.ModuleType):
         if not self.gROOT.IsBatch() and self.PyConfig.StartGUIThread:
             self.app.init_graphics()
 
-        # Set memory policy to kUseHeuristics.
-        # This restores the default in PyROOT which was changed
-        # by new Cppyy
-        self.SetHeuristicMemoryPolicy(True)
-
         # The automatic conversion of ordinary obejcts to smart pointers is
         # disabled for ROOT because it can cause trouble with overload
         # resolution. If a function has overloads for both ordinary objects and
