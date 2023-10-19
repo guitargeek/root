@@ -1,0 +1,12 @@
+ROOT_STANDARD_LIBRARY_PACKAGE(ROOTFastForest
+  HEADERS
+    fastforest.h
+  SOURCES
+    src/common_details.cpp
+    src/fastforest.cpp
+    src/fastforest_functions.cpp
+  DICTIONARY_OPTIONS
+    -writeEmptyRootPCM
+  DEPENDENCIES
+    Core
+)
