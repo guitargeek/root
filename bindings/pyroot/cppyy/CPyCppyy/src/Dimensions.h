@@ -1,12 +1,15 @@
 #ifndef CPYCPPYY_DIMENSIONS_H
 #define CPYCPPYY_DIMENSIONS_H
 
+#include "CPyCppyy/CommonDefs.h"
+
 // Standard
 #include <algorithm>
 #include <initializer_list>
 
-
 namespace CPyCppyy {
+
+typedef Py_ssize_t dim_t;
 
 static const dim_t UNKNOWN_SIZE = (dim_t)-1;
 

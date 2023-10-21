@@ -36,7 +36,7 @@ foreach(val RANGE ${how_many_pythons})
   endif()
   # Set the suffix to '.so' and the prefix to 'lib'
   set_target_properties(${libname} PROPERTIES  ${ROOT_LIBRARY_PROPERTIES})
-  target_link_libraries(${libname} Core ${CMAKE_DL_LIBS})
+  target_link_libraries(${libname} Core Thread ${CMAKE_DL_LIBS})
 
   # cppyy uses ROOT headers from binary directory
   add_dependencies(${libname} move_headers)

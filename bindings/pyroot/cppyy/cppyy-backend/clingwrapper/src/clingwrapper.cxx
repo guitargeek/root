@@ -72,7 +72,6 @@ if (setjmp(gExcJumBuf) == 0) {
 #endif
 
 
-using namespace CppyyLegacy;
 
 // temp
 #include <iostream>
@@ -408,9 +407,9 @@ bool match_name(const std::string& tname, const std::string fname)
 
 
 // direct interpreter access -------------------------------------------------
-bool Cppyy::Compile(const std::string& code, bool silent)
+bool Cppyy::Compile(const std::string& code, bool /*silent*/)
 {
-    return gInterpreter->Declare(code.c_str(), silent);
+    return gInterpreter->Declare(code.c_str()/*, silent*/);
 }
 
 std::string Cppyy::ToString(TCppType_t klass, TCppObject_t obj)
@@ -600,8 +599,8 @@ static Cppyy::TCppIndex_t ArgSimilarityScore(void *argqtp, void *reqqtp)
             return 2;
         else if ((gInterpreter->IsIntegerType(argqtp) && gInterpreter->IsIntegerType(reqqtp)))
             return 3;
-        else if ((gInterpreter->IsIntegralType(argqtp) && gInterpreter->IsIntegralType(reqqtp)))
-            return 4;
+        //else if ((gInterpreter->IsIntegralType(argqtp) && gInterpreter->IsIntegralType(reqqtp)))
+            //return 4;
         else if ((gInterpreter->IsVoidPointerType(argqtp) && gInterpreter->IsPointerType(reqqtp)))
             return 5;
         else 
@@ -812,7 +811,7 @@ void Cppyy::Destruct(TCppType_t type, TCppObject_t instance)
     if (cr->ClassProperty() & (kClassHasExplicitDtor | kClassHasImplicitDtor))
         cr->Destructor((void*)instance);
     else {
-        ::CppyyLegacy::DelFunc_t fdel = cr->GetDelete();
+        ROOT::DelFunc_t fdel = cr->GetDelete();
         if (fdel) fdel((void*)instance);
         else {
             auto ib = sHasOperatorDelete.find(type);
@@ -828,7 +827,7 @@ void Cppyy::Destruct(TCppType_t type, TCppObject_t instance)
 
 
 // method/function dispatching -----------------------------------------------
-static TInterpreter::CallFuncIFacePtr_t GetCallFunc(Cppyy::TCppMethod_t method, bool as_iface)
+static TInterpreter::CallFuncIFacePtr_t GetCallFunc(Cppyy::TCppMethod_t method)
 {
 // TODO: method should be a callfunc, so that no mapping would be needed.
     CallWrapper* wrap = (CallWrapper*)method;
@@ -854,7 +853,7 @@ static TInterpreter::CallFuncIFacePtr_t GetCallFunc(Cppyy::TCppMethod_t method, 
 // there is a different overload available that will do)
     auto oldErrLvl = gErrorIgnoreLevel;
     gErrorIgnoreLevel = kFatal;
-    wrap->fFaceptr = gInterpreter->CallFunc_IFacePtr(callf, as_iface);
+    wrap->fFaceptr = gInterpreter->CallFunc_IFacePtr(callf);
     gErrorIgnoreLevel = oldErrLvl;
 
     gInterpreter->CallFunc_Delete(callf);   // does not touch IFacePtr
@@ -892,39 +891,25 @@ void release_args(Parameter* args, size_t nargs) {
 }
 
 static inline
-bool is_ready(CallWrapper* wrap, bool is_direct) {
-    return (!is_direct && wrap->fFaceptr.fGeneric) || (is_direct && wrap->fFaceptr.fDirect);
-}
-
-static inline
 bool WrapperCall(Cppyy::TCppMethod_t method, size_t nargs, void* args_, void* self, void* result)
 {
     Parameter* args = (Parameter*)args_;
-    bool is_direct = nargs & DIRECT_CALL;
-    nargs = CALL_NARGS(nargs);
 
     CallWrapper* wrap = (CallWrapper*)method;
-    const TInterpreter::CallFuncIFacePtr_t& faceptr = \
-        is_ready(wrap, is_direct) ? wrap->fFaceptr : GetCallFunc(method, !is_direct);
-    if (!is_ready(wrap, is_direct))
+    const TInterpreter::CallFuncIFacePtr_t& faceptr = wrap->fFaceptr.fGeneric ? wrap->fFaceptr : GetCallFunc(method);
+    if (!faceptr.fGeneric)
         return false;        // happens with compilation error
 
-    nargs = CALL_NARGS(nargs);
     if (faceptr.fKind == TInterpreter::CallFuncIFacePtr_t::kGeneric) {
         bool runRelease = false;
-        const auto& fgen = is_direct ? faceptr.fDirect : faceptr.fGeneric;
         if (nargs <= SMALL_ARGS_N) {
             void* smallbuf[SMALL_ARGS_N];
             if (nargs) runRelease = copy_args(args, nargs, smallbuf);
-            CLING_CATCH_UNCAUGHT_
-            fgen(self, (int)nargs, smallbuf, result);
-            _CLING_CATCH_UNCAUGHT
+            faceptr.fGeneric(self, (int)nargs, smallbuf, result);
         } else {
             std::vector<void*> buf(nargs);
             runRelease = copy_args(args, nargs, buf.data());
-            CLING_CATCH_UNCAUGHT_
-            fgen(self, (int)nargs, buf.data(), result);
-            _CLING_CATCH_UNCAUGHT
+            faceptr.fGeneric(self, (int)nargs, buf.data(), result);
         }
         if (runRelease) release_args(args, nargs);
         return true;
@@ -1147,20 +1132,22 @@ bool Cppyy::IsEnum(const std::string& type_name)
 
 bool Cppyy::IsAggregate(TCppType_t type)
 {
-// Test if this type is a "plain old data" type
-    TClassRef& cr = type_from_handle(type);
-    if (cr.GetClass())
-        return cr->ClassProperty() & kClassIsAggregate;
-    return false;
+   return false;
+//// Test if this type is a "plain old data" type
+    //TClassRef& cr = type_from_handle(type);
+    //if (cr.GetClass())
+        //return cr->ClassProperty() & kClassIsAggregate;
+    //return false;
 }
 
 bool Cppyy::IsDefaultConstructable(TCppType_t type)
 {
-// Test if this type has a default constructor or is a "plain old data" type
-    TClassRef& cr = type_from_handle(type);
-    if (cr.GetClass())
-        return cr->HasDefaultConstructor() || (cr->ClassProperty() & kClassIsAggregate);
-    return false;
+   return false;
+//// Test if this type has a default constructor or is a "plain old data" type
+    //TClassRef& cr = type_from_handle(type);
+    //if (cr.GetClass())
+        //return cr->HasDefaultConstructor() || (cr->ClassProperty() & kClassIsAggregate);
+    //return false;
 }
 
 // helpers for stripping scope names
@@ -1272,17 +1259,17 @@ void Cppyy::GetAllCppNames(TCppScope_t scope, std::set<std::string>& cppnames)
 */
 
 // add interpreted classes (no load)
-    {
-        ClassInfo_t* ci = gInterpreter->ClassInfo_FactoryWithScope(
-            false /* all */, scope == GLOBAL_HANDLE ? nullptr : cr->GetName());
-        while (gInterpreter->ClassInfo_Next(ci)) {
-            const char* className = gInterpreter->ClassInfo_FullName(ci);
-            if (strstr(className, "(anonymous)") || strstr(className, "(unnamed)"))
-                continue;
-            cond_add(scope, ns_scope, cppnames, className);
-        }
-        gInterpreter->ClassInfo_Delete(ci);
-    }
+    //{
+        //ClassInfo_t* ci = gInterpreter->ClassInfo_FactoryWithScope(
+            //false [> all <], scope == GLOBAL_HANDLE ? nullptr : cr->GetName());
+        //while (gInterpreter->ClassInfo_Next(ci)) {
+            //const char* className = gInterpreter->ClassInfo_FullName(ci);
+            //if (strstr(className, "(anonymous)") || strstr(className, "(unnamed)"))
+                //continue;
+            //cond_add(scope, ns_scope, cppnames, className);
+        //}
+        //gInterpreter->ClassInfo_Delete(ci);
+    //}
 
 // any other types (e.g. that may have come from parsing headers)
     coll = gROOT->GetListOfTypes();
@@ -1494,7 +1481,7 @@ void Cppyy::AddSmartPtrType(const std::string& type_name)
 
 void Cppyy::AddTypeReducer(const std::string& reducable, const std::string& reduced)
 {
-    gInterpreter->AddTypeReducer(reducable, reduced);
+    //gInterpreter->AddTypeReducer(reducable, reduced);
 }
 
 
@@ -1558,7 +1545,7 @@ Cppyy::TCppIndex_t Cppyy::GetNumMethods(TCppScope_t scope, bool accept_namespace
             // instantiation, so force it
                 std::ostringstream stmt;
                 stmt << "template class " << clName << ";";
-                gInterpreter->Declare(stmt.str().c_str(), true /* silent */);
+                gInterpreter->Declare(stmt.str().c_str() /*, silent = true*/);
 
             // now reload the methods
                 return (TCppIndex_t)cr->GetListOfMethods(true)->GetSize();
@@ -1661,14 +1648,11 @@ std::string Cppyy::GetMethodResultType(TCppMethod_t method)
         if (f->ExtraProperty() & kIsConstructor)
             return "constructor";
         std::string restype = f->GetReturnTypeName();
-        // TODO: this is ugly; GetReturnTypeName() keeps typedefs, but may miss scopes
-        // for some reason; GetReturnTypeNormalizedName() has been modified to return
-        // the canonical type to guarantee correct namespaces. Sometimes typedefs look
-        // better, sometimes not, sometimes it's debatable (e.g. vector<int>::size_type).
-        // So, for correctness sake, GetReturnTypeNormalizedName() is used, except for a
-        // special case of uint8_t/int8_t that must propagate as their typedefs.
+        // TODO: this is ugly, but we can't use GetReturnTypeName() for ostreams
+        // and maybe others, whereas GetReturnTypeNormalizedName() has proven to
+        // be save in all cases (Note: 'int8_t' covers 'int8_t' and 'uint8_t')
         if (restype.find("int8_t") != std::string::npos)
-            return gInterpreter->ReduceType(restype);
+            return restype;
         restype = f->GetReturnTypeNormalizedName();
         if (restype == "(lambda)") {
             std::ostringstream s;
@@ -1684,7 +1668,7 @@ std::string Cppyy::GetMethodResultType(TCppMethod_t method)
             if (cl) return cl->GetName();
             // TODO: signal some type of error (or should that be upstream?
         }
-        return gInterpreter->ReduceType(restype);
+        return restype;
     }
     return "<unknown>";
 }
@@ -1742,21 +1726,21 @@ Cppyy::TCppIndex_t Cppyy::CompareMethodArgType(TCppMethod_t method, TCppIndex_t 
         TypeInfo_t *reqti = gInterpreter->TypeInfo_Factory(req_type.c_str());
         void *reqqtp = gInterpreter->TypeInfo_QualTypePtr(reqti);
 
-        if (ArgSimilarityScore(argqtp, reqqtp) < 10) {
+        //if (ArgSimilarityScore(argqtp, reqqtp) < 10) {
             return ArgSimilarityScore(argqtp, reqqtp);
-        }
-        else { // Match using underlying types   
-            if(gInterpreter->IsPointerType(argqtp))
-                argqtp = gInterpreter->TypeInfo_QualTypePtr(gInterpreter->GetPointerType(argqtp));
+        //}
+        //else { // Match using underlying types   
+            //if(gInterpreter->IsPointerType(argqtp))
+                //argqtp = gInterpreter->TypeInfo_QualTypePtr(gInterpreter->GetPointerType(argqtp));
 
-            // Handles reference types and strips qualifiers
-            TypeInfo_t *arg_ul = gInterpreter->GetNonReferenceType(argqtp);
-            TypeInfo_t *req_ul = gInterpreter->GetNonReferenceType(reqqtp);
-            argqtp = gInterpreter->TypeInfo_QualTypePtr(gInterpreter->GetUnqualifiedType(gInterpreter->TypeInfo_QualTypePtr(arg_ul)));
-            reqqtp = gInterpreter->TypeInfo_QualTypePtr(gInterpreter->GetUnqualifiedType(gInterpreter->TypeInfo_QualTypePtr(req_ul)));
+            //// Handles reference types and strips qualifiers
+            //TypeInfo_t *arg_ul = gInterpreter->GetNonReferenceType(argqtp);
+            //TypeInfo_t *req_ul = gInterpreter->GetNonReferenceType(reqqtp);
+            //argqtp = gInterpreter->TypeInfo_QualTypePtr(gInterpreter->GetUnqualifiedType(gInterpreter->TypeInfo_QualTypePtr(arg_ul)));
+            //reqqtp = gInterpreter->TypeInfo_QualTypePtr(gInterpreter->GetUnqualifiedType(gInterpreter->TypeInfo_QualTypePtr(req_ul)));
             
-            return ArgSimilarityScore(argqtp, reqqtp);
-        }    
+            //return ArgSimilarityScore(argqtp, reqqtp);
+        //}    
     }
     return INT_MAX; // Method is not valid
 }
@@ -2179,7 +2163,8 @@ std::string Cppyy::GetDatamemberType(TCppScope_t scope, TCppIndex_t idata)
     // this is the only place where anonymous structs are uniquely identified, so setup
     // a class if needed, such that subsequent GetScope() and GetScopedFinalName() calls
     // return the uniquely named class
-        auto declid = m->GetTagDeclId(); //GetDeclId();
+        //auto declid = m->GetTagDeclId(); //GetDeclId();
+        auto declid = m->GetDeclId();
         if (declid && (m->Property() & (kIsClass | kIsStruct | kIsUnion)) &&\
                 (fullType.find("(anonymous)") != std::string::npos || fullType.find("(unnamed)") != std::string::npos)) {
 
@@ -2685,13 +2670,13 @@ int cppyy_is_enum(const char* type_name) {
     return (int)Cppyy::IsEnum(type_name);
 }
 
-int cppyy_is_aggregate(cppyy_type_t type) {
-    return (int)Cppyy::IsAggregate(type);
-}
+//int cppyy_is_aggregate(cppyy_type_t type) {
+    //return (int)Cppyy::IsAggregate(type);
+//}
 
-int cppyy_is_default_constructable(cppyy_type_t type) {
-    return (int)Cppyy::IsDefaultConstructable(type);
-}
+//int cppyy_is_default_constructable(cppyy_type_t type) {
+    //return (int)Cppyy::IsDefaultConstructable(type);
+//}
 
 const char** cppyy_get_all_cpp_names(cppyy_scope_t scope, size_t* count) {
     std::set<std::string> cppnames;
@@ -2762,9 +2747,9 @@ void cppyy_add_smartptr_type(const char* type_name) {
     Cppyy::AddSmartPtrType(type_name);
 }
 
-void cppyy_add_type_reducer(const char* reducable, const char* reduced) {
-    Cppyy::AddTypeReducer(reducable, reduced);
-}
+//void cppyy_add_type_reducer(const char* reducable, const char* reduced) {
+    //Cppyy::AddTypeReducer(reducable, reduced);
+//}
 
 
 /* calculate offsets between declared and actual type, up-cast: direction > 0; down-cast: direction < 0 */

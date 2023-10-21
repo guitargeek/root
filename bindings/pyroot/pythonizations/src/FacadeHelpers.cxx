@@ -39,8 +39,8 @@ PyObject *PyROOT::CreateBufferFromAddress(PyObject * /* self */, PyObject *addr)
    }
 
 #ifdef R__B64
-   return CPyCppyy::CreateLowLevelView((Long64_t*)cAddr);
+   return CPyCppyy::CreateLowLevelView((Long64_t*)cAddr, CPyCppyy::dims_t{});
 #else
-   return CPyCppyy::CreateLowLevelView((Int_t*)cAddr);
+   return CPyCppyy::CreateLowLevelView((Int_t*)cAddr, CPyCppyy::dims_t{});
 #endif
 }
