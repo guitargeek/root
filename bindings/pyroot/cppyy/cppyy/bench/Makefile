@@ -13,11 +13,7 @@ ifeq ($(CHECK_SWIG),0)
 endif
 all : $(dicts) $(libs) $(execs) $(modules)
 
-ifeq ($(ROOTSYS),)
-  clingconfig := cling-config
-else
-  clingconfig := root-config
-endif
+clingconfig := cling-config
 
 cppflags:=-O3 -fPIC
 cppyy_cppflags=$(shell $(clingconfig) --cflags) $(cppflags)
@@ -34,7 +30,7 @@ swig_%.py: %.h %.i
 	swig -python -c++ -builtin $*.i
 
 _swig_%.so: swig_%.py lib%.so
-	$(CXX) $(cppflags) -shared `python-config --includes` -std=c++11 -fPIC $*_wrap.cxx -o $@ -L. -l$*
+	$(CXX) $(cppflags) -shared -I$(shell python -c 'import distutils.sysconfig as ds; print(ds.get_config_var("INCLUDEPY"))') -std=c++11 -fPIC $*_wrap.cxx -o $@ -L. -l$*
 
 %Dict.so: %_rflx.cpp lib%.so
 	$(CXX) $(cppyy_cppflags) -shared -o $@ $*_rflx.cpp -L. -l$*
@@ -55,4 +51,4 @@ bench: all
 	pytest -s bench_runvector.py --benchmark-sort=mean
 
 clean:
-	-rm -f $(dicts) $(libs) $(execs) $(modules) $(wildcard *.rootmap) $(wildcard *_rdict.pcm)
+	-rm -f $(dicts) $(libs) $(execs) $(modules) $(wildcard *.rootmap) $(wildcard *_rdict.pcm) $(wildcard *_wrap.cxx)

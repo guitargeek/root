@@ -10,10 +10,10 @@ Because of this layering and because it leverages several existing packages
 through reuse, the relevant codes are contained across a number of
 repositories.
 
-* Frontend, cppyy: https://bitbucket.org/wlav/cppyy
-* CPython (v2/v3) intermediate: https://bitbucket.org/wlav/cpycppyy
-* PyPy intermediate (module _cppyy): https://bitbucket.org/pypy/pypy/
-* Backend, cppyy: https://bitbucket.org/wlav/cppyy-backend
+* Frontend, cppyy: https://github.com/wlav/cppyy
+* CPython (v2/v3) intermediate: https://github.com/wlav/CPyCppyy
+* PyPy intermediate (module _cppyy): https://foss.heptapod.net/pypy
+* Backend, cppyy: https://github.com/wlav/cppyy-backend
 
 The backend repo contains both the cppyy-cling (under "cling") and
 cppyy-backend (under "clingwrapper") packages.
@@ -57,7 +57,7 @@ Start with the ``cppyy-cling`` package (cppyy-backend repo, subdirectory
 "cling"), which requires source to be pulled in from upstream, and thus takes
 a few extra steps::
 
- $ git clone https://bitbucket.org/wlav/cppyy-backend.git
+ $ git clone https://github.com/wlav/cppyy-backend.git
  $ cd cppyy-backend/cling
  $ python setup.py egg_info
  $ python create_src_directory.py
@@ -79,34 +79,32 @@ The wheel of ``cppyy-cling`` is reused by pip for all versions of CPython and
 PyPy, thus the long compilation is needed only once for all different
 versions of Python on the same machine.
 
-Unless you build on the manylinux1 docker images, wheels for ``cppyy``,
-``CPyCppyy``, and ``cppyy-backend`` are disabled, because ``setuptools`` (as
-used by ``pip``) does not properly resolve dependencies for wheels.
-You will see a harmless "error" message to that effect fly by in the (verbose)
-output.
-You can force manual build of those wheels, as long as you make sure that you
-have the proper dependencies *installed*, using ``--force-bdist``, when
-building from the repository.
-
 Next up is ``cppyy-backend`` (cppyy-backend, subdirectory "clingwrapper"; omit
 the first step if you already cloned the repo for ``cppyy-cling``)::
 
- $ git clone https://bitbucket.org/wlav/cppyy-backend.git
+ $ git clone https://github.com/wlav/cppyy-backend.git
  $ cd cppyy-backend/clingwrapper
- $ python -m pip install . --upgrade
+ $ python -m pip install . --upgrade --no-use-pep517 --no-deps
+
+Note the use of ``--no-use-pep517``, which prevents ``pip`` from needlessly
+going out to pypi.org and creating a local "clean" build environment from the
+cached or remote wheels.
+Instead, by skipping PEP 517, the local installation will be used.
+This is imperative if there was a change in public headers or if the version
+of ``cppyy-cling`` was locally updated and is thus not available on PyPI.
 
 Upgrading ``CPyCppyy`` (if on CPython; it's not needed for PyPy) and ``cppyy``
 is very similar::
 
- $ git clone https://bitbucket.org/wlav/CPyCppyy.git
+ $ git clone https://github.com/wlav/CPyCppyy.git
  $ cd CPyCppyy
- $ python -m pip install . --upgrade
+ $ python -m pip install . --upgrade --no-use-pep517 --no-deps
 
 Finally, the top-level package ``cppyy``::
 
- $ git clone https://bitbucket.org/wlav/cppyy.git
+ $ git clone https://github.com/wlav/cppyy.git
  $ cd cppyy
- $ python -m pip install . --upgrade
+ $ python -m pip install . --upgrade --no-deps
 
 Please see the `pip documentation`_ for more options, such as developer mode.
 
