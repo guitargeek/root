@@ -6,42 +6,45 @@
 
 set(headers
     inc/CPyCppyy/API.h
-    inc/CPyCppyy/Reflex.h
-    inc/CPyCppyy/PyResult.h
     inc/CPyCppyy/CommonDefs.h
-    inc/CPyCppyy/PyException.h
     inc/CPyCppyy/DispatchPtr.h
+    inc/CPyCppyy/PyException.h
+    inc/CPyCppyy/PyResult.h
+    inc/CPyCppyy/Reflex.h
 )
 
 set(sources
     src/API.cxx
-    src/CallContext.cxx
-    src/Converters.cxx
     src/CPPClassMethod.cxx
     src/CPPConstructor.cxx
     src/CPPDataMember.cxx
+    src/CPPEnum.cxx
     src/CPPExcInstance.cxx
     src/CPPFunction.cxx
+    src/CPPGetSetItem.cxx
     src/CPPInstance.cxx
     src/CPPMethod.cxx
+    src/CPPOperator.cxx
     src/CPPOverload.cxx
     src/CPPScope.cxx
-    src/CPPGetSetItem.cxx
     src/CPyCppyyModule.cxx
+    src/CallContext.cxx
+    src/Converters.cxx
     src/CustomPyTypes.cxx
-    src/Dispatcher.cxx
     src/DispatchPtr.cxx
+    src/Dispatcher.cxx
     src/Executors.cxx
     src/LowLevelViews.cxx
     src/MemoryRegulator.cxx
     src/ProxyWrappers.cxx
+    src/PyException.cxx
+    src/PyResult.cxx
     src/PyStrings.cxx
     src/Pythonize.cxx
     src/TemplateProxy.cxx
-    src/PyException.cxx
-    src/PyResult.cxx
     src/TupleOfInstances.cxx
     src/TypeManip.cxx
+    src/Utility.cxx
     src/Utility.cxx
 )
 

@@ -59,7 +59,7 @@ static bool Initialize()
 #endif
 #if PY_VERSION_HEX >= 0x03020000
 #if PY_VERSION_HEX < 0x03090000
-	PyEval_InitThreads();
+        PyEval_InitThreads();
 #endif
 #endif
 
@@ -79,6 +79,7 @@ static bool Initialize()
 #if PY_VERSION_HEX < 0x03080000
         PySys_SetArgv(sizeof(argv)/sizeof(argv[0]), argv);
 #endif
+
     // force loading of the cppyy module
         PyRun_SimpleString(const_cast<char*>("import cppyy"));
     }
@@ -183,7 +184,7 @@ bool CPyCppyy::Instance_CheckExact(PyObject* pyobject)
 //-----------------------------------------------------------------------------
 bool CPyCppyy::Instance_IsLively(PyObject* pyobject)
 {
-// Test whether the given instance can safely return to C++, or whether
+// Test whether the given instance can safely return to C++
     if (!CPPInstance_Check(pyobject))
         return true;    // simply don't know
 

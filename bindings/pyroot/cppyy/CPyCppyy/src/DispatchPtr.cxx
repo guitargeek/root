@@ -1,9 +1,10 @@
-// Bindings                                                                 
+// Bindings
 #include "CPyCppyy.h"
 #define CPYCPPYY_INTERNAL 1
 #include "CPyCppyy/DispatchPtr.h"
 #undef CPYCPPYY_INTERNAL
 #include "CPPInstance.h"
+#include "CPPScope.h"
 
 
 //-----------------------------------------------------------------------------
@@ -15,10 +16,17 @@ PyObject* CPyCppyy::DispatchPtr::Get() const
 }
 
 //-----------------------------------------------------------------------------
-CPyCppyy::DispatchPtr::DispatchPtr(PyObject* pyobj) : fPyHardRef(nullptr)
+CPyCppyy::DispatchPtr::DispatchPtr(PyObject* pyobj, bool strong) : fPyHardRef(nullptr)
 {
+    if (strong) {
+        Py_INCREF(pyobj);
+        fPyHardRef = pyobj;
+        fPyWeakRef = nullptr;
+    } else {
+        fPyHardRef = nullptr;
+        fPyWeakRef = PyWeakref_NewRef(pyobj, nullptr);
+    }
     ((CPPInstance*)pyobj)->SetDispatchPtr(this);
-    fPyWeakRef = PyWeakref_NewRef(pyobj, nullptr);
 }
 
 //-----------------------------------------------------------------------------
@@ -27,6 +35,23 @@ CPyCppyy::DispatchPtr::DispatchPtr(const DispatchPtr& other, void* cppinst) : fP
     PyObject* pyobj = other.Get();
     fPyHardRef = pyobj ? (PyObject*)((CPPInstance*)pyobj)->Copy(cppinst) : nullptr;
     if (fPyHardRef) ((CPPInstance*)fPyHardRef)->SetDispatchPtr(this);
+}
+
+//-----------------------------------------------------------------------------
+CPyCppyy::DispatchPtr::~DispatchPtr() {
+// if we're holding a hard reference, or holding weak reference while being part
+// of a dispatcher intermediate, then this delete is from the C++ side, and Python
+// is "notified" by nulling out the reference and an exception will be raised on
+// continued access
+    if (fPyWeakRef) {
+        PyObject* pyobj = PyWeakref_GetObject(fPyWeakRef);
+        if (pyobj && ((CPPScope*)Py_TYPE(pyobj))->fFlags & CPPScope::kIsPython)
+            ((CPPInstance*)pyobj)->GetObjectRaw() = nullptr;
+        Py_DECREF(fPyWeakRef);
+    } else if (fPyHardRef) {
+        ((CPPInstance*)fPyHardRef)->GetObjectRaw() = nullptr;
+        Py_DECREF(fPyHardRef);
+    }
 }
 
 //-----------------------------------------------------------------------------

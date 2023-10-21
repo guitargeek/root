@@ -135,10 +135,6 @@ bool CPyCppyy::MemoryRegulator::RecursiveRemove(
             CPyCppyy_NoneType.tp_traverse   = Py_TYPE(pyobj)->tp_traverse;
             CPyCppyy_NoneType.tp_clear      = Py_TYPE(pyobj)->tp_clear;
             CPyCppyy_NoneType.tp_free       = Py_TYPE(pyobj)->tp_free;
-#ifdef Py_TPFLAGS_MANAGED_DICT
-            CPyCppyy_NoneType.tp_flags     |= (Py_TYPE(pyobj)->tp_flags & Py_TPFLAGS_MANAGED_DICT);
-#endif
-            CPyCppyy_NoneType.tp_flags     |= (Py_TYPE(pyobj)->tp_flags & Py_TPFLAGS_HAVE_GC);
         } else if (CPyCppyy_NoneType.tp_traverse != Py_TYPE(pyobj)->tp_traverse) {
         // TODO: SystemError?
             std::cerr << "in CPyCppyy::MemoryRegulater, unexpected object of type: "
@@ -188,16 +184,18 @@ bool CPyCppyy::MemoryRegulator::RegisterPyObject(
 
     CppToPyMap_t* cppobjs = ((CPPClass*)Py_TYPE(pyobj))->fImp.fCppObjects;
     if (!cppobjs)
-         return false;
+        return false;
 
-    CppToPyMap_t::iterator ppo = cppobjs->find(cppobj);
-    if (ppo == cppobjs->end()) {
-        cppobjs->insert(std::make_pair(cppobj, (PyObject*)pyobj));
-        pyobj->fFlags |= CPPInstance::kIsRegulated;
-        return true;
+// if an address was already associated with a different object, then stop following
+// the old and force insert the new proxy for following
+    const auto& res = cppobjs->insert(std::make_pair(cppobj, (PyObject*)pyobj));
+    if (!res.second) {
+        ((CPPInstance*)res.first->second)->fFlags &= ~CPPInstance::kIsRegulated;
+        (*cppobjs)[cppobj] = (PyObject*)pyobj;
     }
 
-    return false;
+    pyobj->fFlags |= CPPInstance::kIsRegulated;
+    return true;
 }
 
 //-----------------------------------------------------------------------------
