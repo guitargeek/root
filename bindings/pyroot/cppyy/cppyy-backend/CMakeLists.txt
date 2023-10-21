@@ -9,10 +9,11 @@ set(py_sources
   cppyy_backend/_cling_config.py
   cppyy_backend/_cppyy_generator.py
   cppyy_backend/_genreflex.py
+  cppyy_backend/_get_cppflags.py
   cppyy_backend/_rootcling.py
+  cppyy_backend/_version.py
   cppyy_backend/bindings_utils.py
   cppyy_backend/loader.py
-  cppyy_backend/_get_cppflags.py
 )
 
 set(cppyy_backendPySrcDir cling/python/cppyy_backend)

@@ -2,7 +2,6 @@ import codecs, glob, os, sys, subprocess
 from setuptools import setup, find_packages, Extension
 from distutils import log
 
-from setuptools.dist import Distribution
 from setuptools.command.install import install as _install
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils.command.clean import clean as _clean
@@ -14,12 +13,7 @@ except ImportError:
     has_wheel = False
 from distutils.errors import DistutilsSetupError
 
-force_bdist = False
-if '--force-bdist' in sys.argv:
-    force_bdist = True
-    sys.argv.remove('--force-bdist')
-
-requirements = ['cppyy-cling<6.18.3', 'cppyy-cling>=6.18.2.4']
+requirements = ['cppyy-cling==6.28.0']
 setup_requirements = ['wheel']
 if 'build' in sys.argv or 'install' in sys.argv:
     setup_requirements += requirements
@@ -28,6 +22,10 @@ here = os.path.abspath(os.path.dirname(__file__))
 with codecs.open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
+if 'win32' in sys.platform:
+    soext = '.dll'
+else:
+    soext = '.so'
 
 #
 # platform-dependent helpers
@@ -43,7 +41,7 @@ def is_manylinux():
 
 def _get_linker_options():
     if 'win32' in sys.platform:
-        link_libraries = ['libCore', 'libThread', 'libRIO', 'libCling']
+        link_libraries = ['libCoreLegacy', 'libThreadLegacy', 'libRIOLegacy', 'libCling']
         import cppyy_backend
         link_dirs = [os.path.join(os.path.dirname(cppyy_backend.__file__), 'lib')]
     else:
@@ -92,7 +90,7 @@ class my_build_cpplib(_build_ext):
         ext_path = self.get_ext_fullpath(ext.name)
         output_dir = os.path.dirname(ext_path)
         libname_base = 'libcppyy_backend'
-        libname = libname_base+self.compiler.shared_lib_extension
+        libname = libname_base+soext   # not: self.compiler.shared_lib_extension
         extra_postargs = list()
         if 'linux' in sys.platform:
             extra_postargs.append('-Wl,-Bsymbolic-functions')
@@ -165,8 +163,9 @@ class my_install(_install):
 
 cmdclass = {
         'build_ext': my_build_cpplib,
-        'clean': my_clean,
+        #'clean': my_clean,
         'install': my_install }
+
 if has_wheel:
     class my_bdist_wheel(_bdist_wheel):
         def finalize_options(self):
@@ -180,29 +179,6 @@ if has_wheel:
     cmdclass['bdist_wheel'] = my_bdist_wheel
 
 
-#
-# customized distribition to disable binaries
-#
-class MyDistribution(Distribution):
-    def run_commands(self):
-        # pip does not resolve dependencies before building binaries, so unless
-        # packages are installed one-by-one, on old install is used or the build
-        # will simply fail hard. The following is not completely quiet, but at
-        # least a lot less conspicuous.
-        if not is_manylinux() and not force_bdist:
-            disabled = set((
-                'bdist_wheel', 'bdist_egg', 'bdist_wininst', 'bdist_rpm'))
-            for cmd in self.commands:
-                if not cmd in disabled:
-                    self.run_command(cmd)
-                else:
-                    log.info('Command "%s" is disabled', cmd)
-                    cmd_obj = self.get_command_obj(cmd)
-                    cmd_obj.get_outputs = lambda: None
-        else:
-            return Distribution.run_commands(self)
-
-
 setup(
     name='cppyy-backend',
     description='C/C++ wrapper for Cling',
@@ -210,10 +186,10 @@ setup(
     url='http://pypy.org',
 
     # Author details
-    author='PyPy Developers',
-    author_email='pypy-dev@python.org',
+    author='Wim Lavrijsen',
+    author_email='WLavrijsen@lbl.gov',
 
-    version='1.10.8',
+    version='1.14.11',
 
     license='LBNL BSD',
 
@@ -247,7 +223,6 @@ setup(
         sources=glob.glob(os.path.join('src', 'clingwrapper.cxx')))],
 
     cmdclass=cmdclass,
-    distclass=MyDistribution,
 
     zip_safe=False,
 )
