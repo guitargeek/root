@@ -17,6 +17,8 @@
 
 #include "RooAbsReal.h"
 
+#include "RooMinimizer.h"
+
 #include "Math/IFunctionfwd.h"
 
 #include <map>
@@ -102,7 +104,7 @@ namespace RooStats {
       double fConfidenceLevel;    ///< Requested confidence level (eg. 0.95 for 95% CL)
       std::map<std::string, double> fLowerLimits; ///< map with cached lower bound values
       std::map<std::string, double> fUpperLimits; ///< map with cached upper bound values
-      std::shared_ptr<ROOT::Math::Minimizer > fMinimizer;      ///<! transient pointer to minimizer class used to find limits and contour
+      std::shared_ptr<RooMinimizer > fMinimizer;      ///<! transient pointer to minimizer class used to find limits and contour
       std::shared_ptr<RooFunctor>           fFunctor;          ///<! transient pointer to functor class used by the minimizer
       std::shared_ptr<ROOT::Math::IMultiGenFunction> fMinFunc; ///<! transient pointer to the minimization function
 

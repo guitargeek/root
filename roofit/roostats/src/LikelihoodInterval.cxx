@@ -50,6 +50,7 @@
 
 #include "RooAbsReal.h"
 #include "RooMsgService.h"
+#include "RooFitResult.h"
 
 #include "Math/WrappedFunction.h"
 #include "Math/Minimizer.h"
@@ -245,51 +246,13 @@ bool LikelihoodInterval::CreateMinimizer() {
       }
    }
 
-   const auto& config = GetGlobalRooStatsConfig();
 
-   // now do binding of NLL with a functor for Minimizer
-   if (config.useLikelihoodOffset) {
-      ccoutI(InputArguments) << "LikelihoodInterval: using nll offset - set all RooAbsReal to hide the offset  " << std::endl;
-      RooAbsReal::setHideOffset(false); // need to keep this false
-   }
-   fFunctor = std::make_shared<RooFunctor>(nll, RooArgSet(), params);
-
-   std::string minimType =  ROOT::Math::MinimizerOptions::DefaultMinimizerType();
-   std::transform(minimType.begin(), minimType.end(), minimType.begin(), (int(*)(int)) tolower );
-   *minimType.begin() = toupper( *minimType.begin());
-
-   if (minimType != "Minuit" && minimType != "Minuit2") {
-      ccoutE(InputArguments) << minimType << " is wrong type of minimizer for getting interval limits or contours - must use Minuit or Minuit2" << std::endl;
-      return false;
-   }
-   // do not use static instance of TMInuit which could interfere with RooFit
-   if (minimType == "Minuit")  TMinuitMinimizer::UseStaticMinuit(false);
-   // create minimizer class
-   fMinimizer = std::shared_ptr<ROOT::Math::Minimizer>(ROOT::Math::Factory::CreateMinimizer(minimType, "Migrad"));
-
-   if (!fMinimizer.get()) return false;
-
-   fMinFunc = std::static_pointer_cast<ROOT::Math::IMultiGenFunction>(
-      std::make_shared<ROOT::Math::WrappedMultiFunction<RooFunctor &>>(*fFunctor, fFunctor->nPar()) );
-   fMinimizer->SetFunction(*fMinFunc);
-
-   // set minimizer parameters
-   assert( params.getSize() == int(fMinFunc->NDim()) );
-
-   for (unsigned int i = 0; i < fMinFunc->NDim(); ++i) {
-      RooRealVar & v = (RooRealVar &) params[i];
-      fMinimizer->SetLimitedVariable( i, v.GetName(), v.getVal(), v.getError(), v.getMin(), v.getMax() );
-   }
-   // for finding the contour need to find first global minimum
-   bool iret = fMinimizer->Minimize();
-   if (!iret || fMinimizer->X() == nullptr) {
+   fMinimizer = std::make_unique<RooMinimizer>(nll);
+   fMinimizer->minimize(fMinimizer->minimizerType().c_str());
+   if (std::unique_ptr<RooFitResult>(fMinimizer->save())->status() != 0) {
       ccoutE(Minimization) << "Error: Minimization failed  " << std::endl;
       return false;
    }
-
-   //std::cout << "print minimizer result..........." << std::endl;
-   //fMinimizer->PrintResults();
-
    return true;
 }
 
@@ -309,16 +272,6 @@ bool LikelihoodInterval::FindLimits(const RooRealVar & param, double &lower, dou
       return true;
    }
 
-
-   std::unique_ptr<RooArgSet> partmp{fLikelihoodRatio->getVariables()};
-   RemoveConstantParameters(&*partmp);
-   RooArgList params(*partmp);
-   int ix = params.index(&param);
-   if (ix < 0 ) {
-      ccoutE(InputArguments) << "Error - invalid parameter " << param.GetName() << " specified for finding the interval limits " << std::endl;
-      return false;
-   }
-
    bool ret = true;
    if (!fMinimizer.get()) ret = CreateMinimizer();
    if (!ret) {
@@ -326,18 +279,14 @@ bool LikelihoodInterval::FindLimits(const RooRealVar & param, double &lower, dou
       return false;
    }
 
-   assert(fMinimizer.get());
-
    // getting a 1D interval so ndf = 1
    double err_level = TMath::ChisquareQuantile(ConfidenceLevel(),1); // level for -2log LR
    err_level = err_level/2; // since we are using -log LR
-   fMinimizer->SetErrorDef(err_level);
+   fMinimizer->setErrorLevel(err_level);
 
-   unsigned int ivarX = ix;
-
-   double elow = 0;
-   double eup = 0;
-   ret = fMinimizer->GetMinosError(ivarX, elow, eup );
+   ret = fMinimizer->minos(param);
+   double elow = param.getAsymErrorLo();
+   double eup = param.getAsymErrorHi();
 
    // WHEN error is zero normally is at limit
    if (elow == 0) {
@@ -345,14 +294,14 @@ bool LikelihoodInterval::FindLimits(const RooRealVar & param, double &lower, dou
       ccoutW(Minimization) << "Warning: lower value for " << param.GetName() << " is at limit " << lower << std::endl;
    }
    else
-      lower = fMinimizer->X()[ivarX] + elow;  // elow is negative
+      lower = param.getVal() + elow;  // elow is negative
 
    if (eup == 0) {
       ccoutW(Minimization) << "Warning: upper value for " << param.GetName() << " is at limit " << upper << std::endl;
       upper = param.getMax();
    }
    else
-      upper = fMinimizer->X()[ivarX] + eup;
+      upper = param.getVal() + eup;
 
    // store limits in the map
    // minos return error limit = minValue +/- error
@@ -366,20 +315,6 @@ bool LikelihoodInterval::FindLimits(const RooRealVar & param, double &lower, dou
 Int_t LikelihoodInterval::GetContourPoints(const RooRealVar & paramX, const RooRealVar & paramY, double * x, double *y, Int_t npoints ) {
    // use Minuit to find the contour of the likelihood function at the desired CL
 
-   // check the parameters
-   // variable index in minimizer
-   // is index in the RooArgList obtained from the profileLL variables
-   std::unique_ptr<RooArgSet> partmp{fLikelihoodRatio->getVariables()};
-   RemoveConstantParameters(&*partmp);
-   RooArgList params(*partmp);
-   int ix = params.index(&paramX);
-   int iy = params.index(&paramY);
-   if (ix < 0 || iy < 0) {
-      coutE(InputArguments) << "LikelihoodInterval - Error - invalid parameters specified for finding the contours; parX = " << paramX.GetName()
-             << " parY = " << paramY.GetName() << std::endl;
-         return 0;
-   }
-
    bool ret = true;
    if (!fMinimizer.get()) ret = CreateMinimizer();
    if (!ret) {
@@ -387,18 +322,22 @@ Int_t LikelihoodInterval::GetContourPoints(const RooRealVar & paramX, const RooR
       return 0;
    }
 
-   assert(fMinimizer.get());
+   std::unique_ptr<RooFitResult> res{fMinimizer->save()};
+   const int ix = res->floatParsFinal().index(&paramX);
+   const int iy = res->floatParsFinal().index(&paramY);
+
+   ROOT::Math::Minimizer * minimizer = fMinimizer->fitter()->GetMinimizer();
+
+   assert(minimizer);
 
    // getting a 2D contour so ndf = 2
    double cont_level = TMath::ChisquareQuantile(ConfidenceLevel(),2); // level for -2log LR
    cont_level = cont_level/2; // since we are using -log LR
-   fMinimizer->SetErrorDef(cont_level);
+   fMinimizer->setErrorLevel(cont_level);
 
    unsigned int ncp = npoints;
-   unsigned int ivarX = ix;
-   unsigned int ivarY = iy;
-   coutI(Minimization)  << "LikelihoodInterval - Finding the contour of " << paramX.GetName() << " ( " << ivarX << " ) and " << paramY.GetName() << " ( " << ivarY << " ) " << std::endl;
-   ret = fMinimizer->Contour(ivarX, ivarY, ncp, x, y );
+   coutI(Minimization)  << "LikelihoodInterval - Finding the contour of " << paramX.GetName() << " ( " << ix << " ) and " << paramY.GetName() << " ( " << iy << " ) " << std::endl;
+   ret = minimizer->Contour(ix, iy, ncp, x, y );
    if (!ret) {
       coutE(Minimization) << "LikelihoodInterval - Error finding contour for parameters " << paramX.GetName() << " and " << paramY.GetName()  << std::endl;
       return 0;
