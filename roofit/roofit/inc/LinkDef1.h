@@ -12,6 +12,7 @@
 #pragma link C++ class RooBMixDecay+ ;
 #pragma link C++ class RooBreitWigner+ ;
 #pragma link C++ class RooBukinPdf+ ;
+#pragma link C++ class RooCruijff+ ;
 #pragma link C++ class RooCrystalBall+ ;
 #pragma link C++ class RooCBShape+ ;
 #pragma link C++ class RooChebychev+ ;

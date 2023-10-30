@@ -28,6 +28,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooBreitWigner.h
     RooBukinPdf.h
     RooCBShape.h
+    RooCruijff.h
     RooCrystalBall.h
     RooCFunction1Binding.h
     RooCFunction2Binding.h
@@ -91,6 +92,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooBreitWigner.cxx
     src/RooBukinPdf.cxx
     src/RooCBShape.cxx
+    src/RooCruijff.cxx
     src/RooCrystalBall.cxx
     src/RooCFunction1Binding.cxx
     src/RooCFunction2Binding.cxx

@@ -287,6 +287,24 @@ __rooglobal__ void computeChiSquare(BatchesHandle batches)
    }
 }
 
+__rooglobal__ void computeCruijff(BatchesHandle batches)
+{
+   Batch x = batches[0];
+   Batch mu = batches[1];
+   Batch sigmaL = batches[2];
+   Batch sigmaR = batches[3];
+   Batch alphaL = batches[4];
+   Batch alphaR = batches[5];
+   Batch beta = batches[6];
+   for (size_t i = BEGIN; i < batches.getNEvents(); i += STEP) {
+      const double arg = x[i] - mu[i];
+      const double arg2 = arg * arg;
+      const double scale2 = 1.0 + 2 * beta[i] * arg + beta[i] * beta[i] * arg2;
+      batches._output[i] = std::exp(arg < 0.0 ? -(arg2 * scale2) / (2 * sigmaL[i] * sigmaL[i] + alphaL[i] * arg2)
+                                              : -(arg2 * scale2) / (2 * sigmaR[i] * sigmaR[i] + alphaR[i] * arg2));
+   }
+}
+
 __rooglobal__ void computeDeltaFunction(BatchesHandle batches)
 {
    for (size_t i = BEGIN; i < batches.getNEvents(); i += STEP) {
@@ -852,6 +870,7 @@ std::vector<void (*)(BatchesHandle)> getFunctions()
            computeCBShape,
            computeChebychev,
            computeChiSquare,
+           computeCruijff,
            computeDeltaFunction,
            computeDstD0BG,
            computeExpPoly,
@@ -873,13 +892,13 @@ std::vector<void (*)(BatchesHandle)> getFunctions()
            computePower,
            computeProdPdf,
            computeRatio,
-           computeTruthModelExpBasis,
-           computeTruthModelSinBasis,
            computeTruthModelCosBasis,
+           computeTruthModelCoshBasis,
+           computeTruthModelExpBasis,
            computeTruthModelLinBasis,
            computeTruthModelQuadBasis,
+           computeTruthModelSinBasis,
            computeTruthModelSinhBasis,
-           computeTruthModelCoshBasis,
            computeVoigtian};
 }
 } // End namespace RF_ARCH
