@@ -35,6 +35,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooChebychev.h
     RooChi2MCSModule.h
     RooChiSquarePdf.h
+    RooCruijff.h
     RooCrystalBall.h
     RooDecay.h
     RooDstD0BG.h
@@ -102,6 +103,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooChebychev.cxx
     src/RooChi2MCSModule.cxx
     src/RooChiSquarePdf.cxx
+    src/RooCruijff.cxx
     src/RooCrystalBall.cxx
     src/RooDecay.cxx
     src/RooDstD0BG.cxx

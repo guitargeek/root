@@ -82,6 +82,7 @@ enum Computer {
    CBShape,
    Chebychev,
    ChiSquare,
+   Cruijff,
    DeltaFunction,
    DstD0BG,
    ExpPoly,
