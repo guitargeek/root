@@ -80,9 +80,6 @@ endif()
 
 #--stressRooFit----------------------------------------------------------------------------------
 ROOT_EXECUTABLE(stressRooFit stressRooFit.cxx LIBRARIES RooFit Gpad ${ROOFITMORE_LIBRARIES})
-if(mathmore)
-    target_compile_definitions(stressRooFit PRIVATE ROOFITMORE)
-endif()
 
 configure_file(stressRooFit_ref.root stressRooFit_ref.root COPYONLY)
 if(roofit_legacy_eval_backend)

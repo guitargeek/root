@@ -42,6 +42,8 @@ public:
 
   std::unique_ptr<RooAbsIntegrator> createIntegrator(RooAbsFunc& func, const RooNumIntConfig& config, Int_t ndim=0, bool isBinned=false) const;
 
+  /// Check if an integrator plugin with a given name is registered in the factory.
+  static bool hasPlugin(const char* name) { return instance().getPluginInfo(name) != nullptr; }
 
 private:
 

@@ -5,9 +5,6 @@ ROOT_ADD_GTEST(testSPlot testSPlot.cxx LIBRARIES RooStats)
 
 #--stressRooStats----------------------------------------------------------------------------------
 ROOT_EXECUTABLE(stressRooStats stressRooStats.cxx LIBRARIES RooStats Gpad)
-if(mathmore)
-    target_compile_definitions(stressRooStats PRIVATE ROOFITMORE)
-endif()
 
 configure_file(stressRooStats_ref.root stressRooStats_ref.root COPYONLY)
 if(roofit_legacy_eval_backend)

@@ -21,6 +21,8 @@
 
 #include "RooStats/SimpleInterval.h"
 
+#include "Math/RootFinder.h"
+
 class RooAbsData;
 class RooAbsPdf;
 class RooPlot;
@@ -117,6 +119,11 @@ namespace RooStats {
       /// to switch off SetLeftSideTailFraction to the right value
       void SetShortestInterval() { fLeftSideFraction = -1; }
 
+      /// Set the type of the Root Finder. By default, it is
+      /// ROOT::Math::RootFinder::kBRENT. If you have built ROOT with
+      /// `mathmore`, you can also use the GSL root finders, for example by
+      /// passing ROOT::Math::RootFinder::kGSL_BRENT.
+      void SetBrfType(ROOT::Math::RootFinder::EType type) { fBrfType = type; }
       /// set the precision of the Root Finder
       void SetBrfPrecision( double precision ) { fBrfPrecision = precision; }
 
@@ -182,6 +189,7 @@ namespace RooStats {
       mutable double  fNLLMin;         ///< minimum value of Nll
       double fSize;                      ///< size used for getting the interval
       double fLeftSideFraction;          ///< fraction of probability content on left side of interval
+      ROOT::Math::RootFinder::EType fBrfType = ROOT::Math::RootFinder::kBRENT; ///< root finder type
       double fBrfPrecision;              ///< root finder precision
       mutable int fNScanBins;            ///< number of bins to scan, if = -1 no scan is done (default)
       int fNumIterations;                ///< number of iterations (when using ToyMC)
@@ -191,7 +199,7 @@ namespace RooStats {
 
    protected:
 
-      ClassDefOverride(BayesianCalculator,3)  // BayesianCalculator class
+      ClassDefOverride(BayesianCalculator,4)  // BayesianCalculator class
 
    };
 }

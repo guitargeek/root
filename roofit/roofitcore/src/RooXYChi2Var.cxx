@@ -172,9 +172,9 @@ void RooXYChi2Var::initialize()
   // Gauss-Kronrod integrator is expected to perform well (if RooFitMore is available)
   _intConfig.setEpsRel(1e-7) ;
   _intConfig.setEpsAbs(1e-7) ;
-#ifdef R__HAS_MATHMORE
-  _intConfig.method1D().setLabel("RooGaussKronrodIntegrator1D") ;
-#endif
+  if(RooNumIntFactory::hasPlugin("RooGaussKronrodIntegrator1D")) {
+    _intConfig.method1D().setLabel("RooGaussKronrodIntegrator1D") ;
+  }
   _intConfig.methodND().setLabel("RooAdaptiveIntegratorND") ;
 
   initIntegrator() ;

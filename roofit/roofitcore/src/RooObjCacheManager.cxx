@@ -36,7 +36,6 @@ have a sensible default implementation.
 using namespace std ;
 
 ClassImp(RooObjCacheManager);
-   ;
 
 
 bool RooObjCacheManager::_clearObsList(false) ;

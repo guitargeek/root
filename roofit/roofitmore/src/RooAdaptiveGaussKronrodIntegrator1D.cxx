@@ -1129,7 +1129,6 @@ gsl_integration_qk15 (const gsl_function * f, double a, double b,
       double *resabs, double *resasc)
 {
   double fv1[8], fv2[8];
-  // coverity[UNINIT_CTOR]
   gsl_integration_qk (8, xgkA, wgA, wgkA, fv1, fv2, f, a, b, result, abserr, resabs, resasc);
 }
 
@@ -1186,7 +1185,6 @@ gsl_integration_qk21 (const gsl_function * f, double a, double b,
                       double *resabs, double *resasc)
 {
   double fv1[11], fv2[11];
-  // coverity[UNINIT_CTOR]
   gsl_integration_qk (11, xgkB, wgB, wgkB, fv1, fv2, f, a, b, result, abserr, resabs, resasc);
 }
 
@@ -1255,7 +1253,6 @@ gsl_integration_qk31 (const gsl_function * f, double a, double b,
       double *resabs, double *resasc)
 {
   double fv1[16], fv2[16];
-  // coverity[UNINIT_CTOR]
   gsl_integration_qk (16, xgkC, wgC, wgkC, fv1, fv2, f, a, b, result, abserr, resabs, resasc);
 }
 
@@ -1336,7 +1333,6 @@ gsl_integration_qk41 (const gsl_function * f, double a, double b,
                       double *resabs, double *resasc)
 {
   double fv1[21], fv2[21];
-  // coverity[UNINIT]
   gsl_integration_qk (21, xgkD, wgD, wgkD, fv1, fv2, f, a, b, result, abserr, resabs, resasc);
 }
 
@@ -1432,7 +1428,6 @@ gsl_integration_qk51 (const gsl_function * f, double a, double b,
                       double *resabs, double *resasc)
 {
   double fv1[26], fv2[26];
-  //coverity[UNINIT]
   gsl_integration_qk (26, xgkE, wgE, wgkE, fv1, fv2, f, a, b, result, abserr, resabs, resasc);
 }
 
@@ -1538,7 +1533,6 @@ gsl_integration_qk61 (const gsl_function * f, double a, double b,
                       double *resabs, double *resasc)
 {
   double fv1[31], fv2[31];
-  //coverity[UNINIT]
   gsl_integration_qk (31, xgkF, wgF, wgkF, fv1, fv2, f, a, b, result, abserr, resabs, resasc);
 }
 

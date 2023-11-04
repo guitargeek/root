@@ -67,7 +67,7 @@ void RooNumIntFactory::init() {
   RooNumIntConfig::defaultConfig().methodND().setLabel("RooAdaptiveIntegratorND") ;
 
   //if GSL is available load (and register GSL integrator)
-#ifdef R__HAS_MATHMORE
+#ifdef ROOFITMORE
   int iret = gSystem->Load("libRooFitMore");
   if (iret < 0) {
      oocoutE(nullptr, Integration) << " RooNumIntFactory::Init : libRooFitMore cannot be loaded. GSL integrators will not beavailable ! " << std::endl;

@@ -32,7 +32,6 @@ change calls and constant term optimization management calls
 using namespace std;
 
 ClassImp(RooAbsCacheElement);
-   ;
 
 
 ////////////////////////////////////////////////////////////////////////////////

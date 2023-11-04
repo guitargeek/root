@@ -69,7 +69,6 @@ credible interval from the given function.
 #include "Math/IFunction.h"
 #include "Math/IntegratorMultiDim.h"
 #include "Math/Integrator.h"
-#include "Math/RootFinder.h"
 #include "Math/BrentMinimizer1D.h"
 #include "RooFunctor.h"
 #include "RooFunctor1DBinding.h"
@@ -93,17 +92,7 @@ using namespace std;
 
 namespace RooStats {
 
-
 // first some utility classes and functions
-
-#ifdef R__HAS_MATHMORE
-   const ROOT::Math::RootFinder::EType kRootFinderType = ROOT::Math::RootFinder::kGSL_BRENT;
-#else
-   const ROOT::Math::RootFinder::EType kRootFinderType = ROOT::Math::RootFinder::kBRENT;
-#endif
-
-
-
 
 struct  LikelihoodFunction {
    LikelihoodFunction(RooFunctor & f, RooFunctor * prior = nullptr, double offset = 0) :
@@ -1276,7 +1265,7 @@ void BayesianCalculator::ComputeIntervalFromCdf(double lowerCutOff, double upper
 
    //find the roots
 
-   ROOT::Math::RootFinder rf(kRootFinderType);
+   ROOT::Math::RootFinder rf(fBrfType);
 
    ccoutD(Eval) << "BayesianCalculator::GetInterval - finding roots of posterior using RF " << rf.Name()
                 << " with precision = " << fBrfPrecision;
