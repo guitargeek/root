@@ -47,10 +47,12 @@ namespace RF_ARCH {
 __rooglobal__ void computeAddPdf(Batches &batches)
 {
    const int nPdfs = batches.nExtra;
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = batches.extra[0] * batches.args[0][i];
    }
    for (int pdf = 1; pdf < nPdfs; pdf++) {
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
          batches.output[i] += batches.extra[pdf] * batches.args[pdf][i];
       }
@@ -63,11 +65,13 @@ __rooglobal__ void computeArgusBG(Batches &batches)
    Batch m0 = batches.args[1];
    Batch c = batches.args[2];
    Batch p = batches.args[3];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double t = m[i] / m0[i];
       const double u = 1 - t * t;
       batches.output[i] = c[i] * u + p[i] * fast_log(u);
    }
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (m[i] >= m0[i]) {
          batches.output[i] = 0.0;
@@ -86,6 +90,7 @@ __rooglobal__ void computeBMixDecay(Batches &batches)
    Batch mixState = batches.args[4];
    Batch mistag = batches.args[5];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] =
          coef0[i] * (1.0 - tagFlav[i] * delMistag[0]) + coef1[i] * (mixState[i] * (1.0 - 2.0 * mistag[0]));
@@ -112,6 +117,7 @@ __rooglobal__ void computeBernstein(Batches &batches)
       double _1_X[bufferSize];
       double powX[bufferSize];
       double pow_1_X[bufferSize];
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
          powX[i] = pow_1_X[i] = 1.0;
          X[i] = (xData[i] - xmin) / (xmax - xmin);
@@ -121,20 +127,24 @@ __rooglobal__ void computeBernstein(Batches &batches)
 
       // raising 1-x to the power of degree
       for (int k = 2; k <= degree; k += 2) {
+         #pragma omp parallel for
          for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
             pow_1_X[i] *= _1_X[i] * _1_X[i];
       }
 
       if (degree % 2 == 1) {
+         #pragma omp parallel for
          for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
             pow_1_X[i] *= _1_X[i];
       }
 
       // inverting 1-x ---> 1/(1-x)
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
          _1_X[i] = 1 / _1_X[i];
 
       for (int k = 0; k < nCoef; k++) {
+         #pragma omp parallel for
          for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
             batches.output[i] += batches.extra[k] * powX[i] * pow_1_X[i];
 
@@ -144,6 +154,7 @@ __rooglobal__ void computeBernstein(Batches &batches)
          }
       }
    } else {
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
          batches.output[i] = 0.0;
          const double X = (xData[i] - xmin) / (xmax - xmin);
@@ -174,6 +185,7 @@ __rooglobal__ void computeBifurGauss(Batches &batches)
    Batch M = batches.args[1];
    Batch SL = batches.args[2];
    Batch SR = batches.args[3];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double arg = X[i] - M[i];
       if (arg < 0) {
@@ -190,6 +202,7 @@ __rooglobal__ void computeBreitWigner(Batches &batches)
    Batch X = batches.args[0];
    Batch M = batches.args[1];
    Batch W = batches.args[2];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double arg = X[i] - M[i];
       batches.output[i] = 1 / (arg * arg + 0.25 * W[i] * W[i]);
@@ -208,6 +221,7 @@ __rooglobal__ void computeBukin(Batches &batches)
    const double r6 = exp(-6.0);
    const double r7 = 2 * sqrt(2 * log(2.0));
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double r1 = XI[i] * fast_isqrt(XI[i] * XI[i] + 1);
       const double r4 = 1 / fast_isqrt(XI[i] * XI[i] + 1);
@@ -241,6 +255,7 @@ __rooglobal__ void computeBukin(Batches &batches)
       if (X[i] >= x1 && X[i] < x2 && XI[i] < r6 && XI[i] > -r6)
          batches.output[i] = -4 * r3 * (X[i] - XP[i]) * (X[i] - XP[i]) * hp * hp;
    }
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
       batches.output[i] = fast_exp(batches.output[i]);
 }
@@ -252,6 +267,7 @@ __rooglobal__ void computeCBShape(Batches &batches)
    Batch S = batches.args[2];
    Batch A = batches.args[3];
    Batch N = batches.args[4];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double t = (M[i] - M0[i]) / S[i];
       if ((A[i] > 0 && t >= -A[i]) || (A[i] < 0 && -t >= A[i])) {
@@ -263,6 +279,7 @@ __rooglobal__ void computeCBShape(Batches &batches)
          batches.output[i] -= 0.5 * A[i] * A[i];
       }
    }
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
       batches.output[i] = fast_exp(batches.output[i]);
 }
@@ -278,6 +295,7 @@ __rooglobal__ void computeChebychev(Batches &batches)
       double prev[bufferSize][2];
       double X[bufferSize];
 
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
          // set a0-->prev[i][0] and a1-->prev[i][1]
          // and x tranfsformed to range[-1..1]-->X[i]
@@ -285,6 +303,7 @@ __rooglobal__ void computeChebychev(Batches &batches)
          prev[i][1] = X[i] = 2 * (xData[i] - 0.5 * (xmax + xmin)) / (xmax - xmin);
       }
       for (int k = 0; k < nCoef; k++) {
+         #pragma omp parallel for
          for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
             batches.output[i] += prev[i][1] * batches.extra[k];
 
@@ -295,6 +314,7 @@ __rooglobal__ void computeChebychev(Batches &batches)
          }
       }
    } else {
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
          double prev0 = 1.0;
          double prev1 = 2 * (xData[i] - 0.5 * (xmax + xmin)) / (xmax - xmin);
@@ -317,10 +337,12 @@ __rooglobal__ void computeChiSquare(Batches &batches)
    Batch X = batches.args[0];
    const double ndof = batches.extra[0];
    const double gamma = 1 / std::tgamma(ndof / 2.0);
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
       batches.output[i] = gamma;
 
    constexpr double ln2 = 0.693147180559945309417232121458;
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double arg = (ndof - 2) * fast_log(X[i]) - X[i] - ndof * ln2;
       batches.output[i] *= fast_exp(0.5 * arg);
@@ -329,6 +351,7 @@ __rooglobal__ void computeChiSquare(Batches &batches)
 
 __rooglobal__ void computeDeltaFunction(Batches &batches)
 {
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = 0.0 + (batches.args[0][i] == 1.0);
    }
@@ -341,6 +364,7 @@ __rooglobal__ void computeDstD0BG(Batches &batches)
    Batch C = batches.args[2];
    Batch A = batches.args[3];
    Batch B = batches.args[4];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double ratio = DM[i] / DM0[i];
       const double arg1 = (DM0[i] - DM[i]) / C[i];
@@ -348,6 +372,7 @@ __rooglobal__ void computeDstD0BG(Batches &batches)
       batches.output[i] = (1 - fast_exp(arg1)) * fast_exp(arg2) + B[i] * (ratio - 1);
    }
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (batches.output[i] < 0)
          batches.output[i] = 0;
@@ -360,6 +385,7 @@ __rooglobal__ void computeExpPoly(Batches &batches)
    int nTerms = batches.extra[1];
    auto x = batches.args[0];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = 0.0;
       double xTmp = std::pow(x[i], lowestOrder);
@@ -375,6 +401,7 @@ __rooglobal__ void computeExponential(Batches &batches)
 {
    Batch x = batches.args[0];
    Batch c = batches.args[1];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = fast_exp(x[i] * c[i]);
    }
@@ -384,6 +411,7 @@ __rooglobal__ void computeExponentialNeg(Batches &batches)
 {
    Batch x = batches.args[0];
    Batch c = batches.args[1];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = fast_exp(-x[i] * c[i]);
    }
@@ -396,6 +424,7 @@ __rooglobal__ void computeGamma(Batches &batches)
    Batch B = batches.args[2];
    Batch M = batches.args[3];
    double gamma = -std::lgamma(G[0]);
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (X[i] == M[i]) {
          batches.output[i] = int(G[i] == 1.0) / B[i];
@@ -406,6 +435,7 @@ __rooglobal__ void computeGamma(Batches &batches)
       }
    }
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (X[i] != M[i]) {
          const double invBeta = 1 / B[i];
@@ -427,6 +457,7 @@ __rooglobal__ void computeGaussModelExpBasis(Batches &batches)
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
 
       const double x = batches.args[0][i];
@@ -462,6 +493,7 @@ __rooglobal__ void computeGaussian(Batches &batches)
    auto x = batches.args[0];
    auto mean = batches.args[1];
    auto sigma = batches.args[2];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double arg = x[i] - mean[i];
       const double halfBySigmaSq = -0.5 / (sigma[i] * sigma[i]);
@@ -471,6 +503,7 @@ __rooglobal__ void computeGaussian(Batches &batches)
 
 __rooglobal__ void computeIdentity(Batches &batches)
 {
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = batches.args[0][i];
    }
@@ -478,10 +511,12 @@ __rooglobal__ void computeIdentity(Batches &batches)
 
 __rooglobal__ void computeNegativeLogarithms(Batches &batches)
 {
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
       batches.output[i] = -fast_log(batches.args[0][i]);
    // Multiply by weights if they exist
    if (batches.extra[0]) {
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
          batches.output[i] *= batches.args[1][i];
    }
@@ -497,6 +532,7 @@ __rooglobal__ void computeJohnson(Batches &batches)
    const double sqrtTwoPi = std::sqrt(TMath::TwoPi());
    const double massThreshold = batches.extra[0];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double arg = (mass[i] - mu[i]) / lambda[i];
 #ifdef R__HAS_VDT
@@ -574,9 +610,11 @@ __rooglobal__ void computeLandau(Batches &batches)
    Batch M = batches.args[1];
    Batch S = batches.args[2];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
       batches.output[i] = (X[i] - M[i]) / S[i];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (S[i] <= 0.0) {
          batches.output[i] = 0;
@@ -606,6 +644,7 @@ __rooglobal__ void computeLognormal(Batches &batches)
    Batch M0 = batches.args[1];
    Batch K = batches.args[2];
    constexpr double rootOf2pi = 2.506628274631000502415765284811;
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double lnxOverM0 = fast_log(X[i] / M0[i]);
       double lnk = fast_log(K[i]);
@@ -623,6 +662,7 @@ __rooglobal__ void computeLognormalStandard(Batches &batches)
    Batch M0 = batches.args[1];
    Batch K = batches.args[2];
    constexpr double rootOf2pi = 2.506628274631000502415765284811;
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double lnxOverM0 = fast_log(X[i]) - M0[i];
       double lnk = K[i];
@@ -643,6 +683,7 @@ __rooglobal__ void computeNormalizedPdf(Batches &batches)
    int nEvalErrorsType1 = 0;
    int nEvalErrorsType2 = 0;
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double out = 0.0;
       // batches.output[i] = rawVal[i] / normVar[i];
@@ -687,6 +728,7 @@ __rooglobal__ void computeNovosibirsk(Batches &batches)
    Batch W = batches.args[2];
    Batch T = batches.args[3];
    constexpr double xi = 2.3548200450309494; // 2 Sqrt( Ln(4) )
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double argasinh = 0.5 * xi * T[i];
       double argln = argasinh + 1 / fast_isqrt(argasinh * argasinh + 1);
@@ -700,6 +742,7 @@ __rooglobal__ void computeNovosibirsk(Batches &batches)
    }
 
    // faster if you exponentiate in a separate loop (dark magic!)
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP)
       batches.output[i] = fast_exp(batches.output[i]);
 }
@@ -710,11 +753,13 @@ __rooglobal__ void computePoisson(Batches &batches)
    Batch mean = batches.args[1];
    bool protectNegative = batches.extra[0];
    bool noRounding = batches.extra[1];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double x_i = noRounding ? x[i] : floor(x[i]);
       batches.output[i] = std::lgamma(x_i + 1.);
    }
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double x_i = noRounding ? x[i] : floor(x[i]);
       const double logMean = fast_log(mean[i]);
@@ -739,6 +784,7 @@ __rooglobal__ void computePolynomial(Batches &batches)
    const std::size_t nEvents = batches.nEvents;
    Batch x = batches.args[nCoef];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < nEvents; i += STEP) {
       batches.output[i] = batches.args[nCoef - 1][i];
    }
@@ -746,6 +792,7 @@ __rooglobal__ void computePolynomial(Batches &batches)
    // Indexes are in range 0..nCoef-1 but coefList[nCoef-1] has already been
    // processed.
    for (int k = nCoef - 2; k >= 0; k--) {
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < nEvents; i += STEP) {
          batches.output[i] = batches.args[k][i] + x[i] * batches.output[i];
       }
@@ -757,6 +804,7 @@ __rooglobal__ void computePower(Batches &batches)
    const int nCoef = batches.extra[0];
    Batch x = batches.args[0];
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = 0.0;
       for (int k = 0; k < nCoef; ++k) {
@@ -768,10 +816,12 @@ __rooglobal__ void computePower(Batches &batches)
 __rooglobal__ void computeProdPdf(Batches &batches)
 {
    const int nPdfs = batches.extra[0];
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = 1.;
    }
    for (int pdf = 0; pdf < nPdfs; pdf++) {
+      #pragma omp parallel for
       for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
          batches.output[i] *= batches.args[pdf][i];
       }
@@ -780,6 +830,7 @@ __rooglobal__ void computeProdPdf(Batches &batches)
 
 __rooglobal__ void computeRatio(Batches &batches)
 {
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = batches.args[0][i] / batches.args[1][i];
    }
@@ -790,6 +841,7 @@ __rooglobal__ void computeTruthModelExpBasis(Batches &batches)
 
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -802,6 +854,7 @@ __rooglobal__ void computeTruthModelSinBasis(Batches &batches)
 {
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -815,6 +868,7 @@ __rooglobal__ void computeTruthModelCosBasis(Batches &batches)
 {
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -828,6 +882,7 @@ __rooglobal__ void computeTruthModelLinBasis(Batches &batches)
 {
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -845,6 +900,7 @@ __rooglobal__ void computeTruthModelQuadBasis(Batches &batches)
 {
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -862,6 +918,7 @@ __rooglobal__ void computeTruthModelSinhBasis(Batches &batches)
 {
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -875,6 +932,7 @@ __rooglobal__ void computeTruthModelCoshBasis(Batches &batches)
 {
    const bool isMinus = batches.extra[0] < 0.0;
    const bool isPlus = batches.extra[0] > 0.0;
+   #pragma omp parallel for
    for (std::size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       double x = batches.args[0][i];
       // Enforce sign compatibility
@@ -891,6 +949,7 @@ __rooglobal__ void computeVoigtian(Batches &batches)
    Batch W = batches.args[2];
    Batch S = batches.args[3];
    const double invSqrt2 = 0.707106781186547524400844362105;
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double arg = (X[i] - M[i]) * (X[i] - M[i]);
       if (S[i] == 0.0 && W[i] == 0.0) {
@@ -904,6 +963,7 @@ __rooglobal__ void computeVoigtian(Batches &batches)
       }
    }
 
+   #pragma omp parallel for
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (S[i] != 0.0 && W[i] != 0.0) {
          if (batches.output[i] < 0)

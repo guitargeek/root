@@ -32,11 +32,9 @@ public:
    const double *__restrict _array = nullptr;
    bool _isVector = false;
 
-#ifdef __CUDACC__
-   __device__ constexpr double operator[](std::size_t i) const noexcept { return _isVector ? _array[i] : _array[0]; }
-#else
-   constexpr double operator[](std::size_t i) const noexcept { return _array[i]; }
-#endif // #ifdef __CUDACC__
+   // Access the value for event `i`. Non-vector (scalar) inputs always return
+   // their single value, so the same access pattern is safe on CPU and GPU.
+   __roodevice__ constexpr double operator[](std::size_t i) const noexcept { return _isVector ? _array[i] : _array[0]; }
 };
 
 class Batches {
