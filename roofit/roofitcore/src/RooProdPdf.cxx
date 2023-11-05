@@ -414,15 +414,15 @@ void RooProdPdf::calculateBatch(RooAbsArg const *caller, const RooProdPdf::Cache
                                 size_t nEvents, RooFit::Detail::DataMap const &dataMap) const
 {
    if (cache._isRearranged) {
-      auto numerator = dataMap.at(cache._rearrangedNum.get());
-      auto denominator = dataMap.at(cache._rearrangedDen.get());
-      RooBatchCompute::compute(dataMap.config(caller), RooBatchCompute::Ratio, output, nEvents,
-                               {numerator, denominator});
+      //auto numerator = dataMap.at(cache._rearrangedNum.get());
+      //auto denominator = dataMap.at(cache._rearrangedDen.get());
+      //RooBatchCompute::compute(dataMap.config(caller), RooBatchCompute::Ratio, output, nEvents,
+                               //{numerator, denominator});
    } else {
       RooBatchCompute::VarVector factors;
       factors.reserve(cache._partList.size());
-      for (const RooAbsArg *i : cache._partList) {
-         auto span = dataMap.at(i);
+      for (std::size_t i = 0; i < cache._partList.size(); ++i) {
+         auto span = dataMap.at(cache._partList, i);
          factors.push_back(span);
       }
       RooBatchCompute::ArgVector special{static_cast<double>(factors.size())};

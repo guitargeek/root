@@ -55,7 +55,7 @@ private:
    friend class RooPolynomial;
 
    static void computeBatchImpl(RooAbsArg const* caller, double *output, size_t nEvents, RooFit::Detail::DataMap const &,
-                                RooAbsReal const &x, RooArgList const &coefs, int lowestOrder);
+                                RooArgProxy const &x, RooListProxy const &coefs, int lowestOrder);
 
    static void fillCoeffValues(std::vector<double> &wksp, RooListProxy const &coefList);
 

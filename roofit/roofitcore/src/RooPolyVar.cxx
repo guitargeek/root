@@ -131,7 +131,7 @@ void RooPolyVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
 }
 
 void RooPolyVar::computeBatchImpl(RooAbsArg const* caller, double *output, size_t nEvents,
-                                  RooFit::Detail::DataMap const &dataMap, RooAbsReal const &x, RooArgList const &coefs,
+                                  RooFit::Detail::DataMap const &dataMap, RooArgProxy const &x, RooListProxy const &coefs,
                                   int lowestOrder)
 {
    if (coefs.empty()) {
@@ -151,8 +151,8 @@ void RooPolyVar::computeBatchImpl(RooAbsArg const* caller, double *output, size_
       vars.push_back(i == 0 ? std::span<const double>{&one, 1} : std::span<const double>{&zero, 1});
    }
 
-   for (RooAbsArg *coef : coefs) {
-      vars.push_back(dataMap.at(coef));
+   for (std::size_t i = 0; i < coefs.size(); ++i) {
+      vars.push_back(dataMap.at(coefs, i));
    }
    vars.push_back(dataMap.at(&x));
    RooBatchCompute::ArgVector extraArgs{double(vars.size() - 1)};
@@ -163,7 +163,7 @@ void RooPolyVar::computeBatchImpl(RooAbsArg const* caller, double *output, size_
 void RooPolyVar::computeBatch(double *output, size_t nEvents,
                               RooFit::Detail::DataMap const &dataMap) const
 {
-   computeBatchImpl(this, output, nEvents, dataMap, _x.arg(), _coefList, _lowestOrder);
+   computeBatchImpl(this, output, nEvents, dataMap, _x, _coefList, _lowestOrder);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

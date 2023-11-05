@@ -380,9 +380,8 @@ void RooProduct::computeBatch(double* output, size_t nEvents, RooFit::Detail::Da
     output[i] = 1.;
   }
 
-  for (const auto item : _compRSet) {
-    auto rcomp = static_cast<const RooAbsReal*>(item);
-    auto componentValues = dataMap.at(rcomp);
+  for (std::size_t i = 0; i < _compRSet.size(); ++i) {
+    auto componentValues = dataMap.at(_compRSet, i);
 
     for (unsigned int i = 0; i < nEvents; ++i) {
       output[i] *= componentValues.size() == 1 ? componentValues[0] : componentValues[i];

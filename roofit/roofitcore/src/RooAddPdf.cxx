@@ -557,7 +557,7 @@ void RooAddPdf::computeBatch(double* output, size_t nEvents, RooFit::Detail::Dat
 
   _coefCache.resize(_pdfList.size());
   for(std::size_t i = 0; i < _coefList.size(); ++i) {
-    auto coefVals = dataMap.at(&_coefList[i]);
+    auto coefVals = dataMap.at(_coefList, i);
     // We don't support per-event coefficients in this function. If the CPU
     // mode is used, we can just fall back to the RooAbsReal implementation.
     // With CUDA, we can't do that because the inputs might be on the device.
@@ -584,7 +584,7 @@ void RooAddPdf::computeBatch(double* output, size_t nEvents, RooFit::Detail::Dat
     auto pdf = static_cast<RooAbsPdf*>(&_pdfList[pdfNo]);
     if (pdf->isSelectedComp())
     {
-      pdfs.push_back(dataMap.at(pdf));
+      pdfs.push_back(dataMap.at(_pdfList, pdfNo));
       coefs.push_back(_coefCache[pdfNo] / cache->suppNormVal(pdfNo) );
     }
   }

@@ -204,7 +204,7 @@ void RooHistPdf::computeBatch(double* output, size_t nEvents, RooFit::Detail::Da
       return;
   }
 
-  auto xVals = dataMap.at(_pdfObsList[0]);
+  auto xVals = dataMap.at(_pdfObsList, 0);
   _dataHist->weights(output, xVals, _intOrder, true, _cdfBoundaries);
 }
 

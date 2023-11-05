@@ -97,8 +97,8 @@ void RooConstraintSum::computeBatch(double *output, size_t /*size*/,
 {
    double sum(0);
 
-   for (const auto comp : _set1) {
-      sum -= std::log(dataMap.at(comp)[0]);
+   for (std::size_t i = 0; i < _set1.size(); ++i) {
+      sum -= std::log(dataMap.at(_set1, i)[0]);
    }
 
    output[0] = sum;

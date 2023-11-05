@@ -14,6 +14,8 @@
 #define RooFit_Detail_DataMap_h
 
 #include <RooAbsArg.h>
+#include <RooArgProxy.h>
+#include <RooCollectionProxy.h>
 
 #include <ROOT/RSpan.hxx>
 
@@ -23,9 +25,6 @@
 #include <map>
 #include <stdexcept>
 #include <sstream>
-
-template <class T>
-class RooTemplateProxy;
 
 namespace RooBatchCompute {
 class Config;
@@ -47,8 +46,7 @@ class DataKey {
 public:
    inline DataKey(RooAbsArg const *arg) : _ptr{arg->namePtr()} {}
    inline DataKey(TNamed const *arg) : _ptr{arg} {}
-   template <class T>
-   inline DataKey(RooTemplateProxy<T> const &proxy) : DataKey{&*proxy}
+   inline DataKey(RooArgProxy const &proxy) : DataKey{proxy.absArg()}
    {
    }
 
@@ -98,28 +96,27 @@ public:
 
    void setConfig(RooAbsArg const *arg, RooBatchCompute::Config const &config);
 
-   std::span<const double> at(RooAbsArg const *arg, RooAbsArg const *caller = nullptr);
-
-   inline std::span<const double> at(RooAbsArg const *arg, RooAbsArg const *caller = nullptr) const
+   template <class T>
+   inline std::span<const double> at(RooCollectionProxy<T> const &proxy, std::size_t i) const
    {
-      return const_cast<DataMap *>(this)->at(arg, caller);
+      return at(&proxy[i]);
    }
 
-   template <class T>
-   inline std::span<const double> at(RooTemplateProxy<T> const &proxy)
+   inline std::span<const double> at(RooArgProxy const &proxy) const
    {
-      return at(&proxy.arg(), proxy.owner());
-   }
-
-   template <class T>
-   inline std::span<const double> at(RooTemplateProxy<T> const &proxy) const
-   {
-      return at(&proxy.arg(), proxy.owner());
+      return at(proxy.absArg());
    }
 
    RooBatchCompute::Config config(RooAbsArg const *arg) const;
 
 private:
+   std::span<const double> at(RooAbsArg const *arg);
+
+   inline std::span<const double> at(RooAbsArg const *arg) const
+   {
+      return const_cast<DataMap *>(this)->at(arg);
+   }
+
    std::vector<std::span<const double>> _dataMap;
    std::vector<RooBatchCompute::Config> _cfgs;
 };
