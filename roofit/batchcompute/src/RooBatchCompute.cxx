@@ -26,6 +26,8 @@ This file contains the code for cpu computations using the RooBatchCompute libra
 #include <ROOT/RConfig.hxx>
 #include <ROOT/TExecutor.hxx>
 
+#include <ROOT/RVec.hxx>
+
 #include <Math/Util.h>
 
 #include <algorithm>
@@ -50,7 +52,8 @@ void fillBatches(Batches &batches, RestrictArr output, size_t nEvents, std::size
    batches._output = output;
 }
 
-void fillArrays(std::vector<Batch> &arrays, const VarVector &vars, double *buffer)
+template<class Vec_t>
+void fillArrays(Vec_t &arrays, const VarVector &vars, double *buffer)
 {
 
    arrays.resize(vars.size());
@@ -63,8 +66,9 @@ void fillArrays(std::vector<Batch> &arrays, const VarVector &vars, double *buffe
       } else if (span.size() > 1)
          arrays[i].set(span.data(), true);
       else {
-         std::fill_n(&buffer[i * bufferSize], bufferSize, span.data()[0]);
-         arrays[i].set(&buffer[i * bufferSize], false);
+         arrays[i].set(span.data(), false);
+         //std::fill_n(&buffer[i * bufferSize], bufferSize, span.data()[0]);
+         //arrays[i].set(&buffer[i * bufferSize], false);
       }
    }
 }
@@ -113,68 +117,101 @@ public:
    void compute(Config const &, Computer computer, RestrictArr output, size_t nEvents, const VarVector &vars,
                 ArgVector &extraArgs) override
    {
-      static std::vector<double> buffer;
-      buffer.resize(vars.size() * bufferSize);
+      //ROOT::RVec<double> buffer;
+      //buffer.resize(vars.size() * bufferSize);
 
       if (ROOT::IsImplicitMTEnabled()) {
-         ROOT::Internal::TExecutor ex;
-         std::size_t nThreads = ex.GetPoolSize();
+         //ROOT::Internal::TExecutor ex;
+         //std::size_t nThreads = ex.GetPoolSize();
 
-         std::size_t nEventsPerThread = nEvents / nThreads + (nEvents % nThreads > 0);
+         //std::size_t nEventsPerThread = nEvents / nThreads + (nEvents % nThreads > 0);
 
-         // Reset the number of threads to the number we actually need given nEventsPerThread
-         nThreads = nEvents / nEventsPerThread + (nEvents % nEventsPerThread > 0);
+         //// Reset the number of threads to the number we actually need given nEventsPerThread
+         //nThreads = nEvents / nEventsPerThread + (nEvents % nEventsPerThread > 0);
 
-         auto task = [&](std::size_t idx) -> int {
-            // Fill a std::vector<Batches> with the same object and with ~nEvents/nThreads
-            // Then advance every object but the first to split the work between threads
-            Batches batches;
-            std::vector<Batch> arrays;
-            fillBatches(batches, output, nEventsPerThread, vars.size(), extraArgs);
-            fillArrays(arrays, vars, buffer.data());
-            batches._arrays = arrays.data();
-            batches.advance(batches.getNEvents() * idx);
+         //auto task = [&](std::size_t idx) -> int {
+            //// Fill a std::vector<Batches> with the same object and with ~nEvents/nThreads
+            //// Then advance every object but the first to split the work between threads
+            //Batches batches;
+            //ROOT::RVec<Batch> arrays;
+            //fillBatches(batches, output, nEventsPerThread, vars.size(), extraArgs);
+            //fillArrays(arrays, vars, buffer.data());
+            //batches._arrays = arrays.data();
+            //batches.advance(batches.getNEvents() * idx);
 
-            // Set the number of events of the last Batches object as the remaining events
-            if (idx == nThreads - 1) {
-               batches.setNEvents(nEvents - idx * batches.getNEvents());
-            }
+            //// Set the number of events of the last Batches object as the remaining events
+            //if (idx == nThreads - 1) {
+               //batches.setNEvents(nEvents - idx * batches.getNEvents());
+            //}
 
-            std::size_t events = batches.getNEvents();
-            batches.setNEvents(bufferSize);
-            while (events > bufferSize) {
-               _computeFunctions[computer](batches);
-               batches.advance(bufferSize);
-               events -= bufferSize;
-            }
-            batches.setNEvents(events);
-            _computeFunctions[computer](batches);
-            return 0;
-         };
+            //std::size_t events = batches.getNEvents();
+            //batches.setNEvents(bufferSize);
+            //while (events > bufferSize) {
+               //_computeFunctions[computer](batches);
+               //batches.advance(bufferSize);
+               //events -= bufferSize;
+            //}
+            //batches.setNEvents(events);
+            //_computeFunctions[computer](batches);
+            //return 0;
+         //};
 
-         std::vector<std::size_t> indices(nThreads);
-         for (unsigned int i = 1; i < nThreads; i++) {
-            indices[i] = i;
-         }
-         ex.Map(task, indices);
+         //std::vector<std::size_t> indices(nThreads);
+         //for (unsigned int i = 1; i < nThreads; i++) {
+            //indices[i] = i;
+         //}
+         //ex.Map(task, indices);
       } else {
          // Fill a std::vector<Batches> with the same object and with ~nEvents/nThreads
          // Then advance every object but the first to split the work between threads
+
+         //#pragma omp parallel for
+         ////#pragma omp parallel for schedule(static,1)
+         //for (std::size_t i = 0; i < nEvents / bufferSize; ++i) {
+            //Batches batches;
+            //ROOT::RVec<Batch> arrays;
+            //fillBatches(batches, output, nEvents, vars.size(), extraArgs);
+            //fillArrays(arrays, vars, buffer.data());
+            //batches._arrays = arrays.data();
+
+            //std::size_t events = batches.getNEvents();
+            //batches.setNEvents(bufferSize);
+
+            //batches.advance(i * bufferSize);
+
+            //_computeFunctions[computer](batches);
+         //}
+
          Batches batches;
-         std::vector<Batch> arrays;
+         ROOT::RVec<Batch> arrays;
          fillBatches(batches, output, nEvents, vars.size(), extraArgs);
-         fillArrays(arrays, vars, buffer.data());
+         fillArrays(arrays, vars, nullptr);
          batches._arrays = arrays.data();
 
          std::size_t events = batches.getNEvents();
-         batches.setNEvents(bufferSize);
-         while (events > bufferSize) {
-            _computeFunctions[computer](batches);
-            batches.advance(bufferSize);
-            events -= bufferSize;
-         }
-         batches.setNEvents(events);
+         //batches.setNEvents(bufferSize);
+         //while (events > bufferSize) {
+            //batches.advance(bufferSize);
+            //events -= bufferSize;
+         //}
+         //batches.setNEvents(events);
          _computeFunctions[computer](batches);
+
+         //Batches batches;
+         //ROOT::RVec<Batch> arrays;
+         //fillBatches(batches, output, nEvents, vars.size(), extraArgs);
+         //fillArrays(arrays, vars, buffer.data());
+         //batches._arrays = arrays.data();
+
+         //std::size_t events = batches.getNEvents();
+         //batches.setNEvents(bufferSize);
+         //while (events > bufferSize) {
+            //_computeFunctions[computer](batches);
+            //batches.advance(bufferSize);
+            //events -= bufferSize;
+         //}
+         //batches.setNEvents(events);
+         //_computeFunctions[computer](batches);
       }
    }
    /// Return the sum of an input array

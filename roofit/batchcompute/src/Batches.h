@@ -48,11 +48,11 @@ public:
       _isVector = isVector;
    }
    inline void advance(std::size_t _nEvents) { _array += _isVector * _nEvents; }
-#ifdef __CUDACC__
+//#ifdef __CUDACC__
    __roodevice__ constexpr double operator[](std::size_t i) const noexcept { return _isVector ? _array[i] : _array[0]; }
-#else
-   constexpr double operator[](std::size_t i) const noexcept { return _array[i]; }
-#endif // #ifdef __CUDACC__
+//#else
+   //constexpr double operator[](std::size_t i) const noexcept { return _array[i]; }
+//#endif // #ifdef __CUDACC__
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
