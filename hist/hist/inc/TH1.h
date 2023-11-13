@@ -82,6 +82,17 @@ public:
          kNeutral = 2,  ///< Adapt to the global flag
    };
 
+   /// Enumeration specifying inconsistencies between two histograms,
+   /// in increasing severity.
+   enum EInconsistencyBits {
+      kFullyConsistent = 0,
+      kDifferentLabels = BIT(0),
+      kDifferentBinLimits = BIT(1),
+      kDifferentAxisLimits = BIT(2),
+      kDifferentNumberOfBins = BIT(3),
+      kDifferentDimensions = BIT(4)
+   };
+
    friend class TH1Merger;
 
 protected:
@@ -121,17 +132,6 @@ public:
 
 private:
 
-   /// Enumeration specifying inconsistencies between two histograms,
-   /// in increasing severity.
-   enum EInconsistencyBits {
-      kFullyConsistent = 0,
-      kDifferentLabels = BIT(0),
-      kDifferentBinLimits = BIT(1),
-      kDifferentAxisLimits = BIT(2),
-      kDifferentNumberOfBins = BIT(3),
-      kDifferentDimensions = BIT(4)
-   };
-
    void    Build();
 
    TH1(const TH1&) = delete;
@@ -167,7 +167,6 @@ protected:
    static bool CheckBinLabels(const TAxis* a1, const TAxis* a2);
    static bool CheckEqualAxes(const TAxis* a1, const TAxis* a2);
    static bool CheckConsistentSubAxes(const TAxis *a1, Int_t firstBin1, Int_t lastBin1, const TAxis *a2, Int_t firstBin2=0, Int_t lastBin2=0);
-   static EInconsistencyBits CheckConsistency(const TH1* h1, const TH1* h2);
    EInconsistencyBits LoggedInconsistency(const char* name, const TH1* h1, const TH1* h2, bool useMerge=false) const;
 
 public:
@@ -437,6 +436,7 @@ public:
            void     UseCurrentStyle() override;
    static  TH1     *TransformHisto(TVirtualFFT *fft, TH1* h_output,  Option_t *option);
 
+   static EInconsistencyBits CheckConsistency(const TH1* h1, const TH1* h2);
 
    // TODO: Remove obsolete methods in v6-04
    virtual Double_t GetCellContent(Int_t binx, Int_t biny) const
