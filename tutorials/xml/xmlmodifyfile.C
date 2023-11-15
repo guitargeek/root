@@ -11,8 +11,8 @@
 
 #include "TXMLEngine.h"
 
-// scan node and returns number of childs
-// for each child create info node with name and number of childs
+// scan node and returns number of children
+// for each child create info node with name and number of children
 int ScanNode(TXMLEngine &xml, XMLNodePointer_t node)
 {
    int cnt = 0;

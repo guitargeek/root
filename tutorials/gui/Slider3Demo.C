@@ -34,7 +34,7 @@ private:
    TGHorizontalFrame   *fHframe0, *fHframe1, *fHframe2;
    TGLayoutHints       *fBly, *fBfly1, *fBfly2, *fBfly3;
    TGTripleHSlider     *fHslider1;
-   TGTextEntry         *fTeh1, *fTeh2, *fTeh3;
+   TGTextEntry         *fTextEntryH1, *fTextEntryH2, *fTextEntryH3;
    TGTextBuffer        *fTbh1, *fTbh2, *fTbh3;
    TGCheckButton       *fCheck1, *fCheck2;
 
@@ -94,23 +94,23 @@ TTripleSliderDemo::TTripleSliderDemo() : TGMainFrame(gClient->GetRoot(), 100, 10
 
    fHframe2 = new TGHorizontalFrame(this, 0, 0, 0);
 
-   fTeh1 = new TGTextEntry(fHframe2, fTbh1 = new TGTextBuffer(5), HId1);
-   fTeh2 = new TGTextEntry(fHframe2, fTbh2 = new TGTextBuffer(5), HId2);
-   fTeh3 = new TGTextEntry(fHframe2, fTbh3 = new TGTextBuffer(5), HId3);
+   fTextEntryH1 = new TGTextEntry(fHframe2, fTbh1 = new TGTextBuffer(5), HId1);
+   fTextEntryH2 = new TGTextEntry(fHframe2, fTbh2 = new TGTextBuffer(5), HId2);
+   fTextEntryH3 = new TGTextEntry(fHframe2, fTbh3 = new TGTextBuffer(5), HId3);
 
-   fTeh1->SetToolTipText("Minimum (left) Value of Slider");
-   fTeh2->SetToolTipText("Pointer Position Value");
-   fTeh3->SetToolTipText("Maximum (right) Value of Slider");
+   fTextEntryH1->SetToolTipText("Minimum (left) Value of Slider");
+   fTextEntryH2->SetToolTipText("Pointer Position Value");
+   fTextEntryH3->SetToolTipText("Maximum (right) Value of Slider");
 
    fTbh1->AddText(0, "0.0");
    fTbh2->AddText(0, "0.0");
    fTbh3->AddText(0, "0.0");
 
-   fTeh1->Connect("TextChanged(char*)", "TTripleSliderDemo", this,
+   fTextEntryH1->Connect("TextChanged(char*)", "TTripleSliderDemo", this,
                   "DoText(char*)");
-   fTeh2->Connect("TextChanged(char*)", "TTripleSliderDemo", this,
+   fTextEntryH2->Connect("TextChanged(char*)", "TTripleSliderDemo", this,
                   "DoText(char*)");
-   fTeh3->Connect("TextChanged(char*)", "TTripleSliderDemo", this,
+   fTextEntryH3->Connect("TextChanged(char*)", "TTripleSliderDemo", this,
                   "DoText(char*)");
 
    fCheck1->Connect("Clicked()", "TTripleSliderDemo", this,
@@ -131,9 +131,9 @@ TTripleSliderDemo::TTripleSliderDemo() : TGMainFrame(gClient->GetRoot(), 100, 10
    fHframe0->AddFrame(fCheck1, fBfly2);
    fHframe0->AddFrame(fCheck2, fBfly2);
    fHframe1->AddFrame(fHslider1, fBly);
-   fHframe2->AddFrame(fTeh1, fBfly2);
-   fHframe2->AddFrame(fTeh2, fBfly1);
-   fHframe2->AddFrame(fTeh3, fBfly3);
+   fHframe2->AddFrame(fTextEntryH1, fBfly2);
+   fHframe2->AddFrame(fTextEntryH2, fBfly1);
+   fHframe2->AddFrame(fTextEntryH3, fBfly3);
 
    AddFrame(fHframe0, fBly);
    AddFrame(fHframe1, fBly);
@@ -226,23 +226,23 @@ void TTripleSliderDemo::DoSlider()
    sprintf(buf, "%.3f", fHslider1->GetMinPosition());
    fTbh1->Clear();
    fTbh1->AddText(0, buf);
-   fTeh1->SetCursorPosition(fTeh1->GetCursorPosition());
-   fTeh1->Deselect();
-   gClient->NeedRedraw(fTeh1);
+   fTextEntryH1->SetCursorPosition(fTextEntryH1->GetCursorPosition());
+   fTextEntryH1->Deselect();
+   gClient->NeedRedraw(fTextEntryH1);
 
    sprintf(buf, "%.3f", fHslider1->GetPointerPosition());
    fTbh2->Clear();
    fTbh2->AddText(0, buf);
-   fTeh2->SetCursorPosition(fTeh2->GetCursorPosition());
-   fTeh2->Deselect();
-   gClient->NeedRedraw(fTeh2);
+   fTextEntryH2->SetCursorPosition(fTextEntryH2->GetCursorPosition());
+   fTextEntryH2->Deselect();
+   gClient->NeedRedraw(fTextEntryH2);
 
    sprintf(buf, "%.3f", fHslider1->GetMaxPosition());
    fTbh3->Clear();
    fTbh3->AddText(0, buf);
-   fTeh3->SetCursorPosition(fTeh3->GetCursorPosition());
-   fTeh3->Deselect();
-   gClient->NeedRedraw(fTeh3);
+   fTextEntryH3->SetCursorPosition(fTextEntryH3->GetCursorPosition());
+   fTextEntryH3->Deselect();
+   gClient->NeedRedraw(fTextEntryH3);
 
    fFitFcn->SetParameters(fHslider1->GetPointerPosition(), 0, 1);
    fFitFcn->SetRange(fHslider1->GetMinPosition()-0.05,

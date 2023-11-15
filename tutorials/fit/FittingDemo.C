@@ -6,7 +6,7 @@
 ///
 /// ~~~{.cpp}
 /// root > .x FittingDemo.C  (using the cling interpreter)
-/// root > .x FittingDemo.C+ (using the native complier via ACLIC)
+/// root > .x FittingDemo.C+ (using the native compiler via ACLIC)
 /// ~~~
 ///
 /// \macro_image

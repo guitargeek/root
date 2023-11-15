@@ -51,7 +51,7 @@ void decomposeQR() {
       }
    }
 
-   // chech also that Q is orthogonal (Q^T * Q = I)
+   // check also that Q is orthogonal (Q^T * Q = I)
    auto QT = Q;
    QT.Transpose(Q);
 

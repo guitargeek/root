@@ -355,7 +355,7 @@ private:
    TGHSlider         *fHslider1, *fHslider2;
    TGVSlider         *fVslider1;
    TGDoubleVSlider   *fVslider2;
-   TGTextEntry       *fTeh1, *fTev1, *fTeh2, *fTev2;
+   TGTextEntry       *fTextEntryH1, *fTev1, *fTextEntryH2, *fTev2;
    TGTextBuffer      *fTbh1, *fTbv1, *fTbh2, *fTbv2;
 
 public:
@@ -1073,8 +1073,8 @@ TestDialog::TestDialog(const TGWindow *p, const TGWindow *main, UInt_t w,
    // make tab yellow
    Pixel_t yellow;
    gClient->GetColorByName("yellow", yellow);
-   TGTabElement *tabel = fTab->GetTabTab("Tab 3");
-   tabel->ChangeBackground(yellow);
+   TGTabElement *tabElement = fTab->GetTabTab("Tab 3");
+   tabElement->ChangeBackground(yellow);
 
    //-------------- end embedded canvas demo
 
@@ -1088,7 +1088,7 @@ TestDialog::TestDialog(const TGWindow *p, const TGWindow *main, UInt_t w,
    bt->Connect("Clicked()", "TestDialog", this, "HandleButtons()");
 
    fF4->AddFrame(fListBox = new TGListBox(fF4, 89), fL3);
-   fF4->AddFrame(fCheckMulti = new TGCheckButton(fF4, "&Mutli Selectable", 92), fL3);
+   fF4->AddFrame(fCheckMulti = new TGCheckButton(fF4, "&Multi Selectable", 92), fL3);
    fCheckMulti->Connect("Clicked()", "TestDialog", this, "HandleButtons()");
    tf->AddFrame(fF4, fL3);
 
@@ -1612,12 +1612,12 @@ TestSliders::TestSliders(const TGWindow *p, const TGWindow *main,
 
    fVframe1 = new TGVerticalFrame(fMain, 0, 0, 0);
 
-   fTeh1 = new TGTextEntry(fVframe1, fTbh1 = new TGTextBuffer(10), HId1);
+   fTextEntryH1 = new TGTextEntry(fVframe1, fTbh1 = new TGTextBuffer(10), HId1);
    fTev1 = new TGTextEntry(fVframe1, fTbv1 = new TGTextBuffer(10), VId1);
    fTbh1->AddText(0, "0");
    fTbv1->AddText(0, "0");
 
-   fTeh1->Connect("TextChanged(char*)", "TestSliders", this, "DoText(char*)");
+   fTextEntryH1->Connect("TextChanged(char*)", "TestSliders", this, "DoText(char*)");
    fTev1->Connect("TextChanged(char*)", "TestSliders", this, "DoText(char*)");
 
    fHslider1 = new TGHSlider(fVframe1, 100, kSlider1 | kScaleBoth, HSId1);
@@ -1631,12 +1631,12 @@ TestSliders::TestSliders(const TGWindow *p, const TGWindow *main,
    fVframe1->Resize(100, 100);
 
    fVframe2 = new TGVerticalFrame(fMain, 0, 0, 0);
-   fTeh2 = new TGTextEntry(fVframe2, fTbh2 = new TGTextBuffer(10), HId2);
+   fTextEntryH2 = new TGTextEntry(fVframe2, fTbh2 = new TGTextBuffer(10), HId2);
    fTev2 = new TGTextEntry(fVframe2, fTbv2 = new TGTextBuffer(10), VId2);
    fTbh2->AddText(0, "0");
    fTbv2->AddText(0, "0");
 
-   fTeh2->Connect("TextChanged(char*)", "TestSliders", this, "DoText(char*)");
+   fTextEntryH2->Connect("TextChanged(char*)", "TestSliders", this, "DoText(char*)");
    fTev2->Connect("TextChanged(char*)", "TestSliders", this, "DoText(char*)");
 
    fHslider2 = new TGHSlider(fVframe2, 150, kSlider2 | kScaleBoth, HSId2);
@@ -1657,12 +1657,12 @@ TestSliders::TestSliders(const TGWindow *p, const TGWindow *main,
 
    fVframe1->AddFrame(fHslider1, fBly);
    fVframe1->AddFrame(fVslider1, fBly);
-   fVframe1->AddFrame(fTeh1, fBly);
+   fVframe1->AddFrame(fTextEntryH1, fBly);
    fVframe1->AddFrame(fTev1, fBly);
 
    fVframe2->AddFrame(fHslider2, fBly);
    fVframe2->AddFrame(fVslider2, fBly);
-   fVframe2->AddFrame(fTeh2, fBly);
+   fVframe2->AddFrame(fTextEntryH2, fBly);
    fVframe2->AddFrame(fTev2, fBly);
 
    fMain->AddFrame(fVframe2, fBfly1);
@@ -1755,9 +1755,9 @@ void TestSliders::DoSlider(Int_t pos)
       fTbh1->Clear();
       fTbh1->AddText(0, buf);
       // Re-align the cursor with the characters.
-      fTeh1->SetCursorPosition(fTeh1->GetCursorPosition());
-      fTeh1->Deselect();
-      gClient->NeedRedraw(fTeh1);
+      fTextEntryH1->SetCursorPosition(fTextEntryH1->GetCursorPosition());
+      fTextEntryH1->Deselect();
+      gClient->NeedRedraw(fTextEntryH1);
 #ifdef CINT_FIXED
       break;
    case VSId1:
@@ -1779,9 +1779,9 @@ void TestSliders::DoSlider(Int_t pos)
 #endif
       fTbh2->Clear();
       fTbh2->AddText(0, buf);
-      fTeh2->SetCursorPosition(fTeh2->GetCursorPosition());
-      fTeh2->Deselect();
-      gClient->NeedRedraw(fTeh2);
+      fTextEntryH2->SetCursorPosition(fTextEntryH2->GetCursorPosition());
+      fTextEntryH2->Deselect();
+      gClient->NeedRedraw(fTextEntryH2);
 #ifdef CINT_FIXED
       break;
    case VSId2:

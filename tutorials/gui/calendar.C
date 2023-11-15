@@ -171,7 +171,7 @@ void HtmlMonthTable::BuildDays()
 
          fHtml += "<TD align=left width=14% ";
 
-         // hightlight today's cell
+         // highlight today's cell
          if ((fToday.GetYear() == fYear) &&
              (fToday.GetMonth() == fMonth) &&
              (fToday.GetDay() == day)) {

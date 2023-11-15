@@ -1,6 +1,6 @@
 /// \file
 /// \ingroup tutorial_geom
-/// Macro allowing to vizualize tessellations from Wavefront's .obj format.
+/// Macro allowing to visualize tessellations from Wavefront's .obj format.
 ///
 /// \image html geom_visualizeWavefrontObj.png width=500px
 /// \macro_code

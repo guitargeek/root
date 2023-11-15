@@ -184,13 +184,13 @@ auto doH1 = [](TTreeReader &reader) {
    auto hdmd = new TH1F("hdmd", "Dm_d", 40, 0.13, 0.17);
    auto h2 = new TH2F("h2", "ptD0 vs Dm_d", 30, 0.135, 0.165, 30, -3, 6);
 
-   TTreeReaderValue<Float_t> fPtds_d(reader, "ptds_d");
+   TTreeReaderValue<Float_t> fPtDs_d(reader, "ptds_d");
    TTreeReaderValue<Float_t> fEtads_d(reader, "etads_d");
    TTreeReaderValue<Float_t> fDm_d(reader, "dm_d");
    TTreeReaderValue<Int_t> fIk(reader, "ik");
    TTreeReaderValue<Int_t> fIpi(reader, "ipi");
    TTreeReaderValue<Int_t> fIpis(reader, "ipis");
-   TTreeReaderValue<Float_t> fPtd0_d(reader, "ptd0_d");
+   TTreeReaderValue<Float_t> fPtD0_d(reader, "ptd0_d");
    TTreeReaderValue<Float_t> fMd0_d(reader, "md0_d");
    TTreeReaderValue<Float_t> fRpd0_t(reader, "rpd0_t");
    TTreeReaderArray<Int_t> fNhitrp(reader, "nhitrp");
@@ -205,7 +205,7 @@ auto doH1 = [](TTreeReader &reader) {
       // Return as soon as a bad entry is detected
       if (TMath::Abs(*fMd0_d - 1.8646) >= 0.04)
          continue;
-      if (*fPtds_d <= 2.5)
+      if (*fPtDs_d <= 2.5)
          continue;
       if (TMath::Abs(*fEtads_d) >= 1.5)
          continue;
@@ -231,7 +231,7 @@ auto doH1 = [](TTreeReader &reader) {
 
       // Fill the histograms
       hdmd->Fill(*fDm_d);
-      h2->Fill(*fDm_d, *fRpd0_t / 0.029979 * 1.8646 / *fPtd0_d);
+      h2->Fill(*fDm_d, *fRpd0_t / 0.029979 * 1.8646 / *fPtD0_d);
    }
 
    // Return a list
@@ -249,7 +249,7 @@ auto doH1fillList = [](TTreeReader &reader) {
    // Entry list
    auto elist = new TEntryList("elist", "H1 selection from Cut");
 
-   TTreeReaderValue<Float_t> fPtds_d(reader, "ptds_d");
+   TTreeReaderValue<Float_t> fPtDs_d(reader, "ptds_d");
    TTreeReaderValue<Float_t> fEtads_d(reader, "etads_d");
    TTreeReaderValue<Int_t> fIk(reader, "ik");
    TTreeReaderValue<Int_t> fIpi(reader, "ipi");
@@ -267,7 +267,7 @@ auto doH1fillList = [](TTreeReader &reader) {
       // Return as soon as a bad entry is detected
       if (TMath::Abs(*fMd0_d - 1.8646) >= 0.04)
          continue;
-      if (*fPtds_d <= 2.5)
+      if (*fPtDs_d <= 2.5)
          continue;
       if (TMath::Abs(*fEtads_d) >= 1.5)
          continue;
@@ -306,13 +306,13 @@ auto doH1useList = [](TTreeReader &reader) {
    auto h2 = new TH2F("h2", "ptD0 vs Dm_d", 30, 0.135, 0.165, 30, -3, 6);
 
    TTreeReaderValue<Float_t> fDm_d(reader, "dm_d");
-   TTreeReaderValue<Float_t> fPtd0_d(reader, "ptd0_d");
+   TTreeReaderValue<Float_t> fPtD0_d(reader, "ptd0_d");
    TTreeReaderValue<Float_t> fRpd0_t(reader, "rpd0_t");
 
    while (reader.Next()) {
       // Fill the histograms
       hdmd->Fill(*fDm_d);
-      h2->Fill(*fDm_d, *fRpd0_t / 0.029979 * 1.8646 / *fPtd0_d);
+      h2->Fill(*fDm_d, *fRpd0_t / 0.029979 * 1.8646 / *fPtD0_d);
    }
 
    // Return a list
