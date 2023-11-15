@@ -206,7 +206,9 @@ if(NOT ROOT_xml_FOUND)
                        roostats/StandardHypoTestDemo.C
                        roostats/StandardHypoTestInvDemo.C
                        roostats/StandardProfileInspectorDemo.C
+                       roostats/StandardProfileInspectorDemo.py
                        roostats/StandardProfileLikelihoodDemo.C
+                       roostats/StandardProfileLikelihoodDemo.py
                        roostats/StandardTestStatDistributionDemo.C
                        roostats/TwoSidedFrequentistUpperLimitWithBands.C)
 endif()
