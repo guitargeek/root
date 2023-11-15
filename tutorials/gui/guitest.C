@@ -1746,60 +1746,32 @@ void TestSliders::DoSlider(Int_t pos)
    char buf[32];
    sprintf(buf, "%d", pos);
 
-#ifdef CINT_FIXED
-   switch (id) {
-   case HSId1:
-#else
    if (id == HSId1) {
-#endif
       fTbh1->Clear();
       fTbh1->AddText(0, buf);
       // Re-align the cursor with the characters.
       fTextEntryH1->SetCursorPosition(fTextEntryH1->GetCursorPosition());
       fTextEntryH1->Deselect();
       gClient->NeedRedraw(fTextEntryH1);
-#ifdef CINT_FIXED
-      break;
-   case VSId1:
-#else
-   }
-   else if (id == VSId1) {
-#endif
+   } else if (id == VSId1) {
       fTbv1->Clear();
       fTbv1->AddText(0, buf);
       fTev1->SetCursorPosition(fTev1->GetCursorPosition());
       fTev1->Deselect();
       gClient->NeedRedraw(fTev1);
-#ifdef CINT_FIXED
-      break;
-   case HSId2:
-#else
-   }
-   else if (id == HSId2) {
-#endif
+   } else if (id == HSId2) {
       fTbh2->Clear();
       fTbh2->AddText(0, buf);
       fTextEntryH2->SetCursorPosition(fTextEntryH2->GetCursorPosition());
       fTextEntryH2->Deselect();
       gClient->NeedRedraw(fTextEntryH2);
-#ifdef CINT_FIXED
-      break;
-   case VSId2:
-#else
-   }
-   else if (id == VSId2) {
-#endif
+   } else if (id == VSId2) {
       sprintf(buf, "%f", fVslider2->GetMinPosition());
       fTbv2->Clear();
       fTbv2->AddText(0, buf);
       fTev2->SetCursorPosition(fTev2->GetCursorPosition());
       fTev2->Deselect();
       gClient->NeedRedraw(fTev2);
-#ifdef CINT_FIXED
-      break;
-   default:
-      break;
-#endif
    }
 }
 

@@ -90,7 +90,7 @@ fc.FluctuateNumDataEntries(False)  # number counting analysis: dataset always ha
 fc.SetNBins(100)  # number of points to test per parameter
 fc.SetTestSize(0.05)
 # fc.SaveBeltToFile(True) # optional
-fcint = fc.GetInterval()
+fcIntegral = fc.GetInterval()
 
 fit = modelWithConstraints.fitTo(data, Save=True, PrintLevel=-1)
 
@@ -117,9 +117,9 @@ print("Profile lower limit on s = ", lrinterval.LowerLimit(s))
 print("Profile upper limit on s = ", lrinterval.UpperLimit(s))
 
 # Get Lower and Upper limits from FeldmanCousins with profile construction
-if fcint:
-    fcul = fcint.UpperLimit(s)
-    fcll = fcint.LowerLimit(s)
+if fcIntegral:
+    fcul = fcIntegral.UpperLimit(s)
+    fcll = fcIntegral.LowerLimit(s)
     print("FC lower limit on s = ", fcll)
     print("FC upper limit on s = ", fcul)
     fcllLine = ROOT.TLine(fcll, 0, fcll, 1)

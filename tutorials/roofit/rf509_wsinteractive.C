@@ -1,8 +1,7 @@
 /// \file
 /// \ingroup tutorial_roofit
 /// \notebook -js
-/// Organization and simultaneous fits: easy interactive access to workspace contents - CINT
-/// to CLING code migration
+/// Organization and simultaneous fits: easy interactive access to workspace contents
 ///
 /// \macro_image
 /// \macro_code
@@ -21,11 +20,6 @@ void rf509_wsinteractive()
    // ------------------------------------------------
 
    // Create a workspace named 'w'
-   // With CINT w could exports its contents to
-   // a same-name C++ namespace in CINT 'namespace w'.
-   // but this does not work anymore in CLING.
-   // so this tutorial is an example on how to
-   // change the code
    RooWorkspace *w1 = new RooWorkspace("w", true);
 
    // Fill workspace with pdf and data in a separate function

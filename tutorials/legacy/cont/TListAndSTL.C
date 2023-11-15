@@ -36,22 +36,6 @@ struct SEnumFunctor {
    }
 };
 
-// A functor for the find_if algorithm
-struct SFind {
-   // using this ugly constructor, since there is problems with std::bindX in CINT
-
-   SFind(const TString &aStr): fToFind(aStr) {
-
-   }
-   bool operator()(TObject *aObj) {
-      TObjString *str(dynamic_cast<TObjString*>(aObj));
-      return !str->String().CompareTo(fToFind);
-   }
-private:
-   const TString fToFind;
-};
-
-
 // The "main" function
 void TListAndSTL()
 {
@@ -70,17 +54,17 @@ void TListAndSTL()
 
    // ### Example #1
    // Running the std::for_each algorithm on the list
-   for_each(stringList.begin(), stringList.end(), SEnumFunctor());
+   std::for_each(stringList.begin(), stringList.end(), SEnumFunctor());
 
    // ### Example #2
    // We can try to find something in the container
    // using the std::find_if algorithm on the list
-   string strToFind("test string #4");
-   SFind func(strToFind.c_str());
+   std::string strToFind("test string #4");
 
    TIterCategory<TList> iter_cat(&stringList);
-   TIterCategory<TList> found
-      = find_if(iter_cat.Begin(), TIterCategory<TList>::End(), func);
+   TIterCategory<TList> found = std::find_if(iter_cat.Begin(), TIterCategory<TList>::End(), [&strToFind](TObject *aObj) {
+      return static_cast<TObjString *>(aObj)->String().Data() == strToFind;
+   });
 
    // Checking the result
    if (!(*found)) {

@@ -29,10 +29,9 @@ void geom_alias()
 
    gEve->FullRedraw3D(kTRUE);
 
-   // EClipType not exported to CINT (see TGLUtil.h):
-   // 0 - no clip, 1 - clip plane, 2 - clip box
+   // kClipNone, kClipPlane, or kClipBox
    auto v = gEve->GetDefaultGLViewer();
-   v->GetClipSet()->SetClipType(TGLClip::EType(2));
+   v->GetClipSet()->SetClipType(TGLClip::kClipBox);
    v->RefreshPadEditor(v);
 
    v->CurrentCamera().RotateRad(-0.5, -2.4);

@@ -117,13 +117,13 @@ void archi() {
    ar1.DrawArrow(13.5,14,15,14,0.012,"|>");
    ar1.DrawArrow(15.1,13,13.51,13,0.012,"|>");
 
-   TPaveText *cint = new TPaveText(1.0,15.0,8.0,17.5);
-   cint->SetFillColor(39);
-   cint->SetBorderSize(1);
-   cint->SetTextSize(0.023);
-   cint->AddText("C++ Interpreter");
-   cint->AddText("and program builder");
-   cint->Draw();
+   TPaveText *cppInterpreter = new TPaveText(1.0,15.0,8.0,17.5);
+   cppInterpreter->SetFillColor(39);
+   cppInterpreter->SetBorderSize(1);
+   cppInterpreter->SetTextSize(0.023);
+   cppInterpreter->AddText("C++ Interpreter");
+   cppInterpreter->AddText("and program builder");
+   cppInterpreter->Draw();
    TPaveText *command = new TPaveText(2.5,13.4,8.0,14.5);
    command->SetTextSize(0.023);
    command->SetFillColor(39);

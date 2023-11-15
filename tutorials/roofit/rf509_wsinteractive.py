@@ -1,8 +1,7 @@
 ## \file
 ## \ingroup tutorial_roofit
 ## \notebook
-## Organization and simultaneous fits: easy interactive access to workspace contents - CINT
-## to CLING code migration
+## Organization and simultaneous fits: easy interactive access to workspace contents
 ##
 ## \macro_image
 ## \macro_code
@@ -51,11 +50,6 @@ def fillWorkspace(w):
 
 
 # Create a workspace named 'w'
-# With CINT w could exports its contents to
-# a same-name C++ namespace in CINT 'namespace w'.
-# but self does not work anymore in CLING.
-# so self tutorial is an example on how to
-# change the code
 w = ROOT.RooWorkspace("w", True)
 
 # Fill workspace with pdf and data in a separate function

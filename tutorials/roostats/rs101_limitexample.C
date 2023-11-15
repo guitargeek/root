@@ -133,7 +133,7 @@ void rs101_limitexample()
    fc.SetNBins(100);                  // number of points to test per parameter
    fc.SetTestSize(.05);
    //  fc.SaveBeltToFile(true); // optional
-   std::unique_ptr<PointSetInterval> fcint{static_cast<PointSetInterval*>(fc.GetInterval())};
+   std::unique_ptr<PointSetInterval> fcIntegral{static_cast<PointSetInterval*>(fc.GetInterval())};
 
    std::unique_ptr<RooFitResult> fit{modelWithConstraints->fitTo(data, Save(true), PrintLevel(-1))};
 
@@ -160,9 +160,9 @@ void rs101_limitexample()
    std::cout << "Profile upper limit on s = " << lrinterval->UpperLimit(*s) << std::endl;
 
    // Get Lower and Upper limits from FeldmanCousins with profile construction
-   if (fcint) {
-      double fcul = fcint->UpperLimit(*s);
-      double fcll = fcint->LowerLimit(*s);
+   if (fcIntegral) {
+      double fcul = fcIntegral->UpperLimit(*s);
+      double fcll = fcIntegral->LowerLimit(*s);
       std::cout << "FC lower limit on s = " << fcll << std::endl;
       std::cout << "FC upper limit on s = " << fcul << std::endl;
       auto fcllLine = new TLine(fcll, 0, fcll, 1);
