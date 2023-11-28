@@ -1,18 +1,15 @@
-/*****************************************************************************
- * Project: RooFit                                                           *
- * Package: RooFitCore                                                       *
- *    File: $Id$
- * Authors:                                                                  *
- *   WV, Wouter Verkerke, UC Santa Barbara, verkerke@slac.stanford.edu       *
- *   DK, David Kirkby,    UC Irvine,         dkirkby@uci.edu                 *
- *                                                                           *
- * Copyright (c) 2000-2005, Regents of the University of California          *
- *                          and Stanford University. All rights reserved.    *
- *                                                                           *
- * Redistribution and use in source and binary forms,                        *
- * with or without modification, are permitted according to the terms        *
- * listed in LICENSE (http://roofit.sourceforge.net/license.txt)             *
- *****************************************************************************/
+/// \cond ROOFIT_INTERNAL
+
+/*
+ * Project: RooFit
+ *
+ * Copyright (c) 2023, CERN
+ *
+ * Redistribution and use in source and binary forms,
+ * with or without modification, are permitted according to the terms
+ * listed in LICENSE (http://roofit.sourceforge.net/license.txt)
+ */
+
 #ifndef ROO_BIN_INTEGRATOR
 #define ROO_BIN_INTEGRATOR
 
@@ -23,8 +20,6 @@
 
 class RooBinIntegrator : public RooAbsIntegrator {
 public:
-   // Constructors, assignment etc
-
    RooBinIntegrator(const RooAbsFunc &function, int numBins = 100);
    RooBinIntegrator(const RooAbsFunc &function, const RooNumIntConfig &config);
 
@@ -39,7 +34,7 @@ public:
       return true;
    }
 
-protected:
+private:
    friend class RooNumIntFactory;
    static void registerIntegrator(RooNumIntFactory &fact);
    RooBinIntegrator(const RooBinIntegrator &);
@@ -48,7 +43,7 @@ protected:
    mutable std::vector<double> _xmin;      ///<! Lower integration bound
    mutable std::vector<double> _xmax;      ///<! Upper integration bound
    std::vector<std::vector<double>> _binb; ///<! list of bin boundaries
-   mutable Int_t _numBins = 0;             ///<! Size of integration range
+   int _numBins = 0;                       ///<! Size of integration range
 
    bool _useIntegrandLimits = false; ///< If true limits of function binding are ued
 
@@ -75,3 +70,5 @@ protected:
 };
 
 #endif
+
+/// \endcond
