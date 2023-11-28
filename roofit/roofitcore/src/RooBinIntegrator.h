@@ -47,25 +47,6 @@ private:
 
    bool _useIntegrandLimits = false; ///< If true limits of function binding are ued
 
-   double *xvec(double xx)
-   {
-      _x[0] = xx;
-      return _x.data();
-   }
-   double *xvec(double xx, double yy)
-   {
-      _x[0] = xx;
-      _x[1] = yy;
-      return _x.data();
-   }
-   double *xvec(double xx, double yy, double zz)
-   {
-      _x[0] = xx;
-      _x[1] = yy;
-      _x[2] = zz;
-      return _x.data();
-   }
-
    std::vector<double> _x; ///<! do not persist
 };
 

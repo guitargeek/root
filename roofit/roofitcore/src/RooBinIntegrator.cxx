@@ -160,8 +160,8 @@ double RooBinIntegrator::integral(const double *)
       for (unsigned int ibin = 0; ibin < binb.size() - 1; ++ibin) {
          const double xhi = binb[ibin + 1];
          const double xlo = binb[ibin];
-         const double xcenter = (xhi + xlo) / 2.;
-         const double binInt = integrand(xvec(xcenter)) * (xhi - xlo);
+         _x[0] = (xhi + xlo) / 2.;
+         const double binInt = integrand(_x.data()) * (xhi - xlo);
          sum += binInt;
       }
    } else if (_function->getDimension() == 2) {
@@ -171,14 +171,14 @@ double RooBinIntegrator::integral(const double *)
       for (unsigned int ibin1 = 0; ibin1 < binbx.size() - 1; ++ibin1) {
          const double x1hi = binbx[ibin1 + 1];
          const double x1lo = binbx[ibin1];
-         double x1center = (x1hi + x1lo) / 2;
+         _x[0] = (x1hi + x1lo) / 2;
 
          for (unsigned int ibin2 = 0; ibin2 < binby.size() - 1; ++ibin2) {
             const double x2hi = binby[ibin2 + 1];
             const double x2lo = binby[ibin2];
-            const double x2center = (x2hi + x2lo) / 2.;
+            _x[1] = (x2hi + x2lo) / 2.;
 
-            const double binInt = integrand(xvec(x1center, x2center)) * (x1hi - x1lo) * (x2hi - x2lo);
+            const double binInt = integrand(_x.data()) * (x1hi - x1lo) * (x2hi - x2lo);
             sum += binInt;
          }
       }
@@ -190,20 +190,19 @@ double RooBinIntegrator::integral(const double *)
       for (unsigned int ibin1 = 0; ibin1 < binbx.size() - 1; ++ibin1) {
          const double x1hi = binbx[ibin1 + 1];
          const double x1lo = binbx[ibin1];
-         double x1center = (x1hi + x1lo) / 2;
+         _x[0] = (x1hi + x1lo) / 2;
 
          for (unsigned int ibin2 = 0; ibin2 < binby.size() - 1; ++ibin2) {
             const double x2hi = binby[ibin2 + 1];
             const double x2lo = binby[ibin2];
-            const double x2center = (x2hi + x2lo) / 2.;
+            _x[1] = (x2hi + x2lo) / 2.;
 
             for (unsigned int ibin3 = 0; ibin3 < binbz.size() - 1; ++ibin3) {
                const double x3hi = binbz[ibin3 + 1];
                const double x3lo = binbz[ibin3];
-               const double x3center = (x3hi + x3lo) / 2.;
+               _x[2] = (x3hi + x3lo) / 2.;
 
-               const double binInt =
-                  integrand(xvec(x1center, x2center, x3center)) * (x1hi - x1lo) * (x2hi - x2lo) * (x3hi - x3lo);
+               const double binInt = integrand(_x.data()) * (x1hi - x1lo) * (x2hi - x2lo) * (x3hi - x3lo);
                sum += binInt;
             }
          }
