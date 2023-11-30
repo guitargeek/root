@@ -214,14 +214,6 @@ TH2::TH2(const char *name,const char *title,Int_t nbinsx,const Float_t *xbins
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Destructor.
-
-TH2::~TH2()
-{
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Fill histogram with all entries in the buffer.
 ///  - action = -1 histogram is reset and refilled from the buffer (called by THistPainter::Paint)
 ///  - action =  0 histogram is filled from the buffer
@@ -2807,14 +2799,6 @@ TH2C::TH2C(): TH2(), TArrayC()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Destructor.
-
-TH2C::~TH2C()
-{
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 /// (see TH2::TH2 for explanation of parameters)
 
@@ -3064,14 +3048,6 @@ TH2S::TH2S(): TH2(), TArrayS()
 {
    SetBinsLength(9);
    if (fgDefaultSumw2) Sumw2();
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Destructor.
-
-TH2S::~TH2S()
-{
 }
 
 
@@ -3329,14 +3305,6 @@ TH2I::TH2I(): TH2(), TArrayI()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Destructor.
-
-TH2I::~TH2I()
-{
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 /// (see TH2::TH2 for explanation of parameters)
 
@@ -3551,14 +3519,6 @@ TH2F::TH2F(): TH2(), TArrayF()
 {
    SetBinsLength(9);
    if (fgDefaultSumw2) Sumw2();
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Destructor.
-
-TH2F::~TH2F()
-{
 }
 
 
@@ -3823,14 +3783,6 @@ TH2D::TH2D(): TH2(), TArrayD()
 {
    SetBinsLength(9);
    if (fgDefaultSumw2) Sumw2();
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Destructor.
-
-TH2D::~TH2D()
-{
 }
 
 

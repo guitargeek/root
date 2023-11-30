@@ -61,15 +61,15 @@ protected:
 
 private:
 
-   TH2(const TH2&) = delete;
-   TH2& operator=(const TH2&) = delete;
-
    // make private methods which have a TH1 signature and should not
    using TH1::Integral;
    using TH1::IntegralAndError;
 
 public:
-   ~TH2() override;
+
+   TH2(const TH2&) = delete;
+   TH2& operator=(const TH2&) = delete;
+
            Int_t    BufferEmpty(Int_t action=0) override;
            void     Copy(TObject &hnew) const override;
            Int_t    Fill(Double_t x, Double_t y) override;
@@ -147,7 +147,6 @@ public:
    TH2C(const char *name,const char *title,Int_t nbinsx,const Float_t  *xbins
                                           ,Int_t nbinsy,const Float_t  *ybins);
    TH2C(const TH2C &h2c);
-   ~TH2C() override;
 
            void     AddBinContent(Int_t bin) override;
            void     AddBinContent(Int_t bin, Double_t w) override;
@@ -188,7 +187,6 @@ public:
    TH2S(const char *name,const char *title,Int_t nbinsx,const Float_t  *xbins
                                           ,Int_t nbinsy,const Float_t  *ybins);
    TH2S(const TH2S &h2s);
-   ~TH2S() override;
 
            void     AddBinContent(Int_t bin) override;
            void     AddBinContent(Int_t bin, Double_t w) override;
@@ -229,7 +227,6 @@ public:
    TH2I(const char *name,const char *title,Int_t nbinsx,const Float_t  *xbins
                                           ,Int_t nbinsy,const Float_t  *ybins);
    TH2I(const TH2I &h2i);
-   ~TH2I() override;
 
            void     AddBinContent(Int_t bin) override;
            void     AddBinContent(Int_t bin, Double_t w) override;
@@ -271,7 +268,6 @@ public:
                                           ,Int_t nbinsy,const Float_t  *ybins);
    TH2F(const TMatrixFBase &m);
    TH2F(const TH2F &h2f);
-   ~TH2F() override;
 
            void     AddBinContent(Int_t bin) override {++fArray[bin];}
            void     AddBinContent(Int_t bin, Double_t w) override
@@ -314,7 +310,6 @@ public:
                                           ,Int_t nbinsy,const Float_t  *ybins);
    TH2D(const TMatrixDBase &m);
    TH2D(const TH2D &h2d);
-   ~TH2D() override;
 
            void     AddBinContent(Int_t bin) override {++fArray[bin];}
            void     AddBinContent(Int_t bin, Double_t w) override

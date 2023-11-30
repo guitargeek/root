@@ -190,6 +190,78 @@ TH2Poly::~TH2Poly()
    delete fBins;
 }
 
+TH2Poly::TH2Poly(TH2Poly const &other) : TH2{}
+{
+   other.TH2Poly::Copy(*this);
+}
+
+TH2Poly &TH2Poly::operator=(TH2Poly const &other)
+{
+   if (this != &other)
+      other.TH2Poly::Copy(*this);
+   return *this;
+}
+
+void TH2Poly::Copy(TObject &other) const
+{
+   auto th2poly = static_cast<TH2Poly &>(other);
+   std::copy(fOverflow, fOverflow + kNOverflow, th2poly.fOverflow);
+   th2poly.fCellX = fCellX;
+   th2poly.fCellY = fCellY;
+   th2poly.fNCells = fNCells;
+
+   th2poly.fStepX = fStepX;
+   th2poly.fStepY = fStepY;
+
+   if (th2poly.fIsEmpty)
+      delete[] th2poly.fIsEmpty;
+   if (fIsEmpty) {
+      th2poly.fIsEmpty = new Bool_t[fNCells];
+      std::copy(fIsEmpty, fIsEmpty + fNCells, th2poly.fIsEmpty);
+   }
+
+   if (th2poly.fCompletelyInside)
+      delete[] th2poly.fCompletelyInside;
+   if (fCompletelyInside) {
+      th2poly.fCompletelyInside = new Bool_t[fNCells];
+      std::copy(fCompletelyInside, fCompletelyInside + fNCells, th2poly.fCompletelyInside);
+   }
+
+   th2poly.fFloat = fFloat;
+   th2poly.fNewBinAdded = fNewBinAdded;
+   th2poly.fBinContentChanged = fBinContentChanged;
+
+   // fBins is an owning list containing the TH2PolyBins that we need to clone.
+   // We also keep track between the mapping of old and new TH2PolyBins, so
+   // that we can copy the fCells member correctly in the next step.
+   std::unordered_map<TObject *, TObject *> binClones;
+   if (fBins) {
+      th2poly.fBins = new TList();
+      th2poly.fBins->SetOwner();
+      for (TObject *bin : *fBins) {
+         TObject *binClone = bin->Clone();
+         binClones[bin] = binClone;
+         th2poly.fBins->Add(binClone);
+      }
+   }
+
+   // fCells are non-owning lists
+   if (th2poly.fCells)
+      delete[] th2poly.fCells;
+   if (fCells) {
+      th2poly.fCells = new TList[fNCells];
+      for (int iCell = 0; iCell < fNCells; ++iCell) {
+         TList const &fromList = fCells[iCell];
+         TList &toList = th2poly.fCells[iCell];
+         for (TObject *bin : fromList) {
+            toList.Add(binClones.at(bin));
+         }
+      }
+   }
+
+   TH2::Copy(other);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Create appropriate histogram bin.
 ///  e.g. TH2Poly        creates TH2PolyBin,
@@ -250,7 +322,7 @@ Int_t TH2Poly::AddBin(TObject *poly)
       /*Implement polygon clipping code here*/
    }
 
-   fBins->Add((TObject*) bin);
+   fBins->Add(bin);
    SetNewBinAdded(kTRUE);
 
    // Adds the bin to the partition matrix
@@ -1372,14 +1444,6 @@ Helper class to represent a bin in the TH2Poly histogram
 
 TH2PolyBin::TH2PolyBin()
 {
-   fPoly    = nullptr;
-   fContent = 0.;
-   fNumber  = 0;
-   fXmax    = -1111;
-   fXmin    = -1111;
-   fYmax    = -1111;
-   fYmin    = -1111;
-   fArea    = 0;
    SetChanged(kTRUE);
 }
 
@@ -1388,15 +1452,23 @@ TH2PolyBin::TH2PolyBin()
 
 TH2PolyBin::TH2PolyBin(TObject *poly, Int_t bin_number)
 {
-   fContent = 0.;
    fNumber  = bin_number;
-   fArea    = 0.;
    fPoly    = poly;
-   fXmax    = -1111;
-   fXmin    = -1111;
-   fYmax    = -1111;
-   fYmin    = -1111;
    SetChanged(kTRUE);
+}
+
+TH2PolyBin::TH2PolyBin(TH2PolyBin const &other) : TObject(other)
+{
+   fChanged = other.fChanged;
+   fNumber = other.fNumber;
+   if (other.fPoly)
+      fPoly = other.fPoly->Clone();
+   fArea = other.fArea;
+   fContent = other.fContent;
+   fXmin = other.fXmin;
+   fYmin = other.fYmin;
+   fXmax = other.fXmax;
+   fYmax = other.fYmax;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
