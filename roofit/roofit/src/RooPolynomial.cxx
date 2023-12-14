@@ -34,8 +34,7 @@ RooPolynomial::RooPolynomial(const char*, const char*, RooAbsReal&, const RooArg
 #include "RooMsgService.h"
 #include "RooPolyVar.h"
 
-#include <RooFit/Detail/AnalyticalIntegrals.h>
-#include <RooFit/Detail/EvaluateFuncs.h>
+#include <RooFitMath.h>
 
 #include "TError.h"
 #include <vector>
@@ -109,7 +108,7 @@ double RooPolynomial::evaluate() const
 
    RooPolyVar::fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::EvaluateFuncs::polynomialEvaluate<true>(_wksp.data(), sz, _lowestOrder, _x);
+   return RooFitMath::polynomialEvaluate<true>(_wksp.data(), sz, _lowestOrder, _x);
 }
 
 void RooPolynomial::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -121,7 +120,7 @@ void RooPolynomial::translate(RooFit::Detail::CodeSquashContext &ctx) const
    }
 
    ctx.addResult(
-      this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::polynomialEvaluate<true>", _coefList, sz, _lowestOrder, _x));
+      this, ctx.buildCall("RooFitMath::polynomialEvaluate<true>", _coefList, sz, _lowestOrder, _x));
 }
 
 /// Compute multiple values of Polynomial.
@@ -154,7 +153,7 @@ double RooPolynomial::analyticalIntegral(Int_t code, const char *rangeName) cons
 
    RooPolyVar::fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::AnalyticalIntegrals::polynomialIntegral<true>(_wksp.data(), sz, _lowestOrder, xmin, xmax);
+   return RooFitMath::polynomialIntegral<true>(_wksp.data(), sz, _lowestOrder, xmin, xmax);
 }
 
 std::string RooPolynomial::buildCallToAnalyticIntegral(Int_t /* code */, const char *rangeName,
@@ -166,6 +165,5 @@ std::string RooPolynomial::buildCallToAnalyticIntegral(Int_t /* code */, const c
    if (!sz)
       return std::to_string(_lowestOrder ? xmax - xmin : 0.0);
 
-   return ctx.buildCall("RooFit::Detail::AnalyticalIntegrals::polynomialIntegral<true>", _coefList, sz, _lowestOrder,
-                        xmin, xmax);
+   return ctx.buildCall("RooFitMath::polynomialIntegral<true>", _coefList, sz, _lowestOrder, xmin, xmax);
 }

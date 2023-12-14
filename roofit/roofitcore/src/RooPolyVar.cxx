@@ -33,8 +33,7 @@ it can define.
 #include "RooMsgService.h"
 #include "RooBatchCompute.h"
 
-#include <RooFit/Detail/AnalyticalIntegrals.h>
-#include <RooFit/Detail/EvaluateFuncs.h>
+#include <RooFitMath.h>
 
 #include "TError.h"
 
@@ -108,7 +107,7 @@ double RooPolyVar::evaluate() const
 
    fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::EvaluateFuncs::polynomialEvaluate(_wksp.data(), sz, _lowestOrder, _x);
+   return RooFitMath::polynomialEvaluate(_wksp.data(), sz, _lowestOrder, _x);
 }
 
 void RooPolyVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -120,7 +119,7 @@ void RooPolyVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
    }
 
    ctx.addResult(this,
-                 ctx.buildCall("RooFit::Detail::EvaluateFuncs::polynomialEvaluate", _coefList, sz, _lowestOrder, _x));
+                 ctx.buildCall("RooFitMath::polynomialEvaluate", _coefList, sz, _lowestOrder, _x));
 }
 
 void RooPolyVar::computeBatchImpl(RooAbsArg const* caller, double *output, size_t nEvents,
@@ -184,7 +183,7 @@ double RooPolyVar::analyticalIntegral(Int_t code, const char *rangeName) const
 
    fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::AnalyticalIntegrals::polynomialIntegral(_wksp.data(), sz, _lowestOrder, xmin, xmax);
+   return RooFitMath::polynomialIntegral(_wksp.data(), sz, _lowestOrder, xmin, xmax);
 }
 
 std::string RooPolyVar::buildCallToAnalyticIntegral(Int_t /* code */, const char *rangeName,
@@ -196,6 +195,5 @@ std::string RooPolyVar::buildCallToAnalyticIntegral(Int_t /* code */, const char
    if (!sz)
       return std::to_string(_lowestOrder ? xmax - xmin : 0.0);
 
-   return ctx.buildCall("RooFit::Detail::AnalyticalIntegrals::polynomialIntegral", _coefList, sz, _lowestOrder, xmin,
-                        xmax);
+   return ctx.buildCall("RooFitMath::polynomialIntegral", _coefList, sz, _lowestOrder, xmin, xmax);
 }

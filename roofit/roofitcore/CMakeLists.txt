@@ -129,11 +129,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFirstMoment.h
     RooFit.h
     RooFit/Config.h
-    RooFit/Detail/AnalyticalIntegrals.h
     RooFit/Detail/BatchModeDataHelpers.h
     RooFit/Detail/CodeSquashContext.h
     RooFit/Detail/DataMap.h
-    RooFit/Detail/EvaluateFuncs.h
     RooFit/Detail/NormalizationHelpers.h
     RooFit/Evaluator.h
     RooFit/Floats.h
@@ -465,15 +463,16 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     ${EXTRA_LIBRARIES}
   DEPENDENCIES
     Core
-    Hist
+    Foam
     Graf
+    Hist
+    MathCore
     Matrix
-    Tree
     Minuit
     RIO
-    MathCore
-    Foam
+    RooFitMath
     Smatrix
+    Tree
     ${EXTRA_DEPENDENCIES}
   LINKDEF
     inc/LinkDef.h

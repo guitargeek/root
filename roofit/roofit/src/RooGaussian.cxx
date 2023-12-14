@@ -25,8 +25,7 @@ Plain Gaussian p.d.f
 #include "RooHelpers.h"
 #include "RooRandom.h"
 
-#include <RooFit/Detail/AnalyticalIntegrals.h>
-#include <RooFit/Detail/EvaluateFuncs.h>
+#include <RooFitMath.h>
 
 #include <vector>
 
@@ -57,7 +56,7 @@ RooGaussian::RooGaussian(const RooGaussian& other, const char* name) :
 
 double RooGaussian::evaluate() const
 {
-   return RooFit::Detail::EvaluateFuncs::gaussianEvaluate(x, mean, sigma);
+   return RooFitMath::gaussianEvaluate(x, mean, sigma);
 }
 
 
@@ -82,12 +81,10 @@ Int_t RooGaussian::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars
 
 double RooGaussian::analyticalIntegral(Int_t code, const char* rangeName) const
 {
-   using namespace RooFit::Detail::AnalyticalIntegrals;
-
    auto& constant  = code == 1 ? mean : x;
    auto& integrand = code == 1 ? x : mean;
 
-   return gaussianIntegral(integrand.min(rangeName), integrand.max(rangeName), constant, sigma);
+   return RooFitMath::gaussianIntegral(integrand.min(rangeName), integrand.max(rangeName), constant, sigma);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +130,7 @@ void RooGaussian::generateEvent(Int_t code)
 void RooGaussian::translate(RooFit::Detail::CodeSquashContext &ctx) const
 {
    // Build a call to the stateless gaussian defined later.
-   ctx.addResult(this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::gaussianEvaluate", x, mean, sigma));
+   ctx.addResult(this, ctx.buildCall("RooFitMath::gaussianEvaluate", x, mean, sigma));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -144,6 +141,6 @@ std::string RooGaussian::buildCallToAnalyticIntegral(Int_t code, const char *ran
    auto& constant  = code == 1 ? mean : x;
    auto& integrand = code == 1 ? x : mean;
 
-   return ctx.buildCall("RooFit::Detail::AnalyticalIntegrals::gaussianIntegral",
+   return ctx.buildCall("RooFitMath::gaussianIntegral",
                         integrand.min(rangeName), integrand.max(rangeName), constant, sigma);
 }

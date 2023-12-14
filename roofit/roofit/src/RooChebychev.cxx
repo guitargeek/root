@@ -29,8 +29,7 @@ starts with the coefficient that goes with \f$ T_1(x)=x \f$ (i.e. the linear ter
 #include "RooNameReg.h"
 #include "RooBatchCompute.h"
 
-#include <RooFit/Detail/AnalyticalIntegrals.h>
-#include <RooFit/Detail/EvaluateFuncs.h>
+#include <RooFitMath.h>
 
 #include <cmath>
 
@@ -87,7 +86,7 @@ double RooChebychev::evaluate() const
   std::vector<double> coeffs;
   for (auto it : _coefList)
      coeffs.push_back(static_cast<const RooAbsReal &>(*it).getVal());
-  return RooFit::Detail::EvaluateFuncs::chebychevEvaluate(coeffs.data(), _coefList.size(), _x, xmin, xmax);
+  return RooFitMath::chebychevEvaluate(coeffs.data(), _coefList.size(), _x, xmin, xmax);
 }
 
 void RooChebychev::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -99,7 +98,7 @@ void RooChebychev::translate(RooFit::Detail::CodeSquashContext &ctx) const
    double xmin = _x.min(_refRangeName ? _refRangeName->GetName() : nullptr);
 
    ctx.addResult(this,
-                 ctx.buildCall("RooFit::Detail::EvaluateFuncs::chebychevEvaluate", _coefList, _coefList.size(), _x, xmin, xmax));
+                 ctx.buildCall("RooFitMath::chebychevEvaluate", _coefList, _coefList.size(), _x, xmin, xmax));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -139,7 +138,7 @@ double RooChebychev::analyticalIntegral(Int_t code, const char* rangeName) const
   for (auto it : _coefList)
      coeffs.push_back(static_cast<const RooAbsReal &>(*it).getVal());
 
-  return RooFit::Detail::AnalyticalIntegrals::chebychevIntegral(coeffs.data(), sz, xmin, xmax, xminFull, xmaxFull);
+  return RooFitMath::chebychevIntegral(coeffs.data(), sz, xmin, xmax, xminFull, xmaxFull);
 }
 
 std::string RooChebychev::buildCallToAnalyticIntegral(Int_t /* code */, const char *rangeName,
@@ -151,5 +150,5 @@ std::string RooChebychev::buildCallToAnalyticIntegral(Int_t /* code */, const ch
    double xminFull = _x.min(rangeName);
    unsigned int sz = _coefList.size();
 
-   return ctx.buildCall("RooFit::Detail::AnalyticalIntegrals::chebychevIntegral", _coefList, sz, xmin, xmax, xminFull, xmaxFull);
+   return ctx.buildCall("RooFitMath::chebychevIntegral", _coefList, sz, xmin, xmax, xminFull, xmaxFull);
 }
