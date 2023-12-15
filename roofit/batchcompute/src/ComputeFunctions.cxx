@@ -25,12 +25,16 @@ https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-strid
 
 #include "RooBatchCompute.h"
 #include "RooNaNPacker.h"
-#include "RooVDTHeaders.h"
 #include "Batches.h"
 
 #include <TMath.h>
 
 #include <RooHeterogeneousMath.h>
+
+#define ROOTFIT_MATH_CONSIDER_VDT
+#include <RooFitMath.h>
+
+using namespace RooFitMath;
 
 #ifdef __CUDACC__
 #define BEGIN blockDim.x *blockIdx.x + threadIdx.x
@@ -167,18 +171,9 @@ __rooglobal__ void computeBernstein(BatchesHandle batches)
 
 __rooglobal__ void computeBifurGauss(BatchesHandle batches)
 {
-   Batch X = batches[0];
-   Batch M = batches[1];
-   Batch SL = batches[2];
-   Batch SR = batches[3];
+   Batch args[4] = {batches[0], batches[1], batches[2], batches[3]};
    for (size_t i = BEGIN; i < batches.getNEvents(); i += STEP) {
-      double arg = X[i] - M[i];
-      if (arg < 0) {
-         arg /= SL[i];
-      } else {
-         arg /= SR[i];
-      }
-      batches._output[i] = fast_exp(-0.5 * arg * arg);
+      batches._output[i] = RooFitMath::bifurGaussEvaluate(args[0][i], args[1][i], args[2][i], args[3][i]);
    }
 }
 
@@ -456,13 +451,9 @@ __rooglobal__ void computeGaussModelExpBasis(BatchesHandle batches)
 
 __rooglobal__ void computeGaussian(BatchesHandle batches)
 {
-   auto x = batches[0];
-   auto mean = batches[1];
-   auto sigma = batches[2];
+   Batch args[3] = {batches[0], batches[1], batches[2]};
    for (size_t i = BEGIN; i < batches.getNEvents(); i += STEP) {
-      const double arg = x[i] - mean[i];
-      const double halfBySigmaSq = -0.5 / (sigma[i] * sigma[i]);
-      batches._output[i] = fast_exp(arg * arg * halfBySigmaSq);
+      batches._output[i] = RooFitMath::gaussianEvaluate(args[0][i], args[1][i], args[2][i]);
    }
 }
 

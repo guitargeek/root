@@ -8,8 +8,8 @@ ROOT_LINKER_LIBRARY(RooBatchCompute
     src/Initialisation.cxx
   DEPENDENCIES
     Core
-    MathCore
     Imt
+    RooFitMath
     ${CudaDependencies}
 )
 

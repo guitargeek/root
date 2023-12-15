@@ -14,20 +14,110 @@
 #ifndef RooFitMath_h
 #define RooFitMath_h
 
+#include "RConfigure.h" // for R__HAS_VDT
+
 #include <Math/PdfFuncMathCore.h>
 #include <Math/ProbFuncMathCore.h>
 #include <TMath.h>
 
 #include <cmath>
 
+#if defined(ROOTFIT_MATH_CONSIDER_VDT) && defined(R__HAS_VDT) && !defined(__CUDACC__)
+#include <vdt/cos.h>
+#include <vdt/exp.h>
+#include <vdt/log.h>
+#include <vdt/sin.h>
+#include <vdt/sqrt.h>
+#define ROOFIT_MATH_USE_VDT
+#endif
+
+#ifdef __CUDACC__
+#define __roodevice__ __device__
+#define __roohost__ __host__
+#define __rooglobal__ __global__
+#else
+#define __roodevice__
+#define __roohost__
+#define __rooglobal__
+#endif // #indef __CUDACC__
+
 namespace RooFitMath {
+
+/*
+ * VDT headers for RooFit. Since RooFit cannot directly depend on VDT (it might not be available),
+ * this layer can be used to switch between different implementations.
+ */
+
+#if ROOTFIT_MATH_USE_VDT
+
+inline double fast_exp(double x)
+{
+   return vdt::fast_exp(x);
+}
+
+inline double fast_sin(double x)
+{
+   return vdt::fast_sin(x);
+}
+
+inline double fast_cos(double x)
+{
+   return vdt::fast_cos(x);
+}
+
+inline double fast_log(double x)
+{
+   return vdt::fast_log(x);
+}
+
+inline double fast_isqrt(double x)
+{
+   return vdt::fast_isqrt(x);
+}
+
+#else
+
+__roodevice__ inline double fast_exp(double x)
+{
+   return std::exp(x);
+}
+
+__roodevice__ inline double fast_sin(double x)
+{
+   return std::sin(x);
+}
+
+__roodevice__ inline double fast_cos(double x)
+{
+   return std::cos(x);
+}
+
+__roodevice__ inline double fast_log(double x)
+{
+   return std::log(x);
+}
+
+__roodevice__ inline double fast_isqrt(double x)
+{
+   return 1. / std::sqrt(x);
+}
+
+#endif // ROOFIT_MATH_USE_VDT
 
 /// @brief Function to evaluate an un-normalized RooGaussian.
 inline double gaussianEvaluate(double x, double mean, double sigma)
 {
    const double arg = x - mean;
    const double sig = sigma;
-   return std::exp(-0.5 * arg * arg / (sig * sig));
+   return fast_exp(-0.5 * arg * arg / (sig * sig));
+}
+
+inline double bifurGaussEvaluate(double x, double mean, double sigmaL, double sigmaR)
+{
+   // Note: this simplification does not work with Clad as of v1.1!
+   // return gaussianEvaluate(x, mean, x < mean ? sigmaL : sigmaR);
+   if(x < mean) return gaussianEvaluate(x, mean, sigmaL);
+   return gaussianEvaluate(x, mean, sigmaR);
 }
 
 /// In pdfMode, a coefficient for the constant term of 1.0 is implied if lowestOrder > 0.
@@ -257,6 +347,22 @@ inline double gaussianIntegral(double xMin, double xMax, double mean, double sig
       cond = ecmin - ecmax;
    }
    return resultScale * 0.5 * cond;
+}
+
+inline double bifurGaussIntegral(double xMin, double xMax, double mean, double sigmaL, double sigmaR)
+{
+   const double xscaleL = TMath::Sqrt2() * sigmaL;
+   const double xscaleR = TMath::Sqrt2() * sigmaR;
+
+   const double resultScale = std::sqrt(TMath::TwoPi());
+
+   if (xMax < mean) {
+      return resultScale * (sigmaL * (TMath::Erf((xMax - mean) / xscaleL) - TMath::Erf((xMin - mean) / xscaleL)));
+   } else if (xMin > mean) {
+      return resultScale * (sigmaR * (TMath::Erf((xMax - mean) / xscaleR) - TMath::Erf((xMin - mean) / xscaleR)));
+   } else {
+      return resultScale * (sigmaR * TMath::Erf((xMax - mean) / xscaleR) - sigmaL * TMath::Erf((xMin - mean) / xscaleL));
+   }
 }
 
 inline double exponentialIntegral(double xMin, double xMax, double constant)
