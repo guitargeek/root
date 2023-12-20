@@ -16,6 +16,17 @@
 
 #include <nlohmann/json.hpp>
 
+namespace {
+inline nlohmann::json parse(std::istream &is)
+{
+   try {
+      return nlohmann::json::parse(is);
+   } catch (const nlohmann::json::exception &ex) {
+      throw std::runtime_error(ex.what());
+   }
+}
+} // namespace
+
 // TJSONTree methods
 
 TJSONTree::TJSONTree() : root(this){};
@@ -70,7 +81,7 @@ class TJSONTree::Node::Impl::BaseNode : public TJSONTree::Node::Impl {
 public:
    nlohmann::json &get() override { return node; }
    const nlohmann::json &get() const override { return node; }
-   BaseNode(std::istream &is) : Impl(""), node(nlohmann::json::parse(is)) {}
+   BaseNode(std::istream &is) : Impl(""), node(::parse(is)) {}
    BaseNode() : Impl("") {}
 };
 
@@ -239,7 +250,7 @@ std::string TJSONTree::Node::val() const
    case nlohmann::json::value_t::number_unsigned: return std::to_string(node->get().get<unsigned int>());
    case nlohmann::json::value_t::number_float: return std::to_string(node->get().get<double>());
    default:
-      throw std::runtime_error(std::string("node " + node->key() + ": implicit string conversion for type " +
+      throw std::runtime_error(std::string("node '" + node->key() + "': implicit string conversion for type " +
                                            node->get().type_name() + " not supported!"));
    }
 }
