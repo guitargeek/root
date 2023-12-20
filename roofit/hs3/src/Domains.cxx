@@ -15,6 +15,7 @@
 #include <RooFitHS3/RooJSONFactoryWSTool.h>
 #include <RooNumber.h>
 #include <RooRealVar.h>
+#include <RooWorkspace.h>
 
 #include <RooFit/Detail/JSONInterface.h>
 
@@ -22,6 +23,10 @@ namespace RooFit {
 namespace JSONIO {
 namespace Detail {
 
+void Domains::populate(RooWorkspace &ws) const
+{
+   _map.at("default_domain").populate(ws);
+}
 void Domains::readVariable(const char *name, double min, double max)
 {
    _map["default_domain"].readVariable(name, min, max);
@@ -37,7 +42,11 @@ void Domains::writeVariable(RooRealVar &var) const
 
 void Domains::readJSON(RooFit::Detail::JSONNode const &node)
 {
-   _map["default_domain"].readJSON(*RooJSONFactoryWSTool::findNamedChild(node, "default_domain"));
+   auto default_domain = RooJSONFactoryWSTool::findNamedChild(node, "default_domain");
+   if (!default_domain) {
+      RooJSONFactoryWSTool::error("'domains' do not contain 'default_domain'");
+   }
+   _map["default_domain"].readJSON(*default_domain);
 }
 void Domains::writeJSON(RooFit::Detail::JSONNode &node) const
 {
@@ -71,7 +80,9 @@ void Domains::ProductDomain::writeVariable(RooRealVar &var) const
 }
 void Domains::ProductDomain::readJSON(RooFit::Detail::JSONNode const &node)
 {
-   // In the future, throw an exception if the type is not product domain
+   if (!node.has_child("type") || node["type"].val() != "product_domain") {
+      RooJSONFactoryWSTool::error("only domains of type 'product_domain' are currently supported!");
+   }
    for (auto const &varNode : node["axes"].children()) {
       auto &elem = _map[RooJSONFactoryWSTool::name(varNode)];
 
@@ -99,6 +110,17 @@ void Domains::ProductDomain::writeJSON(RooFit::Detail::JSONNode &node) const
          varnode["min"] << elem.min;
       if (elem.hasMax)
          varnode["max"] << elem.max;
+   }
+}
+void Domains::ProductDomain::populate(RooWorkspace &ws) const
+{
+   for (auto const &item : _map) {
+      const auto &name = item.first;
+      if (!ws.var(name)) {
+         const auto &elem = item.second;
+         ws.import(RooRealVar{name.c_str(), name.c_str(), elem.hasMin ? elem.min : -FLT_MAX,
+                              elem.hasMax ? elem.max : FLT_MAX});
+      }
    }
 }
 
