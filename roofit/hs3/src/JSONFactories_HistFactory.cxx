@@ -274,9 +274,14 @@ bool importHistSample(RooJSONFactoryWSTool &tool, RooDataHist &dh, RooArgSet con
       RooArgList histoLo;
       RooArgList histoHi;
 
+      int idx = 0;
       for (const auto &mod : p["modifiers"].children()) {
          std::string const &modtype = mod["type"].val();
-         std::string const &sysname = mod["name"].val();
+         std::string const &sysname =
+            mod.has_child("name")
+               ? mod["name"].val()
+               : (mod.has_child("parameter") ? mod["parameter"].val() : "syst_" + std::to_string(idx));
+         ++idx;
          if (modtype == "staterror") {
             // this is dealt with at a different place, ignore it for now
          } else if (modtype == "normfactor") {
