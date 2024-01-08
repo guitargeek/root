@@ -97,12 +97,7 @@ else()
 endif()
 
 if(NO_CONNECTION)
-  if(clad AND fail-on-missing)
-    message(FATAL_ERROR "No internet connection. Please check your connection, or either disable the 'clad' option or the 'fail-on-missing' to automatically disable options requiring internet access")
-  elseif(clad)
-    message(STATUS "No internet connection, disabling the 'clad' option")
-  endif()
-  set(clad OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
+  message(FATAL_ERROR "No internet connection. Please check your connection, or disable the 'clad' option")
 endif()
 
 #---Where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked-------------

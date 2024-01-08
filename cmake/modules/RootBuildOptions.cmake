@@ -193,7 +193,7 @@ ROOT_BUILD_OPTION(xrootd ON "Enable support for XRootD file server and client")
 
 option(all "Enable all optional components by default" OFF)
 option(clingtest "Enable cling tests (Note: that this makes llvm/clang symbols visible in libCling)" OFF)
-option(fail-on-missing "Fail at configure time if a required package cannot be found" OFF)
+option(fail-on-missing "Fail at configure time if a required package cannot be found (deprecated and ignored, configuration will always fail if requirements are not met)" IGNORE)
 option(gminimal "Enable only required options by default, but include X11" OFF)
 option(minimal "Enable only required options by default" OFF)
 option(rootbench "Build rootbench if rootbench exists in root or if it is a sibling directory." OFF)
@@ -417,7 +417,7 @@ foreach(opt afdsmgrd afs alien bonjour castor chirp cxx11 cxx14 cxx17 geocad gfa
 endforeach()
 
 #---Deprecated options------------------------------------------------------------------------
-foreach(opt cxxmodules exceptions oracle pythia6 pythia6_nolink pyroot-python2 minuit2)
+foreach(opt cxxmodules exceptions oracle pythia6 pythia6_nolink pyroot-python2 minuit2 fail-on-missing)
   if(${opt})
     message(DEPRECATION ">>> Option '${opt}' is deprecated and will be removed in the next release of ROOT. Please contact root-dev@cern.ch should you still need it.")
   endif()
