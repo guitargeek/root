@@ -1,0 +1,5 @@
+set(ccache ON CACHE BOOL "" FORCE)
+#set(minimal ON CACHE BOOL "" FORCE)
+#set(pyroot ON CACHE BOOL "" FORCE)
+set(rpath ON CACHE BOOL "" FORCE)
+#set(runtime_cxxmodules ON CACHE BOOL "" FORCE)

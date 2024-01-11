@@ -40,11 +40,10 @@ class my_cmake_build(_build):
         if not os.path.exists(INSTALL_DIR):
             os.makedirs(INSTALL_DIR)
 
-        base_opts = shlex.split("cmake -GNinja -Dccache=ON")
-        mode_opts = shlex.split("-Dminimal=ON -Drpath=ON -Dpyroot=ON -Druntime_cxxmodules=ON")
+        base_opts = shlex.split("cmake -G Ninja -C RootSettingsPip.cmake")
         dirs_opts = shlex.split(
             f"-DCMAKE_INSTALL_PREFIX={INSTALL_DIR} -B {BUILD_DIR} -S {SOURCE_DIR}")
-        configure_command = base_opts + mode_opts + dirs_opts
+        configure_command = base_opts + dirs_opts
         subprocess.run(configure_command, check=True)
 
         build_command = f"cmake --build {BUILD_DIR} -j{os.cpu_count()}"
@@ -78,10 +77,8 @@ class my_install(_install):
         lib_dir = os.path.join(INSTALL_DIR, "lib")
         install_libdir = os.path.join(install_path, "ROOT", "lib")
 
-        self.copy_tree(os.path.join(INSTALL_DIR, "lib"), os.path.join(install_path, "ROOT", "lib"))
-        self.copy_tree(os.path.join(INSTALL_DIR, "include"), os.path.join(install_path, "ROOT", "include"))
-        self.copy_tree(os.path.join(INSTALL_DIR, "bin"), os.path.join(install_path, "ROOT", "bin"))
-        self.copy_tree(os.path.join(INSTALL_DIR, "etc"), os.path.join(install_path, "ROOT", "etc"))
+        for dir_name in ["lib", "include", "icons", "bin", "etc", "fonts"]:
+           self.copy_tree(os.path.join(INSTALL_DIR, dir_name), os.path.join(install_path, "ROOT", dir_name))
 
         self.copy_tree(os.path.join(lib_dir, "cppyy"),
                        os.path.join(install_path, "cppyy"))
