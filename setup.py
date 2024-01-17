@@ -21,9 +21,9 @@ here = pathlib.Path(__file__).parent.resolve()
 # Get the long description from the README file
 long_description = (here / "README.md").read_text(encoding="utf-8")
 
-SOURCE_DIR = os.getcwd()
-BUILD_DIR = os.path.expanduser("~/programs/rootproject/pip-tests/build")
-INSTALL_DIR = os.path.expanduser("~/programs/rootproject/pip-tests/install")
+SOURCE_DIR = here
+BUILD_DIR = os.path.expanduser("~/tmp/pip-tests/build")
+INSTALL_DIR = os.path.expanduser("~/tmp/pip-tests/install")
 
 
 class my_cmake_build(_build):
@@ -77,7 +77,7 @@ class my_install(_install):
         lib_dir = os.path.join(INSTALL_DIR, "lib")
         install_libdir = os.path.join(install_path, "ROOT", "lib")
 
-        for dir_name in ["lib", "include", "icons", "bin", "etc", "fonts"]:
+        for dir_name in ["lib", "include", "icons", "bin", "etc", "fonts", "cmake"]:
            self.copy_tree(os.path.join(INSTALL_DIR, dir_name), os.path.join(install_path, "ROOT", dir_name))
 
         self.copy_tree(os.path.join(lib_dir, "cppyy"),
