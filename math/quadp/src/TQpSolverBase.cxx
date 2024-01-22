@@ -60,29 +60,25 @@ ClassImp(TQpSolverBase);
 /// Default constructor
 
 TQpSolverBase::TQpSolverBase()
+   : fSys(nullptr),
+     fArtol(1.0e-8),
+     fDnorm(0.),
+     fGamma_a(1.0 / (1.0 - fGamma_f)),
+     fGamma_f(0.99),
+     fIter(0),
+     fMaxit(100),
+     fMu_history(new Double_t[fMaxit]),
+     fMutol(1.0e-8),
+     fPhi(0.0),
+     fPhi_history(new Double_t[fMaxit]),
+     fPhi_min_history(new Double_t[fMaxit]),
+     fRnorm_history(new Double_t[fMaxit])
 {
-   fSys = nullptr;
-
-   fDnorm = 0.;
 
    // define parameters associated with the step length heuristic
-   fMutol   = 1.0e-8;
-   fArtol   = 1.0e-8;
-   fGamma_f = 0.99;
-   fGamma_a = 1.0/(1.0-fGamma_f);
-
-   fPhi   = 0.0;
-
-   fMaxit = 100;
 
    // allocate space to track the sequence of complementarity gaps,
    // residual norms, and merit functions.
-   fMu_history      = new Double_t[fMaxit];
-   fRnorm_history   = new Double_t[fMaxit];
-   fPhi_history     = new Double_t[fMaxit];
-   fPhi_min_history = new Double_t[fMaxit];
-
-   fIter = 0;
 }
 
 

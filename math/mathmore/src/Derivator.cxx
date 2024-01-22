@@ -44,21 +44,19 @@
 namespace ROOT {
 namespace Math {
 
-Derivator::Derivator() {
-   fDerivator = new GSLDerivator();
-}
+Derivator::Derivator() : fDerivator(new GSLDerivator()) {}
 
-Derivator::Derivator(const IGenFunction &f)
+Derivator::Derivator(const IGenFunction &f) : fDerivator(new GSLDerivator())
 {
    // allocate a  GSLDerivator
-   fDerivator = new GSLDerivator();
+
    fDerivator->SetFunction(f);
 }
 
-Derivator::Derivator(const GSLFuncPointer &f, void * p)
+Derivator::Derivator(const GSLFuncPointer &f, void *p) : fDerivator(new GSLDerivator())
 {
    // allocate a GSLDerivator
-   fDerivator = new GSLDerivator();
+
    fDerivator->SetFunction(f,p);
 
 }

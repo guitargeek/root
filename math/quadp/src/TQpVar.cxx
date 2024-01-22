@@ -56,18 +56,7 @@ ClassImp(TQpVar);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TQpVar::TQpVar()
-{
-   fNx   = 0;
-   fMy   = 0;
-   fMz   = 0;
-   fNxup = 0;
-   fNxlo = 0;
-   fMcup = 0;
-   fMclo = 0;
-   fNComplementaryVariables = 0;
-}
-
+TQpVar::TQpVar() : fNx(0), fMclo(0), fMcup(0), fMy(0), fMz(0), fNComplementaryVariables(0), fNxlo(0), fNxup(0) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor

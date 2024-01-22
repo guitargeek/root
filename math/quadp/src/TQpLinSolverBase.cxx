@@ -55,39 +55,33 @@ ClassImp(TQpLinSolverBase);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TQpLinSolverBase::TQpLinSolverBase()
+TQpLinSolverBase::TQpLinSolverBase() : fNx(0), fFactory(nullptr), fMclo(0), fMcup(0), fMy(0), fMz(0), fNxlo(0), fNxup(0)
 {
-   fNx   = 0;
-   fMy   = 0;
-   fMz   = 0;
-   fNxup = 0;
-   fNxlo = 0;
-   fMcup = 0;
-   fMclo = 0;
-   fFactory = nullptr;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-TQpLinSolverBase::TQpLinSolverBase(TQpProbBase *factory,TQpDataBase *data)
+TQpLinSolverBase::TQpLinSolverBase(TQpProbBase *factory, TQpDataBase *data)
+   : fFactory(factory),
+     fCloIndex(data->fCloIndex),
+     fCupIndex(data->fCupIndex),
+     fMclo(fCloIndex.NonZeros()),
+     fMcup(fCupIndex.NonZeros()),
+     fMy(data->fMy),
+     fMz(data->fMz),
+     fNx(data->fNx),
+     fNxlo(fXloIndex.NonZeros()),
+     fNxup(fXupIndex.NonZeros()),
+     fXloIndex(data->fXloIndex),
+     fXupIndex(data->fXupIndex)
 {
-   fFactory = factory;
 
-   fNx = data->fNx;
-   fMy = data->fMy;
-   fMz = data->fMz;
-
-   fXloIndex.ResizeTo(data->fXloIndex); fXloIndex = data->fXloIndex;
-   fXupIndex.ResizeTo(data->fXupIndex); fXupIndex = data->fXupIndex;
-   fCloIndex.ResizeTo(data->fCloIndex); fCloIndex = data->fCloIndex;
-   fCupIndex.ResizeTo(data->fCupIndex); fCupIndex = data->fCupIndex;
-
-   fNxlo = fXloIndex.NonZeros();
-   fNxup = fXupIndex.NonZeros();
-   fMclo = fCloIndex.NonZeros();
-   fMcup = fCupIndex.NonZeros();
+   fXloIndex.ResizeTo(data->fXloIndex);
+   fXupIndex.ResizeTo(data->fXupIndex);
+   fCloIndex.ResizeTo(data->fCloIndex);
+   fCupIndex.ResizeTo(data->fCupIndex);
 
    if (fNxup+fNxlo > 0) {
       fDd.ResizeTo(fNx);

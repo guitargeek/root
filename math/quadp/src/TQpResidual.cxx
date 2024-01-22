@@ -61,29 +61,17 @@ ClassImp(TQpResidual);
 /// Constructor
 
 TQpResidual::TQpResidual()
+   : fNx(0), fDualityGap(0.0), fMclo(0.0), fMcup(0.0), fMy(0), fMz(0), fNxlo(0.0), fNxup(0.0), fResidualNorm(0.0)
 {
-   fNx   = 0;
-   fMy   = 0;
-   fMz   = 0;
-
-   fNxup = 0.0;
-   fNxlo = 0.0;
-   fMcup = 0.0;
-   fMclo = 0.0;
-   fResidualNorm = 0.0;
-   fDualityGap = 0.0;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-TQpResidual::TQpResidual(Int_t nx,Int_t my,Int_t mz,TVectorD &ixlo,TVectorD &ixup,
-                         TVectorD &iclo,TVectorD &icup)
+TQpResidual::TQpResidual(Int_t nx, Int_t my, Int_t mz, TVectorD &ixlo, TVectorD &ixup, TVectorD &iclo, TVectorD &icup)
+   : fNx(nx), fMy(my), fMz(mz)
 {
-   fNx = nx;
-   fMy = my;
-   fMz = mz;
 
    if (ixlo.GetNrows() > 0) fXloIndex.Use(ixlo.GetNrows(),ixlo.GetMatrixArray());
    if (ixup.GetNrows() > 0) fXupIndex.Use(ixup.GetNrows(),ixup.GetMatrixArray());

@@ -63,22 +63,13 @@ ClassImp(TQpDataBase);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TQpDataBase::TQpDataBase()
-{
-   fNx = 0;
-   fMy = 0;
-   fMz = 0;
-}
-
+TQpDataBase::TQpDataBase() : fNx(0), fMy(0), fMz(0) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-TQpDataBase::TQpDataBase(Int_t nx,Int_t my,Int_t mz)
+TQpDataBase::TQpDataBase(Int_t nx, Int_t my, Int_t mz) : fNx(nx), fMy(my), fMz(mz)
 {
-   fNx = nx;
-   fMy = my;
-   fMz = mz;
 
    fG    .ResizeTo(fNx);
 

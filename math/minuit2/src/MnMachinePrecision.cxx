@@ -16,15 +16,13 @@ namespace ROOT {
 namespace Minuit2 {
 
 MnMachinePrecision::MnMachinePrecision()
+   : fEpsMac(4. * std::numeric_limits<double>::epsilon()), fEpsMa2(2. * std::sqrt(fEpsMac))
 {
    // use double precision values from the numeric_limits standard
    // and do not determine it anymore using ComputePrecision
    // epsilon from stundard
    // note that there is a factor of 2 in the definition of
    // std::numeric_limitys::epsilon w.r.t DLAMCH epsilon
-
-   fEpsMac = 4. * std::numeric_limits<double>::epsilon();
-   fEpsMa2 = 2. * std::sqrt(fEpsMac);
 }
 void MnMachinePrecision::ComputePrecision()
 {

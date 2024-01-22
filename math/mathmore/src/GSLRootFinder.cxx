@@ -45,15 +45,17 @@
 namespace ROOT {
 namespace Math {
 
-
-GSLRootFinder::GSLRootFinder() :
-   fFunction(nullptr), fS(nullptr),
-   fRoot(0), fXlow(0), fXup(0),
-   fIter(0), fStatus(-1),
-   fValidInterval(false)
+GSLRootFinder::GSLRootFinder()
+   : fFunction(new GSLFunctionWrapper()),
+     fS(nullptr),
+     fRoot(0),
+     fXlow(0),
+     fXup(0),
+     fIter(0),
+     fStatus(-1),
+     fValidInterval(false)
 {
    // create function wrapper
-   fFunction = new GSLFunctionWrapper();
 }
 
 GSLRootFinder::~GSLRootFinder()

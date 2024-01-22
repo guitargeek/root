@@ -25,21 +25,16 @@ ClassImp(TFoamVect);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor for streamer
 
-TFoamVect::TFoamVect()
-{
-   fDim    =0;
-   fCoords =nullptr;
-}
+TFoamVect::TFoamVect() : fDim(0), fCoords(nullptr) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// User constructor creating n-dimensional vector
 /// and allocating dynamically array of components
 
-TFoamVect::TFoamVect(Int_t n)
+TFoamVect::TFoamVect(Int_t n) : fDim(n), fCoords(nullptr)
 {
    Int_t i;
-   fDim=n;
-   fCoords = nullptr;
+
    if (n>0) {
       fCoords = new Double_t[fDim];
       if(gDebug) {
@@ -54,9 +49,9 @@ TFoamVect::TFoamVect(Int_t n)
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-TFoamVect::TFoamVect(const TFoamVect &Vect): TObject(Vect)
+TFoamVect::TFoamVect(const TFoamVect &Vect) : TObject(Vect), fCoords(nullptr), fDim(Vect.fDim)
 {
-   fDim = Vect.fDim; fCoords = nullptr;
+
    if(fDim > 0)  fCoords = new Double_t[fDim];
 
    if(gDebug) {

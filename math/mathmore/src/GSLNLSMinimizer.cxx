@@ -51,11 +51,11 @@ public:
       // Ownership of the transformation object is passed to this class
    }
 
-   virtual ~FitTransformFunction()  {
-   }
+   ~FitTransformFunction() override {}
 
    // re-implement data element
-   virtual double DataElement(const double *  x, unsigned i, double * g = nullptr, double * = nullptr, bool = false) const  {
+   double DataElement(const double *x, unsigned i, double *g = nullptr, double * = nullptr, bool = false) const override
+   {
       // transform from x internal to x external
       const double * xExt = fTransform->Transformation(x);
       if ( g == nullptr) return fFunc.DataElement( xExt, i );
@@ -66,16 +66,14 @@ public:
       return val;
    }
 
-
-   virtual IMultiGenFunction * Clone() const {
+   IMultiGenFunction *Clone() const override
+   {
       // not supported
       return nullptr;
    }
 
    // dimension (this is number of free dimensions)
-   virtual unsigned int NDim() const  {
-      return fTransform->NDim();
-   }
+   unsigned int NDim() const override { return fTransform->NDim(); }
 
    unsigned int NTot() const {
       return fTransform->NTot();
@@ -102,11 +100,10 @@ private:
    FitTransformFunction(const FitTransformFunction& rhs) = delete;
    FitTransformFunction& operator=(const FitTransformFunction& rhs) = delete;
 
-   virtual double DoEval(const double * x) const  {
-      return fFunc( fTransform->Transformation(x) );
-   }
+   double DoEval(const double *x) const override { return fFunc(fTransform->Transformation(x)); }
 
-   virtual double DoDerivative(const double * /* x */, unsigned int /*icoord*/) const  {
+   double DoDerivative(const double * /* x */, unsigned int /*icoord*/) const override
+   {
       // not used
       throw std::runtime_error("FitTransformFunction::DoDerivative");
       return 0;

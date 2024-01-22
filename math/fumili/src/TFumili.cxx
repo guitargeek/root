@@ -127,37 +127,40 @@ static const Double_t gMINDOUBLE=-1e300;
 ////////////////////////////////////////////////////////////////////////////////
 
 TFumili::TFumili(Int_t maxpar)
+   : fMaxParam(TMath::Max(maxpar, 25)),
+     fAKAPPA(0.),
+     fDEBUG(false),
+     fENDFLG(0),
+     fEPS(0.01),
+     fEXDA(nullptr),
+     fGRAD(false),
+     fGT(0.),
+     fLastFixed(-1),
+     fLogLike(false),
+     fNED1(0),
+     fNED12(fNED1 + fNED2),
+     fNED2(0),
+     fNfcn(0),
+     fNlimMul(2),
+     fNlog(0),
+     fNmaxIter(150),
+     fNpar(fMaxParam),
+     fNstepDec(3),
+     fNumericDerivatives(true),
+     fRP(1.e-15),
+     fS(1e10),
+     fSumLog(nullptr),
+     fWARN(true)
 {//----------- FUMILI constructor ---------
    // maxpar is the maximum number of parameters used with TFumili object
    //
-   fMaxParam = TMath::Max(maxpar,25);
+
    BuildArrays();
 
-   fNumericDerivatives = true;
-   fLogLike = false;
-   fNpar    = fMaxParam;
-   fGRAD    = false;
-   fWARN    = true;
-   fDEBUG   = false;
-   fNlog    = 0;
-   fSumLog  = nullptr;
-   fNED1    = 0;
-   fNED2    = 0;
-   fNED12   = fNED1+fNED2;
-   fEXDA    = nullptr;
    fFCN     = nullptr;
-   fNfcn    = 0;
-   fRP      = 1.e-15; //precision
-   fS       = 1e10;
-   fEPS     =0.01;
-   fENDFLG  = 0;
-   fNlimMul = 2;
-   fNmaxIter= 150;
-   fNstepDec= 3;
-   fLastFixed = -1;
 
-   fAKAPPA = 0.;
-   fGT = 0.;
+   // precision
+
    for (int i = 0; i<5; ++i) fINDFLG[i] = 0;
 
    SetName("Fumili");

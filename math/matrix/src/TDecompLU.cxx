@@ -42,40 +42,32 @@ ClassImp(TDecompLU);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TDecompLU::TDecompLU()
-{
-   fSign = 0.0;
-   fNIndex = 0;
-   fIndex = nullptr;
-   fImplicitPivot = 0;
-}
+TDecompLU::TDecompLU() : fSign(0.0), fImplicitPivot(0), fIndex(nullptr), fNIndex(0) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for (nrows x nrows) matrix
 
-TDecompLU::TDecompLU(Int_t nrows)
+TDecompLU::TDecompLU(Int_t nrows) : fSign(1.0), fImplicitPivot(0), fIndex(new Int_t[fNIndex]), fNIndex(nrows)
 {
-   fSign = 1.0;
-   fNIndex = nrows;
-   fIndex = new Int_t[fNIndex];
+
    memset(fIndex,0,fNIndex*sizeof(Int_t));
-   fImplicitPivot = 0;
+
    fLU.ResizeTo(nrows,nrows);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for ([row_lwb..row_upb] x [row_lwb..row_upb]) matrix
 
-TDecompLU::TDecompLU(Int_t row_lwb,Int_t row_upb)
+TDecompLU::TDecompLU(Int_t row_lwb, Int_t row_upb) : fSign(1.0), fImplicitPivot(0), fIndex(new Int_t[fNIndex])
 {
    const Int_t nrows = row_upb-row_lwb+1;
-   fSign = 1.0;
+
    fNIndex = nrows;
-   fIndex = new Int_t[fNIndex];
+
    memset(fIndex,0,fNIndex*sizeof(Int_t));
    fRowLwb = row_lwb;
    fColLwb = row_lwb;
-   fImplicitPivot = 0;
+
    fLU.ResizeTo(row_lwb,row_lwb+nrows-1,row_lwb,row_lwb+nrows-1);
 }
 
@@ -112,10 +104,9 @@ TDecompLU::TDecompLU(const TMatrixD &a,Double_t tol,Int_t implicit)
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-TDecompLU::TDecompLU(const TDecompLU &another) : TDecompBase(another)
+TDecompLU::TDecompLU(const TDecompLU &another) : TDecompBase(another), fIndex(nullptr), fNIndex(0)
 {
-   fNIndex = 0;
-   fIndex  = nullptr;
+
    *this = another;
 }
 

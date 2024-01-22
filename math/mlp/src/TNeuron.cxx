@@ -44,31 +44,32 @@ ClassImp(TNeuron);
 ////////////////////////////////////////////////////////////////////////////////
 /// Usual constructor
 
-TNeuron::TNeuron(TNeuron::ENeuronType type /*= kSigmoid*/,
-                 const char* name /*= ""*/, const char* title /*= ""*/,
-                 const char* extF /*= ""*/, const char* extD  /*= ""*/ )
-   :TNamed(name, title)
+TNeuron::TNeuron(TNeuron::ENeuronType type /*= kSigmoid*/, const char *name /*= ""*/, const char *title /*= ""*/,
+                 const char *extF /*= ""*/, const char *extD /*= ""*/)
+   : TNamed(name, title),
+     fDEDw(0),
+     fDeDw(0),
+     fDerivative(0),
+     fExtD(nullptr),
+     fExtF(nullptr),
+     fFormula(nullptr),
+     fIndex(0),
+     fInput(0),
+     fNewDeDw(true),
+     fNewDeriv(true),
+     fNewInput(true),
+     fNewValue(true),
+     fType(type),
+     fValue(0),
+     fWeight(0.)
 {
    fpre.SetOwner(false);
    fpost.SetOwner(false);
    flayer.SetOwner(false);
-   fWeight = 0.;
+
    fNorm[0] = 1.;
    fNorm[1] = 0.;
-   fType = type;
-   fNewInput = true;
-   fNewValue = true;
-   fNewDeriv = true;
-   fNewDeDw = true;
-   fFormula = nullptr;
-   fDeDw  = 0;
-   fDEDw  = 0;
-   fValue = 0;
-   fExtF  = nullptr;
-   fExtD  = nullptr;
-   fIndex = 0;
-   fDerivative = 0;
-   fInput = 0;
+
    if(fType==kExternal) {
       fExtF = (TFormula*)gROOT->FindObject(extF);
       fExtD = (TFormula*)gROOT->FindObject(extD);

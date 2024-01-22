@@ -52,14 +52,8 @@ ClassImp(TFFTRealComplex);
 ////////////////////////////////////////////////////////////////////////////////
 ///default
 
-TFFTRealComplex::TFFTRealComplex()
+TFFTRealComplex::TFFTRealComplex() : fIn(nullptr), fN(nullptr), fNdim(0), fOut(nullptr), fPlan(nullptr), fTotalSize(0)
 {
-   fIn   = nullptr;
-   fOut  = nullptr;
-   fPlan = nullptr;
-   fN    = nullptr;
-   fNdim = 0;
-   fTotalSize = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

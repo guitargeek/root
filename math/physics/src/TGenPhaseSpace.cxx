@@ -54,11 +54,10 @@ Int_t DoubleMax(const void *a, const void *b)
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-TGenPhaseSpace::TGenPhaseSpace(const TGenPhaseSpace &gen) : TObject(gen)
+TGenPhaseSpace::TGenPhaseSpace(const TGenPhaseSpace &gen)
+   : TObject(gen), fNt(gen.fNt), fTeCmTm(gen.fTeCmTm), fWtMax(gen.fWtMax)
 {
-   fNt      = gen.fNt;
-   fWtMax   = gen.fWtMax;
-   fTeCmTm  = gen.fTeCmTm;
+
    fBeta[0] = gen.fBeta[0];
    fBeta[1] = gen.fBeta[1];
    fBeta[2] = gen.fBeta[2];

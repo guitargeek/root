@@ -32,7 +32,12 @@ MPI::Intracomm *MPIProcess::fgCommunicators[2] = {0};
 unsigned int MPIProcess::fgIndicesComm[2] = {0};
 #endif
 
-MPIProcess::MPIProcess(unsigned int nelements, unsigned int indexComm) : fNelements(nelements), fSize(1), fRank(0)
+MPIProcess::MPIProcess(unsigned int nelements, unsigned int indexComm)
+   : fNelements(nelements),
+     fSize(1),
+     fRank(0),
+     fNumElements4JobIn(fNelements / fSize),
+     fNumElements4JobOut(fNelements % fSize)
 {
 
    // check local requested index for communicator, valid values are 0 and 1
@@ -133,9 +138,6 @@ MPIProcess::MPIProcess(unsigned int nelements, unsigned int indexComm) : fNeleme
    }
 
 #endif
-
-   fNumElements4JobIn = fNelements / fSize;
-   fNumElements4JobOut = fNelements % fSize;
 }
 
 MPIProcess::~MPIProcess()

@@ -20,13 +20,10 @@
 namespace ROOT {
 namespace Math {
 
-   GaussLegendreIntegrator::GaussLegendreIntegrator(int num, double eps) :
-      GaussIntegrator(eps, eps)
+GaussLegendreIntegrator::GaussLegendreIntegrator(int num, double eps)
+   : GaussIntegrator(eps, eps), fNum(num), fW(nullptr), fX(nullptr)
 {
    // Basic constructor
-   fNum = num;
-   fX = nullptr;
-   fW = nullptr;
 
    CalcGaussLegendreSamplingPoints();
 }

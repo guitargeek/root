@@ -27,9 +27,9 @@ ClassImp(TDecompSparse);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TDecompSparse::TDecompSparse()
+TDecompSparse::TDecompSparse() : fVerbose(0)
 {
-   fVerbose = 0;
+
    InitParam();
    memset(fInfo,0,21*sizeof(Int_t));
 }
@@ -38,13 +38,11 @@ TDecompSparse::TDecompSparse()
 /// Constructor for a matrix with nrows and unspecified number of columns .
 /// nr_nonZeros is the total number of non-zero entries in the matrix .
 
-TDecompSparse::TDecompSparse(Int_t nRows,Int_t nr_nonZeros,Int_t verbose)
+TDecompSparse::TDecompSparse(Int_t nRows, Int_t nr_nonZeros, Int_t verbose)
+   : fVerbose(verbose), fMaxfrt(0), fNnonZeros(nr_nonZeros), fNrows(nRows), fNsteps(0)
 {
-   fVerbose = verbose;
-   InitParam();
 
-   fNrows     = nRows;
-   fNnonZeros = nr_nonZeros;
+   InitParam();
 
    fRowFact.Set(nr_nonZeros+1);
    fColFact.Set(nr_nonZeros+1);
@@ -56,23 +54,20 @@ TDecompSparse::TDecompSparse(Int_t nRows,Int_t nr_nonZeros,Int_t verbose)
    memset(fInfo,0,21*sizeof(Int_t));
 
    // These parameters can only be set after sparsity/pivoting pattern is known
-   fNsteps = 0;
-   fMaxfrt = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for a matrix with row range, [row_lwb..row_upb] and unspecified column
 /// range . nr_nonZeros is the total number of non-zero entries in the matrix .
 
-TDecompSparse::TDecompSparse(Int_t row_lwb,Int_t row_upb,Int_t nr_nonZeros,Int_t verbose)
+TDecompSparse::TDecompSparse(Int_t row_lwb, Int_t row_upb, Int_t nr_nonZeros, Int_t verbose)
+   : fVerbose(verbose), fMaxfrt(0), fNnonZeros(nr_nonZeros), fNrows(row_upb - row_lwb + 1), fNsteps(0)
 {
-   fVerbose = verbose;
+
    InitParam();
 
    fRowLwb    = row_lwb;
    fColLwb    = row_lwb;
-   fNrows     = row_upb-row_lwb+1;
-   fNnonZeros = nr_nonZeros;
 
    fRowFact.Set(nr_nonZeros+1);
    fColFact.Set(nr_nonZeros+1);
@@ -84,16 +79,13 @@ TDecompSparse::TDecompSparse(Int_t row_lwb,Int_t row_upb,Int_t nr_nonZeros,Int_t
    memset(fInfo,0,21*sizeof(Int_t));
 
    // These parameters can only be set after sparsity/pivoting pattern is known
-   fNsteps = 0;
-   fMaxfrt = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for matrix A .
 
-TDecompSparse::TDecompSparse(const TMatrixDSparse &a,Int_t verbose)
+TDecompSparse::TDecompSparse(const TMatrixDSparse &a, Int_t verbose) : fVerbose(verbose)
 {
-   fVerbose = verbose;
 
    InitParam();
    SetMatrix(a);

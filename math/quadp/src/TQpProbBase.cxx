@@ -60,24 +60,12 @@ ClassImp(TQpProbBase);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TQpProbBase::TQpProbBase()
-{
-   fNx = 0;
-   fMy = 0;
-   fMz = 0;
-}
-
+TQpProbBase::TQpProbBase() : fNx(0), fMy(0), fMz(0) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-TQpProbBase::TQpProbBase(Int_t nx,Int_t my,Int_t mz)
-{
-   fNx = nx;
-   fMy = my;
-   fMz = mz;
-}
-
+TQpProbBase::TQpProbBase(Int_t nx, Int_t my, Int_t mz) : fNx(nx), fMy(my), fMz(mz) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor

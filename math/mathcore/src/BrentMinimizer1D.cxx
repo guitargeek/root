@@ -29,15 +29,18 @@ namespace Math {
 static int gDefaultNpx = 100; // default nunmber of points used in the grid to bracked the minimum
 static int gDefaultNSearch = 10;  // number of time the iteration (bracketing -Brent ) is repeted
 
-
-   BrentMinimizer1D::BrentMinimizer1D(): IMinimizer1D(),
-                                         fFunction(nullptr),
-                                         fLogScan(false), fNIter(0),
-                                         fNpx(0), fStatus(-1),
-                                         fXMin(0), fXMax(0), fXMinimum(0)
+BrentMinimizer1D::BrentMinimizer1D()
+   : IMinimizer1D(),
+     fFunction(nullptr),
+     fLogScan(false),
+     fNIter(0),
+     fNpx(gDefaultNpx),
+     fStatus(-1),
+     fXMin(0),
+     fXMax(0),
+     fXMinimum(0)
 {
 // Default Constructor.
-   fNpx = gDefaultNpx;
 }
 
 void BrentMinimizer1D::SetDefaultNpx(int n) { gDefaultNpx = n; }

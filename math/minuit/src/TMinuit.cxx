@@ -460,18 +460,19 @@ TMinuit::TMinuit(): TNamed("MINUIT","The Minimization package")
 ///
 ///  maxpar is the maximum number of parameters used with this TMinuit object.
 
-TMinuit::TMinuit(Int_t maxpar): TNamed("MINUIT","The Minimization package")
+TMinuit::TMinuit(Int_t maxpar)
+   : TNamed("MINUIT", "The Minimization package"),
+     fEmpty(0),
+     fFCN(nullptr),
+     fGraphicsMode(kTRUE),
+     fMethodCall(nullptr),
+     fObjectFit(nullptr),
+     fPlot(nullptr),
+     fStatus(0)
 {
-   fFCN = nullptr;
 
    BuildArrays(maxpar);
 
-   fStatus       = 0;
-   fEmpty        = 0;
-   fObjectFit    = nullptr;
-   fMethodCall   = nullptr;
-   fPlot         = nullptr;
-   fGraphicsMode = kTRUE;
    SetMaxIterations();
 
    mninit(5,6,7);

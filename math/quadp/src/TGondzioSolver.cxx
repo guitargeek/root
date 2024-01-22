@@ -61,54 +61,54 @@ ClassImp(TGondzioSolver);
 /// Default constructor
 
 TGondzioSolver::TGondzioSolver()
+   : fPrintlevel(0),
+     fAcceptTol(0.0),
+     fBeta_max(0.0),
+     fBeta_min(0.0),
+     fCorrector_resid(nullptr),
+     fCorrector_step(nullptr),
+     fFactory(nullptr),
+     fMaximum_correctors(0),
+     fNumberGondzioCorrections(0),
+     fStep(nullptr),
+     fStepFactor0(0.0),
+     fStepFactor1(0.0),
+     fTsig(0.0)
 {
-   fPrintlevel               = 0;
-   fTsig                     = 0.0;
-   fMaximum_correctors       = 0;
-   fNumberGondzioCorrections = 0;
-
-   fStepFactor0 = 0.0;
-   fStepFactor1 = 0.0;
-   fAcceptTol   = 0.0;
-   fBeta_min    = 0.0;
-   fBeta_max    = 0.0;
-
-   fCorrector_step  = nullptr;
-   fStep            = nullptr;
-   fCorrector_resid = nullptr;
-   fFactory         = nullptr;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-TGondzioSolver::TGondzioSolver(TQpProbBase *of,TQpDataBase *prob,Int_t verbose)
+TGondzioSolver::TGondzioSolver(TQpProbBase *of, TQpDataBase *prob, Int_t verbose)
+   : fFactory(of),
+     fAcceptTol(0.005),
+     fBeta_max(10.0),
+     fBeta_min(0.1),
+     fMaximum_correctors(3),
+     fNumberGondzioCorrections(0),
+     fPrintlevel(verbose),
+     fStepFactor0(0.08),
+     fStepFactor1(1.08),
+     fTsig(3.0)
 {
-   fFactory = of;
+
    fStep            = fFactory->MakeVariables(prob);
    fCorrector_step  = fFactory->MakeVariables(prob);
    fCorrector_resid = fFactory->MakeResiduals(prob);
 
-   fPrintlevel = verbose;
-   fTsig       = 3.0;            // the usual value for the centering exponent (tau)
+   // the usual value for the centering exponent (tau)
 
-   fMaximum_correctors = 3;      // maximum number of Gondzio correctors
-
-   fNumberGondzioCorrections = 0;
+   // maximum number of Gondzio correctors
 
    // the two StepFactor constants set targets for increase in step
    // length for each corrector
-   fStepFactor0 = 0.08;
-   fStepFactor1 = 1.08;
 
    // accept the enhanced step if it produces a small improvement in
    // the step length
-   fAcceptTol = 0.005;
 
    //define the Gondzio correction box
-   fBeta_min = 0.1;
-   fBeta_max = 10.0;
 }
 
 

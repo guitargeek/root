@@ -37,9 +37,9 @@
 namespace ROOT {
 namespace Math {
 
-Interpolator::Interpolator(unsigned int ndata, Interpolation::Type type ) {
+Interpolator::Interpolator(unsigned int ndata, Interpolation::Type type) : fInterp(new GSLInterpolator(ndata, type))
+{
    // allocate GSL interpolation object
-   fInterp = new GSLInterpolator(ndata, type);
 }
 
 Interpolator::Interpolator(const std::vector<double> & x, const std::vector<double> & y, Interpolation::Type type)

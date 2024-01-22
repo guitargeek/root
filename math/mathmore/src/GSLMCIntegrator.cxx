@@ -69,22 +69,24 @@ namespace Math {
 //    SetOptions(opts);
 // }
 
-
-GSLMCIntegrator::GSLMCIntegrator(MCIntegration::Type type, double absTol, double relTol, unsigned int calls):
-   fType(type),
-   fDim(0),
-   fCalls((calls > 0)  ? calls : IntegratorMultiDimOptions::DefaultNCalls()),
-   fAbsTol((absTol >= 0) ? absTol : IntegratorMultiDimOptions::DefaultAbsTolerance() ),
-   fRelTol((relTol >= 0) ? relTol : IntegratorMultiDimOptions::DefaultRelTolerance() ),
-   fResult(0),fError(0),fStatus(-1),
-   fExtGen(false),
-   fWorkspace(nullptr),
-   fFunction(nullptr)
+GSLMCIntegrator::GSLMCIntegrator(MCIntegration::Type type, double absTol, double relTol, unsigned int calls)
+   : fType(type),
+     fRng(new GSLRngWrapper()),
+     fDim(0),
+     fCalls((calls > 0) ? calls : IntegratorMultiDimOptions::DefaultNCalls()),
+     fAbsTol((absTol >= 0) ? absTol : IntegratorMultiDimOptions::DefaultAbsTolerance()),
+     fRelTol((relTol >= 0) ? relTol : IntegratorMultiDimOptions::DefaultRelTolerance()),
+     fResult(0),
+     fError(0),
+     fStatus(-1),
+     fExtGen(false),
+     fWorkspace(nullptr),
+     fFunction(nullptr)
 {
    // constructor of GSL MCIntegrator using enumeration as type
    SetType(type);
    //set random number generator
-   fRng = new GSLRngWrapper();
+
    fRng->Allocate();
    // use the default options for the needed extra parameters
    // use the default options for the needed extra parameters
@@ -99,22 +101,25 @@ GSLMCIntegrator::GSLMCIntegrator(MCIntegration::Type type, double absTol, double
 
 }
 
-GSLMCIntegrator::GSLMCIntegrator(const char * type, double absTol, double relTol, unsigned int calls):
-   fType(MCIntegration::kDEFAULT),
-   fDim(0),
-   fCalls(calls),
-   fAbsTol(absTol),
-   fRelTol(relTol),
-   fResult(0),fError(0),fStatus(-1),
-   fExtGen(false),
-   fWorkspace(nullptr),
-   fFunction(nullptr)
+GSLMCIntegrator::GSLMCIntegrator(const char *type, double absTol, double relTol, unsigned int calls)
+   : fType(MCIntegration::kDEFAULT),
+     fRng(new GSLRngWrapper()),
+     fDim(0),
+     fCalls(calls),
+     fAbsTol(absTol),
+     fRelTol(relTol),
+     fResult(0),
+     fError(0),
+     fStatus(-1),
+     fExtGen(false),
+     fWorkspace(nullptr),
+     fFunction(nullptr)
 {
    // constructor of GSL MCIntegrator. Vegas MC is set as default integration type if type == 0
    SetTypeName(type);
 
    //set random number generator
-   fRng = new GSLRngWrapper();
+
    fRng->Allocate();
    // use the default options for the needed extra parameters
    if (fType == MCIntegration::kVEGAS) {

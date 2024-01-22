@@ -128,13 +128,8 @@ ClassImp(TDecompBase);
 /// Default constructor
 
 TDecompBase::TDecompBase()
+   : fTol(std::numeric_limits<double>::epsilon()), fColLwb(0), fCondition(-1.0), fDet1(0), fDet2(0), fRowLwb(0)
 {
-   fTol       = std::numeric_limits<double>::epsilon();
-   fDet1      = 0;
-   fDet2      = 0;
-   fCondition = -1.0;
-   fRowLwb    = 0;
-   fColLwb    = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

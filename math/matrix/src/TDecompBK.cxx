@@ -61,19 +61,14 @@ ClassImp(TDecompBK);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TDecompBK::TDecompBK()
-{
-   fNIpiv = 0;
-   fIpiv  = nullptr;
-}
+TDecompBK::TDecompBK() : fNIpiv(0), fIpiv(nullptr) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for (nrows x nrows) symmetric matrix
 
-TDecompBK::TDecompBK(Int_t nrows)
+TDecompBK::TDecompBK(Int_t nrows) : fNIpiv(nrows), fIpiv(new Int_t[fNIpiv])
 {
-   fNIpiv = nrows;
-   fIpiv = new Int_t[fNIpiv];
+
    memset(fIpiv,0,fNIpiv*sizeof(Int_t));
    fU.ResizeTo(nrows,nrows);
 }
@@ -81,11 +76,11 @@ TDecompBK::TDecompBK(Int_t nrows)
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for ([row_lwb..row_upb] x [row_lwb..row_upb]) symmetric matrix
 
-TDecompBK::TDecompBK(Int_t row_lwb,Int_t row_upb)
+TDecompBK::TDecompBK(Int_t row_lwb, Int_t row_upb) : fIpiv(new Int_t[fNIpiv])
 {
    const Int_t nrows = row_upb-row_lwb+1;
    fNIpiv = nrows;
-   fIpiv = new Int_t[fNIpiv];
+
    memset(fIpiv,0,fNIpiv*sizeof(Int_t));
    fColLwb = fRowLwb = row_lwb;
    fU.ResizeTo(nrows,nrows);
@@ -117,10 +112,9 @@ TDecompBK::TDecompBK(const TMatrixDSym &a,Double_t tol)
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-TDecompBK::TDecompBK(const TDecompBK &another) : TDecompBase(another)
+TDecompBK::TDecompBK(const TDecompBK &another) : TDecompBase(another), fIpiv(nullptr), fNIpiv(0)
 {
-   fNIpiv = 0;
-   fIpiv  = nullptr;
+
    *this = another;
 }
 

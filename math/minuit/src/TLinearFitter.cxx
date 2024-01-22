@@ -223,41 +223,41 @@ fitters and doesn't require to set the initial values of parameters.
 ///If you don't want to store the input data,
 ///run the function StoreData(kFALSE) after constructor
 
-TLinearFitter::TLinearFitter() :
-TVirtualFitter(),
-   fParams(),
-   fParCovar(),
-   fTValues(),
-   fDesign(),
-   fDesignTemp(),
-   fDesignTemp2(),
-   fDesignTemp3(),
-   fAtb(),
-   fAtbTemp(),
-   fAtbTemp2(),
-   fAtbTemp3(),
-   fFunctions(),
-   fY(),
-   fX(),
-   fE(),
-   fVal()
+TLinearFitter::TLinearFitter()
+   : TVirtualFitter(),
+     fParams(),
+     fParCovar(),
+     fTValues(),
+     fDesign(),
+     fDesignTemp(),
+     fDesignTemp2(),
+     fDesignTemp3(),
+     fAtb(),
+     fAtbTemp(),
+     fAtbTemp2(),
+     fAtbTemp3(),
+     fFunctions(),
+     fY(),
+     fY2(0),
+     fY2Temp(0),
+     fX(),
+     fE(),
+     fInputFunction(nullptr),
+     fVal(),
+     fChisquare(0),
+     fFixedParams(nullptr),
+     fFormula(nullptr),
+     fFormulaSize(0),
+     fH(0),
+     fIsSet(kFALSE),
+     fNdim(0),
+     fNfixed(0),
+     fNfunctions(0),
+     fNpoints(0),
+     fRobust(kFALSE),
+     fSpecial(0),
+     fStoreData(kTRUE)
 {
-   fChisquare =0;
-   fNpoints   =0;
-   fNdim      =0;
-   fY2        =0;
-   fY2Temp    =0;
-   fNfixed    =0;
-   fIsSet     =kFALSE;
-   fFormula   =nullptr;
-   fFixedParams=nullptr;
-   fSpecial   =0;
-   fInputFunction=nullptr;
-   fStoreData =kTRUE;
-   fRobust    =kFALSE;
-   fNfunctions = 0;
-   fFormulaSize = 0;
-   fH = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -265,25 +265,25 @@ TVirtualFitter(),
 ///The input data is stored. If you don't want to store the input data,
 ///run the function StoreData(kFALSE) after constructor
 
-TLinearFitter::TLinearFitter(Int_t ndim) :
-   fVal()
+TLinearFitter::TLinearFitter(Int_t ndim)
+   : fInputFunction(nullptr),
+     fY2(0),
+     fY2Temp(0),
+     fVal(),
+     fChisquare(0),
+     fFixedParams(nullptr),
+     fFormula(nullptr),
+     fFormulaSize(0),
+     fH(0),
+     fIsSet(kFALSE),
+     fNdim(ndim),
+     fNfixed(0),
+     fNfunctions(0),
+     fNpoints(0),
+     fRobust(kFALSE),
+     fSpecial(0),
+     fStoreData(kTRUE)
 {
-   fNdim    =ndim;
-   fNpoints =0;
-   fY2      =0;
-   fY2Temp  =0;
-   fNfixed  =0;
-   fFixedParams=nullptr;
-   fFormula =nullptr;
-   fIsSet   =kFALSE;
-   fChisquare=0;
-   fSpecial  =0;
-   fInputFunction=nullptr;
-   fStoreData=kTRUE;
-   fRobust = kFALSE;
-   fNfunctions = 0;
-   fFormulaSize = 0;
-   fH = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -295,16 +295,17 @@ TLinearFitter::TLinearFitter(Int_t ndim) :
 ///StoreData(kFalse) member function after the constructor
 
 TLinearFitter::TLinearFitter(Int_t ndim, const char *formula, Option_t *opt)
+   : fNdim(ndim),
+     fChisquare(0),
+     fFixedParams(nullptr),
+     fFormula(nullptr),
+     fInputFunction(nullptr),
+     fNfixed(0),
+     fNpoints(0),
+     fSpecial(0),
+     fY2(0)
 {
-   fNdim=ndim;
-   fNpoints=0;
-   fChisquare=0;
-   fY2=0;
-   fNfixed=0;
-   fFixedParams=nullptr;
-   fSpecial=0;
-   fInputFunction=nullptr;
-   fFormula = nullptr;
+
    TString option=opt;
    option.ToUpper();
    if (option.Contains("D"))
@@ -327,9 +328,9 @@ TLinearFitter::TLinearFitter(Int_t ndim, const char *formula, Option_t *opt)
 ///If you don't want to store the data, choose "" for the option, or run
 ///StoreData(kFalse) member function after the constructor
 
-TLinearFitter::TLinearFitter(TFormula *function, Option_t *opt)
+TLinearFitter::TLinearFitter(TFormula *function, Option_t *opt) : fNdim(function->GetNdim())
 {
-   fNdim=function->GetNdim();
+
    if (!function->IsLinear()){
       Int_t number=function->GetNumber();
       if (number<299 || number>310){

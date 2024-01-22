@@ -47,13 +47,12 @@ RichardsonDerivator::~RichardsonDerivator()
       delete fFunction;
 }
 
-RichardsonDerivator::RichardsonDerivator(const RichardsonDerivator & rhs)
+RichardsonDerivator::RichardsonDerivator(const RichardsonDerivator &rhs)
+   : fStepSize(rhs.fStepSize), fFunctionCopied(rhs.fFunctionCopied), fLastError(rhs.fLastError)
 {
     // copy constructor
     // copy constructor (deep copy or not depending on fFunctionCopied)
-   fStepSize = rhs.fStepSize;
-   fLastError = rhs.fLastError;
-   fFunctionCopied = rhs.fFunctionCopied;
+
    SetFunction(*rhs.fFunction);
  }
 

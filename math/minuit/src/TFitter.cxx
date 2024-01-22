@@ -36,12 +36,9 @@ ClassImp(TFitter);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TFitter::TFitter(Int_t maxpar)
+TFitter::TFitter(Int_t maxpar) : fMinuit(new TMinuit(maxpar)), fCovar(nullptr), fNlog(0), fSumLog(nullptr)
 {
-   fMinuit = new TMinuit(maxpar);
-   fNlog = 0;
-   fSumLog = nullptr;
-   fCovar = nullptr;
+
    SetName("MinuitFitter");
 }
 

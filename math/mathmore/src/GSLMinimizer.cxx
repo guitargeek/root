@@ -47,20 +47,18 @@ namespace ROOT {
 
    namespace Math {
 
+   GSLMinimizer::GSLMinimizer(ROOT::Math::EGSLMinimizerType type)
+      : BasicMinimizer(), fGSLMultiMin(new GSLMultiMinimizer((ROOT::Math::EGSLMinimizerType)type)), fLSTolerance(0.1)
+   {
+      // Constructor implementation : create GSLMultiMin wrapper object
+      // std::cout << "create GSL Minimizer of type " << type << std::endl;
 
-GSLMinimizer::GSLMinimizer( ROOT::Math::EGSLMinimizerType type) :
-   BasicMinimizer()
-{
-   // Constructor implementation : create GSLMultiMin wrapper object
-   //std::cout << "create GSL Minimizer of type " << type << std::endl;
-
-   fGSLMultiMin = new GSLMultiMinimizer((ROOT::Math::EGSLMinimizerType) type);
-
-   fLSTolerance = 0.1; // line search tolerance (use fixed)
-   int niter = ROOT::Math::MinimizerOptions::DefaultMaxIterations();
-   if (niter <=0 ) niter = 1000;
-   SetMaxIterations(niter);
-   SetPrintLevel(ROOT::Math::MinimizerOptions::DefaultPrintLevel());
+      // line search tolerance (use fixed)
+      int niter = ROOT::Math::MinimizerOptions::DefaultMaxIterations();
+      if (niter <= 0)
+         niter = 1000;
+      SetMaxIterations(niter);
+      SetPrintLevel(ROOT::Math::MinimizerOptions::DefaultPrintLevel());
 }
 
 GSLMinimizer::GSLMinimizer( const char *  type) :    BasicMinimizer()

@@ -26,23 +26,14 @@ ClassImp(TSynapse);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TSynapse::TSynapse()
-{
-   fpre    = nullptr;
-   fpost   = nullptr;
-   fweight = 1;
-   fDEDw   = 0;
-}
+TSynapse::TSynapse() : fpre(nullptr), fDEDw(0), fpost(nullptr), fweight(1) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor that connects two neurons
 
-TSynapse::TSynapse(TNeuron * pre, TNeuron * post, Double_t w)
+TSynapse::TSynapse(TNeuron *pre, TNeuron *post, Double_t w) : fpre(pre), fDEDw(0), fpost(post), fweight(w)
 {
-   fpre    = pre;
-   fpost   = post;
-   fweight = w;
-   fDEDw   = 0;
+
    pre->AddPost(this);
    post->AddPre(this);
 }

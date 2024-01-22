@@ -34,27 +34,26 @@ namespace ROOT {
 
 
 /// class constructor from array of data points
-Delaunay2D::Delaunay2D(int n, const double * x, const double * y, const double * z,
-                       double xmin, double xmax, double ymin, double ymax)
-{
-   // Delaunay2D normal constructor
+   Delaunay2D::Delaunay2D(int n, const double *x, const double *y, const double *z, double xmin, double xmax,
+                          double ymin, double ymax)
+      : fX(x),
+        fNdt(0),
+        fNpoints(n),
+        fOffsetX(0),
+        fOffsetY(0),
+        fScaleFactorX(0),
+        fScaleFactorY(0),
+        fXNmax(0),
+        fXNmin(0),
+        fY(y),
+        fYNmax(0),
+        fYNmin(0),
+        fZ(z),
+        fZout(0.)
+   {
+      // Delaunay2D normal constructor
 
-   fX            = x;
-   fY            = y;
-   fZ            = z;
-   fZout         = 0.;
-   fNpoints      = n;
-   fOffsetX      = 0;
-   fOffsetY      = 0;
-   fScaleFactorX = 0;
-   fScaleFactorY = 0;
-   fNdt          = 0;
-   fXNmax        = 0;
-   fXNmin        = 0;
-   fYNmin        = 0;
-   fYNmax        = 0;
-
-   SetInputPoints(n,x,y,z,xmin,xmax,ymin,ymax);
+      SetInputPoints(n, x, y, z, xmin, xmax, ymin, ymax);
 
 }
 

@@ -263,14 +263,14 @@ ClassImp(TRandom1);
 ///  level 4  (p=389): highest possible luxury, all 24 bits chaotic.
 
 TRandom1::TRandom1(UInt_t seed, Int_t lux)
-        : fIntModulus(0x1000000),
-          fMantissaBit24( TMath::Power(0.5,24.) ),
-          fMantissaBit12( TMath::Power(0.5,12.) )
+   : fLuxury(lux),
+     fIntModulus(0x1000000),
+     fTheSeeds(&fSeed),
+     fMantissaBit24(TMath::Power(0.5, 24.)),
+     fMantissaBit12(TMath::Power(0.5, 12.))
 {
    UInt_t seedlist[2]={0,0};
 
-   fTheSeeds = &fSeed;
-   fLuxury = lux;
    SetSeed2(seed, fLuxury);
    // in case seed = 0 SetSeed2 calls already SetSeeds
    if (seed != 0) {
@@ -285,15 +285,16 @@ TRandom1::TRandom1(UInt_t seed, Int_t lux)
 ///default constructor
 
 TRandom1::TRandom1()
-        : fIntModulus(0x1000000),
-          fMantissaBit24( TMath::Power(0.5,24.) ),
-          fMantissaBit12( TMath::Power(0.5,12.) )
+   : fLuxury(3),
+     fIntModulus(0x1000000),
+     fTheSeeds(&fSeed),
+     fMantissaBit24(TMath::Power(0.5, 24.)),
+     fMantissaBit12(TMath::Power(0.5, 12.))
 {
-   fTheSeeds = &fSeed;
+
    UInt_t seed;
    UInt_t seedlist[2]={0,0};
 
-   fLuxury = 3;
    int cycle = abs(int(fgNumEngines/fgMaxIndex));
    int curIndex = abs(int(fgNumEngines%fgMaxIndex));
    fgNumEngines +=1;
@@ -312,15 +313,16 @@ TRandom1::TRandom1()
 ///constructor
 
 TRandom1::TRandom1(Int_t rowIndex, Int_t colIndex, Int_t lux)
-        : fIntModulus(0x1000000),
-          fMantissaBit24( TMath::Power(0.5,24.) ),
-          fMantissaBit12( TMath::Power(0.5,12.) )
+   : fLuxury(lux),
+     fIntModulus(0x1000000),
+     fTheSeeds(&fSeed),
+     fMantissaBit24(TMath::Power(0.5, 24.)),
+     fMantissaBit12(TMath::Power(0.5, 12.))
 {
-   fTheSeeds = &fSeed;
+
    UInt_t seed;
    UInt_t seedlist[2]={0,0};
 
-   fLuxury = lux;
    int cycle = abs(int(rowIndex/fgMaxIndex));
    int row = abs(int(rowIndex%fgMaxIndex));
    int col = abs(int(colIndex%2));

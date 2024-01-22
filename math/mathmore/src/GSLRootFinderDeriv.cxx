@@ -44,15 +44,16 @@
 namespace ROOT {
 namespace Math {
 
-
-GSLRootFinderDeriv::GSLRootFinderDeriv() :
-   fFunction(nullptr), fS(nullptr),
-   fRoot(0), fPrevRoot(0),
-   fIter(0), fStatus(-1),
-   fValidPoint(false)
+GSLRootFinderDeriv::GSLRootFinderDeriv()
+   : fFunction(new GSLFunctionDerivWrapper()),
+     fS(nullptr),
+     fRoot(0),
+     fPrevRoot(0),
+     fIter(0),
+     fStatus(-1),
+     fValidPoint(false)
 {
    // create function wrapper
-   fFunction = new GSLFunctionDerivWrapper();
 }
 
 GSLRootFinderDeriv::~GSLRootFinderDeriv()

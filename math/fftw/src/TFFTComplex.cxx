@@ -49,24 +49,17 @@ ClassImp(TFFTComplex);
 ////////////////////////////////////////////////////////////////////////////////
 ///default
 
-TFFTComplex::TFFTComplex()
+TFFTComplex::TFFTComplex() : fIn(nullptr), fN(nullptr), fNdim(0), fOut(nullptr), fPlan(nullptr), fSign(1), fTotalSize(0)
 {
-   fIn   = nullptr;
-   fOut  = nullptr;
-   fPlan = nullptr;
-   fN    = nullptr;
-   fNdim = 0;
-   fTotalSize = 0;
-   fSign = 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ///For 1d transforms
 ///Allocates memory for the input array, and, if inPlace = kFALSE, for the output array
 
-TFFTComplex::TFFTComplex(Int_t n, Bool_t inPlace)
+TFFTComplex::TFFTComplex(Int_t n, Bool_t inPlace) : fIn(fftw_malloc(sizeof(fftw_complex) * n))
 {
-   fIn = fftw_malloc(sizeof(fftw_complex) *n);
+
    if (!inPlace)
       fOut = fftw_malloc(sizeof(fftw_complex) * n);
    else
@@ -83,11 +76,9 @@ TFFTComplex::TFFTComplex(Int_t n, Bool_t inPlace)
 ///For multidim. transforms
 ///Allocates memory for the input array, and, if inPlace = kFALSE, for the output array
 
-TFFTComplex::TFFTComplex(Int_t ndim, Int_t *n, Bool_t inPlace)
+TFFTComplex::TFFTComplex(Int_t ndim, Int_t *n, Bool_t inPlace) : fNdim(ndim), fN(new Int_t[fNdim]), fTotalSize(1)
 {
-   fNdim = ndim;
-   fTotalSize = 1;
-   fN = new Int_t[fNdim];
+
    for (Int_t i=0; i<fNdim; i++){
       fN[i] = n[i];
       fTotalSize*=n[i];

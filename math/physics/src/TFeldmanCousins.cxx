@@ -55,12 +55,9 @@ ClassImp(TFeldmanCousins);
 /// Constructor.
 
 TFeldmanCousins::TFeldmanCousins(Double_t newFC, TString options)
+   : fCL(newFC), fLowerLimit(0.0), fNbackground(0.0), fNobserved(0.0), fUpperLimit(0.0)
 {
-   fCL          = newFC;
-   fUpperLimit  = 0.0;
-   fLowerLimit  = 0.0;
-   fNobserved   = 0.0;
-   fNbackground = 0.0;
+
    options.ToLower();
    if (options.Contains("q")) fQUICK = 1;
    else                       fQUICK = 0;

@@ -30,14 +30,17 @@
 
 ClassImp(TUnuranSampler);
 
-TUnuranSampler::TUnuranSampler() : ROOT::Math::DistSampler(),
-   fOneDim(false),
-   fDiscrete(false),
-   fHasMode(false), fHasArea(false),
-   fMode(0), fArea(0),
-   fUnuran(new TUnuran()  )
+TUnuranSampler::TUnuranSampler()
+   : ROOT::Math::DistSampler(),
+     fOneDim(false),
+     fDiscrete(false),
+     fHasMode(false),
+     fHasArea(false),
+     fLevel(ROOT::Math::DistSamplerOptions::DefaultPrintLevel()),
+     fMode(0),
+     fArea(0),
+     fUnuran(new TUnuran())
 {
-   fLevel = ROOT::Math::DistSamplerOptions::DefaultPrintLevel();
 }
 
 TUnuranSampler::~TUnuranSampler() {

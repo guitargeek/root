@@ -72,22 +72,21 @@ GSLIntegrator::GSLIntegrator(const Integration::Type type , const Integration::G
 
 }
 
-
-
-GSLIntegrator::GSLIntegrator(double absTol, double relTol, size_t size) :
-   fType(Integration::kADAPTIVESINGULAR),
-   fRule(Integration::kGAUSS31),
-   fAbsTol(absTol),
-   fRelTol(relTol),
-   fSize(size),
-   fMaxIntervals(size),
-   fResult(0),fError(0),fStatus(-1),fNEval(-1),
-   fFunction(nullptr),
-   fWorkspace(nullptr)
+GSLIntegrator::GSLIntegrator(double absTol, double relTol, size_t size)
+   : fType(Integration::kADAPTIVESINGULAR),
+     fRule(Integration::kGAUSS31),
+     fAbsTol(absTol),
+     fRelTol(relTol),
+     fSize(size),
+     fMaxIntervals(size),
+     fResult(0),
+     fError(0),
+     fStatus(-1),
+     fNEval(-1),
+     fFunction(nullptr),
+     fWorkspace(new GSLIntegrationWorkspace(fSize))
 {
    // constructor with default type (ADaptiveSingular) ,  rule is not needed
-   fWorkspace = new GSLIntegrationWorkspace( fSize);
-
 }
 
 
@@ -111,19 +110,23 @@ GSLIntegrator::GSLIntegrator(const Integration::Type type , double absTol, doubl
 
 }
 
-   GSLIntegrator::GSLIntegrator(const char * type , int rule, double absTol, double relTol, size_t size) :
-   fRule(Integration::kGAUSS31),
-   fAbsTol(absTol),
-   fRelTol(relTol),
-   fSize(size),
-   fMaxIntervals(size),
-   fResult(0),fError(0),fStatus(-1),fNEval(-1),
-   fFunction(nullptr),
-   fWorkspace(nullptr)
+GSLIntegrator::GSLIntegrator(const char *type, int rule, double absTol, double relTol, size_t size)
+   : fType(Integration::kADAPTIVESINGULAR),
+     fRule(Integration::kGAUSS31),
+     fAbsTol(absTol),
+     fRelTol(relTol),
+     fSize(size),
+     fMaxIntervals(size),
+     fResult(0),
+     fError(0),
+     fStatus(-1),
+     fNEval(-1),
+     fFunction(nullptr),
+     fWorkspace(nullptr)
 {
    //std::cout << type << std::endl;
 
-   fType =  Integration::kADAPTIVESINGULAR;  // default
+   // default
    if (type != nullptr) {  // use this default
       std::string typeName(type);
       std::transform(typeName.begin(), typeName.end(), typeName.begin(), (int(*)(int)) toupper );

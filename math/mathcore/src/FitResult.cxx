@@ -49,28 +49,29 @@ FitResult::FitResult() :
    // Default constructor implementation.
 }
 
-FitResult::FitResult(const FitConfig & fconfig) :
-   fValid(false),
-   fNormalized(false),
-   fNFree(0),
-   fNdf(0),
-   fNCalls(0),
-   fStatus(gInitialResultStatus),
-   fCovStatus(0),
-   fVal(0),
-   fEdm(-1),
-   fChi2(-1),
-   fFitFunc(nullptr),
-   fParams(std::vector<double>( fconfig.NPar() ) ),
-   fErrors(std::vector<double>( fconfig.NPar() ) ),
-   fParNames(std::vector<std::string> ( fconfig.NPar() ) )
+FitResult::FitResult(const FitConfig &fconfig)
+   : fValid(false),
+     fNormalized(false),
+     fNFree(0),
+     fNdf(0),
+     fNCalls(0),
+     fStatus(gInitialResultStatus),
+     fCovStatus(0),
+     fVal(0),
+     fEdm(-1),
+     fChi2(-1),
+     fFitFunc(nullptr),
+     fParams(std::vector<double>(fconfig.NPar())),
+     fErrors(std::vector<double>(fconfig.NPar())),
+     fMinimType(fconfig.MinimizerType()),
+     fParNames(std::vector<std::string>(fconfig.NPar()))
 {
    // create a Fit result from a fit config (i.e. with initial parameter values
    // and errors equal to step values
    // The model function is NULL in this case
 
    // set minimizer type and algorithm
-   fMinimType = fconfig.MinimizerType();
+
    // append algorithm name for minimizer that support it
    if ( (fMinimType.find("Fumili") == std::string::npos) &&
         (fMinimType.find("GSLMultiFit") == std::string::npos)

@@ -22,12 +22,10 @@ namespace Math {
 
 bool GaussIntegrator::fgAbsValue = false;
 
-   GaussIntegrator::GaussIntegrator(double epsabs, double epsrel)
+GaussIntegrator::GaussIntegrator(double epsabs, double epsrel) : fEpsAbs(epsabs), fEpsRel(epsrel)
 {
 // Default Constructor. If  tolerances are not given use default values from  ROOT::Math::IntegratorOneDimOptions
 
-   fEpsAbs = epsabs;
-   fEpsRel = epsrel;
    if (epsabs < 0 ) fEpsAbs = ROOT::Math::IntegratorOneDimOptions::DefaultAbsTolerance();
    if (epsrel < 0 || (epsabs == 0 && epsrel == 0))  fEpsRel = ROOT::Math::IntegratorOneDimOptions::DefaultRelTolerance();
    if (std::max(fEpsRel,fEpsAbs)  <= 0.0 ) {

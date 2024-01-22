@@ -45,23 +45,22 @@
 namespace ROOT {
 namespace Math {
 
-
-ChebyshevApprox::ChebyshevApprox(const ROOT::Math::IGenFunction & f, double a, double b, size_t n) :
-   fOrder(n) , fSeries(nullptr), fFunction(nullptr)
+ChebyshevApprox::ChebyshevApprox(const ROOT::Math::IGenFunction &f, double a, double b, size_t n)
+   : fOrder(n), fSeries(new GSLChebSeries(n)), fFunction(nullptr)
 {
    // constructor from function (IGenFunction type) and interval [a,b] and series size n
-   fSeries = new GSLChebSeries(n);
+
    GSLFunctionAdapter<ROOT::Math::IGenFunction> adapter;
    const void * p = &f;
    Initialize(  &adapter.F, const_cast<void *>(p), a, b );
 }
 
 // constructor with GSL function
-ChebyshevApprox::ChebyshevApprox(GSLFuncPointer f, void * params, double a, double b, size_t n) :
-fOrder(n) , fSeries(nullptr), fFunction(nullptr)
+ChebyshevApprox::ChebyshevApprox(GSLFuncPointer f, void *params, double a, double b, size_t n)
+   : fOrder(n), fSeries(new GSLChebSeries(n)), fFunction(nullptr)
 {
    // constructor from function (GSL type) and interval [a,b] and series size n
-   fSeries = new GSLChebSeries(n);
+
    Initialize(  f, params, a, b );
 }
 
@@ -72,11 +71,9 @@ ChebyshevApprox::~ChebyshevApprox()
    if (fSeries) delete fSeries;
 }
 
-ChebyshevApprox::ChebyshevApprox(size_t n) :
-fOrder(n) , fSeries(nullptr), fFunction(nullptr)
+ChebyshevApprox::ChebyshevApprox(size_t n) : fOrder(n), fSeries(new GSLChebSeries(n)), fFunction(nullptr)
 {
    // constructor passing only size (need to initialize setting the function afterwards)
-   fSeries = new GSLChebSeries(n);
 }
 
 ChebyshevApprox::ChebyshevApprox(const ChebyshevApprox & /*cheb */ )

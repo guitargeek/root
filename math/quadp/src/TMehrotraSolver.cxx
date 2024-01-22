@@ -58,25 +58,18 @@ ClassImp(TMehrotraSolver);
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-TMehrotraSolver::TMehrotraSolver()
-{
-   fPrintlevel = 0;
-   fTsig       = 0.0;
-   fStep       = nullptr;
-   fFactory    = nullptr;
-}
-
+TMehrotraSolver::TMehrotraSolver() : fPrintlevel(0), fFactory(nullptr), fStep(nullptr), fTsig(0.0) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-TMehrotraSolver::TMehrotraSolver(TQpProbBase *of,TQpDataBase *prob,Int_t verbose)
+TMehrotraSolver::TMehrotraSolver(TQpProbBase *of, TQpDataBase *prob, Int_t verbose)
+   : fFactory(of), fPrintlevel(verbose), fTsig(3.0)
 {
-   fFactory = of;
+
    fStep = fFactory->MakeVariables(prob);
 
-   fPrintlevel = verbose;
-   fTsig       = 3.0;            // the usual value for the centering exponent (tau)
+   // the usual value for the centering exponent (tau)
 }
 
 

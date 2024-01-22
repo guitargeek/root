@@ -66,24 +66,17 @@ ClassImp(TFFTReal);
 ////////////////////////////////////////////////////////////////////////////////
 ///default
 
-TFFTReal::TFFTReal()
+TFFTReal::TFFTReal() : fIn(nullptr), fKind(nullptr), fN(nullptr), fNdim(0), fOut(nullptr), fPlan(nullptr), fTotalSize(0)
 {
-   fIn    = nullptr;
-   fOut   = nullptr;
-   fPlan  = nullptr;
-   fN     = nullptr;
-   fKind  = nullptr;
-   fNdim = 0;
-   fTotalSize = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ///For 1d transforms
 ///n here is the physical size of the transform (see FFTW manual for more details)
 
-TFFTReal::TFFTReal(Int_t n, Bool_t inPlace)
+TFFTReal::TFFTReal(Int_t n, Bool_t inPlace) : fIn(fftw_malloc(sizeof(Double_t) * n))
 {
-   fIn = fftw_malloc(sizeof(Double_t)*n);
+
    if (inPlace) fOut = nullptr;
    else fOut = fftw_malloc(sizeof(Double_t)*n);
 
@@ -101,12 +94,9 @@ TFFTReal::TFFTReal(Int_t n, Bool_t inPlace)
 ///2nd is the sizes (physical) of the transform in each dimension
 
 TFFTReal::TFFTReal(Int_t ndim, Int_t *n, Bool_t inPlace)
+   : fTotalSize(1), fKind(nullptr), fN(new Int_t[ndim]), fNdim(ndim), fPlan(nullptr)
 {
-   fTotalSize = 1;
-   fNdim = ndim;
-   fN = new Int_t[ndim];
-   fKind = nullptr;
-   fPlan = nullptr;
+
    for (Int_t i=0; i<ndim; i++){
       fTotalSize*=n[i];
       fN[i] = n[i];

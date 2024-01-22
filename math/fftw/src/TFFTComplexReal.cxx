@@ -51,14 +51,8 @@ ClassImp(TFFTComplexReal);
 ////////////////////////////////////////////////////////////////////////////////
 ///default
 
-TFFTComplexReal::TFFTComplexReal()
+TFFTComplexReal::TFFTComplexReal() : fIn(nullptr), fN(nullptr), fNdim(0), fOut(nullptr), fPlan(nullptr), fTotalSize(0)
 {
-   fIn   = nullptr;
-   fOut  = nullptr;
-   fPlan = nullptr;
-   fN    = nullptr;
-   fTotalSize = 0;
-   fNdim = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,10 +81,9 @@ TFFTComplexReal::TFFTComplexReal(Int_t n, Bool_t inPlace)
 ///Second argument contains sizes of the transform in each dimension
 
 TFFTComplexReal::TFFTComplexReal(Int_t ndim, Int_t *n, Bool_t inPlace)
+   : fNdim(ndim), fN(new Int_t[fNdim]), fTotalSize(1)
 {
-   fNdim = ndim;
-   fTotalSize = 1;
-   fN = new Int_t[fNdim];
+
    for (Int_t i=0; i<fNdim; i++){
       fN[i] = n[i];
       fTotalSize*=n[i];

@@ -20,24 +20,19 @@ ClassImp(TFoamMaxwt);
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor for streamer
 
-TFoamMaxwt::TFoamMaxwt()
-{
-   fNent = 0;
-   fnBin = 0;
-   fWtHst1 = nullptr;
-   fWtHst2 = nullptr;
-}
+TFoamMaxwt::TFoamMaxwt() : fNent(0), fWtHst1(nullptr), fWtHst2(nullptr), fnBin(0) {}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Principal user constructor
 
 TFoamMaxwt::TFoamMaxwt(Double_t wmax, Int_t nBin)
+   : fNent(0),
+     fWtHst1(new TH1D("TFoamMaxwt_hst_Wt1", "Histo of weight   ", nBin, 0.0, wmax)),
+     fWtHst2(new TH1D("TFoamMaxwt_hst_Wt2", "Histo of weight**2", nBin, 0.0, wmax)),
+     fnBin(nBin),
+     fwmax(wmax)
 {
-   fNent = 0;
-   fnBin = nBin;
-   fwmax = wmax;
-   fWtHst1 = new TH1D("TFoamMaxwt_hst_Wt1","Histo of weight   ",nBin,0.0,wmax);
-   fWtHst2 = new TH1D("TFoamMaxwt_hst_Wt2","Histo of weight**2",nBin,0.0,wmax);
+
    fWtHst1->SetDirectory(nullptr);// exclude from diskfile
    fWtHst2->SetDirectory(nullptr);// and enable deleting
 }
@@ -45,12 +40,10 @@ TFoamMaxwt::TFoamMaxwt(Double_t wmax, Int_t nBin)
 ////////////////////////////////////////////////////////////////////////////////
 /// Explicit COPY CONSTRUCTOR (unused, so far)
 
-TFoamMaxwt::TFoamMaxwt(TFoamMaxwt &From): TObject(From)
+TFoamMaxwt::TFoamMaxwt(TFoamMaxwt &From)
+   : TObject(From), fWtHst1(From.fWtHst1), fWtHst2(From.fWtHst2), fnBin(From.fnBin), fwmax(From.fwmax)
 {
-   fnBin   = From.fnBin;
-   fwmax   = From.fwmax;
-   fWtHst1 = From.fWtHst1;
-   fWtHst2 = From.fWtHst2;
+
    Error("TFoamMaxwt","COPY CONSTRUCTOR NOT TESTED!");
 }
 

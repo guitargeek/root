@@ -286,17 +286,17 @@ The results above can be obtained by running the tutorial TestSPlot.C
 ////////////////////////////////////////////////////////////////////////////////
 /// default constructor (used by I/O only)
 
-TSPlot::TSPlot() :
- fTree(nullptr),
- fTreename(nullptr),
- fVarexp(nullptr),
- fSelection(nullptr)
+TSPlot::TSPlot()
+   : fTree(nullptr),
+     fTreename(nullptr),
+     fVarexp(nullptr),
+     fSelection(nullptr),
+     fNSpecies(0),
+     fNevents(0),
+     fNumbersOfEvents(nullptr),
+     fNx(0),
+     fNy(0)
 {
-   fNx = 0;
-   fNy=0;
-   fNevents = 0;
-   fNSpecies=0;
-   fNumbersOfEvents=nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -307,23 +307,23 @@ TSPlot::TSPlot() :
 ///  - ns :  number of species
 ///  - tree: input data
 
-TSPlot::TSPlot(Int_t nx, Int_t ny, Int_t ne, Int_t ns, TTree *tree) :
- fTreename(nullptr),
- fVarexp(nullptr),
- fSelection(nullptr)
+TSPlot::TSPlot(Int_t nx, Int_t ny, Int_t ne, Int_t ns, TTree *tree)
+   : fTree(tree),
+     fTreename(nullptr),
+     fVarexp(nullptr),
+     fSelection(nullptr),
+     fNSpecies(ns),
+     fNevents(ne),
+     fNumbersOfEvents(nullptr),
+     fNx(nx),
+     fNy(ny)
 
 {
-   fNx = nx;
-   fNy=ny;
-   fNevents = ne;
-   fNSpecies=ns;
 
    fXvar.ResizeTo(fNevents, fNx);
    fYvar.ResizeTo(fNevents, fNy);
    fYpdf.ResizeTo(fNevents, fNSpecies*fNy);
    fSWeights.ResizeTo(fNevents, fNSpecies*(fNy+1));
-   fTree = tree;
-   fNumbersOfEvents = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

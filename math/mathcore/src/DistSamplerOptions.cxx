@@ -58,14 +58,10 @@ const std::string & DistSamplerOptions::DefaultSampler()
    return Sampler::gDefaultSampler;
 }
 
-
-DistSamplerOptions::DistSamplerOptions(int dim):
-   fLevel( Sampler::gDefaultPrintLevel),
-   fExtraOptions(nullptr)
+DistSamplerOptions::DistSamplerOptions(int dim)
+   : fLevel(Sampler::gDefaultPrintLevel), fSamplerType(DistSamplerOptions::DefaultSampler()), fExtraOptions(nullptr)
 {
    // constructor using  the default options
-
-   fSamplerType = DistSamplerOptions::DefaultSampler();
 
    if (dim == 1)
       fAlgoType =  DistSamplerOptions::DefaultAlgorithm1D();
