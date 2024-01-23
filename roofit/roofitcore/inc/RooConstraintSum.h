@@ -47,7 +47,7 @@ protected:
    RooArgSet _paramSet;                               ///< Set of parameters to which constraints apply
    const bool _takeGlobalObservablesFromData = false; ///< If the global observable values are taken from data
 
-   ClassDefOverride(RooConstraintSum, 4) // sum of -log of set of RooAbsPdf representing parameter constraints
+   ClassDefOverride(RooConstraintSum, 0) // sum of -log of set of RooAbsPdf representing parameter constraints
 };
 
 #endif
