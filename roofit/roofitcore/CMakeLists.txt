@@ -160,6 +160,7 @@ set(ROOFITCORE_HEADERS
   RooFitLegacy/RooTreeData.h
   RooFitResult.h
   RooFormulaVar.h
+  RooGaussian.h
   RooFracRemainder.h
   RooFunctor.h
   RooGenContext.h
@@ -203,6 +204,7 @@ set(ROOFITCORE_HEADERS
   RooParamBinning.h
   RooPlot.h
   RooPlotable.h
+  RooPoisson.h
   RooPolyFunc.h
   RooPolyVar.h
   RooPrintable.h
@@ -358,6 +360,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooFoamGenerator.cxx
     src/RooFormula.cxx
     src/RooFormulaVar.cxx
+    src/RooGaussian.cxx
     src/RooFracRemainder.cxx
     src/RooFunctor.cxx
     src/RooGenContext.cxx
@@ -406,6 +409,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooParamBinning.cxx
     src/RooPlot.cxx
     src/RooPlotable.cxx
+    src/RooPoisson.cxx
     src/RooPolyFunc.cxx
     src/RooPolyVar.cxx
     src/RooPrintable.cxx

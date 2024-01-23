@@ -44,7 +44,6 @@ set(ROOFIT_HEADERS
   RooGamma.h
   RooGaussExpTails.h
   RooGaussModel.h
-  RooGaussian.h
   RooHistConstraint.h
   RooIntegralMorph.h
   RooJeffreysPrior.h
@@ -65,7 +64,6 @@ set(ROOFIT_HEADERS
   RooONNXFunc.h
   RooParamHistFunc.h
   RooParametricStepFunction.h
-  RooPoisson.h
   RooPolynomial.h
   RooPowerSum.h
   RooPyBind.h
@@ -116,7 +114,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooGamma.cxx
     src/RooGaussExpTails.cxx
     src/RooGaussModel.cxx
-    src/RooGaussian.cxx
     src/RooHistConstraint.cxx
     src/RooIntegralMorph.cxx
     src/RooJeffreysPrior.cxx
@@ -137,7 +134,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooONNXFunc.cxx
     src/RooParamHistFunc.cxx
     src/RooParametricStepFunction.cxx
-    src/RooPoisson.cxx
     src/RooPolynomial.cxx
     src/RooPowerSum.cxx
     src/RooSpline.cxx
