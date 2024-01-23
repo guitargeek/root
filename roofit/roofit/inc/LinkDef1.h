@@ -23,7 +23,6 @@
 #pragma link C++ class RooLegacyExpPoly+ ;
 #pragma link C++ class RooPowerSum+ ;
 #pragma link C++ class RooGaussExpTails+ ;
-#pragma link C++ class RooGaussian+ ;
 #pragma link C++ class RooStudentT+ ;
 #pragma link C++ class RooLognormal+ ;
 #pragma link C++ class RooGamma+ ;
@@ -44,7 +43,6 @@
 #pragma link C++ class RooUnblindPrecision+ ;
 #pragma link C++ class RooUnblindUniform+ ;
 #pragma link C++ class RooVoigtian+ ;
-#pragma link C++ class RooPoisson+ ;
 #pragma link C++ class RooChi2MCSModule+ ;
 #pragma link C++ class RooTFnBinding+ ;
 #pragma link C++ class RooTFnPdfBinding+ ;
