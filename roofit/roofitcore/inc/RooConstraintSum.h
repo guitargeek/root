@@ -15,6 +15,9 @@
 #include <RooListProxy.h>
 #include <RooSetProxy.h>
 
+class RooGaussian;
+class RooPoisson;
+
 class RooConstraintSum : public RooAbsReal {
 public:
    RooConstraintSum() = default;
@@ -42,6 +45,29 @@ public:
 
 protected:
    double evaluate() const override;
+
+private:
+
+   bool hardcodeGaussian(RooGaussian const &gauss);
+   bool hardcodePoisson(RooPoisson const &poiss);
+
+   struct GaussianInfo {
+      std::string obsName;
+      double obsVal = 0.;
+      double sigmaInvVal = 0.;
+   };
+
+   struct PoissonInfo {
+      std::string obsName;
+      double obsVal = 0.;
+      bool noRounding = false;
+   };
+
+   std::vector<GaussianInfo> _gaussians;
+   RooListProxy _gaussianParams;
+
+   std::vector<PoissonInfo> _poissons;
+   RooListProxy _poissonParams;
 
    RooListProxy _set1;                                ///< Set of constraint terms
    RooArgSet _paramSet;                               ///< Set of parameters to which constraints apply
