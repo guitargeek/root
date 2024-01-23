@@ -1,18 +1,12 @@
-/*****************************************************************************
- * Project: RooFit                                                           *
- * Package: RooFitCore                                                       *
- * @(#)root/roofitcore:$Id$
- * Authors:                                                                  *
- *   WV, Wouter Verkerke, UC Santa Barbara, verkerke@slac.stanford.edu       *
- *   DK, David Kirkby,    UC Irvine,         dkirkby@uci.edu                 *
- *                                                                           *
- * Copyright (c) 2000-2005, Regents of the University of California          *
- *                          and Stanford University. All rights reserved.    *
- *                                                                           *
- * Redistribution and use in source and binary forms,                        *
- * with or without modification, are permitted according to the terms        *
- * listed in LICENSE (http://roofit.sourceforge.net/license.txt)             *
- *****************************************************************************/
+/*
+ * Project: RooFit
+ *
+ * Copyright (c) 2023, CERN
+ *
+ * Redistribution and use in source and binary forms,
+ * with or without modification, are permitted according to the terms
+ * listed in LICENSE (http://roofit.sourceforge.net/license.txt)
+ */
 
 /**
 \file RooConstraintSum.cxx
@@ -26,57 +20,55 @@ added to the regular -log(L) in RooAbsPdf::fitTo() with Constrain(..)
 arguments.
 **/
 
+#include <RooConstraintSum.h>
 
-#include "RooConstraintSum.h"
-#include "RooAbsData.h"
-#include "RooAbsReal.h"
-#include "RooAbsPdf.h"
-#include "RooErrorHandler.h"
-#include "RooArgSet.h"
-#include "RooMsgService.h"
-#include "RooHelpers.h"
-#include "RooAbsCategoryLValue.h"
+#include <RooAbsCategoryLValue.h>
+#include <RooAbsData.h>
+#include <RooAbsPdf.h>
+#include <RooAbsReal.h>
+#include <RooArgSet.h>
+#include <RooErrorHandler.h>
+#include <RooHelpers.h>
+#include <RooMsgService.h>
 
 ClassImp(RooConstraintSum);
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor with set of constraint p.d.f.s. All elements in constraintSet must inherit from RooAbsPdf.
 
-RooConstraintSum::RooConstraintSum(const char* name, const char* title, const RooArgSet& constraintSet, const RooArgSet& normSet, bool takeGlobalObservablesFromData) :
-  RooAbsReal(name, title),
-  _set1("set1","First set of components",this),
-  _takeGlobalObservablesFromData{takeGlobalObservablesFromData}
+RooConstraintSum::RooConstraintSum(const char *name, const char *title, const RooArgSet &constraintSet,
+                                   const RooArgSet &normSet, bool takeGlobalObservablesFromData)
+   : RooAbsReal(name, title),
+     _set1("set1", "First set of components", this),
+     _takeGlobalObservablesFromData{takeGlobalObservablesFromData}
 {
-  _set1.addTyped<RooAbsPdf>(constraintSet);
-  _paramSet.add(normSet) ;
+   _set1.addTyped<RooAbsPdf>(constraintSet);
+   _paramSet.add(normSet);
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor.
 
-RooConstraintSum::RooConstraintSum(const RooConstraintSum& other, const char* name) :
-  RooAbsReal(other, name),
-  _set1("set1",this,other._set1),
-  _paramSet(other._paramSet),
-  _takeGlobalObservablesFromData{other._takeGlobalObservablesFromData}
+RooConstraintSum::RooConstraintSum(const RooConstraintSum &other, const char *name)
+   : RooAbsReal(other, name),
+     _set1("set1", this, other._set1),
+     _paramSet(other._paramSet),
+     _takeGlobalObservablesFromData{other._takeGlobalObservablesFromData}
 {
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Return sum of -log of constraint p.d.f.s.
 
 double RooConstraintSum::evaluate() const
 {
-  double sum(0);
+   double sum(0);
 
-  for (const auto comp : _set1) {
-    sum -= static_cast<RooAbsPdf*>(comp)->getLogVal(&_paramSet);
-  }
+   for (const auto comp : _set1) {
+      sum -= static_cast<RooAbsPdf *>(comp)->getLogVal(&_paramSet);
+   }
 
-  return sum;
+   return sum;
 }
 
 void RooConstraintSum::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -84,8 +76,7 @@ void RooConstraintSum::translate(RooFit::Detail::CodeSquashContext &ctx) const
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::constraintSumEvaluate", _set1, _set1.size()));
 }
 
-void RooConstraintSum::computeBatch(double *output, size_t /*size*/,
-                                    RooFit::Detail::DataMap const &dataMap) const
+void RooConstraintSum::computeBatch(double *output, size_t /*size*/, RooFit::Detail::DataMap const &dataMap) const
 {
    double sum(0);
 
@@ -96,9 +87,10 @@ void RooConstraintSum::computeBatch(double *output, size_t /*size*/,
    output[0] = sum;
 }
 
-std::unique_ptr<RooAbsArg> RooConstraintSum::compileForNormSet(RooArgSet const & /*normSet*/, RooFit::Detail::CompileContext & ctx) const
+std::unique_ptr<RooAbsArg>
+RooConstraintSum::compileForNormSet(RooArgSet const & /*normSet*/, RooFit::Detail::CompileContext &ctx) const
 {
-   std::unique_ptr<RooAbsReal> newArg{static_cast<RooAbsReal*>(this->Clone())};
+   std::unique_ptr<RooAbsReal> newArg{static_cast<RooAbsReal *>(this->Clone())};
 
    for (const auto server : newArg->servers()) {
       RooArgSet nset;
@@ -109,15 +101,15 @@ std::unique_ptr<RooAbsArg> RooConstraintSum::compileForNormSet(RooArgSet const &
    return newArg;
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Replace the variables in this RooConstraintSum with the global observables
 /// in the dataset if they match by name. This function will do nothing if this
 /// RooConstraintSum is configured to not use the global observables stored in
 /// datasets.
-bool RooConstraintSum::setData(RooAbsData const& data, bool /*cloneData=true*/) {
-  if(_takeGlobalObservablesFromData && data.getGlobalObservables()) {
-    this->recursiveRedirectServers(*data.getGlobalObservables()) ;
-  }
-  return true;
+bool RooConstraintSum::setData(RooAbsData const &data, bool /*cloneData=true*/)
+{
+   if (_takeGlobalObservablesFromData && data.getGlobalObservables()) {
+      this->recursiveRedirectServers(*data.getGlobalObservables());
+   }
+   return true;
 }
