@@ -114,6 +114,7 @@
 #pragma link C++ class RooFitResult- ;
 #pragma link C++ class RooFIter+ ;
 #pragma link C++ class RooFormulaVar+ ;
+#pragma link C++ class RooGaussian+ ;
 #pragma link C++ class RooGenContext+ ;
 #pragma link C++ class RooGenericPdf+ ;
 #pragma link C++ class RooHist+ ;
@@ -138,6 +139,7 @@
 #pragma link C++ class RooNumConvPdf+ ;
 #pragma link C++ class RooNumIntConfig+ ;
 #pragma link C++ class RooNumIntFactory+ ;
+#pragma link C++ class RooPoisson+ ;
 #pragma link C++ class RooPlotable+ ;
 #pragma link C++ class RooPlot- ;
 #pragma read sourceClass="RooPlot" targetClass="RooPlot" version="[2]"       \

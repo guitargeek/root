@@ -1,10 +1,12 @@
- /*****************************************************************************
-  * Project: RooFit                                                           *
-  *                                                                           *
-  * Simple Poisson PDF
-  * author: Kyle Cranmer <cranmer@cern.ch>
-  *                                                                           *
-  *****************************************************************************/
+/*
+ * Project: RooFit
+ *
+ * Copyright (c) 2023, CERN
+ *
+ * Redistribution and use in source and binary forms,
+ * with or without modification, are permitted according to the terms
+ * listed in LICENSE (http://roofit.sourceforge.net/license.txt)
+ */
 
 /** \class RooPoisson
     \ingroup Roofit
@@ -27,26 +29,20 @@ ClassImp(RooPoisson);
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-RooPoisson::RooPoisson(const char *name, const char *title,
-             RooAbsReal::Ref _x,
-             RooAbsReal::Ref _mean,
-             bool noRounding) :
-  RooAbsPdf(name,title),
-  x("x","x",this,_x),
-  mean("mean","mean",this,_mean),
-  _noRounding(noRounding)
+RooPoisson::RooPoisson(const char *name, const char *title, RooAbsReal::Ref _x, RooAbsReal::Ref _mean, bool noRounding)
+   : RooAbsPdf(name, title), x("x", "x", this, _x), mean("mean", "mean", this, _mean), _noRounding(noRounding)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
- RooPoisson::RooPoisson(const RooPoisson& other, const char* name) :
-   RooAbsPdf(other,name),
-   x("x",this,other.x),
-   mean("mean",this,other.mean),
-   _noRounding(other._noRounding),
-   _protectNegative(other._protectNegative)
+RooPoisson::RooPoisson(const RooPoisson &other, const char *name)
+   : RooAbsPdf(other, name),
+     x("x", this, other.x),
+     mean("mean", this, other.mean),
+     _noRounding(other._noRounding),
+     _protectNegative(other._protectNegative)
 {
 }
 
@@ -55,13 +51,13 @@ RooPoisson::RooPoisson(const char *name, const char *title,
 
 double RooPoisson::evaluate() const
 {
-  double k = _noRounding ? x : floor(x);
-  if(_protectNegative && mean<0) {
-    RooNaNPacker np;
-    np.setPayload(-mean);
-    return np._payload;
-  }
-  return RooFit::Detail::EvaluateFuncs::poissonEvaluate(k, mean);
+   double k = _noRounding ? x : floor(x);
+   if (_protectNegative && mean < 0) {
+      RooNaNPacker np;
+      np.setPayload(-mean);
+      return np._payload;
+   }
+   return RooFit::Detail::EvaluateFuncs::poissonEvaluate(k, mean);
 }
 
 void RooPoisson::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -75,8 +71,7 @@ void RooPoisson::translate(RooFit::Detail::CodeSquashContext &ctx) const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of the Poisson distribution.
-void RooPoisson::computeBatch(double *output, size_t nEvents,
-                              RooFit::Detail::DataMap const &dataMap) const
+void RooPoisson::computeBatch(double *output, size_t nEvents, RooFit::Detail::DataMap const &dataMap) const
 {
    RooBatchCompute::ArgVector extraArgs{static_cast<double>(_protectNegative), static_cast<double>(_noRounding)};
    RooBatchCompute::compute(dataMap.config(this), RooBatchCompute::Poisson, output, nEvents,
@@ -85,22 +80,25 @@ void RooPoisson::computeBatch(double *output, size_t nEvents,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Int_t RooPoisson::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* /*rangeName*/) const
+Int_t RooPoisson::getAnalyticalIntegral(RooArgSet &allVars, RooArgSet &analVars, const char * /*rangeName*/) const
 {
-  if (matchArgs(allVars,analVars,x)) return 1 ;
-  if (matchArgs(allVars, analVars, mean)) return 2;
-  return 0 ;
+   if (matchArgs(allVars, analVars, x))
+      return 1;
+   if (matchArgs(allVars, analVars, mean))
+      return 2;
+   return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooPoisson::analyticalIntegral(Int_t code, const char *rangeName) const
 {
-  R__ASSERT(code == 1 || code == 2) ;
+   R__ASSERT(code == 1 || code == 2);
 
-  RooRealProxy const &integrand = code == 1 ? x : mean;
-  return RooFit::Detail::AnalyticalIntegrals::poissonIntegral(
-     code, mean, _noRounding ? x : std::floor(x), integrand.min(rangeName), integrand.max(rangeName), _protectNegative);
+   RooRealProxy const &integrand = code == 1 ? x : mean;
+   return RooFit::Detail::AnalyticalIntegrals::poissonIntegral(code, mean, _noRounding ? x : std::floor(x),
+                                                               integrand.min(rangeName), integrand.max(rangeName),
+                                                               _protectNegative);
 }
 
 std::string
@@ -122,10 +120,11 @@ RooPoisson::buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit:
 ////////////////////////////////////////////////////////////////////////////////
 /// Advertise internal generator in x
 
-Int_t RooPoisson::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
+Int_t RooPoisson::getGenerator(const RooArgSet &directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
 {
-  if (matchArgs(directVars,generateVars,x)) return 1 ;
-  return 0 ;
+   if (matchArgs(directVars, generateVars, x))
+      return 1;
+   return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -133,14 +132,14 @@ Int_t RooPoisson::getGenerator(const RooArgSet& directVars, RooArgSet &generateV
 
 void RooPoisson::generateEvent(Int_t code)
 {
-  R__ASSERT(code==1) ;
-  double xgen ;
-  while(true) {
-    xgen = RooRandom::randomGenerator()->Poisson(mean);
-    if (xgen<=x.max() && xgen>=x.min()) {
-      x = xgen ;
-      break;
-    }
-  }
-  return;
+   R__ASSERT(code == 1);
+   double xgen;
+   while (true) {
+      xgen = RooRandom::randomGenerator()->Poisson(mean);
+      if (xgen <= x.max() && xgen >= x.min()) {
+         x = xgen;
+         break;
+      }
+   }
+   return;
 }

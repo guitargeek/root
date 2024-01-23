@@ -20,7 +20,6 @@
 #pragma link C++ class RooExponential+ ;
 #pragma link C++ class RooExpPoly+ ;
 #pragma link C++ class RooPower+ ;
-#pragma link C++ class RooGaussian+ ;
 #pragma link C++ class RooLognormal+ ;
 #pragma link C++ class RooGamma+ ;
 #pragma link C++ class RooGaussModel+ ;
@@ -40,7 +39,6 @@
 #pragma link C++ class RooUnblindPrecision+ ;
 #pragma link C++ class RooUnblindUniform+ ;
 #pragma link C++ class RooVoigtian+ ;
-#pragma link C++ class RooPoisson+ ;
 #pragma link C++ class RooChi2MCSModule+ ;
 #pragma link C++ class RooTFnBinding+ ;
 #pragma link C++ class RooTFnPdfBinding+ ;

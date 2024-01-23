@@ -155,6 +155,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFracRemainder.h
     RooFuncWrapper.h
     RooFunctor.h
+    RooGaussian.h
     RooGenContext.h
     RooGenFitStudy.h
     RooGenericPdf.h
@@ -191,6 +192,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooNumRunningInt.h
     RooNumber.h
     RooObjCacheManager.h
+    RooPoisson.h
     RooParamBinning.h
     RooPlot.h
     RooPlotable.h
@@ -350,6 +352,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooFracRemainder.cxx
     src/RooFuncWrapper.cxx
     src/RooFunctor.cxx
+    src/RooGaussian.cxx
     src/RooGenContext.cxx
     src/RooGenFitStudy.cxx
     src/RooGenProdProj.cxx
@@ -392,6 +395,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooNumRunningInt.cxx
     src/RooNumber.cxx
     src/RooObjCacheManager.cxx
+    src/RooPoisson.cxx
     src/RooParamBinning.cxx
     src/RooPlot.cxx
     src/RooPlotable.cxx

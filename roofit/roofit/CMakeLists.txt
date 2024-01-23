@@ -44,7 +44,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooFunctor1DBinding.h
     RooFunctorBinding.h
     RooGamma.h
-    RooGaussian.h
     RooGaussModel.h
     RooGExpModel.h
     RooHistConstraint.h
@@ -64,7 +63,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooNovosibirsk.h
     RooParametricStepFunction.h
     RooParamHistFunc.h
-    RooPoisson.h
     RooPolynomial.h
     RooSpline.h
     RooStepFunction.h
@@ -107,7 +105,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooFunctor1DBinding.cxx
     src/RooFunctorBinding.cxx
     src/RooGamma.cxx
-    src/RooGaussian.cxx
     src/RooGaussModel.cxx
     src/RooGExpModel.cxx
     src/RooHistConstraint.cxx
@@ -127,7 +124,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     src/RooNovosibirsk.cxx
     src/RooParametricStepFunction.cxx
     src/RooParamHistFunc.cxx
-    src/RooPoisson.cxx
     src/RooPolynomial.cxx
     src/RooSpline.cxx
     src/RooStepFunction.cxx
