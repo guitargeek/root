@@ -372,7 +372,38 @@ void codegenImpl(RooConstVar &arg, CodegenContext &ctx)
 
 void codegenImpl(RooConstraintSum &arg, CodegenContext &ctx)
 {
-   ctx.addResult(&arg, ctx.buildCall(mathFunc("constraintSum"), arg.list(), arg.list().size()));
+   std::string sumName = ctx.getTmpVarName();
+
+   std::string code = "double " + sumName + " = ";
+   code +=
+      arg.list().empty() ? std::string{"0"} : ctx.buildCall(mathFunc("constraintSum"), arg.list(), arg.list().size());
+   code += ";\n";
+
+   // The hardcoded Gaussian and Poisson constraint terms are emitted directly
+   // in their closed -log(pdf) form, with all constants folded into literals.
+   for (std::size_t i = 0; i < arg.hardcodedGaussians().size(); ++i) {
+      const double sigmaInv = arg.hardcodedGaussians()[i].sigmaInvVal;
+      const double logNorm = std::log(sigmaInv / std::sqrt(2 * M_PI));
+      std::string const &paramResult = ctx.getResult(arg.gaussianParams()[i]);
+      std::string const &obsResult = ctx.getResult(arg.gaussianObs()[i]);
+      std::string argName = ctx.getTmpVarName();
+      code += "const double " + argName + " = " + doubleToString(sigmaInv) + " * (" + obsResult + " - " + paramResult +
+              ");\n";
+      code += sumName + " += 0.5 * " + argName + " * " + argName + " - " + doubleToString(logNorm) + ";\n";
+   }
+
+   for (std::size_t i = 0; i < arg.hardcodedPoissons().size(); ++i) {
+      const bool noRounding = arg.hardcodedPoissons()[i].noRounding;
+      std::string const &paramResult = ctx.getResult(arg.poissonParams()[i]);
+      std::string const &obsResult = ctx.getResult(arg.poissonObs()[i]);
+      std::string kName = ctx.getTmpVarName();
+      code += "const double " + kName + " = " + (noRounding ? obsResult : "std::floor(" + obsResult + ")") + ";\n";
+      code += sumName + " += " + paramResult + " + std::lgamma(" + kName + " + 1.) - " + kName + " * std::log(" +
+              paramResult + ");\n";
+   }
+
+   ctx.addToCodeBody(&arg, code);
+   ctx.addResult(&arg, sumName);
 }
 
 // Generate RooFit codegen wrappers for RooFunctorBinding and similar objects,
