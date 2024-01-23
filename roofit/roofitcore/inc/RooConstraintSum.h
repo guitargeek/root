@@ -24,6 +24,9 @@ class RooRealVar;
 class RooArgList ;
 class RooWorkspace ;
 
+class RooGaussian;
+class RooPoisson;
+
 class RooConstraintSum : public RooAbsReal {
 public:
 
@@ -47,11 +50,34 @@ public:
 
 protected:
 
+  double evaluate() const override;
+
+private:
+
+  bool hardcodeGaussian(RooGaussian const &gauss);
+  bool hardcodePoisson(RooPoisson const &poiss);
+
+  struct GaussianInfo {
+    std::string obsName;
+    double obsVal = 0.;
+    double sigmaInvVal = 0.;
+  };
+
+  struct PoissonInfo {
+    std::string obsName;
+    double obsVal = 0.;
+    bool noRounding = false;
+  };
+
+  std::vector<GaussianInfo> _gaussians;
+  RooListProxy _gaussianParams;
+
+  std::vector<PoissonInfo> _poissons;
+  RooListProxy _poissonParams;
+
   RooListProxy _set1 ;    ///< Set of constraint terms
   RooArgSet _paramSet ; ///< Set of parameters to which constraints apply
   const bool _takeGlobalObservablesFromData = false; ///< If the global observable values are taken from data
-
-  double evaluate() const override;
 
   ClassDefOverride(RooConstraintSum,0) // sum of -log of set of RooAbsPdf representing parameter constraints
 };
