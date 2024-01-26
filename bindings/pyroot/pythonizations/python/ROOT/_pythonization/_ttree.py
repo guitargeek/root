@@ -130,8 +130,63 @@ ds.SetBranchAddress('structb', ms)
 */
 '''
 
-from libROOTPythonizations import AddBranchAttrSyntax, SetBranchAddressPyz, BranchPyz
+from libROOTPythonizations import AddBranchAttrSyntax, BranchPyz, CreateBufferFromAddress
 from . import pythonization
+
+"""
+\brief Add pythonization for TTree::SetBranchAddress.
+\param[in] self Always null, since this is a module function.
+\param[in] args Pointer to a Python tuple object containing the arguments
+received from Python.
+
+Modify the behaviour of SetBranchAddress so that proxy references can be passed
+as arguments from the Python side, more precisely in cases where the C++
+implementation of the method expects the address of a pointer.
+
+For example:
+```
+v = ROOT.std.vector('int')()
+t.SetBranchAddress("my_vector_branch", v)
+```
+"""
+def SetBranchAddressPyz(tree, name, address):
+
+    import cppyy
+
+    branch = tree.GetBranch(name)
+    if not branch:
+        raise RuntimeError("TTree::SetBranchAddress must be called with a valid branch name")
+
+    is_leaf_list = branch.ClassName() == "TBranch"
+
+    print(address)
+    print(type(address))
+    print("def", str(cppyy.addressof(address)))
+    print("tru", str(cppyy.addressof(address, byref=True)))
+    print("fls", str(cppyy.addressof(address, byref=False)))
+    try:
+        return tree.SetBranchAddress(name, cppyy.addressof(address, byref=False))
+    except TypeError:
+        return None
+
+    """
+    void *buf = 0;
+    if (CPPInstance_Check(address)) {
+       ((CPPInstance *)address)->GetDatamemberCache(); // force creation of cache
+
+       if (((CPPInstance *)address)->fFlags & CPPInstance::kIsReference || is_leaf_list)
+          buf = (void *)((CPPInstance *)address)->GetObject();
+       else
+          buf = (void *)&(((CPPInstance *)address)->GetObjectRaw());
+    } else
+       Utility::GetBuffer(address, '*', 1, buf, false);
+
+    if buf:
+       auto res = tree->SetBranchAddress(CPyCppyy_PyText_AsString(name), buf);
+       return PyInt_FromLong(res);
+    """
+
+    return None
 
 # TTree iterator
 def _TTree__iter__(self):
@@ -146,8 +201,10 @@ def _TTree__iter__(self):
         raise RuntimeError("TTree I/O error")
 
 def _SetBranchAddress(self, *args):
+    res = None
     # Modify the behaviour if args is (const char*, void*)
-    res = SetBranchAddressPyz(self, *args)
+    if len(args) == 2:
+        res = SetBranchAddressPyz(self, *args)
 
     if res is None:
         # Fall back to the original implementation for the rest of overloads
