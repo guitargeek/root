@@ -9,12 +9,78 @@ from cppyy import gbl as gbl_namespace
 from cppyy import cppdef, include
 from libROOTPythonizations import gROOT
 from cppyy.gbl import gSystem
+import cppyy
 import cppyy.ll
 
 from ._application import PyROOTApplication
 from ._numbadeclare import _NumbaDeclareDecorator
 
 from ._pythonization import pythonization
+
+
+def _MakeNumpyDataFrame(np_dict):
+    """
+    Make an RDataFrame from a dictionary of numpy arrays
+
+    \param[in] self Always null, since this is a module function.
+    \param[in] pydata Dictionary with numpy arrays
+
+    This function takes a dictionary of numpy arrays and creates an RDataFrame
+    using the keys as column names and the numpy arrays as data.
+    """
+    import ROOT
+
+    if not isinstance(np_dict, dict):
+        raise RuntimeError("Object not convertible: Python object is not a dictionary.")
+
+    if len(np_dict) == 0:
+        raise RuntimeError("Object not convertible: Dictionary is empty.")
+
+    is_windows = os.name == "nt"
+    address_prefix = "0x" if is_windows else ""
+
+    pyvecs = dict()
+
+    # Add PyObject (dictionary) holding RVecs to data source
+    code = "ROOT::Internal::RDF::MakeNumpyDataFrame("
+    code += f"reinterpret_cast<PyObject*>({address_prefix}{id(pyvecs)}), "
+
+    def write_vec_code(key, value):
+        # Get name of key
+        if not isinstance(key, str):
+            raise RuntimeError("Object not convertible: Dictionary key is not convertible to a string.")
+
+        # Convert value to RVec and attach to dictionary
+        pyvec = ROOT.VecOps.AsRVec(value)
+        if not pyvec:
+            raise RuntimeError("Object not convertible: Dictionary entry " + key + " is not convertible with AsRVec.")
+
+        pyvecs[key] = pyvec
+
+        # Add pairs of column name and associated RVec to signature
+        vectype = "ROOT::" + type(pyvec).__name__
+        vecaddress = cppyy.addressof(pyvec)
+        code = "std::pair<std::string, " + vectype + '*>("' + key
+        code += '", reinterpret_cast<' + vectype + f"*>({address_prefix}{vecaddress}))"
+
+        return code
+
+    # Iterate over dictionary, convert numpy arrays to RVecs and put together interpreter code
+    code += ", ".join([write_vec_code(key, value) for key, value in np_dict.items()]) + ")"
+
+    # Create RDataFrame and build Python proxy
+    err = ROOT.gInterpreter.Declare('#include "ROOT/RNumpyDS.hxx"')
+    if not err:
+        raise RuntimeError('Failed to find "ROOT/RNumpyDS.hxx".')
+
+    address = ROOT.gInterpreter.Calc(code)
+    rdf = cppyy.bind_object(address, "ROOT::RDataFrame")
+    ROOT.SetOwnership(rdf, True)
+
+    # Bind pyobject holding adopted memory to the RVec
+    setattr(rdf, "__data__", pyvecs)
+
+    return rdf
 
 
 class PyROOTConfiguration(object):
@@ -314,9 +380,6 @@ class ROOTFacade(types.ModuleType):
     def RDF(self):
         ns = self._fallback_getattr("RDF")
         try:
-            # Inject FromNumpy function
-            from libROOTPythonizations import MakeNumpyDataFrame
-
             # Make a copy of the arrays that have strides to make sure we read the correct values
             # TODO a cleaner fix
             def MakeNumpyDataFrameCopy(np_dict):
@@ -325,7 +388,7 @@ class ROOTFacade(types.ModuleType):
                 for key in np_dict.keys():
                     if (np_dict[key].__array_interface__["strides"]) is not None:
                         np_dict[key] = numpy.copy(np_dict[key])
-                return MakeNumpyDataFrame(np_dict)
+                return _MakeNumpyDataFrame(np_dict)
 
             ns.FromNumpy = MakeNumpyDataFrameCopy
             try:
