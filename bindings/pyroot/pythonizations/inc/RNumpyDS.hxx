@@ -8,9 +8,6 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-// Include Python.h first before any standard header
-#include "Python.h"
-
 #include "ROOT/RDataSource.hxx"
 #include "ROOT/TSeq.hxx"
 #include "ROOT/RVec.hxx"
@@ -40,8 +37,6 @@ namespace RDF {
 /// This component allows to create a data source on a set of columns with data
 /// coming from RVecs. The adoption of externally provided data, e.g., via Numpy
 /// arrays, with RVecs allows to read arbitrary data from memory.
-/// In addition, the data source has to keep a reference on the Python owned data
-/// so that the lifetime of the data is tied to the datasource.
 template <typename... ColumnTypes>
 class RNumpyDS final : public ROOT::RDF::RDataSource {
    using PointerHolderPtrs_t = std::vector<ROOT::Internal::TDS::TPointerHolder *>;
@@ -57,10 +52,6 @@ class RNumpyDS final : public ROOT::RDF::RDataSource {
    std::vector<PointerHolderPtrs_t> fPointerHolders;
    std::vector<std::pair<ULong64_t, ULong64_t>> fEntryRanges{};
    unsigned int fNSlots{0};
-   // Pointer to PyObject holding RVecs
-   // The RVecs itself hold a reference to the associated Numpy arrays so that
-   // the data cannot go out of scope as long as the datasource survives.
-   PyObject* fPyRVecs;
 
    Record_t GetColumnReadersImpl(std::string_view colName, const std::type_info &id)
    {
@@ -126,16 +117,12 @@ protected:
    std::string AsString() { return "Numpy data source"; };
 
 public:
-   RNumpyDS(PyObject* pyRVecs,
-                  std::pair<std::string, ROOT::RVec<ColumnTypes>*>... colsNameVals)
+   RNumpyDS(std::pair<std::string, ROOT::RVec<ColumnTypes>*>... colsNameVals)
       : fColumns(std::tuple<ROOT::RVec<ColumnTypes>*...>(colsNameVals.second...)),
         fColNames({colsNameVals.first...}),
         fColTypesMap({{colsNameVals.first, ROOT::Internal::RDF::TypeID2TypeName(typeid(ColumnTypes))}...}),
-        fPointerHoldersModels({new ROOT::Internal::TDS::TTypedPointerHolder<ColumnTypes>(new ColumnTypes())...}),
-        fPyRVecs(pyRVecs)
+        fPointerHoldersModels({new ROOT::Internal::TDS::TTypedPointerHolder<ColumnTypes>(new ColumnTypes())...})
    {
-      // Take a reference to the data associated with this data source
-      Py_INCREF(fPyRVecs);
    }
 
    ~RNumpyDS()
@@ -145,8 +132,8 @@ public:
             delete ptrHolder;
          }
       }
-      // Release the data associated to this data source
-      Py_DECREF(fPyRVecs);
+      // Delete the RVecs that are owned by this data source
+      //std::apply([](auto ...x){(delete x, ...);} , fColumns);
    }
 
    const std::vector<std::string> &GetColumnNames() const { return fColNames; }
@@ -222,11 +209,9 @@ public:
 // Note that we have to return the object on the heap so that the interpreter
 // does not clean it up during shutdown and causes a double delete.
 template <typename... ColumnTypes>
-RDataFrame* MakeNumpyDataFrame(PyObject* pyRVecs,
-                              std::pair<std::string, ROOT::RVec<ColumnTypes>*> &&... colNameProxyPairs)
+RDataFrame* MakeNumpyDataFrame(std::pair<std::string, ROOT::RVec<ColumnTypes>*> &&... colNameProxyPairs)
 {
    return new RDataFrame(std::make_unique<RNumpyDS<ColumnTypes...>>(
-      std::forward<PyObject*>(pyRVecs),
       std::forward<std::pair<std::string, ROOT::RVec<ColumnTypes>*>>(colNameProxyPairs)...));
 }
 

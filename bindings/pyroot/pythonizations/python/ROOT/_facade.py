@@ -39,11 +39,8 @@ def _MakeNumpyDataFrame(np_dict):
     is_windows = os.name == "nt"
     address_prefix = "0x" if is_windows else ""
 
-    pyvecs = dict()
-
     # Add PyObject (dictionary) holding RVecs to data source
     code = "ROOT::Internal::RDF::MakeNumpyDataFrame("
-    code += f"reinterpret_cast<PyObject*>({address_prefix}{id(pyvecs)}), "
 
     def write_vec_code(key, value):
         # Get name of key
@@ -52,10 +49,9 @@ def _MakeNumpyDataFrame(np_dict):
 
         # Convert value to RVec and attach to dictionary
         pyvec = ROOT.VecOps.AsRVec(value)
+        ROOT.SetOwnership(pyvec, False)
         if not pyvec:
             raise RuntimeError("Object not convertible: Dictionary entry " + key + " is not convertible with AsRVec.")
-
-        pyvecs[key] = pyvec
 
         # Add pairs of column name and associated RVec to signature
         vectype = "ROOT::" + type(pyvec).__name__
@@ -76,9 +72,6 @@ def _MakeNumpyDataFrame(np_dict):
     address = ROOT.gInterpreter.Calc(code)
     rdf = cppyy.bind_object(address, "ROOT::RDataFrame")
     ROOT.SetOwnership(rdf, True)
-
-    # Bind pyobject holding adopted memory to the RVec
-    setattr(rdf, "__data__", pyvecs)
 
     return rdf
 
