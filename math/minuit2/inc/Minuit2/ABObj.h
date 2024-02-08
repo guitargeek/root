@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ABObj
-#define ROOT_Minuit2_ABObj
+#ifndef ROOT_MyMinuit2_ABObj
+#define ROOT_MyMinuit2_ABObj
 
-#include "Minuit2/ABTypes.h"
+#include "MyMinuit2/ABTypes.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 template <class mtype, class M, class T>
 class ABObj {
@@ -167,8 +167,8 @@ inline ABObj<vec,LAVector,double> operator-(const LAVector& obj) {
 }
 */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ABObj
+#endif // ROOT_MyMinuit2_ABObj

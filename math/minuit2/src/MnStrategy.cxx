@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/MnStrategy.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 MnStrategy::MnStrategy() : fHessCFDG2(0), fHessForcePosDef(1), fStoreLevel(1)
 {
@@ -89,6 +89,6 @@ void MnStrategy::SetVeryHighStrategy()
     SetHessianForcePosDef(0);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

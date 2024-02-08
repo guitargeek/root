@@ -7,25 +7,25 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FunctionMinimum
-#define ROOT_Minuit2_FunctionMinimum
+#ifndef ROOT_MyMinuit2_FunctionMinimum
+#define ROOT_MyMinuit2_FunctionMinimum
 
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnUserTransformation.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserTransformation.h"
 
 #include <vector>
 #include <memory>
 #include <cmath>
 
 #ifdef G__DICTIONARY
-typedef ROOT::Minuit2::MinimumState MinimumState;
+typedef ROOT::MyMinuit2::MinimumState MinimumState;
 #endif
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 //______________________________________________________________________________________________
 /**
@@ -124,8 +124,8 @@ private:
    std::shared_ptr<Data> fPtr;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FunctionMinimum
+#endif // ROOT_MyMinuit2_FunctionMinimum

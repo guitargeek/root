@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnScan
-#define ROOT_Minuit2_MnScan
+#ifndef ROOT_MyMinuit2_MnScan
+#define ROOT_MyMinuit2_MnScan
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/ScanMinimizer.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/ScanMinimizer.h"
 
 #include <vector>
 #include <utility>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 
@@ -91,8 +91,8 @@ private:
    MnScan &operator=(const MnScan &) { return *this; }
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnScan
+#endif // ROOT_MyMinuit2_MnScan

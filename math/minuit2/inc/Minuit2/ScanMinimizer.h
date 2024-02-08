@@ -7,22 +7,22 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ScanMinimizer
-#define ROOT_Minuit2_ScanMinimizer
+#ifndef ROOT_MyMinuit2_ScanMinimizer
+#define ROOT_MyMinuit2_ScanMinimizer
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/ScanBuilder.h"
-#include "Minuit2/SimplexSeedGenerator.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/ScanBuilder.h"
+#include "MyMinuit2/SimplexSeedGenerator.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 //_____________________________________________________________
 /**
    Class implementing the required methods for a minimization using SCAN
-   API is provided in the upper ROOT::Minuit2::ModularFunctionMinimizer class
+   API is provided in the upper ROOT::MyMinuit2::ModularFunctionMinimizer class
  */
 
 class ScanMinimizer : public ModularFunctionMinimizer {
@@ -41,8 +41,8 @@ private:
    ScanBuilder fBuilder;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ScanMinimizer
+#endif // ROOT_MyMinuit2_ScanMinimizer

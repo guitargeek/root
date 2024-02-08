@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMinimize
-#define ROOT_Minuit2_MnMinimize
+#ifndef ROOT_MyMinuit2_MnMinimize
+#define ROOT_MyMinuit2_MnMinimize
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/CombinedMinimizer.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/CombinedMinimizer.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 
@@ -127,8 +127,8 @@ private:
    MnMinimize &operator=(const MnMinimize &) { return *this; }
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnMinimize
+#endif // ROOT_MyMinuit2_MnMinimize

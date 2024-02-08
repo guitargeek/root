@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnCovarianceSqueeze
-#define ROOT_Minuit2_MnCovarianceSqueeze
+#ifndef ROOT_MyMinuit2_MnCovarianceSqueeze
+#define ROOT_MyMinuit2_MnCovarianceSqueeze
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnUserCovariance;
 class MinimumError;
@@ -39,8 +39,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnCovarianceSqueeze
+#endif // ROOT_MyMinuit2_MnCovarianceSqueeze

@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnFcn
-#define ROOT_Minuit2_MnFcn
+#ifndef ROOT_MyMinuit2_MnFcn
+#define ROOT_MyMinuit2_MnFcn
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnMatrix.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 /**
@@ -53,8 +53,8 @@ protected:
    mutable int fNumCall;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnFcn
+#endif // ROOT_MyMinuit2_MnFcn

@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/SimplexSeedGenerator.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/InitialGradientCalculator.h"
-#include "Minuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/SimplexSeedGenerator.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/InitialGradientCalculator.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 MinimumSeed SimplexSeedGenerator::
 operator()(const MnFcn &fcn, const GradientCalculator &, const MnUserParameterState &st, const MnStrategy &stra) const
@@ -53,6 +53,6 @@ MinimumSeed SimplexSeedGenerator::operator()(const MnFcn &fcn, const AnalyticalG
    return (*this)(fcn, (const GradientCalculator &)(gc), st, stra);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

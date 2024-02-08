@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnSeedGenerator
-#define ROOT_Minuit2_MnSeedGenerator
+#ifndef ROOT_MyMinuit2_MnSeedGenerator
+#define ROOT_MyMinuit2_MnSeedGenerator
 
-#include "Minuit2/MinimumSeedGenerator.h"
+#include "MyMinuit2/MinimumSeedGenerator.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /** concrete implementation of the MinimumSeedGenerator interface; used within
     ModularFunctionMinimizer;
@@ -36,8 +36,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnSeedGenerator
+#endif // ROOT_MyMinuit2_MnSeedGenerator

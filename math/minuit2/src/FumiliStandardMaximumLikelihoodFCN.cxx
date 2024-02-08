@@ -7,7 +7,7 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/FumiliStandardMaximumLikelihoodFCN.h"
+#include "MyMinuit2/FumiliStandardMaximumLikelihoodFCN.h"
 
 #include <vector>
 #include <cmath>
@@ -15,7 +15,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 std::vector<double> FumiliStandardMaximumLikelihoodFCN::Elements(const std::vector<double> &par) const
 {
@@ -162,6 +162,6 @@ void FumiliStandardMaximumLikelihoodFCN::EvaluateAll(const std::vector<double> &
    SetFCNValue(logLikelihood);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

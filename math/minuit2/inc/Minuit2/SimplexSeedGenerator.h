@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_SimplexSeedGenerator
-#define ROOT_Minuit2_SimplexSeedGenerator
+#ifndef ROOT_MyMinuit2_SimplexSeedGenerator
+#define ROOT_MyMinuit2_SimplexSeedGenerator
 
-#include "Minuit2/MinimumSeedGenerator.h"
+#include "MyMinuit2/MinimumSeedGenerator.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumSeed;
 class MnFcn;
@@ -40,8 +40,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_SimplexSeedGenerator
+#endif // ROOT_MyMinuit2_SimplexSeedGenerator

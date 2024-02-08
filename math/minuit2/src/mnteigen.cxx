@@ -16,7 +16,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 int mneigen(double *a, unsigned int ndima, unsigned int n, unsigned int mits, double *work, double precis)
 {
@@ -296,6 +296,6 @@ int mneigen(double *a, unsigned int ndima, unsigned int n, unsigned int mits, do
    return ifault;
 } /* mneig_ */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

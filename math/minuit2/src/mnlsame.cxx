@@ -16,7 +16,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 bool mnlsame(const char *ca, const char *cb)
 {
@@ -64,6 +64,6 @@ bool mnlsame(const char *ca, const char *cb)
    return ret_val;
 } /* lsame_ */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

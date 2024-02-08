@@ -23,7 +23,7 @@
  *      Modified things (w.r.t. original) are indicated by MODIFIED.
  */
 
-#include "Minuit2/NumericalDerivator.h"
+#include "MyMinuit2/NumericalDerivator.h"
 #include <cmath>
 #include <algorithm>
 #include <Math/IFunction.h>
@@ -35,7 +35,7 @@
 #include <Math/Minimizer.h> // needed here because in Fitter is only a forward declaration
 
 namespace ROOT {
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 NumericalDerivator::NumericalDerivator(bool always_exactly_mimic_minuit2)
    : fAlwaysExactlyMimicMinuit2(always_exactly_mimic_minuit2)
@@ -287,5 +287,5 @@ std::ostream &operator<<(std::ostream &out, const DerivatorElement &value)
               << ", step_size: " << value.step_size << ")";
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT

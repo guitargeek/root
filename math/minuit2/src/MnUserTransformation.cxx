@@ -7,9 +7,9 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -18,7 +18,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnParStr {
 
@@ -496,6 +496,6 @@ const char *MnUserTransformation::Name(unsigned int n) const
    return GetName(n).c_str();
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

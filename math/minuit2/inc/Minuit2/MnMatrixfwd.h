@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMatrixfwd
-#define ROOT_Minuit2_MnMatrixfwd
+#ifndef ROOT_MyMinuit2_MnMatrixfwd
+#define ROOT_MyMinuit2_MnMatrixfwd
 
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class LASymMatrix;
 class LAVector;
@@ -21,8 +21,8 @@ class LAVector;
 typedef LASymMatrix MnAlgebraicSymMatrix;
 typedef LAVector MnAlgebraicVector;
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnMatrixfwd
+#endif // ROOT_MyMinuit2_MnMatrixfwd

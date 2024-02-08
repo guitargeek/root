@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_LASymMatrix
-#define ROOT_Minuit2_LASymMatrix
+#ifndef ROOT_MyMinuit2_LASymMatrix
+#define ROOT_MyMinuit2_LASymMatrix
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/ABSum.h"
-#include "Minuit2/VectorOuterProduct.h"
-#include "Minuit2/MatrixInverse.h"
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/ABSum.h"
+#include "MyMinuit2/VectorOuterProduct.h"
+#include "MyMinuit2/MatrixInverse.h"
+#include "MyMinuit2/StackAllocator.h"
 
 #include <cassert>
 #include <memory>
@@ -24,7 +24,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 int Mndaxpy(unsigned int, double, const double *, int, double *, int);
 int Mndscal(unsigned int, double, double *, int);
@@ -384,8 +384,8 @@ public:
    LASymMatrix &operator=(const ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector, double>, double>, double> &);
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_LASymMatrix
+#endif // ROOT_MyMinuit2_LASymMatrix

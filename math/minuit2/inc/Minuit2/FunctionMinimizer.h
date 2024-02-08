@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FunctionMinimizer
-#define ROOT_Minuit2_FunctionMinimizer
+#ifndef ROOT_MyMinuit2_FunctionMinimizer
+#define ROOT_MyMinuit2_FunctionMinimizer
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 class FCNGradientBase;
@@ -56,8 +56,8 @@ public:
                                     double toler) const = 0;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FunctionMinimizer
+#endif // ROOT_MyMinuit2_FunctionMinimizer

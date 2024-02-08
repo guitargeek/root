@@ -7,8 +7,8 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnReferenceCounter
-#define ROOT_Minuit2_MnReferenceCounter
+#ifndef ROOT_MyMinuit2_MnReferenceCounter
+#define ROOT_MyMinuit2_MnReferenceCounter
 
 #include <cassert>
 
@@ -16,7 +16,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 // extern StackAllocator gStackAllocator;
 
@@ -49,8 +49,8 @@ private:
    mutable unsigned int fReferences;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnReferenceCounter
+#endif // ROOT_MyMinuit2_MnReferenceCounter

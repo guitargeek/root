@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FunctionGradient
-#define ROOT_Minuit2_FunctionGradient
+#ifndef ROOT_MyMinuit2_FunctionGradient
+#define ROOT_MyMinuit2_FunctionGradient
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #include <memory>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FunctionGradient {
 
@@ -64,8 +64,8 @@ private:
    std::shared_ptr<Data> fPtr;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FunctionGradient
+#endif // ROOT_MyMinuit2_FunctionGradient

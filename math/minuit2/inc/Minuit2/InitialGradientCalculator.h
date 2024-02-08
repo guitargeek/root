@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_InitialGradientCalculator
-#define ROOT_Minuit2_InitialGradientCalculator
+#ifndef ROOT_MyMinuit2_InitialGradientCalculator
+#define ROOT_MyMinuit2_InitialGradientCalculator
 
-#include "Minuit2/GradientCalculator.h"
+#include "MyMinuit2/GradientCalculator.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnFcn;
 class MnUserTransformation;
@@ -51,8 +51,8 @@ private:
    const MnStrategy &fStrategy;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_InitialGradientCalculator
+#endif // ROOT_MyMinuit2_InitialGradientCalculator

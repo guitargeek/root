@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_HessianGradientCalculator
-#define ROOT_Minuit2_HessianGradientCalculator
+#ifndef ROOT_MyMinuit2_HessianGradientCalculator
+#define ROOT_MyMinuit2_HessianGradientCalculator
 
-#include "Minuit2/GradientCalculator.h"
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/GradientCalculator.h"
+#include "MyMinuit2/MnMatrix.h"
 #include <utility>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnFcn;
 class MnUserTransformation;
@@ -59,8 +59,8 @@ private:
    const MnStrategy &fStrategy;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_HessianGradientCalculator
+#endif // ROOT_MyMinuit2_HessianGradientCalculator

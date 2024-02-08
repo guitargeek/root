@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliFCNBase
-#define ROOT_Minuit2_FumiliFCNBase
+#ifndef ROOT_MyMinuit2_FumiliFCNBase
+#define ROOT_MyMinuit2_FumiliFCNBase
 
-#include "Minuit2/FCNGradientBase.h"
+#include "MyMinuit2/FCNGradientBase.h"
 #include <cassert>
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 //____________________________________________________________________________________________
 /**
@@ -147,8 +147,8 @@ private:
    std::vector<double> fHessian;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FumiliFCNBase
+#endif // ROOT_MyMinuit2_FumiliFCNBase

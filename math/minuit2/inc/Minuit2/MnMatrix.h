@@ -7,21 +7,21 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMatrix
-#define ROOT_Minuit2_MnMatrix
+#ifndef ROOT_MyMinuit2_MnMatrix
+#define ROOT_MyMinuit2_MnMatrix
 
 // add MnConfig file to define before everything compiler
 // dependent macros
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 // define typedf's in MnMatrixfwd
-#include "Minuit2/MnMatrixfwd.h"
+#include "MyMinuit2/MnMatrixfwd.h"
 
-#include "Minuit2/LASymMatrix.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LaInverse.h"
-#include "Minuit2/LaOuterProduct.h"
+#include "MyMinuit2/LASymMatrix.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LaInverse.h"
+#include "MyMinuit2/LaOuterProduct.h"
 
 
-#endif // ROOT_Minuit2_MnMatrix
+#endif // ROOT_MyMinuit2_MnMatrix

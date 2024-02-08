@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/ParametricFunction.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnVectorTransform.h"
+#include "MyMinuit2/ParametricFunction.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnVectorTransform.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
-//#include "Minuit2/MnPrint.h"
+//#include "MyMinuit2/MnPrint.h"
 
 std::vector<double> ParametricFunction::GetGradient(const std::vector<double> &x) const
 {
@@ -45,6 +45,6 @@ std::vector<double> ParametricFunction::GetGradient(const std::vector<double> &x
    return vt(grad);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

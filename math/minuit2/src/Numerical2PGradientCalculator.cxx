@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/InitialGradientCalculator.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/InitialGradientCalculator.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnPrint.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -25,11 +25,11 @@
 #include <cassert>
 #include <iomanip>
 
-#include "Minuit2/MPIProcess.h"
+#include "MyMinuit2/MPIProcess.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 FunctionGradient Numerical2PGradientCalculator::operator()(const MinimumParameters &par) const
 {
@@ -261,6 +261,6 @@ double Numerical2PGradientCalculator::GradTolerance() const
    return Strategy().GradientTolerance();
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

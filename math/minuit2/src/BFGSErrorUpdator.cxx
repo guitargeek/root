@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/BFGSErrorUpdator.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/LaSum.h"
-#include "Minuit2/LaProd.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/BFGSErrorUpdator.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/LaSum.h"
+#include "MyMinuit2/LaProd.h"
+#include "MyMinuit2/MnPrint.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 double inner_product(const LAVector &, const LAVector &);
 double similarity(const LAVector &, const LASymMatrix &);
@@ -141,6 +141,6 @@ BFGSErrorUpdator::Update(const MinimumState &s0, const MinimumParameters &p1, co
    return MinimumError(vUpd, dcov);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

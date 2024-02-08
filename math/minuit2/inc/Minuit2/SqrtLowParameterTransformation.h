@@ -12,12 +12,12 @@
 // Author    : Lorenzo.MONETA@cern.ch
 // Created by: moneta  at Thu Apr  8 10:26:22 2004
 
-#ifndef ROOT_Minuit2_SqrtLowParameterTransformation
-#define ROOT_Minuit2_SqrtLowParameterTransformation
+#ifndef ROOT_MyMinuit2_SqrtLowParameterTransformation
+#define ROOT_MyMinuit2_SqrtLowParameterTransformation
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnMachinePrecision;
 
@@ -46,7 +46,7 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 

@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMigrad
-#define ROOT_Minuit2_MnMigrad
+#ifndef ROOT_MyMinuit2_MnMigrad
+#define ROOT_MyMinuit2_MnMigrad
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/VariableMetricMinimizer.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/VariableMetricMinimizer.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 
@@ -127,8 +127,8 @@ private:
    VariableMetricMinimizer fMinimizer;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnMigrad
+#endif // ROOT_MyMinuit2_MnMigrad

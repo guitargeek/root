@@ -7,25 +7,25 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FCNBase
-#define ROOT_Minuit2_FCNBase
+#ifndef ROOT_MyMinuit2_FCNBase
+#define ROOT_MyMinuit2_FCNBase
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 #include <vector>
 
-#include "Minuit2/GenericFunction.h"
+#include "MyMinuit2/GenericFunction.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
 
   \defgroup Minuit Minuit2 Minimization Library
 
   New Object-oriented implementation of the MINUIT minimization package.
-  More information is available at the home page of the \ref Minuit2Page "Minuit2" minimization package".
+  More information is available at the home page of the \ref Minuit2Page "MyMinuit2" minimization package".
 
   \ingroup Math
 */
@@ -106,8 +106,8 @@ public:
    virtual void SetErrorDef(double){};
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FCNBase
+#endif // ROOT_MyMinuit2_FCNBase

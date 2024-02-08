@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnUserParameterState
-#define ROOT_Minuit2_MnUserParameterState
+#ifndef ROOT_MyMinuit2_MnUserParameterState
+#define ROOT_MyMinuit2_MnUserParameterState
 
-#include "Minuit2/MnUserParameters.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MnGlobalCorrelationCoeff.h"
+#include "MyMinuit2/MnUserParameters.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MnGlobalCorrelationCoeff.h"
 
 #include <vector>
 #include <string>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumState;
 
@@ -86,7 +86,7 @@ public:
    /** facade: forward interface of MnUserParameters and MnUserTransformation */
 
    // access to parameters (row-wise)
-   const std::vector<ROOT::Minuit2::MinuitParameter> &MinuitParameters() const;
+   const std::vector<ROOT::MyMinuit2::MinuitParameter> &MinuitParameters() const;
    // access to parameters and errors in column-wise representation
    std::vector<double> Params() const;
    std::vector<double> Errors() const;
@@ -161,8 +161,8 @@ private:
    MnUserCovariance fIntCovariance;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnUserParameterState
+#endif // ROOT_MyMinuit2_MnUserParameterState

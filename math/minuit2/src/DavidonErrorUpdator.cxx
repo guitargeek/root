@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/DavidonErrorUpdator.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/LaSum.h"
-#include "Minuit2/LaProd.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/DavidonErrorUpdator.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/LaSum.h"
+#include "MyMinuit2/LaProd.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 double inner_product(const LAVector &, const LAVector &);
 double similarity(const LAVector &, const LASymMatrix &);
@@ -194,6 +194,6 @@ MinimumError DavidonErrorUpdator::Update(const MinimumState& s0,
 }
 */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

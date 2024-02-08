@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnGlobalCorrelationCoeff
-#define ROOT_Minuit2_MnGlobalCorrelationCoeff
+#ifndef ROOT_MyMinuit2_MnGlobalCorrelationCoeff
+#define ROOT_MyMinuit2_MnGlobalCorrelationCoeff
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
    class for global correlation coefficient
@@ -40,8 +40,8 @@ private:
    bool fValid;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnGlobalCorrelationCoeff
+#endif // ROOT_MyMinuit2_MnGlobalCorrelationCoeff

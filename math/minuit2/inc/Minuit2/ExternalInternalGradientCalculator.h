@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ExternalInternalGradientCalculator
-#define ROOT_Minuit2_ExternalInternalGradientCalculator
+#ifndef ROOT_MyMinuit2_ExternalInternalGradientCalculator
+#define ROOT_MyMinuit2_ExternalInternalGradientCalculator
 
-#include "Minuit2/AnalyticalGradientCalculator.h"
+#include "MyMinuit2/AnalyticalGradientCalculator.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNGradientBase;
 class MnUserTransformation;
@@ -42,8 +42,8 @@ public:
    FunctionGradient operator()(const MinimumParameters &, const FunctionGradient &) const override;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ExternalInternalGradientCalculator
+#endif // ROOT_MyMinuit2_ExternalInternalGradientCalculator

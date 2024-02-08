@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnUserParameters.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MnGlobalCorrelationCoeff.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MinuitParameter.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MinosError.h"
-#include "Minuit2/ContoursError.h"
-#include "Minuit2/MnPlot.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnUserParameters.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MnGlobalCorrelationCoeff.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MinuitParameter.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MinosError.h"
+#include "MyMinuit2/ContoursError.h"
+#include "MyMinuit2/MnPlot.h"
 
 #include <iomanip>
 #include <utility>
@@ -31,7 +31,7 @@ constexpr int PRECISION = 10;
 constexpr int WIDTH = PRECISION + 7;
 
 namespace ROOT {
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 // we don't use a std::vector or std::array here, because we want a mix of the two;
 // a stack-allocated container with fixed capacity but dynamic size, i.e. the equivalent
@@ -487,5 +487,5 @@ std::ostream &operator<<(std::ostream &os, const std::pair<double, double> &poin
    return os;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT

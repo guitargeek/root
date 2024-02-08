@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #include <cmath>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /** Inverts a symmetric matrix. Matrix is first scaled to have all ones on
     the diagonal (equivalent to change of units) but no pivoting is done
@@ -73,6 +73,6 @@ int mnvert(MnAlgebraicSymMatrix &a)
    return 0;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ScanBuilder
-#define ROOT_Minuit2_ScanBuilder
+#ifndef ROOT_MyMinuit2_ScanBuilder
+#define ROOT_MyMinuit2_ScanBuilder
 
-#include "Minuit2/MinimumBuilder.h"
+#include "MyMinuit2/MinimumBuilder.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FunctionMinimum;
 class MnFcn;
@@ -37,8 +37,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ScanBuilder
+#endif // ROOT_MyMinuit2_ScanBuilder

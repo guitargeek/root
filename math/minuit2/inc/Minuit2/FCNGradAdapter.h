@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FCNGradAdapter
-#define ROOT_Minuit2_FCNGradAdapter
+#ifndef ROOT_MyMinuit2_FCNGradAdapter
+#define ROOT_MyMinuit2_FCNGradAdapter
 
-#include "Minuit2/FCNGradientBase.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnPrint.h"
 
 #include <vector>
 #include <functional>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
 
@@ -131,8 +131,8 @@ private:
    mutable std::function<bool(const std::vector<double> &, double *)> fHessianFunc;
 };
 
-} // end namespace Minuit2
+} // end namespace MyMinuit2
 
 } // end namespace ROOT
 
-#endif // ROOT_Minuit2_FCNGradAdapter
+#endif // ROOT_MyMinuit2_FCNGradAdapter

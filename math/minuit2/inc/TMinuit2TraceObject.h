@@ -11,7 +11,7 @@
 #define ROOT_TMinuit2TraceObject
 
 #include "TNamed.h"
-#include "Minuit2/MnTraceObject.h"
+#include "MyMinuit2/MnTraceObject.h"
 
 class TH1;
 class TVirtualPad;
@@ -19,24 +19,24 @@ class TList;
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumState;
 class MnUserParameterState;
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT
 
-class TMinuit2TraceObject : public ROOT::Minuit2::MnTraceObject, public TNamed {
+class TMinuit2TraceObject : public ROOT::MyMinuit2::MnTraceObject, public TNamed {
 
 public:
    TMinuit2TraceObject(int parNumber = -1);
 
    ~TMinuit2TraceObject() override;
 
-   void Init(const ROOT::Minuit2::MnUserParameterState &state) override;
+   void Init(const ROOT::MyMinuit2::MnUserParameterState &state) override;
 
-   void operator()(int i, const ROOT::Minuit2::MinimumState &state) override;
+   void operator()(int i, const ROOT::MyMinuit2::MinimumState &state) override;
 
    ClassDefOverride(TMinuit2TraceObject, 0) // Example Trace Object for Minuit2
 

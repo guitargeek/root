@@ -14,7 +14,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 int Mndscal(unsigned int n, double da, double *dx, int incx)
 {
@@ -83,6 +83,6 @@ L40:
    return 0;
 } /* dscal_ */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

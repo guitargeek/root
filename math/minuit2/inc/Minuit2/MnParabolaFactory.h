@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnParabolaFactory
-#define ROOT_Minuit2_MnParabolaFactory
+#ifndef ROOT_MyMinuit2_MnParabolaFactory
+#define ROOT_MyMinuit2_MnParabolaFactory
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnParabola;
 class MnParabolaPoint;
@@ -31,8 +31,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnParabolaFactory
+#endif // ROOT_MyMinuit2_MnParabolaFactory

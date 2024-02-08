@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnParabolaPoint
-#define ROOT_Minuit2_MnParabolaPoint
+#ifndef ROOT_MyMinuit2_MnParabolaPoint
+#define ROOT_MyMinuit2_MnParabolaPoint
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
 
@@ -74,8 +74,8 @@ private:
    double fY;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnParabolaPoint
+#endif // ROOT_MyMinuit2_MnParabolaPoint

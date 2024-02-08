@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_VariableMetricEDMEstimator
-#define ROOT_Minuit2_VariableMetricEDMEstimator
+#ifndef ROOT_MyMinuit2_VariableMetricEDMEstimator
+#define ROOT_MyMinuit2_VariableMetricEDMEstimator
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FunctionGradient;
 class MinimumError;
@@ -29,8 +29,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_VariableMetricEDMEstimator
+#endif // ROOT_MyMinuit2_VariableMetricEDMEstimator

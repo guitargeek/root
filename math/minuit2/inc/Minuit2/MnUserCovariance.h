@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnUserCovariance
-#define ROOT_Minuit2_MnUserCovariance
+#ifndef ROOT_MyMinuit2_MnUserCovariance
+#define ROOT_MyMinuit2_MnUserCovariance
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <vector>
 #include <cassert>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
    Class containing the covariance matrix data represented as a vector of
@@ -91,8 +91,8 @@ private:
    unsigned int fNRow;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnUserCovariance
+#endif // ROOT_MyMinuit2_MnUserCovariance

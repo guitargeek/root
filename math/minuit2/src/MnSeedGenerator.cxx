@@ -7,36 +7,36 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnSeedGenerator.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/GradientCalculator.h"
-#include "Minuit2/InitialGradientCalculator.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/MnMatrix.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MinuitParameter.h"
-#include "Minuit2/MnLineSearch.h"
-#include "Minuit2/MnParabolaPoint.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnHesse.h"
-#include "Minuit2/VariableMetricEDMEstimator.h"
-#include "Minuit2/NegativeG2LineSearch.h"
-#include "Minuit2/AnalyticalGradientCalculator.h"
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/HessianGradientCalculator.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnSeedGenerator.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/GradientCalculator.h"
+#include "MyMinuit2/InitialGradientCalculator.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/MnMatrix.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MinuitParameter.h"
+#include "MyMinuit2/MnLineSearch.h"
+#include "MyMinuit2/MnParabolaPoint.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnHesse.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/NegativeG2LineSearch.h"
+#include "MyMinuit2/AnalyticalGradientCalculator.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/HessianGradientCalculator.h"
+#include "MyMinuit2/MnPrint.h"
 
 #include <cmath>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 MinimumSeed MnSeedGenerator::
 operator()(const MnFcn &fcn, const GradientCalculator &gc, const MnUserParameterState &st, const MnStrategy &stra) const
@@ -260,6 +260,6 @@ bool CheckGradient(MinimumState & st, MnUserTransformation & trafo, MnStrategy &
 }
 #endif
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

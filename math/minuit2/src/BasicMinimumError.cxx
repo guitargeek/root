@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/BasicMinimumError.h"
+#include "MyMinuit2/BasicMinimumError.h"
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 MnAlgebraicSymMatrix BasicMinimumError::Hessian() const
 {
@@ -34,6 +34,6 @@ MnAlgebraicSymMatrix BasicMinimumError::Hessian() const
    return tmp;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

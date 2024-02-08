@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumSeed
-#define ROOT_Minuit2_MinimumSeed
+#ifndef ROOT_MyMinuit2_MinimumSeed
+#define ROOT_MyMinuit2_MinimumSeed
 
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnUserTransformation.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnUserTransformation.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumSeed {
 
@@ -46,8 +46,8 @@ private:
    std::shared_ptr<Data> fPtr;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MinimumSeed
+#endif // ROOT_MyMinuit2_MinimumSeed

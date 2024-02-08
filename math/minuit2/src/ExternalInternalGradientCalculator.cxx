@@ -8,15 +8,15 @@
  **********************************************************************/
 
 #include <vector>
-#include "Minuit2/ExternalInternalGradientCalculator.h"
-#include "Minuit2/FCNGradientBase.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/ExternalInternalGradientCalculator.h"
+#include "MyMinuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 FunctionGradient ExternalInternalGradientCalculator::operator()(const MinimumParameters &par) const
 {
@@ -73,5 +73,5 @@ ExternalInternalGradientCalculator::operator()(const MinimumParameters &par, con
    return FunctionGradient(v, v_g2, v_gstep);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT

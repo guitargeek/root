@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnTiny.h"
+#include "MyMinuit2/MnTiny.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 double MnTiny::One() const
 {
@@ -25,6 +25,6 @@ double MnTiny::operator()(double epsp1) const
    return result;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MatrixInverse
-#define ROOT_Minuit2_MatrixInverse
+#ifndef ROOT_MyMinuit2_MatrixInverse
+#define ROOT_MyMinuit2_MatrixInverse
 
-#include "Minuit2/ABTypes.h"
-#include "Minuit2/ABObj.h"
+#include "MyMinuit2/ABTypes.h"
+#include "MyMinuit2/ABObj.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 template <class mtype, class M, class T>
 class MatrixInverse {
@@ -56,8 +56,8 @@ inline ABObj<mt, MatrixInverse<mt, ABObj<mt, M, T>, T>, T> Inverse(const ABObj<m
    return ABObj<mt, MatrixInverse<mt, ABObj<mt, M, T>, T>, T>(MatrixInverse<mt, ABObj<mt, M, T>, T>(obj));
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MatrixInverse
+#endif // ROOT_MyMinuit2_MatrixInverse

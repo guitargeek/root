@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_SinParameterTransformation
-#define ROOT_Minuit2_SinParameterTransformation
+#ifndef ROOT_MyMinuit2_SinParameterTransformation
+#define ROOT_MyMinuit2_SinParameterTransformation
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnMachinePrecision;
 
@@ -35,8 +35,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_SinParameterTransformation
+#endif // ROOT_MyMinuit2_SinParameterTransformation

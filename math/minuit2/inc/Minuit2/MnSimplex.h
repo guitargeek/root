@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnSimplex
-#define ROOT_Minuit2_MnSimplex
+#ifndef ROOT_MyMinuit2_MnSimplex
+#define ROOT_MyMinuit2_MnSimplex
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/SimplexMinimizer.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/SimplexMinimizer.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 
@@ -90,8 +90,8 @@ private:
    MnSimplex &operator=(const MnSimplex &) { return *this; }
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnSimplex
+#endif // ROOT_MyMinuit2_MnSimplex

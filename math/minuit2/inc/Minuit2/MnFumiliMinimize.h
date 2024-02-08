@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnFumiliMinimize
-#define ROOT_Minuit2_MnFumiliMinimize
+#ifndef ROOT_MyMinuit2_MnFumiliMinimize
+#define ROOT_MyMinuit2_MnFumiliMinimize
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/FumiliMinimizer.h"
-#include "Minuit2/FumiliFCNBase.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/FumiliMinimizer.h"
+#include "MyMinuit2/FumiliFCNBase.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 // class FumiliFCNBase;
 // class FCNBase;
@@ -104,8 +104,8 @@ private:
    MnFumiliMinimize &operator=(const MnFumiliMinimize &) { return *this; }
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnFumiliMinimize
+#endif // ROOT_MyMinuit2_MnFumiliMinimize

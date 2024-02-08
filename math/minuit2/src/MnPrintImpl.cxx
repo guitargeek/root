@@ -1,6 +1,6 @@
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 
-using ROOT::Minuit2::MnPrint;
+using ROOT::MyMinuit2::MnPrint;
 
 #ifndef USE_ROOT_ERROR
 
@@ -25,11 +25,11 @@ void MnPrint::Impl(MnPrint::Verbosity level, const std::string &s)
 void MnPrint::Impl(MnPrint::Verbosity level, const std::string &s)
 {
    switch (level) {
-   case MnPrint::eError: ::Error("Minuit2", "%s", s.c_str()); break;
-   case MnPrint::eWarn: ::Warning("Minuit2", "%s", s.c_str()); break;
-   case MnPrint::eInfo:  ::Info("Minuit2", "%s", s.c_str()); break;
-   case MnPrint::eDebug: ::Info("Minuit2", "%s", s.c_str()); break;
-   case MnPrint::eTrace: ::Info("Minuit2", "%s", s.c_str()); break;
+   case MnPrint::eError: ::Error("MyMinuit2", "%s", s.c_str()); break;
+   case MnPrint::eWarn: ::Warning("MyMinuit2", "%s", s.c_str()); break;
+   case MnPrint::eInfo:  ::Info("MyMinuit2", "%s", s.c_str()); break;
+   case MnPrint::eDebug: ::Info("MyMinuit2", "%s", s.c_str()); break;
+   case MnPrint::eTrace: ::Info("MyMinuit2", "%s", s.c_str()); break;
    }
 }
 

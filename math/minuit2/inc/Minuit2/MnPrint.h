@@ -7,10 +7,10 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnPrint
-#define ROOT_Minuit2_MnPrint
+#ifndef ROOT_MyMinuit2_MnPrint
+#define ROOT_MyMinuit2_MnPrint
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 #include <sstream>
 #include <utility>
@@ -19,7 +19,7 @@
 #include <ios>
 
 namespace ROOT {
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
     define std::ostream operators for output
@@ -212,7 +212,7 @@ private:
    int fLevel;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnPrint
+#endif // ROOT_MyMinuit2_MnPrint

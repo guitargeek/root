@@ -7,23 +7,23 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/HessianGradientCalculator.h"
-#include "Minuit2/InitialGradientCalculator.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/MPIProcess.h"
+#include "MyMinuit2/HessianGradientCalculator.h"
+#include "MyMinuit2/InitialGradientCalculator.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/MPIProcess.h"
 
 #include <cmath>
 #include <cassert>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 FunctionGradient HessianGradientCalculator::operator()(const MinimumParameters &par) const
 {
@@ -153,6 +153,6 @@ HessianGradientCalculator::DeltaGradient(const MinimumParameters &par, const Fun
    return std::pair<FunctionGradient, MnAlgebraicVector>(FunctionGradient(grd, g2, gstep), dgrd);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

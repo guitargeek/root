@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnHesse
-#define ROOT_Minuit2_MnHesse
+#ifndef ROOT_MyMinuit2_MnHesse
+#define ROOT_MyMinuit2_MnHesse
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnStrategy.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 class MnUserParameterState;
@@ -101,8 +101,8 @@ private:
    MnStrategy fStrategy;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnHesse
+#endif // ROOT_MyMinuit2_MnHesse

@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnRefCountedPointer
-#define ROOT_Minuit2_MnRefCountedPointer
+#ifndef ROOT_MyMinuit2_MnRefCountedPointer
+#define ROOT_MyMinuit2_MnRefCountedPointer
 
 #include "MnReferenceCounter.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 template <class T>
 class MnRefCountedPointer {
@@ -106,8 +106,8 @@ private:
    void DoCheck() const { assert(IsValid()); }
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnRefCountedPointer
+#endif // ROOT_MyMinuit2_MnRefCountedPointer

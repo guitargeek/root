@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_NegativeG2LineSearch
-#define ROOT_Minuit2_NegativeG2LineSearch
+#ifndef ROOT_MyMinuit2_NegativeG2LineSearch
+#define ROOT_MyMinuit2_NegativeG2LineSearch
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnFcn;
 class MinimumState;
@@ -41,8 +41,8 @@ public:
 private:
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_NegativeG2LineSearch
+#endif // ROOT_MyMinuit2_NegativeG2LineSearch

@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FCNGradientBase
-#define ROOT_Minuit2_FCNGradientBase
+#ifndef ROOT_MyMinuit2_FCNGradientBase
+#define ROOT_MyMinuit2_FCNGradientBase
 
-#include "Minuit2/FCNBase.h"
+#include "MyMinuit2/FCNBase.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 //________________________________________________________________________
 /** Extension of the FCNBase for providing the analytical Gradient of the
@@ -66,8 +66,8 @@ public:
 
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FCNGradientBase
+#endif // ROOT_MyMinuit2_FCNGradientBase

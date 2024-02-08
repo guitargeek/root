@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LaOuterProduct.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/LaOuterProduct.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 int mndspr(const char *, unsigned int, double, const double *, int, double *);
 
@@ -58,6 +58,6 @@ void Outer_prod(LASymMatrix &A, const LAVector &v, double f)
    mndspr("U", v.size(), f, v.Data(), 1, A.Data());
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

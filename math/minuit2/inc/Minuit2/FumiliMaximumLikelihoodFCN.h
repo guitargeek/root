@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliMaximumLikelihoodFCN
-#define ROOT_Minuit2_FumiliMaximumLikelihoodFCN
+#ifndef ROOT_MyMinuit2_FumiliMaximumLikelihoodFCN
+#define ROOT_MyMinuit2_FumiliMaximumLikelihoodFCN
 
 #include "FumiliFCNBase.h"
-#include "Minuit2/ParametricFunction.h"
+#include "MyMinuit2/ParametricFunction.h"
 #include "Math/Util.h"
 #include <vector>
 #include <cassert>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
 
@@ -157,8 +157,8 @@ private:
    const ParametricFunction *fModelFunction;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_FumiliMaximumLikelihoodFCN
+#endif // ROOT_MyMinuit2_FumiliMaximumLikelihoodFCN

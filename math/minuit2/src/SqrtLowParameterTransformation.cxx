@@ -12,12 +12,12 @@
 // Author    : Lorenzo.MONETA@cern.ch
 // Created by: moneta  at Thu Apr  8 10:26:22 2004
 
-#include "Minuit2/SqrtLowParameterTransformation.h"
-#include "Minuit2/MnMachinePrecision.h"
+#include "MyMinuit2/SqrtLowParameterTransformation.h"
+#include "MyMinuit2/MnMachinePrecision.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 long double SqrtLowParameterTransformation::Int2ext(long double value, long double lower) const
 {
@@ -45,6 +45,6 @@ long double SqrtLowParameterTransformation::DInt2Ext(long double value, long dou
    return val;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

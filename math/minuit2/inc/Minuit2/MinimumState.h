@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumState
-#define ROOT_Minuit2_MinimumState
+#ifndef ROOT_MyMinuit2_MinimumState
+#define ROOT_MyMinuit2_MinimumState
 
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/FunctionGradient.h"
 
 #include <memory>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /** MinimumState keeps the information (position, Gradient, 2nd deriv, etc)
     after one minimization step (usually in MinimumBuilder).
@@ -89,8 +89,8 @@ private:
    std::shared_ptr<Data> fPtr;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MinimumState
+#endif // ROOT_MyMinuit2_MinimumState

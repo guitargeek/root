@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LaInverse.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/LaInverse.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 int mnvert(LASymMatrix &t);
 
@@ -38,6 +38,6 @@ int Invert(LASymMatrix &t)
    return ifail;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

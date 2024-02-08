@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/FCNGradientBase.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 // constructor from non-gradient functions
 MnApplication::MnApplication(const FCNBase &fcn, const MnUserParameterState &state, const MnStrategy &stra,
@@ -51,13 +51,13 @@ FunctionMinimum MnApplication::operator()(unsigned int maxfcn, double toler)
    fNumCall += min.NFcn();
    fState = min.UserState();
 
-   const std::vector<ROOT::Minuit2::MinimumState> &iterationStates = min.States();
+   const std::vector<ROOT::MyMinuit2::MinimumState> &iterationStates = min.States();
    print.Debug("State resulting from Migrad after", iterationStates.size(), "iterations:", fState);
 
    print.Debug([&](std::ostream &os) {
       for (unsigned int i = 0; i < iterationStates.size(); ++i) {
          // std::cout << iterationStates[i] << std::endl;
-         const ROOT::Minuit2::MinimumState &st = iterationStates[i];
+         const ROOT::MyMinuit2::MinimumState &st = iterationStates[i];
          os << "\n----------> Iteration " << i << '\n';
          int pr = os.precision(18);
          os << "            FVAL = " << st.Fval() << " Edm = " << st.Edm() << " Nfcn = " << st.NFcn() << '\n';
@@ -229,6 +229,6 @@ unsigned int MnApplication::VariableParameters() const
    return fState.VariableParameters();
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

@@ -7,29 +7,29 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/FumiliBuilder.h"
-#include "Minuit2/FumiliStandardMaximumLikelihoodFCN.h"
-#include "Minuit2/GradientCalculator.h"
-//#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnLineSearch.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MnPosDef.h"
-#include "Minuit2/MnParabolaPoint.h"
-#include "Minuit2/LaSum.h"
-#include "Minuit2/LaProd.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnHesse.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/FumiliBuilder.h"
+#include "MyMinuit2/FumiliStandardMaximumLikelihoodFCN.h"
+#include "MyMinuit2/GradientCalculator.h"
+//#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnLineSearch.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MnPosDef.h"
+#include "MyMinuit2/MnParabolaPoint.h"
+#include "MyMinuit2/LaSum.h"
+#include "MyMinuit2/LaProd.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnHesse.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 double inner_product(const LAVector &, const LAVector &);
 
@@ -347,6 +347,6 @@ FunctionMinimum FumiliBuilder::Minimum(const MnFcn &fcn, const GradientCalculato
    return FunctionMinimum(seed, result, fcn.Up());
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_CombinedMinimumBuilder
-#define ROOT_Minuit2_CombinedMinimumBuilder
+#ifndef ROOT_MyMinuit2_CombinedMinimumBuilder
+#define ROOT_MyMinuit2_CombinedMinimumBuilder
 
-#include "Minuit2/MinimumBuilder.h"
-#include "Minuit2/VariableMetricMinimizer.h"
-#include "Minuit2/SimplexMinimizer.h"
+#include "MyMinuit2/MinimumBuilder.h"
+#include "MyMinuit2/VariableMetricMinimizer.h"
+#include "MyMinuit2/SimplexMinimizer.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class CombinedMinimumBuilder : public MinimumBuilder {
 
@@ -55,8 +55,8 @@ private:
    SimplexMinimizer fSimplexMinimizer;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_CombinedMinimumBuilder
+#endif // ROOT_MyMinuit2_CombinedMinimumBuilder

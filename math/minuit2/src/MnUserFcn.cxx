@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnUserFcn.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnUserFcn.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/MnUserTransformation.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 double MnUserFcn::operator()(const MnAlgebraicVector &v) const
 {
@@ -41,6 +41,6 @@ double MnUserFcn::operator()(const MnAlgebraicVector &v) const
    return Fcn()(vpar);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

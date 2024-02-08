@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ABSum
-#define ROOT_Minuit2_ABSum
+#ifndef ROOT_MyMinuit2_ABSum
+#define ROOT_MyMinuit2_ABSum
 
-#include "Minuit2/ABObj.h"
+#include "MyMinuit2/ABObj.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 template <class M1, class M2>
 class ABSum {
@@ -70,8 +70,8 @@ operator-(const ABObj<atype, A, T> &a, const ABObj<btype, B, T> &b)
       ABSum<ABObj<atype, A, T>, ABObj<btype, B, T>>(a, ABObj<btype, B, T>(b.Obj(), T(-1.) * b.f())));
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ABSum
+#endif // ROOT_MyMinuit2_ABSum

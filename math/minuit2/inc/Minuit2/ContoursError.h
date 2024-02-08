@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ContoursError
-#define ROOT_Minuit2_ContoursError
+#ifndef ROOT_MyMinuit2_ContoursError
+#define ROOT_MyMinuit2_ContoursError
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MinosError.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MinosError.h"
 
 #include <vector>
 #include <utility>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class ContoursError {
 
@@ -74,8 +74,8 @@ private:
    unsigned int fNFcn;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ContoursError
+#endif // ROOT_MyMinuit2_ContoursError

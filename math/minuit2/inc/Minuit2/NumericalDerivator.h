@@ -15,20 +15,20 @@
  *      Author: E. G. P. Bos
  */
 
-#ifndef ROOT_Minuit2_NumericalDerivator
-#define ROOT_Minuit2_NumericalDerivator
+#ifndef ROOT_MyMinuit2_NumericalDerivator
+#define ROOT_MyMinuit2_NumericalDerivator
 
 #include <Math/IFunctionfwd.h>
 
 #include <vector>
 #include "Fit/ParameterSettings.h"
-#include "Minuit2/SinParameterTransformation.h"
-#include "Minuit2/SqrtUpParameterTransformation.h"
-#include "Minuit2/SqrtLowParameterTransformation.h"
-#include "Minuit2/MnMachinePrecision.h"
+#include "MyMinuit2/SinParameterTransformation.h"
+#include "MyMinuit2/SqrtUpParameterTransformation.h"
+#include "MyMinuit2/SqrtLowParameterTransformation.h"
+#include "MyMinuit2/MnMachinePrecision.h"
 
 namespace ROOT {
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 // Holds all necessary derivatives and associated numbers (per parameter) used in the NumericalDerivator class.
 struct DerivatorElement {
@@ -91,11 +91,11 @@ private:
 
    // MODIFIED: Minuit2 determines machine precision in a slightly different way than
    // std::numeric_limits<double>::epsilon()). We go with the Minuit2 one.
-   ROOT::Minuit2::MnMachinePrecision fPrecision;
+   ROOT::MyMinuit2::MnMachinePrecision fPrecision;
 
-   ROOT::Minuit2::SinParameterTransformation fDoubleLimTrafo;
-   ROOT::Minuit2::SqrtUpParameterTransformation fUpperLimTrafo;
-   ROOT::Minuit2::SqrtLowParameterTransformation fLowerLimTrafo;
+   ROOT::MyMinuit2::SinParameterTransformation fDoubleLimTrafo;
+   ROOT::MyMinuit2::SqrtUpParameterTransformation fUpperLimTrafo;
+   ROOT::MyMinuit2::SqrtLowParameterTransformation fLowerLimTrafo;
 
    unsigned int fNCycles = 2;
    bool fAlwaysExactlyMimicMinuit2;
@@ -104,7 +104,7 @@ private:
 
 std::ostream &operator<<(std::ostream &out, const DerivatorElement &value);
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_NumericalDerivator
+#endif // ROOT_MyMinuit2_NumericalDerivator

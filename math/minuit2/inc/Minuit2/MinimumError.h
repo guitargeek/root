@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumError
-#define ROOT_Minuit2_MinimumError
+#ifndef ROOT_MyMinuit2_MinimumError
+#define ROOT_MyMinuit2_MinimumError
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnMatrix.h"
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/LaSum.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnMatrix.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/LaSum.h"
 
 #include <memory>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /** MinimumError keeps the inv. 2nd derivative (inv. Hessian) used for
     calculating the Parameter step size (-V*g) and for the covariance Update
@@ -58,7 +58,7 @@ public:
    static MnAlgebraicSymMatrix InvertMatrix(const MnAlgebraicSymMatrix & matrix, int & ifail) {
        // calculate inverse of given matrix
       MnAlgebraicSymMatrix tmp(matrix);
-      ifail = ROOT::Minuit2::Invert(tmp);
+      ifail = ROOT::MyMinuit2::Invert(tmp);
       if (ifail != 0) {
          MnPrint print("MinimumError::Invert");
          print.Warn("Inversion fails; return diagonal matrix");
@@ -97,8 +97,8 @@ private:
    std::shared_ptr<Data> fPtr;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MinimumError
+#endif // ROOT_MyMinuit2_MinimumError

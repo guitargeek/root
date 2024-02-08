@@ -14,7 +14,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 int Mndaxpy(unsigned int n, double da, const double *dx, int incx, double *dy, int incy)
 {
@@ -94,6 +94,6 @@ L40:
    return 0;
 } /* daxpy_ */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

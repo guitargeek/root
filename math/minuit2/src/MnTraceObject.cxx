@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnTraceObject.h"
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MinimumState.h"
+#include "MyMinuit2/MnTraceObject.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MinimumState.h"
 #include <iomanip>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 void MnTraceObject::operator()(int iter, const MinimumState &state)
 {
@@ -46,6 +46,6 @@ void MnTraceObject::operator()(int iter, const MinimumState &state)
    });
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

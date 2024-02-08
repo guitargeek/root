@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/SinParameterTransformation.h"
-#include "Minuit2/MnMachinePrecision.h"
+#include "MyMinuit2/SinParameterTransformation.h"
+#include "MyMinuit2/MnMachinePrecision.h"
 
 #include <cmath>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 long double SinParameterTransformation::Int2ext(long double Value, long double Upper, long double Lower) const
 {
@@ -56,6 +56,6 @@ long double SinParameterTransformation::DInt2Ext(long double Value, long double 
    return 0.5 * ((Upper - Lower) * std::cos(Value));
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

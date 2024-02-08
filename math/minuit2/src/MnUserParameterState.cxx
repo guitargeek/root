@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnCovarianceSqueeze.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnCovarianceSqueeze.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 //
 // construct from user parameters (before minimization)
@@ -524,6 +524,6 @@ void MnUserParameterState::SetPrecision(double eps)
    fParameters.SetPrecision(eps);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

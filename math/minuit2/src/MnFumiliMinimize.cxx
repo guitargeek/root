@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnFumiliMinimize.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/FumiliMinimizer.h"
+#include "MyMinuit2/MnFumiliMinimize.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/FumiliMinimizer.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 FunctionMinimum MnFumiliMinimize::operator()(unsigned int maxfcn, double toler)
 {
@@ -31,6 +31,6 @@ FunctionMinimum MnFumiliMinimize::operator()(unsigned int maxfcn, double toler)
    return min;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

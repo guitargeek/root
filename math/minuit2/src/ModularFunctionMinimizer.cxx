@@ -7,32 +7,32 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/MinimumSeedGenerator.h"
-#include "Minuit2/AnalyticalGradientCalculator.h"
-#include "Minuit2/ExternalInternalGradientCalculator.h"
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/MinimumBuilder.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnUserParameters.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MnUserFcn.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/FCNGradientBase.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnHesse.h"
-#include "Minuit2/MnLineSearch.h"
-#include "Minuit2/MnParabolaPoint.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/MinimumSeedGenerator.h"
+#include "MyMinuit2/AnalyticalGradientCalculator.h"
+#include "MyMinuit2/ExternalInternalGradientCalculator.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/MinimumBuilder.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserParameters.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnUserFcn.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnHesse.h"
+#include "MyMinuit2/MnLineSearch.h"
+#include "MyMinuit2/MnParabolaPoint.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
-// #include "Minuit2/MnUserParametersPrint.h"
+// #include "MyMinuit2/MnUserParametersPrint.h"
 
 FunctionMinimum ModularFunctionMinimizer::Minimize(const FCNBase &fcn, const std::vector<double> &par,
                                                    const std::vector<double> &err, unsigned int stra,
@@ -198,6 +198,6 @@ FunctionMinimum ModularFunctionMinimizer::Minimize(const MnFcn &mfcn, const Grad
    return mb.Minimum(mfcn, gc, seed, strategy, maxfcn, effective_toler);
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

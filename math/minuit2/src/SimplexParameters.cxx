@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/SimplexParameters.h"
+#include "MyMinuit2/SimplexParameters.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 void SimplexParameters::Update(double y, const MnAlgebraicVector &p)
 {
@@ -48,6 +48,6 @@ MnAlgebraicVector SimplexParameters::Dirin() const
    return dirin;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

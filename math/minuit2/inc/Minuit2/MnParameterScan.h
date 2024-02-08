@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnParameterScan
-#define ROOT_Minuit2_MnParameterScan
+#ifndef ROOT_MyMinuit2_MnParameterScan
+#define ROOT_MyMinuit2_MnParameterScan
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnUserParameters.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnUserParameters.h"
 
 #include <vector>
 #include <utility>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class FCNBase;
 
@@ -48,8 +48,8 @@ private:
    double fAmin;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnParameterScan
+#endif // ROOT_MyMinuit2_MnParameterScan

@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_SimplexParameters
-#define ROOT_Minuit2_SimplexParameters
+#ifndef ROOT_MyMinuit2_SimplexParameters
+#define ROOT_MyMinuit2_SimplexParameters
 
 #include <cassert>
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #include <vector>
 #include <utility>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
    class describing the simplex set of points (f(x), x )  which evolve during the minimization
@@ -57,8 +57,8 @@ private:
    unsigned int fJLow;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_SimplexParameters
+#endif // ROOT_MyMinuit2_SimplexParameters

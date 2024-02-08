@@ -11,13 +11,13 @@
 #include "TH1.h"
 #include "TVirtualPad.h"
 #include "TList.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MinimumState.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MinimumState.h"
 
 ClassImp(TMinuit2TraceObject);
 
 TMinuit2TraceObject::TMinuit2TraceObject(int parNumber)
-   : ROOT::Minuit2::MnTraceObject(parNumber), TNamed("Minuit2TraceObject", "ROOT Trace Object for Minuit2"),
+   : ROOT::MyMinuit2::MnTraceObject(parNumber), TNamed("MyMinuit2TraceObject", "ROOT Trace Object for Minuit2"),
      fIterOffset(0), fHistoFval(nullptr), fHistoEdm(nullptr), fHistoParList(nullptr), fOldPad(nullptr), fMinuitPad(nullptr)
 {
 }
@@ -43,10 +43,10 @@ TMinuit2TraceObject::~TMinuit2TraceObject()
    }
 }
 
-void TMinuit2TraceObject::Init(const ROOT::Minuit2::MnUserParameterState &state)
+void TMinuit2TraceObject::Init(const ROOT::MyMinuit2::MnUserParameterState &state)
 {
 
-   ROOT::Minuit2::MnTraceObject::Init(state);
+   ROOT::MyMinuit2::MnTraceObject::Init(state);
 
    fIterOffset = 0;
 
@@ -90,7 +90,7 @@ void TMinuit2TraceObject::Init(const ROOT::Minuit2::MnUserParameterState &state)
    fMinuitPad = gPad;
 }
 
-void TMinuit2TraceObject::operator()(int iter, const ROOT::Minuit2::MinimumState &state)
+void TMinuit2TraceObject::operator()(int iter, const ROOT::MyMinuit2::MinimumState &state)
 {
    // action for each iteration: fill histograms
    // if iteration number is < 0 add at the end of current histograms
@@ -106,7 +106,7 @@ void TMinuit2TraceObject::operator()(int iter, const ROOT::Minuit2::MinimumState
       iter += fIterOffset;
    }
 
-   ROOT::Minuit2::MnTraceObject::operator()(iter, state);
+   ROOT::MyMinuit2::MnTraceObject::operator()(iter, state);
 
    fHistoFval->SetBinContent(iter + 1, state.Fval());
    fHistoEdm->SetBinContent(iter + 1, state.Edm());

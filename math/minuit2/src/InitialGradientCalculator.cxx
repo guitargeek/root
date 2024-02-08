@@ -7,20 +7,20 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/InitialGradientCalculator.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/InitialGradientCalculator.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnPrint.h"
 
 #include <cmath>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 FunctionGradient InitialGradientCalculator::operator()(const MinimumParameters &par) const
 {
@@ -108,6 +108,6 @@ double InitialGradientCalculator::GradTolerance() const
    return Strategy().GradientTolerance();
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnVectorTransform
-#define ROOT_Minuit2_MnVectorTransform
+#ifndef ROOT_MyMinuit2_MnVectorTransform
+#define ROOT_MyMinuit2_MnVectorTransform
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #include <vector>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MnVectorTransform {
 
@@ -38,8 +38,8 @@ public:
    }
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MnVectorTransform
+#endif // ROOT_MyMinuit2_MnVectorTransform

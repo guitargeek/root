@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_GradientCalculator
-#define ROOT_Minuit2_GradientCalculator
+#ifndef ROOT_MyMinuit2_GradientCalculator
+#define ROOT_MyMinuit2_GradientCalculator
 
-#include "Minuit2/MnMatrixfwd.h"
+#include "MyMinuit2/MnMatrixfwd.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumParameters;
 class FunctionGradient;
@@ -37,8 +37,8 @@ public:
 
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_GradientCalculator
+#endif // ROOT_MyMinuit2_GradientCalculator

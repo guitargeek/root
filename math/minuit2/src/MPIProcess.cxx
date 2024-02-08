@@ -8,13 +8,13 @@
  * Copyright: (C) 2008 by Universita' and INFN, Milan                      *
  ***************************************************************************/
 
-#include "Minuit2/MPIProcess.h"
+#include "MyMinuit2/MPIProcess.h"
 
 #include <iostream>
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 unsigned int MPIProcess::fgGlobalSize = 1;
 unsigned int MPIProcess::fgGlobalRank = 0;
@@ -150,7 +150,7 @@ MPIProcess::~MPIProcess()
 #endif
 }
 
-bool MPIProcess::SyncVector(ROOT::Minuit2::MnAlgebraicVector &mnvector)
+bool MPIProcess::SyncVector(ROOT::MyMinuit2::MnAlgebraicVector &mnvector)
 {
 
    // In case of just one job, don't need sync, just go
@@ -190,7 +190,7 @@ bool MPIProcess::SyncVector(ROOT::Minuit2::MnAlgebraicVector &mnvector)
 #endif
 }
 
-bool MPIProcess::SyncSymMatrixOffDiagonal(ROOT::Minuit2::MnAlgebraicSymMatrix &mnmatrix)
+bool MPIProcess::SyncSymMatrixOffDiagonal(ROOT::MyMinuit2::MnAlgebraicSymMatrix &mnmatrix)
 {
 
    // In case of just one job, don't need sync, just go
@@ -326,6 +326,6 @@ bool MPIProcess::SetDoFirstMPICall(bool doFirstMPICall)
 MPITerminate dummyMPITerminate = MPITerminate();
 #endif
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

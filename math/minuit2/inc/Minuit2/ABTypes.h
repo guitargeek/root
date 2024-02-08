@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ABTypes
-#define ROOT_Minuit2_ABTypes
+#ifndef ROOT_MyMinuit2_ABTypes
+#define ROOT_MyMinuit2_ABTypes
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class gen {
 };
@@ -119,8 +119,8 @@ public:
    typedef vec Type;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_ABTypes
+#endif // ROOT_MyMinuit2_ABTypes

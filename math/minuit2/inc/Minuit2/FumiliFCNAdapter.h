@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliFCNAdapter
-#define ROOT_Minuit2_FumiliFCNAdapter
+#ifndef ROOT_MyMinuit2_FumiliFCNAdapter
+#define ROOT_MyMinuit2_FumiliFCNAdapter
 
-#include "Minuit2/FumiliFCNBase.h"
+#include "MyMinuit2/FumiliFCNBase.h"
 
 #include "Math/FitMethodFunction.h"
 
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 
 // #ifndef ROOT_Math_Util
 // #include "Math/Util.h"
@@ -26,7 +26,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 /**
 
@@ -152,8 +152,8 @@ void FumiliFCNAdapter<Function>::EvaluateAll(const std::vector<double> &v)
    }
 }
 
-} // end namespace Minuit2
+} // end namespace MyMinuit2
 
 } // end namespace ROOT
 
-#endif // ROOT_Minuit2_FCNAdapter
+#endif // ROOT_MyMinuit2_FCNAdapter

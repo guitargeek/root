@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumSeedGenerator
-#define ROOT_Minuit2_MinimumSeedGenerator
+#ifndef ROOT_MyMinuit2_MinimumSeedGenerator
+#define ROOT_MyMinuit2_MinimumSeedGenerator
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumSeed;
 class MnFcn;
@@ -38,8 +38,8 @@ public:
                                   const MnStrategy &) const = 0;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MinimumSeedGenerator
+#endif // ROOT_MyMinuit2_MinimumSeedGenerator

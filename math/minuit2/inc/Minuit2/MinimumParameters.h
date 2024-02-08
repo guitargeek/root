@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumParameters
-#define ROOT_Minuit2_MinimumParameters
+#ifndef ROOT_MyMinuit2_MinimumParameters
+#define ROOT_MyMinuit2_MinimumParameters
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 class MinimumParameters {
 
@@ -54,8 +54,8 @@ private:
    std::shared_ptr<Data> fPtr;
 };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
 
-#endif // ROOT_Minuit2_MinimumParameters
+#endif // ROOT_MyMinuit2_MinimumParameters

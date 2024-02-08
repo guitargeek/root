@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnParameterScan.h"
-#include "Minuit2/FCNBase.h"
+#include "MyMinuit2/MnParameterScan.h"
+#include "MyMinuit2/FCNBase.h"
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 MnParameterScan::MnParameterScan(const FCNBase &fcn, const MnUserParameters &par)
    : fFCN(fcn), fParameters(par), fAmin(fcn(par.Params()))
@@ -74,6 +74,6 @@ operator()(unsigned int par, unsigned int maxsteps, double low, double high)
    return result;
 }
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

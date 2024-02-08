@@ -18,7 +18,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 void mnbins(double, double, int, double &, double &, int &, double &);
 
@@ -218,6 +218,6 @@ L50:
 
 } /* mnplot_ */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT

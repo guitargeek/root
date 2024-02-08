@@ -14,7 +14,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 bool mnlsame(const char *, const char *);
 int mnxerbla(const char *, int);
@@ -313,6 +313,6 @@ int Mndspmv(const char *uplo, unsigned int n, double alpha, const double *ap, co
 
 } /* dspmv_ */
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 
 } // namespace ROOT
