@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnParabola
-#define ROOT_Minuit2_MnParabola
+#ifndef ROOT_MyMinuit2_MnParabola
+#define ROOT_MyMinuit2_MnParabola
 
 #include <math.h>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /**
@@ -166,8 +166,8 @@ private:
   double fC;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnParabola
+#endif  // ROOT_MyMinuit2_MnParabola

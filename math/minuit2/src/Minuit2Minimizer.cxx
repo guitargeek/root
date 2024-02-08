@@ -10,33 +10,33 @@
 
 // Implementation file for class Minuit2Minimizer
 
-#include "Minuit2/Minuit2Minimizer.h"
+#include "MyMinuit2/Minuit2Minimizer.h"
 
 #include "Math/IFunction.h"
 #include "Math/IOptions.h"
 
 #include "Fit/ParameterSettings.h"
 
-#include "Minuit2/FCNAdapter.h"
-#include "Minuit2/FumiliFCNAdapter.h"
-#include "Minuit2/FCNGradAdapter.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnMigrad.h"
-#include "Minuit2/MnMinos.h"
-#include "Minuit2/MinosError.h"
-#include "Minuit2/MnHesse.h"
-#include "Minuit2/MinuitParameter.h"
-#include "Minuit2/MnUserFcn.h"
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/VariableMetricMinimizer.h"
-#include "Minuit2/SimplexMinimizer.h"
-#include "Minuit2/CombinedMinimizer.h"
-#include "Minuit2/ScanMinimizer.h"
-#include "Minuit2/FumiliMinimizer.h"
-#include "Minuit2/MnParameterScan.h"
-#include "Minuit2/MnContours.h"
-#include "Minuit2/MnTraceObject.h"
-#include "Minuit2/MinimumBuilder.h"
+#include "MyMinuit2/FCNAdapter.h"
+#include "MyMinuit2/FumiliFCNAdapter.h"
+#include "MyMinuit2/FCNGradAdapter.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnMigrad.h"
+#include "MyMinuit2/MnMinos.h"
+#include "MyMinuit2/MinosError.h"
+#include "MyMinuit2/MnHesse.h"
+#include "MyMinuit2/MinuitParameter.h"
+#include "MyMinuit2/MnUserFcn.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/VariableMetricMinimizer.h"
+#include "MyMinuit2/SimplexMinimizer.h"
+#include "MyMinuit2/CombinedMinimizer.h"
+#include "MyMinuit2/ScanMinimizer.h"
+#include "MyMinuit2/FumiliMinimizer.h"
+#include "MyMinuit2/MnParameterScan.h"
+#include "MyMinuit2/MnContours.h"
+#include "MyMinuit2/MnTraceObject.h"
+#include "MyMinuit2/MinimumBuilder.h"
 
 #include <cassert>
 #include <iostream>
@@ -50,7 +50,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 
    // functions needed to control siwthc off of Minuit2 printing level
@@ -78,7 +78,7 @@ void RestoreGlobalPrintLevel(int value) {
 
 
 
-Minuit2Minimizer::Minuit2Minimizer(ROOT::Minuit2::EMinimizerType type ) :
+Minuit2Minimizer::Minuit2Minimizer(ROOT::MyMinuit2::EMinimizerType type ) :
    Minimizer(),
    fDim(0),
    fMinimizer(0),
@@ -112,35 +112,35 @@ Minuit2Minimizer::Minuit2Minimizer(const char *  type ) :
    SetMinimizerType(algoType);
 }
 
-void Minuit2Minimizer::SetMinimizerType(ROOT::Minuit2::EMinimizerType type) {
+void Minuit2Minimizer::SetMinimizerType(ROOT::MyMinuit2::EMinimizerType type) {
    // Set  minimizer algorithm type
    fUseFumili = false;
    switch (type) {
-   case ROOT::Minuit2::kMigrad:
-      //std::cout << "Minuit2Minimizer: minimize using MIGRAD " << std::endl;
-      SetMinimizer( new ROOT::Minuit2::VariableMetricMinimizer() );
+   case ROOT::MyMinuit2::kMigrad:
+      //std::cout << "MyMinuit2Minimizer: minimize using MIGRAD " << std::endl;
+      SetMinimizer( new ROOT::MyMinuit2::VariableMetricMinimizer() );
       return;
-   case ROOT::Minuit2::kMigradBFGS:
-      //std::cout << "Minuit2Minimizer: minimize using MIGRAD " << std::endl;
-      SetMinimizer( new ROOT::Minuit2::VariableMetricMinimizer(VariableMetricMinimizer::BFGSType()) );
+   case ROOT::MyMinuit2::kMigradBFGS:
+      //std::cout << "MyMinuit2Minimizer: minimize using MIGRAD " << std::endl;
+      SetMinimizer( new ROOT::MyMinuit2::VariableMetricMinimizer(VariableMetricMinimizer::BFGSType()) );
       return;
-   case ROOT::Minuit2::kSimplex:
-      //std::cout << "Minuit2Minimizer: minimize using SIMPLEX " << std::endl;
-      SetMinimizer( new ROOT::Minuit2::SimplexMinimizer() );
+   case ROOT::MyMinuit2::kSimplex:
+      //std::cout << "MyMinuit2Minimizer: minimize using SIMPLEX " << std::endl;
+      SetMinimizer( new ROOT::MyMinuit2::SimplexMinimizer() );
       return;
-   case ROOT::Minuit2::kCombined:
-      SetMinimizer( new ROOT::Minuit2::CombinedMinimizer() );
+   case ROOT::MyMinuit2::kCombined:
+      SetMinimizer( new ROOT::MyMinuit2::CombinedMinimizer() );
       return;
-   case ROOT::Minuit2::kScan:
-      SetMinimizer( new ROOT::Minuit2::ScanMinimizer() );
+   case ROOT::MyMinuit2::kScan:
+      SetMinimizer( new ROOT::MyMinuit2::ScanMinimizer() );
       return;
-   case ROOT::Minuit2::kFumili:
-      SetMinimizer( new ROOT::Minuit2::FumiliMinimizer() );
+   case ROOT::MyMinuit2::kFumili:
+      SetMinimizer( new ROOT::MyMinuit2::FumiliMinimizer() );
       fUseFumili = true;
       return;
    default:
       //migrad minimizer
-      SetMinimizer( new ROOT::Minuit2::VariableMetricMinimizer() );
+      SetMinimizer( new ROOT::MyMinuit2::VariableMetricMinimizer() );
 
    }
 }
@@ -190,7 +190,7 @@ bool Minuit2Minimizer::SetVariable(unsigned int ivar, const std::string & name, 
 
    if (step <= 0) {
       std::string txtmsg = "Parameter " + name + "  has zero or invalid step size - consider it as constant ";
-      MN_INFO_MSG2("Minuit2Minimizer::SetVariable",txtmsg);
+      MN_INFO_MSG2("MyMinuit2Minimizer::SetVariable",txtmsg);
       fState.Add(name.c_str(), val);
    }
    else
@@ -199,8 +199,8 @@ bool Minuit2Minimizer::SetVariable(unsigned int ivar, const std::string & name, 
    unsigned int minuit2Index = fState.Index(name.c_str() );
    if ( minuit2Index != ivar) {
       std::string txtmsg("Wrong index used for the variable " + name);
-      MN_INFO_MSG2("Minuit2Minimizer::SetVariable",txtmsg);
-      MN_INFO_VAL2("Minuit2Minimizer::SetVariable",minuit2Index);
+      MN_INFO_MSG2("MyMinuit2Minimizer::SetVariable",txtmsg);
+      MN_INFO_VAL2("MyMinuit2Minimizer::SetVariable",minuit2Index);
       ivar = minuit2Index;
       return false;
    }
@@ -322,7 +322,7 @@ bool Minuit2Minimizer::ReleaseVariable(unsigned int ivar) {
 bool Minuit2Minimizer::IsFixedVariable(unsigned int ivar) const {
    // query if variable is fixed
    if (ivar >= fState.MinuitParameters().size() ) {
-      MN_ERROR_MSG2("Minuit2Minimizer","wrong variable index");
+      MN_ERROR_MSG2("MyMinuit2Minimizer","wrong variable index");
       return false;
    }
    return (fState.Parameter(ivar).IsFixed() || fState.Parameter(ivar).IsConst() );
@@ -331,7 +331,7 @@ bool Minuit2Minimizer::IsFixedVariable(unsigned int ivar) const {
 bool Minuit2Minimizer::GetVariableSettings(unsigned int ivar, ROOT::Fit::ParameterSettings & varObj) const {
    // retrieve variable settings (all set info on the variable)
    if (ivar >= fState.MinuitParameters().size() ) {
-      MN_ERROR_MSG2("Minuit2Minimizer","wrong variable index");
+      MN_ERROR_MSG2("MyMinuit2Minimizer","wrong variable index");
       return false;
    }
    const MinuitParameter & par = fState.Parameter(ivar);
@@ -356,16 +356,16 @@ void Minuit2Minimizer::SetFunction(const  ROOT::Math::IMultiGenFunction & func) 
    if (fMinuitFCN) delete fMinuitFCN;
    fDim = func.NDim();
    if (!fUseFumili) {
-      fMinuitFCN = new ROOT::Minuit2::FCNAdapter<ROOT::Math::IMultiGenFunction> (func, ErrorDef() );
+      fMinuitFCN = new ROOT::MyMinuit2::FCNAdapter<ROOT::Math::IMultiGenFunction> (func, ErrorDef() );
    }
    else {
       // for Fumili the fit method function interface is required
       const ROOT::Math::FitMethodFunction * fcnfunc = dynamic_cast<const ROOT::Math::FitMethodFunction *>(&func);
       if (!fcnfunc) {
-         MN_ERROR_MSG("Minuit2Minimizer: Wrong Fit method function for Fumili");
+         MN_ERROR_MSG("MyMinuit2Minimizer: Wrong Fit method function for Fumili");
          return;
       }
-      fMinuitFCN = new ROOT::Minuit2::FumiliFCNAdapter<ROOT::Math::FitMethodFunction> (*fcnfunc, fDim, ErrorDef() );
+      fMinuitFCN = new ROOT::MyMinuit2::FumiliFCNAdapter<ROOT::Math::FitMethodFunction> (*fcnfunc, fDim, ErrorDef() );
    }
 }
 
@@ -374,16 +374,16 @@ void Minuit2Minimizer::SetFunction(const  ROOT::Math::IMultiGradFunction & func)
    fDim = func.NDim();
    if (fMinuitFCN) delete fMinuitFCN;
    if (!fUseFumili) {
-      fMinuitFCN = new ROOT::Minuit2::FCNGradAdapter<ROOT::Math::IMultiGradFunction> (func, ErrorDef() );
+      fMinuitFCN = new ROOT::MyMinuit2::FCNGradAdapter<ROOT::Math::IMultiGradFunction> (func, ErrorDef() );
    }
    else {
       // for Fumili the fit method function interface is required
       const ROOT::Math::FitMethodGradFunction * fcnfunc = dynamic_cast<const ROOT::Math::FitMethodGradFunction*>(&func);
       if (!fcnfunc) {
-         MN_ERROR_MSG("Minuit2Minimizer: Wrong Fit method function for Fumili");
+         MN_ERROR_MSG("MyMinuit2Minimizer: Wrong Fit method function for Fumili");
          return;
       }
-      fMinuitFCN = new ROOT::Minuit2::FumiliFCNAdapter<ROOT::Math::FitMethodGradFunction> (*fcnfunc, fDim, ErrorDef() );
+      fMinuitFCN = new ROOT::MyMinuit2::FumiliFCNAdapter<ROOT::Math::FitMethodGradFunction> (*fcnfunc, fDim, ErrorDef() );
    }
 }
 
@@ -391,7 +391,7 @@ bool Minuit2Minimizer::Minimize() {
    // perform the minimization
    // store a copy of FunctionMinimum
    if (!fMinuitFCN) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Minimize","FCN function has not been set");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Minimize","FCN function has not been set");
       return false;
   }
 
@@ -415,7 +415,7 @@ bool Minuit2Minimizer::Minimize() {
          int nvar = fState.VariableParameters();
          maxfcn_used = 200 + 100*nvar + 5*nvar*nvar;
       }
-      std::cout << "Minuit2Minimizer: Minimize with max-calls " << maxfcn_used
+      std::cout << "MyMinuit2Minimizer: Minimize with max-calls " << maxfcn_used
                 << " convergence for edm < " << tol << " strategy "
                 << strategyLevel << std::endl;
    }
@@ -431,8 +431,8 @@ bool Minuit2Minimizer::Minimize() {
    if (Precision() > 0) fState.SetPrecision(Precision());
 
    // set strategy and add extra options if needed
-   ROOT::Minuit2::MnStrategy strategy(strategyLevel);
-   ROOT::Math::IOptions * minuit2Opt = ROOT::Math::MinimizerOptions::FindDefault("Minuit2");
+   ROOT::MyMinuit2::MnStrategy strategy(strategyLevel);
+   ROOT::Math::IOptions * minuit2Opt = ROOT::Math::MinimizerOptions::FindDefault("MyMinuit2");
    if (minuit2Opt) {
       // set extra  options
       int nGradCycles = strategy.GradientNCycles();
@@ -467,7 +467,7 @@ bool Minuit2Minimizer::Minimize() {
       if (ret) SetStorageLevel(storageLevel);
 
       if (printLevel > 0) {
-         std::cout << "Minuit2Minimizer::Minuit  - Changing default options" << std::endl;
+         std::cout << "MyMinuit2Minimizer::Minuit  - Changing default options" << std::endl;
          minuit2Opt->Print();
       }
 
@@ -479,8 +479,8 @@ bool Minuit2Minimizer::Minimize() {
    MnTraceObject * traceObj = 0;
 #ifdef USE_ROOT_ERROR
    if (printLevel == 10 && gROOT) {
-      TObject * obj = gROOT->FindObject("Minuit2TraceObject");
-      traceObj = dynamic_cast<ROOT::Minuit2::MnTraceObject*>(obj);
+      TObject * obj = gROOT->FindObject("MyMinuit2TraceObject");
+      traceObj = dynamic_cast<ROOT::MyMinuit2::MnTraceObject*>(obj);
       if (traceObj) {
          // need to remove from the list
          gROOT->Remove(obj);
@@ -503,22 +503,22 @@ bool Minuit2Minimizer::Minimize() {
       SetTraceObject(*traceObj);
    }
 
-   const ROOT::Minuit2::FCNGradientBase * gradFCN = dynamic_cast<const ROOT::Minuit2::FCNGradientBase *>( fMinuitFCN );
+   const ROOT::MyMinuit2::FCNGradientBase * gradFCN = dynamic_cast<const ROOT::MyMinuit2::FCNGradientBase *>( fMinuitFCN );
    if ( gradFCN != 0) {
       // use gradient
       //SetPrintLevel(3);
-      ROOT::Minuit2::FunctionMinimum min =  GetMinimizer()->Minimize(*gradFCN, fState, strategy, maxfcn, tol);
-      fMinimum = new ROOT::Minuit2::FunctionMinimum (min);
+      ROOT::MyMinuit2::FunctionMinimum min =  GetMinimizer()->Minimize(*gradFCN, fState, strategy, maxfcn, tol);
+      fMinimum = new ROOT::MyMinuit2::FunctionMinimum (min);
    }
    else {
-      ROOT::Minuit2::FunctionMinimum min = GetMinimizer()->Minimize(*GetFCN(), fState, strategy, maxfcn, tol);
-      fMinimum = new ROOT::Minuit2::FunctionMinimum (min);
+      ROOT::MyMinuit2::FunctionMinimum min = GetMinimizer()->Minimize(*GetFCN(), fState, strategy, maxfcn, tol);
+      fMinimum = new ROOT::MyMinuit2::FunctionMinimum (min);
    }
 
    // check if Hesse needs to be run
    if (fMinimum->IsValid() && IsValidError() && fMinimum->State().Error().Dcovar() != 0 ) {
       // run Hesse (Hesse will add results in the last state of fMinimum
-      ROOT::Minuit2::MnHesse hesse(strategy );
+      ROOT::MyMinuit2::MnHesse hesse(strategy );
       hesse( *fMinuitFCN, *fMinimum, maxfcn);
    }
 
@@ -535,18 +535,18 @@ bool Minuit2Minimizer::Minimize() {
    return ok;
 }
 
-bool  Minuit2Minimizer::ExamineMinimum(const ROOT::Minuit2::FunctionMinimum & min) {
+bool  Minuit2Minimizer::ExamineMinimum(const ROOT::MyMinuit2::FunctionMinimum & min) {
    /// study the function minimum
 
    // debug ( print all the states)
    int debugLevel = PrintLevel();
    if (debugLevel >= 3) {
 
-      const std::vector<ROOT::Minuit2::MinimumState>& iterationStates = min.States();
+      const std::vector<ROOT::MyMinuit2::MinimumState>& iterationStates = min.States();
       std::cout << "Number of iterations " << iterationStates.size() << std::endl;
       for (unsigned int i = 0; i <  iterationStates.size(); ++i) {
          //std::cout << iterationStates[i] << std::endl;
-         const ROOT::Minuit2::MinimumState & st =  iterationStates[i];
+         const ROOT::MyMinuit2::MinimumState & st =  iterationStates[i];
          std::cout << "----------> Iteration " << i << std::endl;
          int pr = std::cout.precision(12);
          std::cout << "            FVAL = " << st.Fval() << " Edm = " << st.Edm() << " Nfcn = " << st.NFcn() << std::endl;
@@ -591,7 +591,7 @@ bool  Minuit2Minimizer::ExamineMinimum(const ROOT::Minuit2::FunctionMinimum & mi
    bool validMinimum = min.IsValid();
    if (validMinimum) {
       // print a warning message in case something is not ok
-      if (fStatus != 0 && debugLevel > 0)  MN_INFO_MSG2("Minuit2Minimizer::Minimize",txt);
+      if (fStatus != 0 && debugLevel > 0)  MN_INFO_MSG2("MyMinuit2Minimizer::Minimize",txt);
    }
    else {
       // minimum is not valid when state is not valid and edm is over max or has passed call limits
@@ -601,7 +601,7 @@ bool  Minuit2Minimizer::ExamineMinimum(const ROOT::Minuit2::FunctionMinimum & mi
          fStatus = 6;
       }
       std::string msg = "Minimization did NOT converge, " + txt;
-      MN_INFO_MSG2("Minuit2Minimizer::Minimize",msg);
+      MN_INFO_MSG2("MyMinuit2Minimizer::Minimize",msg);
    }
 
    if (debugLevel >= 1) PrintResults();
@@ -625,7 +625,7 @@ void Minuit2Minimizer::PrintResults() {
    if (!fMinimum) return;
    if (fMinimum->IsValid() ) {
       // valid minimum
-      std::cout << "Minuit2Minimizer : Valid minimum - status = " << fStatus  << std::endl;
+      std::cout << "MyMinuit2Minimizer : Valid minimum - status = " << fStatus  << std::endl;
       int pr = std::cout.precision(18);
       std::cout << "FVAL  = " << fState.Fval() << std::endl;
       std::cout << "Edm   = " << fState.Edm() << std::endl;
@@ -643,7 +643,7 @@ void Minuit2Minimizer::PrintResults() {
       }
    }
    else {
-      std::cout << "Minuit2Minimizer : Invalid Minimum - status = " << fStatus << std::endl;
+      std::cout << "MyMinuit2Minimizer : Invalid Minimum - status = " << fStatus << std::endl;
       std::cout << "FVAL  = " << fState.Fval() << std::endl;
       std::cout << "Edm   = " << fState.Edm() << std::endl;
       std::cout << "Nfcn  = " << fState.NFcn() << std::endl;
@@ -783,16 +783,16 @@ bool Minuit2Minimizer::GetMinosError(unsigned int i, double & errLow, double & e
 
    // to run minos I need function minimum class
    // redo minimization from current state
-//    ROOT::Minuit2::FunctionMinimum min =
-//       GetMinimizer()->Minimize(*GetFCN(),fState, ROOT::Minuit2::MnStrategy(strategy), MaxFunctionCalls(), Tolerance());
+//    ROOT::MyMinuit2::FunctionMinimum min =
+//       GetMinimizer()->Minimize(*GetFCN(),fState, ROOT::MyMinuit2::MnStrategy(strategy), MaxFunctionCalls(), Tolerance());
 //    fState = min.UserState();
    if (fMinimum == 0) {
-      MN_ERROR_MSG("Minuit2Minimizer::GetMinosErrors:  failed - no function minimum existing");
+      MN_ERROR_MSG("MyMinuit2Minimizer::GetMinosErrors:  failed - no function minimum existing");
       return false;
    }
 
    if (!fMinimum->IsValid() ) {
-      MN_ERROR_MSG("Minuit2Minimizer::MINOS failed due to invalid function minimum");
+      MN_ERROR_MSG("MyMinuit2Minimizer::MINOS failed due to invalid function minimum");
       return false;
    }
 
@@ -807,7 +807,7 @@ bool Minuit2Minimizer::GetMinosError(unsigned int i, double & errLow, double & e
    // bit 8 is set
    if ((mstatus & 8) != 0) {
      
-      MN_INFO_MSG2("Minuit2Minimizer::GetMinosError",
+      MN_INFO_MSG2("MyMinuit2Minimizer::GetMinosError",
                    "Found a new minimum: run again the Minimization  starting from the new  point ");
       if (PrintLevel() > 1) {
          std::cout << "New minimum point found by MINOS: " << std::endl;
@@ -821,7 +821,7 @@ bool Minuit2Minimizer::GetMinosError(unsigned int i, double & errLow, double & e
       bool ok = Minimize();
       if (!ok)  return false;
       // run again Minos from new Minimum (also lower error needs to be re-computed)
-      MN_INFO_MSG2("Minuit2Minimizer::GetMinosError", "Run now again Minos from the new found Minimum");
+      MN_INFO_MSG2("MyMinuit2Minimizer::GetMinosError", "Run now again Minos from the new found Minimum");
       mstatus = RunMinosError(i, errLow, errUp, runopt);
 
       // do not reset new minimum bit to flag for other parameters
@@ -852,7 +852,7 @@ int Minuit2Minimizer::RunMinosError(unsigned int i, double & errLow, double & er
    if (Precision() > 0) fState.SetPrecision(Precision());
 
 
-   ROOT::Minuit2::MnMinos minos( *fMinuitFCN, *fMinimum);
+   ROOT::MyMinuit2::MnMinos minos( *fMinuitFCN, *fMinimum);
 
    // run MnCross
    MnCross low;
@@ -878,7 +878,7 @@ int Minuit2Minimizer::RunMinosError(unsigned int i, double & errLow, double & er
    if (runLower) {
       if (debugLevel >=1) {
          std::cout << "******************************************************************************************************\n";
-         std::cout << "Minuit2Minimizer::GetMinosError - Run MINOS LOWER error for parameter #" << i << " : " << par_name
+         std::cout << "MyMinuit2Minimizer::GetMinosError - Run MINOS LOWER error for parameter #" << i << " : " << par_name
                 << " using max-calls " << maxfcn_used << ", tolerance " << tol << std::endl;
       }
       low = minos.Loval(i, maxfcn, tol);
@@ -886,13 +886,13 @@ int Minuit2Minimizer::RunMinosError(unsigned int i, double & errLow, double & er
    if (runUpper) {
       if (debugLevel >=1) {
          std::cout << "******************************************************************************************************\n";
-         std::cout << "Minuit2Minimizer::GetMinosError - Run MINOS UPPER error for parameter #" << i << " : " << par_name
+         std::cout << "MyMinuit2Minimizer::GetMinosError - Run MINOS UPPER error for parameter #" << i << " : " << par_name
                 << " using max-calls " << maxfcn_used << ", tolerance " << tol << std::endl;
       }
       up  = minos.Upval(i,maxfcn,tol);
    }
 
-   ROOT::Minuit2::MinosError me(i, fMinimum->UserState().Value(i),low, up);
+   ROOT::MyMinuit2::MinosError me(i, fMinimum->UserState().Value(i),low, up);
 
    if (prev_level > -2) RestoreGlobalPrintLevel(prev_level);
 
@@ -938,22 +938,22 @@ int Minuit2Minimizer::RunMinosError(unsigned int i, double & errLow, double & er
    // print message in case of invalid error also in printLevel0
    if (lowerInvalid) {
       std::string msg_txt = std::string("Invalid lower error for parameter ") + std::string(fMinimum->UserState().Name(i));
-      MN_INFO_MSG2("Minuit2Minimizer::GetMinosErrors", msg_txt);
+      MN_INFO_MSG2("MyMinuit2Minimizer::GetMinosErrors", msg_txt);
    }
    if (upperInvalid) {
       std::string msg_txt = std::string("Invalid upper error for parameter ") + std::string(fMinimum->UserState().Name(i));
-      MN_INFO_MSG2("Minuit2Minimizer::GetMinosErrors", msg_txt);
+      MN_INFO_MSG2("MyMinuit2Minimizer::GetMinosErrors", msg_txt);
    }
    // print also case it is lower/upper limit
    if (me.AtLowerLimit()) {
       std::string msg_txt = std::string("Lower error for parameter ") + std::string(fMinimum->UserState().Name(i)) +
                             std::string(" is at the Lower limit !");
-      MN_INFO_MSG2("Minuit2Minimizer::GetMinosErrors", msg_txt);
+      MN_INFO_MSG2("MyMinuit2Minimizer::GetMinosErrors", msg_txt);
    }
    if (me.AtUpperLimit()) {
       std::string msg_txt = std::string("Upper error for parameter ") + std::string(fMinimum->UserState().Name(i)) +
                             std::string(" is at the Upper limit !");
-      MN_INFO_MSG2("Minuit2Minimizer::GetMinosErrors", msg_txt);
+      MN_INFO_MSG2("MyMinuit2Minimizer::GetMinosErrors", msg_txt);
    }
 
    int mstatus = 0;
@@ -1005,12 +1005,12 @@ bool Minuit2Minimizer::Scan(unsigned int ipar, unsigned int & nstep, double * x,
    // if the errors  are also zero then scan from min and max of parameter range
 
    if (!fMinuitFCN) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Scan"," Function must be set before using Scan");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Scan"," Function must be set before using Scan");
       return false;
    }
 
    if ( ipar > fState.MinuitParameters().size() ) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Scan"," Invalid number. Minimizer variables must be set before using Scan");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Scan"," Invalid number. Minimizer variables must be set before using Scan");
       return false;
    }
 
@@ -1032,7 +1032,7 @@ bool Minuit2Minimizer::Scan(unsigned int ipar, unsigned int & nstep, double * x,
    if (prev_level > -2) RestoreGlobalPrintLevel(prev_level);
 
    if (result.size() != nstep) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Scan"," Invalid result from MnParameterScan");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Scan"," Invalid result from MnParameterScan");
       return false;
    }
    // sort also the returned points in x
@@ -1047,7 +1047,7 @@ bool Minuit2Minimizer::Scan(unsigned int ipar, unsigned int & nstep, double * x,
    // what to do if a new minimum has been found ?
    // use that as new minimum
    if (scan.Fval() < amin ) {
-      MN_INFO_MSG2("Minuit2Minimizer::Scan","A new minimum has been found");
+      MN_INFO_MSG2("MyMinuit2Minimizer::Scan","A new minimum has been found");
       fState.SetValue(ipar, scan.Parameters().Value(ipar) );
 
    }
@@ -1060,12 +1060,12 @@ bool Minuit2Minimizer::Contour(unsigned int ipar, unsigned int jpar, unsigned in
    // contour plot for parameter i and j
    // need a valid FunctionMinimum otherwise exits
    if (fMinimum == 0) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Contour"," no function minimum existing. Must minimize function before");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Contour"," no function minimum existing. Must minimize function before");
       return false;
    }
 
    if (!fMinimum->IsValid() ) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Contour","Invalid function minimum");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Contour","Invalid function minimum");
       return false;
    }
    assert(fMinuitFCN);
@@ -1077,7 +1077,7 @@ bool Minuit2Minimizer::Contour(unsigned int ipar, unsigned int jpar, unsigned in
    }
 
    if ( PrintLevel() >= 1 )
-      MN_INFO_VAL2("Minuit2Minimizer::Contour - computing contours - ",ErrorDef());
+      MN_INFO_VAL2("MyMinuit2Minimizer::Contour - computing contours - ",ErrorDef());
 
    // switch off Minuit2 printing (for level of  0,1)
    int prev_level = (PrintLevel() <= 1 ) ?   TurnOffPrintInfoLevel() : -2;
@@ -1096,7 +1096,7 @@ bool Minuit2Minimizer::Contour(unsigned int ipar, unsigned int jpar, unsigned in
    // compute the contour
    std::vector<std::pair<double,double> >  result = contour(ipar,jpar, npoints);
    if (result.size() != npoints) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Contour"," Invalid result from MnContours");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Contour"," Invalid result from MnContours");
       return false;
    }
    for (unsigned int i = 0; i < npoints; ++i ) {
@@ -1120,7 +1120,7 @@ bool Minuit2Minimizer::Hesse( ) {
    // appended in the function minimum
 
    if (!fMinuitFCN) {
-      MN_ERROR_MSG2("Minuit2Minimizer::Hesse","FCN function has not been set");
+      MN_ERROR_MSG2("MyMinuit2Minimizer::Hesse","FCN function has not been set");
       return false;
    }
 
@@ -1135,16 +1135,16 @@ bool Minuit2Minimizer::Hesse( ) {
    // set the precision if needed
    if (Precision() > 0) fState.SetPrecision(Precision());
 
-   ROOT::Minuit2::MnHesse hesse( strategy );
+   ROOT::MyMinuit2::MnHesse hesse( strategy );
 
    if (PrintLevel() >= 1)
-      std::cout << "Minuit2Minimizer::Hesse using max-calls " << maxfcn << std::endl;
+      std::cout << "MyMinuit2Minimizer::Hesse using max-calls " << maxfcn << std::endl;
 
    // case when function minimum exists
    if (fMinimum) {
 
       // if (PrintLevel() >= 3) {
-      //    std::cout << "Minuit2Minimizer::Hesse  - State before running Hesse " << std::endl;
+      //    std::cout << "MyMinuit2Minimizer::Hesse  - State before running Hesse " << std::endl;
       //    std::cout << fState << std::endl;
       // }
 
@@ -1163,7 +1163,7 @@ bool Minuit2Minimizer::Hesse( ) {
    if (prev_level > -2) RestoreGlobalPrintLevel(prev_level);
 
    if (PrintLevel() >= 3) {
-      std::cout << "Minuit2Minimizer::Hesse  - State returned from Hesse " << std::endl;
+      std::cout << "MyMinuit2Minimizer::Hesse  - State returned from Hesse " << std::endl;
       std::cout << fState << std::endl;
    }
 
@@ -1185,7 +1185,7 @@ bool Minuit2Minimizer::Hesse( ) {
       }
       if (PrintLevel() > 0) {
          std::string msg = "Hesse failed - matrix is " + covStatusType;
-         MN_INFO_MSG2("Minuit2Minimizer::Hesse",msg);
+         MN_INFO_MSG2("MyMinuit2Minimizer::Hesse",msg);
          MN_INFO_VAL2("MInuit2Minimizer::Hesse",hstatus);
       }
       fStatus += 100*hstatus;
@@ -1193,7 +1193,7 @@ bool Minuit2Minimizer::Hesse( ) {
    }
    if (PrintLevel() > 0) {
       std::string msg = "Hesse is valid - matrix is " + covStatusType;
-      MN_INFO_MSG2("Minuit2Minimizer::Hesse",msg);
+      MN_INFO_MSG2("MyMinuit2Minimizer::Hesse",msg);
    }
 
    return true;
@@ -1234,6 +1234,6 @@ void Minuit2Minimizer::SetStorageLevel(int level) {
    fMinimizer->Builder().SetStorageLevel(level);
  }
 
-} // end namespace Minuit2
+} // end namespace MyMinuit2
 
 } // end namespace ROOT

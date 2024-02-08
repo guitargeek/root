@@ -16,7 +16,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 double mndasum(unsigned int n, const double* dx, int incx) {
@@ -95,6 +95,6 @@ L60:
 } /* dasum_ */
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnFunctionCross
-#define ROOT_Minuit2_MnFunctionCross
+#ifndef ROOT_MyMinuit2_MnFunctionCross
+#define ROOT_MyMinuit2_MnFunctionCross
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -46,8 +46,8 @@ private:
   const MnStrategy& fStrategy;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnFunctionCross
+#endif  // ROOT_MyMinuit2_MnFunctionCross

@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliBuilder
-#define ROOT_Minuit2_FumiliBuilder
+#ifndef ROOT_MyMinuit2_FumiliBuilder
+#define ROOT_MyMinuit2_FumiliBuilder
 
-#include "Minuit2/MinimumBuilder.h"
-#include "Minuit2/VariableMetricEDMEstimator.h"
-#include "Minuit2/FumiliErrorUpdator.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/FunctionMinimum.h"
+#include "MyMinuit2/MinimumBuilder.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/FumiliErrorUpdator.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/FunctionMinimum.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /**
@@ -136,8 +136,8 @@ private:
   FumiliErrorUpdator fErrorUpdator;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FumiliBuilder
+#endif  // ROOT_MyMinuit2_FumiliBuilder

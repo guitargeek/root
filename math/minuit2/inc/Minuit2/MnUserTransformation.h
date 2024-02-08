@@ -7,23 +7,23 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnUserTransformation
-#define ROOT_Minuit2_MnUserTransformation
+#ifndef ROOT_MyMinuit2_MnUserTransformation
+#define ROOT_MyMinuit2_MnUserTransformation
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnMatrix.h"
-#include "Minuit2/MinuitParameter.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/SinParameterTransformation.h"
-#include "Minuit2/SqrtLowParameterTransformation.h"
-#include "Minuit2/SqrtUpParameterTransformation.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnMatrix.h"
+#include "MyMinuit2/MinuitParameter.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/SinParameterTransformation.h"
+#include "MyMinuit2/SqrtLowParameterTransformation.h"
+#include "MyMinuit2/SqrtUpParameterTransformation.h"
 
 #include <vector>
 #include <cassert>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnUserCovariance;
@@ -190,8 +190,8 @@ private:
 
 };
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnUserTransformation
+#endif  // ROOT_MyMinuit2_MnUserTransformation

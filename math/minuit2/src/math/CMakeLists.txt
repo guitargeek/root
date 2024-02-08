@@ -40,18 +40,18 @@ copy_standalone(SOURCE ../../../mathcore/src DESTINATION .
     FILES ${MATH_SOURCES})
 
 # Adding the headers helps IDEs show the correct headers on targets
-add_library(Minuit2Math
+add_library(MyMinuit2Math SHARED
     ${MATH_SOURCES}
     ${MATH_HEADERS}
     ${FIT_HEADERS}
     )
 
 # Add alias for direct inclusion
-add_library(Minuit2::Math ALIAS Minuit2Math)
+add_library(Minuit2::Math ALIAS MyMinuit2Math)
 
 # Build and install directories are different, using CMake Generator expression
 target_include_directories(
-    Minuit2Math
+    MyMinuit2Math
     PUBLIC
     $<BUILD_INTERFACE:${Minuit2_SOURCE_DIR}/inc>
     $<INSTALL_INTERFACE:include/Minuit2>
@@ -60,35 +60,34 @@ target_include_directories(
 # We need to add the ROOT mathcore directories if build inside of ROOT without standalone)
 if(minuit2_inroot AND NOT minuit2_standalone)
     target_include_directories(
-        Minuit2Math
+        MyMinuit2Math
         PUBLIC
         $<BUILD_INTERFACE:${Minuit2_SOURCE_DIR}/../mathcore/inc>
         )
 endif()
 
 target_compile_definitions(
-    Minuit2Math
+    MyMinuit2Math
     PRIVATE
     MATH_NO_PLUGIN_MANAGER
     )
 
 target_compile_definitions(
-    Minuit2Math
+    MyMinuit2Math
     PUBLIC
     ROOT_Math_VecTypes
     MATHCORE_STANDALONE
     )
 
-target_link_libraries(Minuit2Math PUBLIC Minuit2Common)
+target_link_libraries(MyMinuit2Math PUBLIC Minuit2Common)
 
-target_compile_features(Minuit2Math PUBLIC cxx_auto_type cxx_static_assert)
-set_target_properties(Minuit2Math PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(MyMinuit2Math PROPERTIES CXX_EXTENSIONS OFF)
 
-install(TARGETS Minuit2Math
+install(TARGETS MyMinuit2Math
         EXPORT Minuit2Targets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
         )
 
-install(FILES ${FIT_HEADERS} DESTINATION include/Minuit2/Fit)
-install(FILES ${MATH_HEADERS} DESTINATION include/Minuit2/Math)
+install(FILES ${FIT_HEADERS} DESTINATION include/MyMinuit2/Fit)
+install(FILES ${MATH_HEADERS} DESTINATION include/MyMinuit2/Math)

@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnTraceObject
-#define ROOT_Minuit2_MnTraceObject
+#ifndef ROOT_MyMinuit2_MnTraceObject
+#define ROOT_MyMinuit2_MnTraceObject
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
       class MinimumState;
       class MnUserParameterState;
@@ -43,7 +43,7 @@ namespace ROOT {
          int fParNumber;
       };
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnTraceIter
+#endif  // ROOT_MyMinuit2_MnTraceIter

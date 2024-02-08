@@ -12,14 +12,14 @@
 
 
 
-#include "Minuit2/VectorOuterProduct.h"
-#include "Minuit2/ABSum.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/VectorOuterProduct.h"
+#include "MyMinuit2/ABSum.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 ///    LAPACK Algebra function
@@ -53,7 +53,7 @@ inline ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector, T>, T>, T> operator-(c
 
 void Outer_prod(LASymMatrix&, const LAVector&, double f = 1.);
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 

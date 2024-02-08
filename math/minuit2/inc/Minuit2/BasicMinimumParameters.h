@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_BasicMinimumParameters
-#define ROOT_Minuit2_BasicMinimumParameters
+#ifndef ROOT_MyMinuit2_BasicMinimumParameters
+#define ROOT_MyMinuit2_BasicMinimumParameters
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/StackAllocator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //extern StackAllocator gStackAllocator;
@@ -68,8 +68,8 @@ private:
   bool fHasStep;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_BasicMinimumParameters
+#endif  // ROOT_MyMinuit2_BasicMinimumParameters

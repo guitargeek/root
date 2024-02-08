@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FunctionGradient
-#define ROOT_Minuit2_FunctionGradient
+#ifndef ROOT_MyMinuit2_FunctionGradient
+#define ROOT_MyMinuit2_FunctionGradient
 
-#include "Minuit2/MnRefCountedPointer.h"
-#include "Minuit2/BasicFunctionGradient.h"
+#include "MyMinuit2/MnRefCountedPointer.h"
+#include "MyMinuit2/BasicFunctionGradient.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class FunctionGradient {
@@ -56,8 +56,8 @@ private:
   MnRefCountedPointer<BasicFunctionGradient> fData;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FunctionGradient
+#endif  // ROOT_MyMinuit2_FunctionGradient

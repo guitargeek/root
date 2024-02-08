@@ -7,27 +7,27 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/FumiliMinimizer.h"
-#include "Minuit2/MinimumSeedGenerator.h"
-#include "Minuit2/FumiliGradientCalculator.h"
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/AnalyticalGradientCalculator.h"
-#include "Minuit2/MinimumBuilder.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnUserParameters.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/MnUserFcn.h"
-#include "Minuit2/FumiliFCNBase.h"
-#include "Minuit2/FCNGradientBase.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/FumiliMinimizer.h"
+#include "MyMinuit2/MinimumSeedGenerator.h"
+#include "MyMinuit2/FumiliGradientCalculator.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/AnalyticalGradientCalculator.h"
+#include "MyMinuit2/MinimumBuilder.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserParameters.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnUserFcn.h"
+#include "MyMinuit2/FumiliFCNBase.h"
+#include "MyMinuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 // for Fumili implement Minimize here because need downcast
@@ -97,6 +97,6 @@ FunctionMinimum FumiliMinimizer::Minimize(const FCNGradientBase& fcn, const MnUs
 
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

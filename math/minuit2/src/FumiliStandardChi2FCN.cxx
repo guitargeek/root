@@ -8,14 +8,14 @@
  **********************************************************************/
 
 
-#include "Minuit2/FumiliStandardChi2FCN.h"
+#include "MyMinuit2/FumiliStandardChi2FCN.h"
 
 #include <vector>
 #include <cmath>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //#include <iostream>
@@ -120,6 +120,6 @@ void  FumiliStandardChi2FCN::EvaluateAll( const std::vector<double> & par) {
 
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

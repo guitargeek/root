@@ -7,10 +7,10 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnPrint
-#define ROOT_Minuit2_MnPrint
+#ifndef ROOT_MyMinuit2_MnPrint
+#define ROOT_MyMinuit2_MnPrint
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 //#define DEBUG
 //#define WARNINGMSG
@@ -28,7 +28,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /**
@@ -92,7 +92,7 @@ public:
 
 
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
@@ -142,33 +142,33 @@ public:
 // this first two should be used only with string literals to
 // avoid warning produced by the format in TError
 #define  MN_INFO_MSG(str) \
-   ::Info("Minuit2",str);
+   ::Info("MyMinuit2",str);
 #define  MN_ERROR_MSG(str) \
-   ::Error("Minuit2",str);
+   ::Error("MyMinuit2",str);
 # define MN_INFO_VAL(x) \
    {std::string str = std::string(#x) + std::string(" = ") + ROOT::Math::Util::ToString(x); \
-      ::Info("Minuit2","%s",str.c_str() );}
+      ::Info("MyMinuit2","%s",str.c_str() );}
 # define MN_ERROR_VAL(x) \
    {std::string str = std::string(#x) + std::string(" = ") + ROOT::Math::Util::ToString(x); \
-   ::Error("Minuit2","%s",str.c_str() );}
+   ::Error("MyMinuit2","%s",str.c_str() );}
 
 # define MN_INFO_MSG2(loc,txt) \
    {std::string str = std::string(loc) + std::string(" : ") + std::string(txt); \
-   ::Info("Minuit2","%s",str.c_str() );}
+   ::Info("MyMinuit2","%s",str.c_str() );}
 # define MN_ERROR_MSG2(loc,txt) \
    {std::string str = std::string(loc) + std::string(" : ") + std::string(txt); \
-   ::Error("Minuit2","%s",str.c_str() );}
+   ::Error("MyMinuit2","%s",str.c_str() );}
 
 # define MN_INFO_VAL2(loc,x) \
    {std::string str = std::string(loc) + std::string(" : ") + std::string(#x) + std::string(" = ") + ROOT::Math::Util::ToString(x); \
-   ::Info("Minuit2","%s",str.c_str() );}
+   ::Info("MyMinuit2","%s",str.c_str() );}
 # define MN_ERROR_VAL2(loc,x) \
    {std::string str = std::string(loc) + std::string(" : ") + std::string(#x) + std::string(" = ") + ROOT::Math::Util::ToString(x); \
-   ::Error("Minuit2","%s",str.c_str() );}
+   ::Error("MyMinuit2","%s",str.c_str() );}
 
 
 
 #endif
 
 
-#endif  // ROOT_Minuit2_MnPrint
+#endif  // ROOT_MyMinuit2_MnPrint

@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnUserFcn
-#define ROOT_Minuit2_MnUserFcn
+#ifndef ROOT_MyMinuit2_MnUserFcn
+#define ROOT_MyMinuit2_MnUserFcn
 
-#include "Minuit2/MnFcn.h"
+#include "MyMinuit2/MnFcn.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnUserTransformation;
@@ -39,8 +39,8 @@ private:
   const MnUserTransformation& fTransform;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnUserFcn
+#endif  // ROOT_MyMinuit2_MnUserFcn

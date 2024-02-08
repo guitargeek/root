@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliMinimizer
-#define ROOT_Minuit2_FumiliMinimizer
+#ifndef ROOT_MyMinuit2_FumiliMinimizer
+#define ROOT_MyMinuit2_FumiliMinimizer
 
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/MnSeedGenerator.h"
-#include "Minuit2/FumiliBuilder.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/MnSeedGenerator.h"
+#include "MyMinuit2/FumiliBuilder.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -147,8 +147,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FumiliMinimizer
+#endif  // ROOT_MyMinuit2_FumiliMinimizer

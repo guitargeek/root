@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnPlot
-#define ROOT_Minuit2_MnPlot
+#ifndef ROOT_MyMinuit2_MnPlot
+#define ROOT_MyMinuit2_MnPlot
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <vector>
 #include <utility>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /** MnPlot produces a text-screen graphical output of (x,y) points, e.g.
@@ -48,8 +48,8 @@ private:
   unsigned int fPageLength;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnPlot
+#endif  // ROOT_MyMinuit2_MnPlot

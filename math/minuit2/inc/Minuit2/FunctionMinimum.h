@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FunctionMinimum
-#define ROOT_Minuit2_FunctionMinimum
+#ifndef ROOT_MyMinuit2_FunctionMinimum
+#define ROOT_MyMinuit2_FunctionMinimum
 
-#include "Minuit2/BasicFunctionMinimum.h"
+#include "MyMinuit2/BasicFunctionMinimum.h"
 
 #ifdef G__DICTIONARY
-typedef ROOT::Minuit2::MinimumState MinimumState;
+typedef ROOT::MyMinuit2::MinimumState MinimumState;
 #endif
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //______________________________________________________________________________________________
 /**
@@ -66,7 +66,7 @@ public:
    void Add(const MinimumState& state, MnAboveMaxEdm) {fData->Add(state,BasicFunctionMinimum::MnAboveMaxEdm());}
 
    const MinimumSeed& Seed() const {return fData->Seed();}
-   const std::vector<ROOT::Minuit2::MinimumState>& States() const {return fData->States();}
+   const std::vector<ROOT::MyMinuit2::MinimumState>& States() const {return fData->States();}
 
 // user representation of state at Minimum
    const MnUserParameterState& UserState() const {
@@ -107,8 +107,8 @@ private:
    MnRefCountedPointer<BasicFunctionMinimum> fData;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FunctionMinimum
+#endif  // ROOT_MyMinuit2_FunctionMinimum

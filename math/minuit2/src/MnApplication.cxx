@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnApplication.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnApplication.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/FCNGradientBase.h"
 
 
 #ifdef DEBUG
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 // constructor from non-gradient functions
@@ -61,11 +61,11 @@ FunctionMinimum MnApplication::operator()(unsigned int maxfcn, double toler) {
 #ifdef DEBUG
 //       std::cout << "Initial MIGRAD state is " << MnUserParameterState( min.States()[0], min.Up(), min.Seed().Trafo() ) << std::endl;
       std::cout << "State resulting from Migrad. Total Function calls  " << fNumCall  << fState << std::endl;
-      const std::vector<ROOT::Minuit2::MinimumState>& iterationStates =  min.States();
+      const std::vector<ROOT::MyMinuit2::MinimumState>& iterationStates =  min.States();
       std::cout << "Number of iterations " << iterationStates.size() << std::endl;
       for (unsigned int i = 0; i <  iterationStates.size(); ++i) {
          //std::cout << iterationStates[i] << std::endl;
-         const ROOT::Minuit2::MinimumState & st =  iterationStates[i];
+         const ROOT::MyMinuit2::MinimumState & st =  iterationStates[i];
          std::cout << "----------> Iteration " << i << std::endl;
          int pr = std::cout.precision(18);
          std::cout << "            FVAL = " << st.Fval()
@@ -185,6 +185,6 @@ unsigned int MnApplication::VariableParameters() const {
 }
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

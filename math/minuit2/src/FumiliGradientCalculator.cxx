@@ -7,26 +7,26 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/FumiliGradientCalculator.h"
-#include "Minuit2/FumiliFCNBase.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/FumiliChi2FCN.h"
-#include "Minuit2/FumiliMaximumLikelihoodFCN.h"
+#include "MyMinuit2/FumiliGradientCalculator.h"
+#include "MyMinuit2/FumiliFCNBase.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/FumiliChi2FCN.h"
+#include "MyMinuit2/FumiliMaximumLikelihoodFCN.h"
 
 //to compare with N2P calculator
 //#define DEBUG 1
 #ifdef DEBUG
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnUserFcn.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnUserFcn.h"
 #endif
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 FunctionGradient FumiliGradientCalculator::operator()(const MinimumParameters& par) const {
@@ -125,6 +125,6 @@ FunctionGradient FumiliGradientCalculator::operator()(const MinimumParameters& p
 
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

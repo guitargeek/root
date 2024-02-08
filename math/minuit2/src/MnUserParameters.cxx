@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnUserParameters.h"
+#include "MyMinuit2/MnUserParameters.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 MnUserParameters::MnUserParameters(const std::vector<double>& par, const std::vector<double>& err) : fTransformation(par, err) {}
@@ -183,6 +183,6 @@ const MnMachinePrecision& MnUserParameters::Precision() const {
    return fTransformation.Precision();
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

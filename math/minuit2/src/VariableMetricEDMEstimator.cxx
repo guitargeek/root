@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/VariableMetricEDMEstimator.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MinimumError.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumError.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 double similarity(const LAVector&, const LASymMatrix&);
@@ -29,6 +29,6 @@ double VariableMetricEDMEstimator::Estimate(const FunctionGradient& g, const Min
    return 0.5*rho;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

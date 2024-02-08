@@ -7,27 +7,27 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/FumiliErrorUpdator.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MnStrategy.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/FumiliGradientCalculator.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnMatrix.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/LaSum.h"
+#include "MyMinuit2/FumiliErrorUpdator.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MnStrategy.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/FumiliGradientCalculator.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnMatrix.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/LaSum.h"
 #include <limits>
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
 
 
@@ -109,6 +109,6 @@ MinimumError FumiliErrorUpdator::Update(const MinimumState& s0,
 }
 
 
-}  // namespace Minuit2
+}  // namespace MyMinuit2
 
 }  // namespace ROOT

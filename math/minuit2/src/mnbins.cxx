@@ -11,7 +11,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 void mnbins(double a1, double a2, int naa, double& bl, double& bh, int& nb, double& bwid) {
@@ -91,6 +91,6 @@ L240:
    goto L20;
 } /* mnbins_ */
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

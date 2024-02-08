@@ -7,22 +7,22 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_LAVector
-#define ROOT_Minuit2_LAVector
+#ifndef ROOT_MyMinuit2_LAVector
+#define ROOT_MyMinuit2_LAVector
 
-#include "Minuit2/ABSum.h"
-#include "Minuit2/ABProd.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/ABSum.h"
+#include "MyMinuit2/ABProd.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 #include <cassert>
 #include <memory>
 // #include <iostream>
 
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/StackAllocator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //extern StackAllocator StackAllocatorHolder::Get();
 
@@ -296,8 +296,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_LAVector
+#endif  // ROOT_MyMinuit2_LAVector

@@ -10,12 +10,12 @@
 
 // Header file for class Minuit2Minimizer
 
-#ifndef ROOT_Minuit2_Minuit2Minimizer
-#define ROOT_Minuit2_Minuit2Minimizer
+#ifndef ROOT_MyMinuit2_Minuit2Minimizer
+#define ROOT_MyMinuit2_Minuit2Minimizer
 
 #include "Math/Minimizer.h"
 
-#include "Minuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserParameterState.h"
 
 #include "Math/IFunctionfwd.h"
 
@@ -23,7 +23,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
       class ModularFunctionMinimizer;
       class FCNBase;
@@ -42,12 +42,12 @@ namespace ROOT {
 
    }
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 //_____________________________________________________________________________________________________
 /**
    Minuit2Minimizer class implementing the ROOT::Math::Minimizer interface for
    Minuit2 minimization algorithm.
-   In ROOT it can be instantiated using the plug-in manager (plug-in "Minuit2")
+   In ROOT it can be instantiated using the plug-in manager (plug-in "MyMinuit2")
    Using a string  (used by the plugin manager) or via an enumeration
    an one can set all the possible minimization algorithms (Migrad, Simplex, Combined, Scan and Fumili).
 
@@ -62,7 +62,7 @@ public:
    /**
       Default constructor
    */
-   Minuit2Minimizer (ROOT::Minuit2::EMinimizerType type = ROOT::Minuit2::kMigrad);
+   Minuit2Minimizer (ROOT::MyMinuit2::EMinimizerType type = ROOT::MyMinuit2::kMigrad);
 
    /**
       Constructor with a char (used by PM)
@@ -285,7 +285,7 @@ public:
    virtual void PrintResults();
 
    /// set an object to trace operation for each iteration
-   /// The object must be a (or inherit from) ROOT::Minuit2::MnTraceObject and implement operator() (int, const MinimumState & state)
+   /// The object must be a (or inherit from) ROOT::MyMinuit2::MnTraceObject and implement operator() (int, const MinimumState & state)
    void SetTraceObject(MnTraceObject & obj);
 
    /// set storage level   = 1 : store all iteration states (default)
@@ -293,22 +293,22 @@ public:
    void SetStorageLevel(int level);
 
    /// return the minimizer state (containing values, step size , etc..)
-   const ROOT::Minuit2::MnUserParameterState & State() { return fState; }
+   const ROOT::MyMinuit2::MnUserParameterState & State() { return fState; }
 
 protected:
 
    // protected function for accessing the internal Minuit2 object. Needed for derived classes
 
-   virtual const ROOT::Minuit2::ModularFunctionMinimizer * GetMinimizer() const { return fMinimizer; }
+   virtual const ROOT::MyMinuit2::ModularFunctionMinimizer * GetMinimizer() const { return fMinimizer; }
 
-   virtual void SetMinimizer( ROOT::Minuit2::ModularFunctionMinimizer * m)  { fMinimizer = m; }
+   virtual void SetMinimizer( ROOT::MyMinuit2::ModularFunctionMinimizer * m)  { fMinimizer = m; }
 
-   void SetMinimizerType( ROOT::Minuit2::EMinimizerType type);
+   void SetMinimizerType( ROOT::MyMinuit2::EMinimizerType type);
 
-   virtual const  ROOT::Minuit2::FCNBase * GetFCN() const { return fMinuitFCN; }
+   virtual const  ROOT::MyMinuit2::FCNBase * GetFCN() const { return fMinuitFCN; }
 
    /// examine the minimum result
-   bool ExamineMinimum(const ROOT::Minuit2::FunctionMinimum & min);
+   bool ExamineMinimum(const ROOT::MyMinuit2::FunctionMinimum & min);
 
    // internal function to compute Minos errors
    int RunMinosError(unsigned int i, double & errLow, double & errUp, int runopt);
@@ -319,11 +319,11 @@ private:
    bool fUseFumili;
    int fMinosStatus = -1;  // Minos status code
 
-   ROOT::Minuit2::MnUserParameterState fState;
-   // std::vector<ROOT::Minuit2::MinosError> fMinosErrors;
-   ROOT::Minuit2::ModularFunctionMinimizer * fMinimizer;
-   ROOT::Minuit2::FCNBase * fMinuitFCN;
-   ROOT::Minuit2::FunctionMinimum * fMinimum;
+   ROOT::MyMinuit2::MnUserParameterState fState;
+   // std::vector<ROOT::MyMinuit2::MinosError> fMinosErrors;
+   ROOT::MyMinuit2::ModularFunctionMinimizer * fMinimizer;
+   ROOT::MyMinuit2::FCNBase * fMinuitFCN;
+   ROOT::MyMinuit2::FunctionMinimum * fMinimum;
    mutable std::vector<double> fValues;
    mutable std::vector<double> fErrors;
 
@@ -335,4 +335,4 @@ private:
 
 
 
-#endif /* ROOT_Minuit2_Minuit2Minimizer */
+#endif /* ROOT_MyMinuit2_Minuit2Minimizer */

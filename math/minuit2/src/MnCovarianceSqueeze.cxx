@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnCovarianceSqueeze.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MinimumError.h"
+#include "MyMinuit2/MnCovarianceSqueeze.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MinimumError.h"
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 MnUserCovariance MnCovarianceSqueeze::operator()(const MnUserCovariance& cov, unsigned int n) const {
@@ -107,6 +107,6 @@ MnAlgebraicSymMatrix MnCovarianceSqueeze::operator()(const MnAlgebraicSymMatrix&
    return hs;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

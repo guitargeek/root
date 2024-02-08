@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_BasicFunctionGradient
-#define ROOT_Minuit2_BasicFunctionGradient
+#ifndef ROOT_MyMinuit2_BasicFunctionGradient
+#define ROOT_MyMinuit2_BasicFunctionGradient
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/StackAllocator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //extern StackAllocator gStackAllocator;
@@ -78,8 +78,8 @@ private:
   bool fAnalytical;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_BasicFunctionGradient
+#endif  // ROOT_MyMinuit2_BasicFunctionGradient

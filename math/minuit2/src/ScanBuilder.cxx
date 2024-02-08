@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/ScanBuilder.h"
-#include "Minuit2/MnParameterScan.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MnFcn.h"
+#include "MyMinuit2/ScanBuilder.h"
+#include "MyMinuit2/MnParameterScan.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MnFcn.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 FunctionMinimum ScanBuilder::Minimum(const MnFcn& mfcn, const GradientCalculator&, const MinimumSeed& seed, const MnStrategy&, unsigned int, double) const {
@@ -44,6 +44,6 @@ FunctionMinimum ScanBuilder::Minimum(const MnFcn& mfcn, const GradientCalculator
    return FunctionMinimum(seed, std::vector<MinimumState>(1, st), mfcn.Up());
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

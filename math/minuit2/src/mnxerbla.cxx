@@ -12,12 +12,12 @@
    -lf2c -lm   (in that order)
 */
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <iostream>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /* Table of constant values */
@@ -68,6 +68,6 @@ int mnxerbla(const char* srname, int info) {
 } /* xerbla_ */
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

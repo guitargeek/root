@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumError
-#define ROOT_Minuit2_MinimumError
+#ifndef ROOT_MyMinuit2_MinimumError
+#define ROOT_MyMinuit2_MinimumError
 
-#include "Minuit2/MnRefCountedPointer.h"
-#include "Minuit2/BasicMinimumError.h"
+#include "MyMinuit2/MnRefCountedPointer.h"
+#include "MyMinuit2/BasicMinimumError.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /** MinimumError keeps the inv. 2nd derivative (inv. Hessian) used for
@@ -75,8 +75,8 @@ private:
   MnRefCountedPointer<BasicMinimumError> fData;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinimumError
+#endif  // ROOT_MyMinuit2_MinimumError

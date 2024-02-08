@@ -7,23 +7,23 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnMinos.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/MnFunctionCross.h"
-#include "Minuit2/MnCross.h"
-#include "Minuit2/MinosError.h"
+#include "MyMinuit2/MnMinos.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/MnFunctionCross.h"
+#include "MyMinuit2/MnCross.h"
+#include "MyMinuit2/MinosError.h"
 
 //#define DEBUG
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 MnMinos::MnMinos(const FCNBase& fcn, const FunctionMinimum& min, unsigned int stra ) :
@@ -235,6 +235,6 @@ MnCross MnMinos::Loval(unsigned int par, unsigned int maxcalls, double toler) co
 }
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

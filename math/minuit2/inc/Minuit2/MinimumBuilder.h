@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumBuilder
-#define ROOT_Minuit2_MinimumBuilder
+#ifndef ROOT_MyMinuit2_MinimumBuilder
+#define ROOT_MyMinuit2_MinimumBuilder
 
-#include "Minuit2/MnTraceObject.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnTraceObject.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class FunctionMinimum;
@@ -74,8 +74,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinimumBuilder
+#endif  // ROOT_MyMinuit2_MinimumBuilder

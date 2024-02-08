@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnLineSearch.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MnParabola.h"
-#include "Minuit2/MnParabolaPoint.h"
-#include "Minuit2/MnParabolaFactory.h"
-#include "Minuit2/LaSum.h"
+#include "MyMinuit2/MnLineSearch.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MnParabola.h"
+#include "MyMinuit2/MnParabolaPoint.h"
+#include "MyMinuit2/MnParabolaFactory.h"
+#include "MyMinuit2/LaSum.h"
 
 #include <iostream>
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #include <algorithm>
 
 #ifdef USE_OTHER_LS
@@ -34,7 +34,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /**  Perform a line search from position defined by the vector st
@@ -859,6 +859,6 @@ MnParabolaPoint MnLineSearch::BrentSearch(const MnFcn& fcn, const MinimumParamet
 
 
 
-}  // namespace Minuit2
+}  // namespace MyMinuit2
 
 }  // namespace ROOT

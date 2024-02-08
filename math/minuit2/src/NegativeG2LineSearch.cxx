@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/NegativeG2LineSearch.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/GradientCalculator.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MnLineSearch.h"
-#include "Minuit2/MnParabolaPoint.h"
-#include "Minuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/NegativeG2LineSearch.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/GradientCalculator.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MnLineSearch.h"
+#include "MyMinuit2/MnParabolaPoint.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
 
 #include <cmath>
 //#define DEBUG
@@ -24,7 +24,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -135,6 +135,6 @@ bool NegativeG2LineSearch::HasNegativeG2(const FunctionGradient& grad, const MnM
 
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

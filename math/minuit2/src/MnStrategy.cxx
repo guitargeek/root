@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/MnStrategy.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -64,6 +64,6 @@ void MnStrategy::SetHighStrategy() {
    SetHessianGradientNCycles(6);
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

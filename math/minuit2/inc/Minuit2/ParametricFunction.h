@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ParametricFunction
-#define ROOT_Minuit2_ParametricFunction
+#ifndef ROOT_MyMinuit2_ParametricFunction
+#define ROOT_MyMinuit2_ParametricFunction
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <vector>
 #include <cassert>
 
-#include "Minuit2/FCNBase.h"
+#include "MyMinuit2/FCNBase.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -192,8 +192,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_ParametricFunction
+#endif  // ROOT_MyMinuit2_ParametricFunction

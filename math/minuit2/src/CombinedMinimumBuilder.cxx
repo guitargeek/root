@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/CombinedMinimumBuilder.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/CombinedMinimumBuilder.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnStrategy.h"
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 FunctionMinimum CombinedMinimumBuilder::Minimum(const MnFcn& fcn, const GradientCalculator& gc, const MinimumSeed& seed, const MnStrategy& strategy, unsigned int maxfcn, double edmval) const {
@@ -56,6 +56,6 @@ FunctionMinimum CombinedMinimumBuilder::Minimum(const MnFcn& fcn, const Gradient
    return min;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

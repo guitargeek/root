@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/AnalyticalGradientCalculator.h"
-#include "Minuit2/FCNGradientBase.h"
-#include "Minuit2/MnUserTransformation.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MnMatrix.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/AnalyticalGradientCalculator.h"
+#include "MyMinuit2/FCNGradientBase.h"
+#include "MyMinuit2/MnUserTransformation.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MnMatrix.h"
+#include "MyMinuit2/MnPrint.h"
 
 namespace ROOT {
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 FunctionGradient AnalyticalGradientCalculator::operator()(const MinimumParameters& par) const {
@@ -55,6 +55,6 @@ bool AnalyticalGradientCalculator::CheckGradient() const {
    return fGradCalc.CheckGradient();
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

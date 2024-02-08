@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnUserParameters
-#define ROOT_Minuit2_MnUserParameters
+#ifndef ROOT_MyMinuit2_MnUserParameters
+#define ROOT_MyMinuit2_MnUserParameters
 
-#include "Minuit2/MnUserTransformation.h"
+#include "MyMinuit2/MnUserTransformation.h"
 
 
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnMachinePrecision;
@@ -30,7 +30,7 @@ class MnMachinePrecision;
     or via their user-specified Name (10 character string).
     Minuit has also an internal parameter number which is used during the minimization
     (the fix parameter are skipped). The parameter number used in this class is the external
-    one. The class ROOT::Minuit2::MnUserTransformation is used to keep the
+    one. The class ROOT::MyMinuit2::MnUserTransformation is used to keep the
     internal <-> external transformation
  */
 
@@ -59,7 +59,7 @@ public:
    }
 
    /// access to parameters (row-wise)
-   const std::vector<ROOT::Minuit2::MinuitParameter>& Parameters() const;
+   const std::vector<ROOT::MyMinuit2::MinuitParameter>& Parameters() const;
 
    /// access to parameters and errors in column-wise representation
    std::vector<double> Params() const;
@@ -117,8 +117,8 @@ private:
    MnUserTransformation fTransformation;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnUserParameters
+#endif  // ROOT_MyMinuit2_MnUserParameters

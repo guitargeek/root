@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnParabolaFactory.h"
-#include "Minuit2/MnParabola.h"
-#include "Minuit2/MnParabolaPoint.h"
+#include "MyMinuit2/MnParabolaFactory.h"
+#include "MyMinuit2/MnParabola.h"
+#include "MyMinuit2/MnParabolaPoint.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 // #include <iostream>
@@ -72,6 +72,6 @@ MnParabola MnParabolaFactory::operator()(const MnParabolaPoint& p1,
 }
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

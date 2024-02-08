@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_LaInverse
-#define ROOT_Minuit2_LaInverse
+#ifndef ROOT_MyMinuit2_LaInverse
+#define ROOT_MyMinuit2_LaInverse
 
 
 
 
-#include "Minuit2/MatrixInverse.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/MatrixInverse.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 ///    LAPACK Algebra functions
@@ -58,8 +58,8 @@ inline ABObj<sym, MatrixInverse<sym, ABObj<sym, LASymMatrix, double>, double>, d
 }
 */
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_LaInverse
+#endif  // ROOT_MyMinuit2_LaInverse

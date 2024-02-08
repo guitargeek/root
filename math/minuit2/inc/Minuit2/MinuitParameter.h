@@ -7,8 +7,8 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinuitParameter
-#define ROOT_Minuit2_MinuitParameter
+#ifndef ROOT_MyMinuit2_MinuitParameter
+#define ROOT_MyMinuit2_MinuitParameter
 
 #include <algorithm>
 #include <memory>
@@ -17,7 +17,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //____________________________________________________________________________
 /**
@@ -180,8 +180,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinuitParameter
+#endif  // ROOT_MyMinuit2_MinuitParameter

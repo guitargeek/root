@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnPrint.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnUserParameters.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MnGlobalCorrelationCoeff.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MinuitParameter.h"
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MinosError.h"
-#include "Minuit2/ContoursError.h"
-#include "Minuit2/MnPlot.h"
+#include "MyMinuit2/MnPrint.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnUserParameters.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MnGlobalCorrelationCoeff.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MinuitParameter.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MinosError.h"
+#include "MyMinuit2/ContoursError.h"
+#include "MyMinuit2/MnPlot.h"
 
 #include <iomanip>
 
@@ -29,7 +29,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 #ifdef DEBUG
 int gPrintLevel = 3;
@@ -372,6 +372,6 @@ std::ostream& operator<<(std::ostream& os, const ContoursError& ce) {
    return os;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

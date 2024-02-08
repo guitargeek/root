@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_BasicMinimumState
-#define ROOT_Minuit2_BasicMinimumState
+#ifndef ROOT_MyMinuit2_BasicMinimumState
+#define ROOT_MyMinuit2_BasicMinimumState
 
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/FunctionGradient.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/FunctionGradient.h"
 
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/StackAllocator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //extern StackAllocator gStackAllocator;
@@ -91,8 +91,8 @@ private:
   int fNFcn;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_BasicMinimumState
+#endif  // ROOT_MyMinuit2_BasicMinimumState

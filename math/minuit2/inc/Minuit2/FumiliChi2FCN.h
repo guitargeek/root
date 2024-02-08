@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliChi2FCN
-#define ROOT_Minuit2_FumiliChi2FCN
+#ifndef ROOT_MyMinuit2_FumiliChi2FCN
+#define ROOT_MyMinuit2_FumiliChi2FCN
 
 #include "FumiliFCNBase.h"
 #include <vector>
-#include "Minuit2/ParametricFunction.h"
+#include "MyMinuit2/ParametricFunction.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -174,8 +174,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FumiliChi2FCN
+#endif  // ROOT_MyMinuit2_FumiliChi2FCN

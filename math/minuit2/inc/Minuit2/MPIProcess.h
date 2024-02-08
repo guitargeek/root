@@ -8,13 +8,13 @@
  * Copyright: (C) 2008 by Universita' and INFN, Milan                      *
  ***************************************************************************/
 
-#ifndef ROOT_Minuit2_MPIProcess
-#define ROOT_Minuit2_MPIProcess
+#ifndef ROOT_MyMinuit2_MPIProcess
+#define ROOT_MyMinuit2_MPIProcess
 
 // disable MPI calls
 //#define MPIPROC
 
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnMatrix.h"
 
 #ifdef MPIPROC
 #include "mpi.h"
@@ -24,7 +24,7 @@
 
 namespace ROOT {
 
-namespace Minuit2 {
+namespace MyMinuit2 {
 
    class MPITerminate {
    public:
@@ -64,8 +64,8 @@ namespace Minuit2 {
       inline unsigned int GetMPISize() const { return fSize; }
       inline unsigned int GetMPIRank() const { return fRank; }
 
-      bool SyncVector(ROOT::Minuit2::MnAlgebraicVector &mnvector);
-      bool SyncSymMatrixOffDiagonal(ROOT::Minuit2::MnAlgebraicSymMatrix &mnmatrix);
+      bool SyncVector(ROOT::MyMinuit2::MnAlgebraicVector &mnvector);
+      bool SyncSymMatrixOffDiagonal(ROOT::MyMinuit2::MnAlgebraicSymMatrix &mnmatrix);
 
       static unsigned int GetMPIGlobalRank() { StartMPI(); return fgGlobalRank; }
       static unsigned int GetMPIGlobalSize() { StartMPI(); return fgGlobalSize; }
@@ -138,7 +138,7 @@ namespace Minuit2 {
 
    };
 
-} // namespace Minuit2
+} // namespace MyMinuit2
 } // namespace ROOT
 
 #endif

@@ -7,21 +7,21 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_VariableMetricBuilder
-#define ROOT_Minuit2_VariableMetricBuilder
+#ifndef ROOT_MyMinuit2_VariableMetricBuilder
+#define ROOT_MyMinuit2_VariableMetricBuilder
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MinimumBuilder.h"
-#include "Minuit2/VariableMetricEDMEstimator.h"
-#include "Minuit2/DavidonErrorUpdator.h"
-#include "Minuit2/BFGSErrorUpdator.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MinimumBuilder.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/DavidonErrorUpdator.h"
+#include "MyMinuit2/BFGSErrorUpdator.h"
 
 #include <vector>
 #include <memory>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 /**
    Build (find) function minimum using the Variable Metric method (MIGRAD)
@@ -61,8 +61,8 @@ private:
    std::shared_ptr<MinimumErrorUpdator>  fErrorUpdator;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_VariableMetricBuilder
+#endif  // ROOT_MyMinuit2_VariableMetricBuilder

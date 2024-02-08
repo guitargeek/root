@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 int mneigen(double*, unsigned int, unsigned int, unsigned int, double*,double);
@@ -40,6 +40,6 @@ LAVector eigenvalues(const LASymMatrix& mat) {
    return result;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

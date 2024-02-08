@@ -7,24 +7,24 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_SimplexMinimizer
-#define ROOT_Minuit2_SimplexMinimizer
+#ifndef ROOT_MyMinuit2_SimplexMinimizer
+#define ROOT_MyMinuit2_SimplexMinimizer
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/SimplexBuilder.h"
-#include "Minuit2/SimplexSeedGenerator.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/SimplexBuilder.h"
+#include "MyMinuit2/SimplexSeedGenerator.h"
 
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //_____________________________________________________________
 /**
    Class implementing the required methods for a minimization using Simplex.
-   API is provided in the upper ROOT::Minuit2::ModularFunctionMinimizer class
+   API is provided in the upper ROOT::MyMinuit2::ModularFunctionMinimizer class
  */
 
 class SimplexMinimizer : public ModularFunctionMinimizer {
@@ -46,8 +46,8 @@ private:
    SimplexBuilder fBuilder;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_SimplexMinimizer
+#endif  // ROOT_MyMinuit2_SimplexMinimizer

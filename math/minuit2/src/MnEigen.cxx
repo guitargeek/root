@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnEigen.h"
-#include "Minuit2/MnUserCovariance.h"
-#include "Minuit2/MnMatrix.h"
+#include "MyMinuit2/MnEigen.h"
+#include "MyMinuit2/MnUserCovariance.h"
+#include "MyMinuit2/MnMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 LAVector eigenvalues(const LASymMatrix&);
@@ -32,6 +32,6 @@ std::vector<double> MnEigen::operator()(const MnUserCovariance& covar) const {
    return result;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

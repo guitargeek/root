@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnPosDef
-#define ROOT_Minuit2_MnPosDef
+#ifndef ROOT_MyMinuit2_MnPosDef
+#define ROOT_MyMinuit2_MnPosDef
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MinimumState;
@@ -37,8 +37,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnPosDef
+#endif  // ROOT_MyMinuit2_MnPosDef

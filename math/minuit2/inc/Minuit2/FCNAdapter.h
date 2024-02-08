@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FCNAdapter
-#define ROOT_Minuit2_FCNAdapter
+#ifndef ROOT_MyMinuit2_FCNAdapter
+#define ROOT_MyMinuit2_FCNAdapter
 
-#include "Minuit2/FCNBase.h"
+#include "MyMinuit2/FCNBase.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 /**
 
@@ -60,10 +60,10 @@ private:
    double fUp;
 };
 
-   } // end namespace Minuit2
+   } // end namespace MyMinuit2
 
 } // end namespace ROOT
 
 
 
-#endif //ROOT_Minuit2_FCNAdapter
+#endif //ROOT_MyMinuit2_FCNAdapter

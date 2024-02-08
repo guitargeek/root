@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnEigen
-#define ROOT_Minuit2_MnEigen
+#ifndef ROOT_MyMinuit2_MnEigen
+#define ROOT_MyMinuit2_MnEigen
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnUserCovariance;
@@ -39,8 +39,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnEigen
+#endif  // ROOT_MyMinuit2_MnEigen

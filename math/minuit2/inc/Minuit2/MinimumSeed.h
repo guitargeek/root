@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumSeed
-#define ROOT_Minuit2_MinimumSeed
+#ifndef ROOT_MyMinuit2_MinimumSeed
+#define ROOT_MyMinuit2_MinimumSeed
 
-#include "Minuit2/MnRefCountedPointer.h"
-#include "Minuit2/BasicMinimumSeed.h"
+#include "MyMinuit2/MnRefCountedPointer.h"
+#include "MyMinuit2/BasicMinimumSeed.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MinimumState;
@@ -59,8 +59,8 @@ private:
   MnRefCountedPointer<BasicMinimumSeed> fData;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinimumSeed
+#endif  // ROOT_MyMinuit2_MinimumSeed

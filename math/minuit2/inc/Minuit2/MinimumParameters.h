@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumParameters
-#define ROOT_Minuit2_MinimumParameters
+#ifndef ROOT_MyMinuit2_MinimumParameters
+#define ROOT_MyMinuit2_MinimumParameters
 
-#include "Minuit2/MnRefCountedPointer.h"
-#include "Minuit2/BasicMinimumParameters.h"
+#include "MyMinuit2/MnRefCountedPointer.h"
+#include "MyMinuit2/BasicMinimumParameters.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MinimumParameters {
@@ -53,8 +53,8 @@ private:
   MnRefCountedPointer<BasicMinimumParameters> fData;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinimumParameters
+#endif  // ROOT_MyMinuit2_MinimumParameters

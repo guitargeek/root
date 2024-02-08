@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinosError
-#define ROOT_Minuit2_MinosError
+#ifndef ROOT_MyMinuit2_MinosError
+#define ROOT_MyMinuit2_MinosError
 
-#include "Minuit2/MnCross.h"
+#include "MyMinuit2/MnCross.h"
 #include <iostream>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //____________________________________________________________________________________
 /**
@@ -87,8 +87,8 @@ private:
    MnCross fLower;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinosError
+#endif  // ROOT_MyMinuit2_MinosError

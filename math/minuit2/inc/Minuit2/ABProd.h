@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ABProd
-#define ROOT_Minuit2_ABProd
+#ifndef ROOT_MyMinuit2_ABProd
+#define ROOT_MyMinuit2_ABProd
 
-#include "Minuit2/ABObj.h"
+#include "MyMinuit2/ABObj.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 template<class M1, class M2>
@@ -56,8 +56,8 @@ inline ABObj<typename AlgebraicProdType<atype, btype>::Type, ABProd<ABObj<atype,
   return ABObj<typename AlgebraicProdType<atype,btype>::Type, ABProd<ABObj<atype,A,T>, ABObj<btype,B,T> >,T>(ABProd<ABObj<atype,A,T>, ABObj<btype,B,T> >(a, b));
 }
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_ABProd
+#endif  // ROOT_MyMinuit2_ABProd

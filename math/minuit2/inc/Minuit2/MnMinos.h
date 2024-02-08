@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMinos
-#define ROOT_Minuit2_MnMinos
+#ifndef ROOT_MyMinuit2_MnMinos
+#define ROOT_MyMinuit2_MnMinos
 
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/MnStrategy.h"
 
 #include <utility>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class FCNBase;
@@ -72,8 +72,8 @@ private:
    MnStrategy fStrategy;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnMinos
+#endif  // ROOT_MyMinuit2_MnMinos

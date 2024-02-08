@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnStrategy
-#define ROOT_Minuit2_MnStrategy
+#ifndef ROOT_MyMinuit2_MnStrategy
+#define ROOT_MyMinuit2_MnStrategy
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //_________________________________________________________________________
 /**
@@ -83,8 +83,8 @@ private:
    int fStoreLevel;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnStrategy
+#endif  // ROOT_MyMinuit2_MnStrategy

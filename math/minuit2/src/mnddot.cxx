@@ -14,7 +14,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 double mnddot(unsigned int n, const double* dx, int incx, const double* dy,
@@ -103,6 +103,6 @@ L60:
 } /* ddot_ */
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

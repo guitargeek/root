@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnTiny
-#define ROOT_Minuit2_MnTiny
+#ifndef ROOT_MyMinuit2_MnTiny
+#define ROOT_MyMinuit2_MnTiny
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnTiny {
@@ -32,8 +32,8 @@ private:
   double fOne;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnTiny
+#endif  // ROOT_MyMinuit2_MnTiny

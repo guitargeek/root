@@ -7,8 +7,8 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnConfig
-#define ROOT_Minuit2_MnConfig
+#ifndef ROOT_MyMinuit2_MnConfig
+#define ROOT_MyMinuit2_MnConfig
 
 #ifdef _MSC_VER
 # pragma warning(disable:4244)  // conversion from __w64 to int

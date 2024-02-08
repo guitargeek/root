@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMatrix
-#define ROOT_Minuit2_MnMatrix
+#ifndef ROOT_MyMinuit2_MnMatrix
+#define ROOT_MyMinuit2_MnMatrix
 
 //add MnConfig file to define before everything compiler
 // dependent macros
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 // Removing this the following include will cause the library to fail
 // to compile with gcc 4.0.0 under Red Hat Enterprise Linux 3.  That
@@ -28,21 +28,21 @@
 //
 #include <vector>
 
-#include "Minuit2/LASymMatrix.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LaInverse.h"
-#include "Minuit2/LaOuterProduct.h"
+#include "MyMinuit2/LASymMatrix.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LaInverse.h"
+#include "MyMinuit2/LaOuterProduct.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 typedef LASymMatrix MnAlgebraicSymMatrix;
 typedef LAVector MnAlgebraicVector;
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnMatrix
+#endif  // ROOT_MyMinuit2_MnMatrix

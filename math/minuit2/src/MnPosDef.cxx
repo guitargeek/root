@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnPosDef.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MnPosDef.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MnMachinePrecision.h"
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 #include <algorithm>
@@ -20,7 +20,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 LAVector eigenvalues(const LASymMatrix&);
@@ -102,6 +102,6 @@ MinimumError MnPosDef::operator()(const MinimumError& e, const MnMachinePrecisio
    return MinimumError(err, MinimumError::MnMadePosDef());
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/MnVectorTransform.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/MnVectorTransform.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 MnFcn::~MnFcn() {
@@ -34,6 +34,6 @@ double MnFcn::ErrorDef() const {return fFCN.Up();}
 
 double MnFcn::Up() const {return fFCN.Up();}
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

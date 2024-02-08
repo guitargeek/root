@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_GradientCalculator
-#define ROOT_Minuit2_GradientCalculator
+#ifndef ROOT_MyMinuit2_GradientCalculator
+#define ROOT_MyMinuit2_GradientCalculator
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MinimumParameters;
@@ -34,8 +34,8 @@ public:
                                       const FunctionGradient&) const = 0;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_GradientCalculator
+#endif  // ROOT_MyMinuit2_GradientCalculator

@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnContours
-#define ROOT_Minuit2_MnContours
+#ifndef ROOT_MyMinuit2_MnContours
+#define ROOT_MyMinuit2_MnContours
 
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnStrategy.h"
 
 #include <vector>
 #include <utility>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class FCNBase;
@@ -66,8 +66,8 @@ private:
    MnStrategy fStrategy;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnContours
+#endif  // ROOT_MyMinuit2_MnContours

@@ -7,21 +7,21 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/SimplexBuilder.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnFcn.h"
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/SimplexParameters.h"
-#include "Minuit2/MinimumState.h"
+#include "MyMinuit2/SimplexBuilder.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnFcn.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/SimplexParameters.h"
+#include "MyMinuit2/MinimumState.h"
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //#define DEBUG 1
@@ -227,6 +227,6 @@ FunctionMinimum SimplexBuilder::Minimum(const MnFcn& mfcn, const GradientCalcula
    return FunctionMinimum(seed, std::vector<MinimumState>(1, st), mfcn.Up());
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

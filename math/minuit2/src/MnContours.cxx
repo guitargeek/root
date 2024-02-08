@@ -7,23 +7,23 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnContours.h"
-#include "Minuit2/MnMinos.h"
-#include "Minuit2/MnMigrad.h"
-#include "Minuit2/MnFunctionCross.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/MnCross.h"
-#include "Minuit2/MinosError.h"
-#include "Minuit2/ContoursError.h"
+#include "MyMinuit2/MnContours.h"
+#include "MyMinuit2/MnMinos.h"
+#include "MyMinuit2/MnMigrad.h"
+#include "MyMinuit2/MnFunctionCross.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/MnCross.h"
+#include "MyMinuit2/MinosError.h"
+#include "MyMinuit2/ContoursError.h"
 
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 void PrintContourPoint(const std::pair<double,double> & point)  {
@@ -214,6 +214,6 @@ L300:
 }
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

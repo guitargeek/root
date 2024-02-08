@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnApplication
-#define ROOT_Minuit2_MnApplication
+#ifndef ROOT_MyMinuit2_MnApplication
+#define ROOT_MyMinuit2_MnApplication
 
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnStrategy.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnStrategy.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -30,7 +30,7 @@ class FCNGradientBase;
 /**
     application interface class for minimizers (migrad, simplex, Minimize,
     Scan)
-    User normally instantiates the derived class like ROOT::Minuit2::MnMigrad
+    User normally instantiates the derived class like ROOT::MyMinuit2::MnMigrad
     for using Migrad for minimization
  */
 
@@ -83,7 +83,7 @@ public:
 // via MnUserParameterState
 
    //access to parameters (row-wise)
-   const std::vector<ROOT::Minuit2::MinuitParameter>& MinuitParameters() const;
+   const std::vector<ROOT::MyMinuit2::MinuitParameter>& MinuitParameters() const;
    //access to parameters and errors in column-wise representation
    std::vector<double> Params() const;
    std::vector<double> Errors() const;
@@ -135,8 +135,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnApplication
+#endif  // ROOT_MyMinuit2_MnApplication

@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_ModularFunctionMinimizer
-#define ROOT_Minuit2_ModularFunctionMinimizer
+#ifndef ROOT_MyMinuit2_ModularFunctionMinimizer
+#define ROOT_MyMinuit2_ModularFunctionMinimizer
 
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
-#include "Minuit2/FunctionMinimizer.h"
+#include "MyMinuit2/FunctionMinimizer.h"
 
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -89,8 +89,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_ModularFunctionMinimizer
+#endif  // ROOT_MyMinuit2_ModularFunctionMinimizer

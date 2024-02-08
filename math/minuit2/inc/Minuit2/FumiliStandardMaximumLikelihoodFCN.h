@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliStandardMaximumLikelihoodFCN
-#define ROOT_Minuit2_FumiliStandardMaximumLikelihoodFCN
+#ifndef ROOT_MyMinuit2_FumiliStandardMaximumLikelihoodFCN
+#define ROOT_MyMinuit2_FumiliStandardMaximumLikelihoodFCN
 
 
-#include "Minuit2/FumiliMaximumLikelihoodFCN.h"
-#include "Minuit2/ParametricFunction.h"
+#include "MyMinuit2/FumiliMaximumLikelihoodFCN.h"
+#include "MyMinuit2/ParametricFunction.h"
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -151,8 +151,8 @@ public:
   std::vector<std::vector<double> > fPositions;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FumiliStandardMaximumLikelihoodFCN
+#endif  // ROOT_MyMinuit2_FumiliStandardMaximumLikelihoodFCN

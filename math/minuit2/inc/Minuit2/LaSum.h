@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_LaSum
-#define ROOT_Minuit2_LaSum
+#ifndef ROOT_MyMinuit2_LaSum
+#define ROOT_MyMinuit2_LaSum
 
-#include "Minuit2/ABSum.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/ABSum.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 #define OP_ADD1(MT,MAT1,T) \
@@ -58,8 +58,8 @@ inline ABObj<MT,MAT1,T> operator-(const MAT1& obj) { \
 OP_MIN(sym,LASymMatrix,double)
 OP_MIN(vec,LAVector,double)
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_LaSum
+#endif  // ROOT_MyMinuit2_LaSum

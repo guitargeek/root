@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LAVector.h"
+#include "MyMinuit2/LAVector.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 double mnddot(unsigned int, const double*, int, const double*, int);
@@ -21,6 +21,6 @@ double inner_product(const LAVector& v1, const LAVector& v2) {
    return mnddot(v1.size(), v1.Data(), 1, v2.Data(), 1);
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

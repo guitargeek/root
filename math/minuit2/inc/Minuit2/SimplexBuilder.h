@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_SimplexBuilder
-#define ROOT_Minuit2_SimplexBuilder
+#ifndef ROOT_MyMinuit2_SimplexBuilder
+#define ROOT_MyMinuit2_SimplexBuilder
 
-#include "Minuit2/MinimumBuilder.h"
+#include "MyMinuit2/MinimumBuilder.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class FunctionMinimum;
@@ -39,8 +39,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_SimplexBuilder
+#endif  // ROOT_MyMinuit2_SimplexBuilder

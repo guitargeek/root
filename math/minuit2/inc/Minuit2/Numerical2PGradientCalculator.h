@@ -7,18 +7,18 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_Numerical2PGradientCalculator
-#define ROOT_Minuit2_Numerical2PGradientCalculator
+#ifndef ROOT_MyMinuit2_Numerical2PGradientCalculator
+#define ROOT_MyMinuit2_Numerical2PGradientCalculator
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
-#include "Minuit2/GradientCalculator.h"
+#include "MyMinuit2/GradientCalculator.h"
 
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnFcn;
@@ -70,8 +70,8 @@ private:
   const MnStrategy& fStrategy;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_Numerical2PGradientCalculator
+#endif  // ROOT_MyMinuit2_Numerical2PGradientCalculator

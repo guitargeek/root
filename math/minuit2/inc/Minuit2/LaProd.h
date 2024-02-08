@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_LaProd
-#define ROOT_Minuit2_LaProd
+#ifndef ROOT_MyMinuit2_LaProd
+#define ROOT_MyMinuit2_LaProd
 
-#include "Minuit2/ABProd.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/ABProd.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /*
@@ -43,8 +43,8 @@ OP_MULT1(sym,vec,LASymMatrix,LAVector,double)
 // OP_MULT1(gen,sym,LAGenMatrix,LASymMatrix,double)
 // OP_MULT1(gen,gen,LAGenMatrix,LAGenMatrix,double)
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_LaProd
+#endif  // ROOT_MyMinuit2_LaProd

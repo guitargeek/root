@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_CombinedMinimizer
-#define ROOT_Minuit2_CombinedMinimizer
+#ifndef ROOT_MyMinuit2_CombinedMinimizer
+#define ROOT_MyMinuit2_CombinedMinimizer
 
-#include "Minuit2/ModularFunctionMinimizer.h"
-#include "Minuit2/MnSeedGenerator.h"
-#include "Minuit2/CombinedMinimumBuilder.h"
+#include "MyMinuit2/ModularFunctionMinimizer.h"
+#include "MyMinuit2/MnSeedGenerator.h"
+#include "MyMinuit2/CombinedMinimumBuilder.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //__________________________________________________________________________
 /**
@@ -46,8 +46,8 @@ private:
    CombinedMinimumBuilder fMinBuilder;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_CombinedMinimizer
+#endif  // ROOT_MyMinuit2_CombinedMinimizer

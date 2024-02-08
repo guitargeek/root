@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliErrorUpdator
-#define ROOT_Minuit2_FumiliErrorUpdator
+#ifndef ROOT_MyMinuit2_FumiliErrorUpdator
+#define ROOT_MyMinuit2_FumiliErrorUpdator
 
-#include "Minuit2/MinimumErrorUpdator.h"
+#include "MyMinuit2/MinimumErrorUpdator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MinimumState;
@@ -104,8 +104,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FumiliErrorUpdator
+#endif  // ROOT_MyMinuit2_FumiliErrorUpdator

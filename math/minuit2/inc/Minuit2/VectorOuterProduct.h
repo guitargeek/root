@@ -7,15 +7,15 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_VectorOuterProduct
-#define ROOT_Minuit2_VectorOuterProduct
+#ifndef ROOT_MyMinuit2_VectorOuterProduct
+#define ROOT_MyMinuit2_VectorOuterProduct
 
-#include "Minuit2/ABTypes.h"
-#include "Minuit2/ABObj.h"
+#include "MyMinuit2/ABTypes.h"
+#include "MyMinuit2/ABObj.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 template<class M, class T>
@@ -41,8 +41,8 @@ inline ABObj<sym, VectorOuterProduct<ABObj<vec, M, T>, T>, T> Outer_product(cons
   return ABObj<sym, VectorOuterProduct<ABObj<vec, M, T>, T>, T>(VectorOuterProduct<ABObj<vec, M, T>, T>(obj));
 }
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_VectorOuterProduct
+#endif  // ROOT_MyMinuit2_VectorOuterProduct

@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnScan.h"
-#include "Minuit2/MnParameterScan.h"
+#include "MyMinuit2/MnScan.h"
+#include "MyMinuit2/MnParameterScan.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 std::vector<std::pair<double, double> > MnScan::Scan(unsigned int par, unsigned int maxsteps, double low, double high) {
@@ -29,6 +29,6 @@ std::vector<std::pair<double, double> > MnScan::Scan(unsigned int par, unsigned 
    return result;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

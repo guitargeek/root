@@ -7,19 +7,19 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_FumiliStandardChi2FCN
-#define ROOT_Minuit2_FumiliStandardChi2FCN
+#ifndef ROOT_MyMinuit2_FumiliStandardChi2FCN
+#define ROOT_MyMinuit2_FumiliStandardChi2FCN
 
 
-#include "Minuit2/FumiliChi2FCN.h"
-#include "Minuit2/ParametricFunction.h"
+#include "MyMinuit2/FumiliChi2FCN.h"
+#include "MyMinuit2/ParametricFunction.h"
 #include <assert.h>
 #include <vector>
 #include <cmath>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -208,8 +208,8 @@ public:
   std::vector<double> fInvErrors;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_FumiliStandardChi2FCN
+#endif  // ROOT_MyMinuit2_FumiliStandardChi2FCN

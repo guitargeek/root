@@ -16,7 +16,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 int mneigen(double* a, unsigned int ndima, unsigned int n, unsigned int mits,
@@ -306,6 +306,6 @@ L240:
 } /* mneig_ */
 
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

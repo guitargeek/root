@@ -7,16 +7,16 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_GenericFunction
-#define ROOT_Minuit2_GenericFunction
+#ifndef ROOT_MyMinuit2_GenericFunction
+#define ROOT_MyMinuit2_GenericFunction
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //_____________________________________________________________________
@@ -56,8 +56,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_GenericFunction
+#endif  // ROOT_MyMinuit2_GenericFunction

@@ -7,32 +7,32 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnHesse.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnUserFcn.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/MnPosDef.h"
-#include "Minuit2/HessianGradientCalculator.h"
-#include "Minuit2/Numerical2PGradientCalculator.h"
-#include "Minuit2/InitialGradientCalculator.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/VariableMetricEDMEstimator.h"
-#include "Minuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnHesse.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserFcn.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/MnPosDef.h"
+#include "MyMinuit2/HessianGradientCalculator.h"
+#include "MyMinuit2/Numerical2PGradientCalculator.h"
+#include "MyMinuit2/InitialGradientCalculator.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/VariableMetricEDMEstimator.h"
+#include "MyMinuit2/FunctionMinimum.h"
 
 //#define DEBUG
 
 #if defined(DEBUG) || defined(WARNINGMSG)
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 #endif
 #if defined(DEBUG) && !defined(WARNINGMSG)
 #define WARNINGMSG
 #endif
 
-#include "Minuit2/MPIProcess.h"
+#include "MyMinuit2/MPIProcess.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 MnUserParameterState MnHesse::operator()(const FCNBase& fcn, const std::vector<double>& par, const std::vector<double>& err, unsigned int maxcalls) const {
@@ -443,6 +443,6 @@ L30:
  }
  */
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT

@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LASymMatrix.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 double mndasum(unsigned int, const double*, int);
@@ -29,6 +29,6 @@ double sum_of_elements(const LASymMatrix& m) {
    return mndasum(m.size(), m.Data(), 1);
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

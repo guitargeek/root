@@ -7,11 +7,11 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnPlot.h"
+#include "MyMinuit2/MnPlot.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 void mnplot(double* xpt, double* ypt, char* chpt, int nxypt, int npagwd, int npagln);
@@ -53,6 +53,6 @@ void MnPlot::operator()(double xmin, double ymin, const std::vector<std::pair<do
    mnplot(&(x.front()), &(y.front()), &(chpt.front()), points.size()+2, Width(), Length());
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

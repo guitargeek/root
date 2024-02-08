@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnMachinePrecision
-#define ROOT_Minuit2_MnMachinePrecision
+#ifndef ROOT_MyMinuit2_MnMachinePrecision
+#define ROOT_MyMinuit2_MnMachinePrecision
 
 #include <math.h>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /**
@@ -59,8 +59,8 @@ private:
   double fEpsMa2;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnMachinePrecision
+#endif  // ROOT_MyMinuit2_MnMachinePrecision

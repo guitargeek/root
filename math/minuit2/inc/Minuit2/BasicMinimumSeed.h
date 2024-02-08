@@ -7,20 +7,20 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_BasicMinimumSeed
-#define ROOT_Minuit2_BasicMinimumSeed
+#ifndef ROOT_MyMinuit2_BasicMinimumSeed
+#define ROOT_MyMinuit2_BasicMinimumSeed
 
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MinimumParameters.h"
-#include "Minuit2/MinimumError.h"
-#include "Minuit2/FunctionGradient.h"
-#include "Minuit2/MnUserTransformation.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MinimumParameters.h"
+#include "MyMinuit2/MinimumError.h"
+#include "MyMinuit2/FunctionGradient.h"
+#include "MyMinuit2/MnUserTransformation.h"
 
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/StackAllocator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //extern StackAllocator gStackAllocator;
@@ -68,8 +68,8 @@ private:
   bool fValid;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_BasicMinimumSeed
+#endif  // ROOT_MyMinuit2_BasicMinimumSeed

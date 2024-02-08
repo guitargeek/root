@@ -7,23 +7,23 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnFunctionCross.h"
-#include "Minuit2/FunctionMinimum.h"
-#include "Minuit2/MnMigrad.h"
-#include "Minuit2/FCNBase.h"
-#include "Minuit2/MnParabola.h"
-#include "Minuit2/MnParabolaPoint.h"
-#include "Minuit2/MnParabolaFactory.h"
-#include "Minuit2/MnCross.h"
-#include "Minuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MnFunctionCross.h"
+#include "MyMinuit2/FunctionMinimum.h"
+#include "MyMinuit2/MnMigrad.h"
+#include "MyMinuit2/FCNBase.h"
+#include "MyMinuit2/MnParabola.h"
+#include "MyMinuit2/MnParabolaPoint.h"
+#include "MyMinuit2/MnParabolaFactory.h"
+#include "MyMinuit2/MnCross.h"
+#include "MyMinuit2/MnMachinePrecision.h"
 
 //#define DEBUG
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MnPrint.h"
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -541,6 +541,6 @@ L500:
    return MnCross(fState, nfcn);
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

@@ -7,17 +7,17 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_BasicMinimumError
-#define ROOT_Minuit2_BasicMinimumError
+#ifndef ROOT_MyMinuit2_BasicMinimumError
+#define ROOT_MyMinuit2_BasicMinimumError
 
-#include "Minuit2/MnConfig.h"
-#include "Minuit2/MnMatrix.h"
-#include "Minuit2/LaSum.h"
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/MnConfig.h"
+#include "MyMinuit2/MnMatrix.h"
+#include "MyMinuit2/LaSum.h"
+#include "MyMinuit2/StackAllocator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 //extern StackAllocator gStackAllocator;
 
@@ -107,8 +107,8 @@ private:
   bool fAvailable;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_BasicMinimumError
+#endif  // ROOT_MyMinuit2_BasicMinimumError

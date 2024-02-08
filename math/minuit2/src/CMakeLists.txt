@@ -4,8 +4,6 @@
 # For the licensing terms see $ROOTSYS/LICENSE.
 # For the list of contributors see $ROOTSYS/README/CREDITS.
 
-add_subdirectory(math)
-
 set(MINUIT2_HEADERS
     ABObj.h
     ABProd.h
@@ -196,39 +194,38 @@ set(MINUIT2_SOURCES
     mnxerbla.cxx
     )
 
-prepend_path(MINUIT2_HEADERS "${Minuit2_SOURCE_DIR}/inc/Minuit2" ${MINUIT2_HEADERS})
+prepend_path(MINUIT2_HEADERS "${Minuit2_SOURCE_DIR}/inc/MyMinuit2" ${MINUIT2_HEADERS})
 prepend_path(MINUIT2_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}" ${MINUIT2_SOURCES})
 
-add_library(Minuit2
+add_library(MyMinuit2 SHARED
     ${MINUIT2_SOURCES}
     ${MINUIT2_HEADERS}
     )
 
 # Add alias for direct inclusion with add_subdirectory
-add_library(Minuit2::Minuit2 ALIAS Minuit2)
+add_library(Minuit2::Minuit2 ALIAS MyMinuit2)
 
 target_include_directories(
-    Minuit2
+    MyMinuit2
     PUBLIC
     $<BUILD_INTERFACE:${Minuit2_SOURCE_DIR}/inc>
     $<INSTALL_INTERFACE:include/Minuit2>
     )
 
 target_compile_definitions(
-    Minuit2
+    MyMinuit2
     PRIVATE
     WARNINGMSG
     )
 
-target_compile_features(Minuit2 PUBLIC cxx_nullptr cxx_nonstatic_member_init)
-set_target_properties(Minuit2 PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(MyMinuit2 PROPERTIES CXX_EXTENSIONS OFF)
 
-target_link_libraries(Minuit2 PUBLIC Minuit2Math Minuit2Common)
+target_link_libraries(MyMinuit2 PUBLIC Minuit2Common)
 
-install(TARGETS Minuit2
+install(TARGETS MyMinuit2
         EXPORT Minuit2Targets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
         )
 
-install(FILES ${MINUIT2_HEADERS} DESTINATION include/Minuit2/Minuit2)
+install(FILES ${MINUIT2_HEADERS} DESTINATION include/MyMinuit2)

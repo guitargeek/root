@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MnMachinePrecision.h"
-#include "Minuit2/MnTiny.h"
+#include "MyMinuit2/MnMachinePrecision.h"
+#include "MyMinuit2/MnTiny.h"
 #include <limits>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 MnMachinePrecision::MnMachinePrecision() {
@@ -58,6 +58,6 @@ void MnMachinePrecision::ComputePrecision() {
 
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

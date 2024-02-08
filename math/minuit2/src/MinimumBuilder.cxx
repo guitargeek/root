@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/MinimumBuilder.h"
-#include "Minuit2/MnPrint.h"
+#include "MyMinuit2/MinimumBuilder.h"
+#include "MyMinuit2/MnPrint.h"
 
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
       MinimumBuilder::MinimumBuilder() :
          fPrintLevel(MnPrint::Level()),
@@ -33,6 +33,6 @@ namespace ROOT {
          MnPrint::SetLevel(fPrevGlobLevel);
       }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

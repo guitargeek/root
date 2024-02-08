@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_DavidonErrorUpdator
-#define ROOT_Minuit2_DavidonErrorUpdator
+#ifndef ROOT_MyMinuit2_DavidonErrorUpdator
+#define ROOT_MyMinuit2_DavidonErrorUpdator
 
-#include "Minuit2/MinimumErrorUpdator.h"
+#include "MyMinuit2/MinimumErrorUpdator.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 /**
@@ -35,8 +35,8 @@ private:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_DavidonErrorUpdator
+#endif  // ROOT_MyMinuit2_DavidonErrorUpdator

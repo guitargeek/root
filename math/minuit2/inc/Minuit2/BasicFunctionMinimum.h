@@ -7,21 +7,21 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_BasicFunctionMinimum
-#define ROOT_Minuit2_BasicFunctionMinimum
+#ifndef ROOT_MyMinuit2_BasicFunctionMinimum
+#define ROOT_MyMinuit2_BasicFunctionMinimum
 
-#include "Minuit2/MinimumSeed.h"
-#include "Minuit2/MinimumState.h"
-#include "Minuit2/MnUserParameterState.h"
-#include "Minuit2/MnUserTransformation.h"
+#include "MyMinuit2/MinimumSeed.h"
+#include "MyMinuit2/MinimumState.h"
+#include "MyMinuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserTransformation.h"
 
-#include "Minuit2/StackAllocator.h"
+#include "MyMinuit2/StackAllocator.h"
 
 #include <vector>
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 //extern StackAllocator gStackAllocator;
@@ -149,8 +149,8 @@ private:
    mutable MnUserParameterState fUserState;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_BasicFunctionMinimum
+#endif  // ROOT_MyMinuit2_BasicFunctionMinimum

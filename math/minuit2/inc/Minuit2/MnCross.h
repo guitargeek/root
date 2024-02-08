@@ -7,14 +7,14 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MnCross
-#define ROOT_Minuit2_MnCross
+#ifndef ROOT_MyMinuit2_MnCross
+#define ROOT_MyMinuit2_MnCross
 
-#include "Minuit2/MnUserParameterState.h"
+#include "MyMinuit2/MnUserParameterState.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MnCross {
@@ -77,8 +77,8 @@ private:
   bool fNewMin;
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MnCross
+#endif  // ROOT_MyMinuit2_MnCross

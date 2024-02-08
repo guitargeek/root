@@ -7,13 +7,13 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LASymMatrix.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LaProd.h"
+#include "MyMinuit2/LASymMatrix.h"
+#include "MyMinuit2/LAVector.h"
+#include "MyMinuit2/LaProd.h"
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 double mnddot(unsigned int, const double*, int, const double*, int);
@@ -28,6 +28,6 @@ double similarity(const LAVector& avec, const LASymMatrix& mat) {
    return value;
 }
 
-   }  // namespace Minuit2
+   }  // namespace MyMinuit2
 
 }  // namespace ROOT

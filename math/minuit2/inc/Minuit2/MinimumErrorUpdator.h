@@ -7,12 +7,12 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_MinimumErrorUpdator
-#define ROOT_Minuit2_MinimumErrorUpdator
+#ifndef ROOT_MyMinuit2_MinimumErrorUpdator
+#define ROOT_MyMinuit2_MinimumErrorUpdator
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 class MinimumState;
@@ -31,8 +31,8 @@ public:
 
 };
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
-#endif  // ROOT_Minuit2_MinimumErrorUpdator
+#endif  // ROOT_MyMinuit2_MinimumErrorUpdator

@@ -7,10 +7,10 @@
  *                                                                    *
  **********************************************************************/
 
-#ifndef ROOT_Minuit2_StackAllocator
-#define ROOT_Minuit2_StackAllocator
+#ifndef ROOT_MyMinuit2_StackAllocator
+#define ROOT_MyMinuit2_StackAllocator
 
-#include "Minuit2/MnConfig.h"
+#include "MyMinuit2/MnConfig.h"
 
 // comment out this line and recompile if you want to gain additional
 // performance (the gain is mainly for "simple" functions which are easy
@@ -30,7 +30,7 @@
 
 namespace ROOT {
 
-   namespace Minuit2 {
+   namespace MyMinuit2 {
 
 
 
@@ -229,7 +229,7 @@ class StackAllocatorHolder {
 
 
 
-  }  // namespace Minuit2
+  }  // namespace MyMinuit2
 
 }  // namespace ROOT
 
