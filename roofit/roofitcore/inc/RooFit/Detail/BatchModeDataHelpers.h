@@ -30,21 +30,23 @@ class RooAbsCategory;
 class RooAbsData;
 class RooSimultaneous;
 
-class TNamed;
-
 namespace RooFit {
 namespace Detail {
-namespace BatchModeDataHelpers {
 
-std::map<RooFit::Detail::DataKey, std::span<const double>>
-getDataSpans(RooAbsData const &data, std::string const &rangeName, RooSimultaneous const *simPdf, bool skipZeroWeights,
-             bool takeGlobalObservablesFromData, std::stack<std::vector<double>> &buffers);
+struct DataSpanInfo {
+   std::span<const double> span;
+   bool isGlobalObservable = false;
+};
+
+using DataSpanInfos = std::map<RooFit::Detail::DataKey, DataSpanInfo>;
+
+DataSpanInfos getDataSpans(RooAbsData const &data, std::string const &rangeName, RooSimultaneous const *simPdf,
+                           bool skipZeroWeights, std::stack<std::vector<double>> &buffers);
 
 std::map<RooFit::Detail::DataKey, std::size_t>
 determineOutputSizes(RooAbsArg const &topNode,
                      std::function<std::size_t(RooFit::Detail::DataKey)> const &inputSizeFunc);
 
-} // namespace BatchModeDataHelpers
 } // namespace Detail
 } // namespace RooFit
 

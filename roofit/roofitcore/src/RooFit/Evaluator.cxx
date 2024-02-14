@@ -312,8 +312,7 @@ void Evaluator::updateOutputSizes()
       }
    }
 
-   auto outputSizeMap =
-      RooFit::Detail::BatchModeDataHelpers::determineOutputSizes(_topNode, [&](RooFit::Detail::DataKey key) {
+   auto outputSizeMap = RooFit::Detail::determineOutputSizes(_topNode, [&](RooFit::Detail::DataKey key) {
          auto found = sizeMap.find(key);
          return found != sizeMap.end() ? found->second : 0;
       });

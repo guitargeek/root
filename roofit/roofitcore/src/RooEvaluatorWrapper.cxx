@@ -77,10 +77,11 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
 {
    _data = &data;
    std::stack<std::vector<double>>{}.swap(_vectorBuffers);
-   auto dataSpans = RooFit::Detail::BatchModeDataHelpers::getDataSpans(
-      *_data, _rangeName, _simPdf, /*skipZeroWeights=*/true, _takeGlobalObservablesFromData, _vectorBuffers);
-   for (auto const &item : dataSpans) {
-      _evaluator->setInput(item.first->GetName(), item.second, false);
+   auto spans = RooFit::Detail::getDataSpans(*_data, _rangeName, _simPdf, /*skipZeroWeights=*/true, _vectorBuffers);
+   for (auto const &item : spans) {
+      if (_takeGlobalObservablesFromData || !item.second.isGlobalObservable) {
+         _evaluator->setInput(item.first->GetName(), item.second.span, false);
+      }
    }
    return true;
 }

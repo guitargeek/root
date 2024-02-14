@@ -203,17 +203,13 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
 ///            data spans. Be very careful with enabling it, because the user
 ///            might not expect that the batch results are not aligned with the
 ///            original dataset anymore!
-/// \param[in] takeGlobalObservablesFromData Take also the global observables
-///            stored in the dataset.
 /// \param[in] buffers Pass here an empty stack of `double` vectors, which will
 ///            be used as memory for the data if the memory in the dataset
 ///            object can't be used directly (e.g. because you used the range
 ///            selection or the splitting by categories).
-std::map<RooFit::Detail::DataKey, std::span<const double>>
-RooFit::Detail::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string const &rangeName,
-                                                   RooSimultaneous const *simPdf, bool skipZeroWeights,
-                                                   bool takeGlobalObservablesFromData,
-                                                   std::stack<std::vector<double>> &buffers)
+std::map<RooFit::Detail::DataKey, RooFit::Detail::DataSpanInfo>
+RooFit::Detail::getDataSpans(RooAbsData const &data, std::string const &rangeName, RooSimultaneous const *simPdf,
+                             bool skipZeroWeights, std::stack<std::vector<double>> &buffers)
 {
    std::vector<std::pair<std::string, RooAbsData const *>> datasets;
    std::vector<bool> isBinnedL;
@@ -239,7 +235,7 @@ RooFit::Detail::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::
       isBinnedL.emplace_back(false);
    }
 
-   std::map<RooFit::Detail::DataKey, std::span<const double>> dataSpans; // output variable
+   std::map<RooFit::Detail::DataKey, DataSpanInfo> dataSpans; // output variable
 
    for (std::size_t iData = 0; iData < datasets.size(); ++iData) {
       auto const &toAdd = datasets[iData];
@@ -247,17 +243,20 @@ RooFit::Detail::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::
          *toAdd.second, RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, toAdd.second->GetName()),
          toAdd.first, buffers, skipZeroWeights && !isBinnedL[iData]);
       for (auto const &item : spans) {
-         dataSpans.insert(item);
+         DataSpanInfo &info = dataSpans[item.first];
+         info.span = item.second;
       }
    }
 
-   if (takeGlobalObservablesFromData && data.getGlobalObservables()) {
+   if (data.getGlobalObservables()) {
       buffers.emplace();
       auto &buffer = buffers.top();
       buffer.reserve(data.getGlobalObservables()->size());
       for (auto *arg : static_range_cast<RooRealVar const *>(*data.getGlobalObservables())) {
          buffer.push_back(arg->getVal());
-         assignSpan(dataSpans[arg], {&buffer.back(), 1});
+         DataSpanInfo &info = dataSpans[arg];
+         assignSpan(info.span, {&buffer.back(), 1});
+         info.isGlobalObservable = true;
       }
    }
 
@@ -273,8 +272,9 @@ RooFit::Detail::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::
 /// \return A `std::map` with output sizes for each node in the computation graph.
 /// \param[in] topNode The top node of the computation graph.
 /// \param[in] inputSizeFunc A function to get the input sizes.
-std::map<RooFit::Detail::DataKey, std::size_t> RooFit::Detail::BatchModeDataHelpers::determineOutputSizes(
-   RooAbsArg const &topNode, std::function<std::size_t(RooFit::Detail::DataKey)> const &inputSizeFunc)
+std::map<RooFit::Detail::DataKey, std::size_t>
+RooFit::Detail::determineOutputSizes(RooAbsArg const &topNode,
+                                     std::function<std::size_t(RooFit::Detail::DataKey)> const &inputSizeFunc)
 {
    std::map<RooFit::Detail::DataKey, std::size_t> output;
 

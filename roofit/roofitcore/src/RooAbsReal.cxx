@@ -116,11 +116,9 @@ public:
       _arg->recursiveRedirectServers(RooArgList{var});
       _evaluator = std::make_unique<RooFit::Evaluator>(*_arg);
       std::stack<std::vector<double>>{}.swap(_vectorBuffers);
-      auto dataSpans =
-         RooFit::Detail::BatchModeDataHelpers::getDataSpans(data, "", nullptr, /*skipZeroWeights=*/false,
-                                                            /*takeGlobalObservablesFromData=*/true, _vectorBuffers);
+      auto dataSpans = RooFit::Detail::getDataSpans(data, "", nullptr, /*skipZeroWeights=*/false, _vectorBuffers);
       for (auto const& item : dataSpans) {
-         _evaluator->setInput(item.first->GetName(), item.second, false);
+         _evaluator->setInput(item.first->GetName(), item.second.span, false);
       }
    }
 

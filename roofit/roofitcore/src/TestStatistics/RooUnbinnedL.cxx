@@ -62,11 +62,12 @@ RooUnbinnedL::RooUnbinnedL(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended e
    if (evalBackend.value() != RooFit::EvalBackend::Value::Legacy) {
       evaluator_ = std::make_unique<RooFit::Evaluator>(*pdf_, evalBackend.value() == RooFit::EvalBackend::Value::Cuda);
       std::stack<std::vector<double>>{}.swap(_vectorBuffers);
-      auto dataSpans =
-         RooFit::Detail::BatchModeDataHelpers::getDataSpans(*data, "", nullptr, /*skipZeroWeights=*/true,
-                                                            /*takeGlobalObservablesFromData=*/false, _vectorBuffers);
+      auto dataSpans = RooFit::Detail::getDataSpans(*data, "", nullptr, /*skipZeroWeights=*/true, _vectorBuffers);
       for (auto const &item : dataSpans) {
-         evaluator_->setInput(item.first->GetName(), item.second, false);
+         auto &info = item.second;
+         if (!info.isGlobalObservable) {
+            evaluator_->setInput(item.first->GetName(), info.span, false);
+         }
       }
    }
 }

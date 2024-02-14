@@ -67,19 +67,19 @@ void RooFuncWrapper::loadParamsAndData(RooAbsArg const *head, RooArgSet const &p
 {
    // Extract observables
    std::stack<std::vector<double>> vectorBuffers; // for data loading
-   std::map<RooFit::Detail::DataKey, std::span<const double>> spans;
+   std::map<RooFit::Detail::DataKey, RooFit::Detail::DataSpanInfo> spans;
 
    if (data) {
-      spans = RooFit::Detail::BatchModeDataHelpers::getDataSpans(*data, "", simPdf, true, false, vectorBuffers);
+      spans = RooFit::Detail::getDataSpans(*data, "", simPdf, true, vectorBuffers);
    }
 
    std::size_t idx = 0;
    for (auto const &item : spans) {
-      std::size_t n = item.second.size();
+      std::size_t n = item.second.span.size();
       _obsInfos.emplace(item.first, ObsInfo{idx, n});
       _observables.reserve(_observables.size() + n);
       for (std::size_t i = 0; i < n; ++i) {
-         _observables.push_back(item.second[i]);
+         _observables.push_back(item.second.span[i]);
       }
       idx += n;
    }
@@ -100,10 +100,9 @@ void RooFuncWrapper::loadParamsAndData(RooAbsArg const *head, RooArgSet const &p
    _gradientVarBuffer.resize(_params.size());
 
    if (head) {
-      _nodeOutputSizes =
-         RooFit::Detail::BatchModeDataHelpers::determineOutputSizes(*head, [&spans](RooFit::Detail::DataKey key) {
+      _nodeOutputSizes = RooFit::Detail::determineOutputSizes(*head, [&spans](RooFit::Detail::DataKey key) {
             auto found = spans.find(key);
-            return found != spans.end() ? found->second.size() : 0;
+            return found != spans.end() ? found->second.span.size() : 0;
          });
    }
 }
