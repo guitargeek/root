@@ -23,6 +23,7 @@
 #include <RooCategory.h>
 #include <RooCmdConfig.h>
 #include <RooConstraintSum.h>
+#include <RooConstraintSum.h>
 #include <RooDataHist.h>
 #include <RooDataSet.h>
 #include <RooDerivative.h>
@@ -667,25 +668,29 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
    }
    const bool takeGlobalObservablesFromData = globalObservablesSource == "data";
 
+   auto evalBackend = static_cast<RooFit::EvalBackend::Value>(pc.getInt("EvalBackend"));
+   const bool useLegacyBackend = evalBackend == RooFit::EvalBackend::Value::Legacy;
+
    // Lambda function to create the correct constraint term for a PDF. In old
    // RooFit, we use this PDF itself as the argument, for the new BatchMode
    // we're passing a clone.
    auto createConstr = [&](bool removeConstraintsFromPdf = false) -> std::unique_ptr<RooAbsReal> {
-      return createConstraintTerm(baseName + "_constr",                    // name
-                                  pdf,                                     // pdf
-                                  data,                                    // data
-                                  pc.getSet("cPars"),                      // Constrain RooCmdArg
-                                  pc.getSet("extCons"),                    // ExternalConstraints RooCmdArg
-                                  pc.getSet("glObs"),                      // GlobalObservables RooCmdArg
-                                  pc.getString("globstag", nullptr, true), // GlobalObservablesTag RooCmdArg
-                                  takeGlobalObservablesFromData,           // From GlobalObservablesSource RooCmdArg
-                                  removeConstraintsFromPdf);
+      auto constraintsInfo =
+         collectConstraints(pdf,                                     // pdf
+                            data,                                    // data
+                            pc.getSet("cPars"),                      // Constrain RooCmdArg
+                            pc.getSet("extCons"),                    // ExternalConstraints RooCmdArg
+                            pc.getSet("glObs"),                      // GlobalObservables RooCmdArg
+                            pc.getString("globstag", nullptr, true), // GlobalObservablesTag RooCmdArg
+                            takeGlobalObservablesFromData,           // From GlobalObservablesSource RooCmdArg
+                            removeConstraintsFromPdf);
+      return std::make_unique<RooConstraintSum>((baseName + "_constr").c_str(), "nllCons", constraintsInfo.constraints,
+                                                constraintsInfo.normSet,
+                                                takeGlobalObservablesFromData && useLegacyBackend);
    };
 
-   auto evalBackend = static_cast<RooFit::EvalBackend::Value>(pc.getInt("EvalBackend"));
-
    // Construct BatchModeNLL if requested
-   if (evalBackend != RooFit::EvalBackend::Value::Legacy) {
+   if (!useLegacyBackend) {
 
       // Set the normalization range. We need to do it now, because it will be
       // considered in `compileForNormSet`.
@@ -723,7 +728,7 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
 
       std::unique_ptr<RooAbsReal> compiledConstr;
       if (std::unique_ptr<RooAbsReal> constr = createConstr()) {
-         compiledConstr = RooFit::Detail::compileForNormSet(*constr, *data.get());
+         compiledConstr.reset(static_cast<RooAbsReal *>(constr->compileForNormSet(normSet, ctx).release()));
          compiledConstr->addOwnedComponents(std::move(constr));
       }
 

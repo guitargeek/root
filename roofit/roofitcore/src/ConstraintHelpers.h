@@ -15,10 +15,14 @@
 
 #include <RooAbsReal.h>
 
-std::unique_ptr<RooAbsReal> createConstraintTerm(std::string const &name, RooAbsPdf const &pdf, RooAbsData const &data,
-                                                 RooArgSet const *constrainedParameters,
-                                                 RooArgSet const *externalConstraints,
-                                                 RooArgSet const *globalObservables, const char *globalObservablesTag,
-                                                 bool takeGlobalObservablesFromData, bool removeConstraintsFromPdf);
+struct ConstraintsInfo {
+   RooArgSet constraints;
+   RooArgSet normSet;
+};
+
+ConstraintsInfo collectConstraints(RooAbsPdf const &pdf, RooAbsData const &data, RooArgSet const *constrainedParameters,
+                                   RooArgSet const *externalConstraints, RooArgSet const *globalObservables,
+                                   const char *globalObservablesTag, bool takeGlobalObservablesFromData,
+                                   bool removeConstraintsFromPdf);
 
 #endif

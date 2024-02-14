@@ -14,7 +14,6 @@
 
 #include <RooAbsData.h>
 #include <RooAbsPdf.h>
-#include <RooConstraintSum.h>
 #include <RooMsgService.h>
 
 #include "RooFitImplHelpers.h"
@@ -65,7 +64,6 @@ getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, c
 /// Create the parameter constraint sum to add to the negative log-likelihood.
 /// \return If there are constraints, returns a pointer to the constraint NLL.
 ///         Returns a `nullptr` if the parameters are unconstrained.
-/// \param[in] name Name of the created RooConstraintSum object.
 /// \param[in] pdf The PDF model whose parameters should be constrained.
 ///            Constraint terms will be extracted from RooProdPdf instances
 ///            that are servers of the PDF (internal constraints).
@@ -94,12 +92,13 @@ getGlobalObservables(RooAbsPdf const &pdf, RooArgSet const *globalObservables, c
 ///            dataset are taken from the model.
 /// \param[in] removeConstraintsPdf If true, the constraints that are extracted
 ///            from the PDF are removed from the original PDF.
-std::unique_ptr<RooAbsReal> createConstraintTerm(std::string const &name, RooAbsPdf const &pdf, RooAbsData const &data,
-                                                 RooArgSet const *constrainedParameters,
-                                                 RooArgSet const *externalConstraints,
-                                                 RooArgSet const *globalObservables, const char *globalObservablesTag,
-                                                 bool takeGlobalObservablesFromData, bool removeConstraintsFromPdf)
+ConstraintsInfo collectConstraints(RooAbsPdf const &pdf, RooAbsData const &data, RooArgSet const *constrainedParameters,
+                                   RooArgSet const *externalConstraints, RooArgSet const *globalObservables,
+                                   const char *globalObservablesTag, bool takeGlobalObservablesFromData,
+                                   bool removeConstraintsFromPdf)
 {
+   ConstraintsInfo out;
+
    RooArgSet const &observables = *data.get();
 
    bool doStripDisconnected = false;
@@ -170,10 +169,11 @@ std::unique_ptr<RooAbsReal> createConstraintTerm(std::string const &name, RooAbs
          takeGlobalObservablesFromData = false;
       }
 
-      return std::make_unique<RooConstraintSum>(name.c_str(), "nllCons", allConstraints, glObs ? *glObs : cPars,
-                                                takeGlobalObservablesFromData);
+      out.constraints = allConstraints;
+      out.normSet = glObs ? *glObs : cPars;
+      return out;
    }
 
    // no constraints
-   return nullptr;
+   return out;
 }
