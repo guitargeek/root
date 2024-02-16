@@ -209,7 +209,12 @@ TEST_P(RooRealL, setVal)
    auto x = w.var("x");
    RooAbsPdf *pdf = w.pdf("g");
    std::unique_ptr<RooDataSet> data{pdf->generate(*x, 10000)};
-   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data)};
+
+   // The reference likelihood is using the legacy evaluation backend, because
+   // the multiprocess test statistics classes were designed to give values
+   // that are bit-by-bit identical with the old test statistics based on
+   // RooAbsTestStatistic.
+   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data, RooFit::EvalBackend("legacy"))};
 
    RooFit::TestStatistics::RooRealL nll_new("nll_new", "new style NLL",
                                             std::make_unique<RooFit::TestStatistics::RooUnbinnedL>(pdf, data.get()));
@@ -261,7 +266,11 @@ TEST_P(RealLVsMPFE, getVal)
    RooAbsPdf *pdf = w.pdf("g");
    std::unique_ptr<RooDataSet> data{pdf->generate(*x, 10000)};
 
-   std::unique_ptr<RooAbsReal> nll_mpfe{pdf->createNLL(*data)};
+   // The reference likelihood is using the legacy evaluation backend, because
+   // the multiprocess test statistics classes were designed to give values
+   // that are bit-by-bit identical with the old test statistics based on
+   // RooAbsTestStatistic.
+   std::unique_ptr<RooAbsReal> nll_mpfe{pdf->createNLL(*data, RooFit::EvalBackend("legacy"))};
 
    auto mpfe_result = nll_mpfe->getVal();
 
