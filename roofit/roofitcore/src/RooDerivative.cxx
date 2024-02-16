@@ -105,7 +105,10 @@ double RooDerivative::evaluate() const
   if (!_ftor) {
     _ftor = std::unique_ptr<RooFunctor>{_func.arg().functor(_x.arg(),RooArgSet(),_nset)};
     ROOT::Math::WrappedFunction<RooFunctor&> wf(*_ftor);
-    _rd = std::make_unique<ROOT::Math::RichardsonDerivator>(wf,_eps*(_x.max()-_x.min()),true);
+    if (_x.hasMin() && _x.hasMax())
+      _rd = std::make_unique<ROOT::Math::RichardsonDerivator>(wf,_eps*(_x.max()-_x.min()),true);
+    else
+      _rd = std::make_unique<ROOT::Math::RichardsonDerivator>(wf,_eps,true);      
   }
 
   switch (_order) {
