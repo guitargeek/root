@@ -67,7 +67,7 @@ constexpr int extendedFitDefault = 2;
 /// \param[in] data The dataset that was used for the fit.
 int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, RooAbsData const &data)
 {
-  RooFormulaVar logpdf("logpdf", "-log(pdf)", "-log(@0)", pdf);
+  RooFormulaVar logpdf("logpdf", "log(pdf)", "log(@0)", pdf);
   RooArgSet obs;
   logpdf.getObservables(data.get(), obs);
 
