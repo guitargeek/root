@@ -123,7 +123,7 @@ int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, 
    
    // Calculate derivatives for number of expected events, needed for extended ML fit
    RooAbsPdf *extended_pdf = dynamic_cast<RooAbsPdf*>(&pdf);
-   std::vector<double> diffs_expected(floated.getSize(), 0.0);
+   std::vector<double> diffs_expected(floated.size(), 0.0);
    if (extended_pdf && extended_pdf->expectedEvents(obs) != 0.0)
      {
        for (int k = 0; k < floated.getSize(); k++) {
