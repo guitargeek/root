@@ -67,22 +67,22 @@ constexpr int extendedFitDefault = 2;
 /// \param[in] data The dataset that was used for the fit.
 int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, RooAbsData const &data)
 {
-  RooFormulaVar logpdf("logpdf", "log(pdf)", "log(@0)", pdf);
-  RooArgSet obs;
-  logpdf.getObservables(data.get(), obs);
+   RooFormulaVar logpdf("logpdf", "log(pdf)", "log(@0)", pdf);
+   RooArgSet obs;
+   logpdf.getObservables(data.get(), obs);
 
-  // Warning if the dataset is binned. TODO: in some cases,
-  // people also use RooDataSet to encode binned data,
-  // e.g. for simultaneous fits. It would be useful to detect
-  // this in this future as well.
-  if (dynamic_cast<RooDataHist const*>(&data)) {
-      oocoutW(&pdf, InputArguments) 
-	<< "RooAbsPdf::fitTo(" << pdf.GetName()
-	<< ") WARNING: Asymptotic error correction is requested for a binned data set. "
-	"This method is not designed to handle binned data. A standard chi2 fit will likely be more suitable.";
-   };  
-  
-  // Calculated corrected errors for weighted likelihood fits
+   // Warning if the dataset is binned. TODO: in some cases,
+   // people also use RooDataSet to encode binned data,
+   // e.g. for simultaneous fits. It would be useful to detect
+   // this in this future as well.
+   if (dynamic_cast<RooDataHist const *>(&data)) {
+      oocoutW(&pdf, InputArguments)
+         << "RooAbsPdf::fitTo(" << pdf.GetName()
+         << ") WARNING: Asymptotic error correction is requested for a binned data set. "
+            "This method is not designed to handle binned data. A standard chi2 fit will likely be more suitable.";
+   };
+
+   // Calculated corrected errors for weighted likelihood fits
    std::unique_ptr<RooFitResult> rw(minimizer.save());
    // Weighted inverse Hessian matrix
    const TMatrixDSym &matV = rw->covarianceMatrix();
@@ -113,34 +113,34 @@ int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, 
       assert(floatingparams->find(*paramresult)->IsA() == RooRealVar::Class());
       double eps = 1.0e-4;
       double error = static_cast<RooRealVar *>(paramresult)->getError();
-      //If parameter has range, undo multplication with range
+      // If parameter has range, undo multplication with range
       if (paraminternal->hasMin() && paraminternal->hasMax())
-	derivatives.emplace_back(logpdf.derivative(*paraminternal, obs, 1, eps*error/(paraminternal->getMax()-paraminternal->getMin())));
+         derivatives.emplace_back(logpdf.derivative(*paraminternal, obs, 1,
+                                                    eps * error / (paraminternal->getMax() - paraminternal->getMin())));
       else
-	derivatives.emplace_back(logpdf.derivative(*paraminternal, obs, 1, eps*error));	
+         derivatives.emplace_back(logpdf.derivative(*paraminternal, obs, 1, eps * error));
    }
-   
+
    // Calculate derivatives for number of expected events, needed for extended ML fit
-   RooAbsPdf *extended_pdf = dynamic_cast<RooAbsPdf*>(&pdf);
+   RooAbsPdf *extended_pdf = dynamic_cast<RooAbsPdf *>(&pdf);
    std::vector<double> diffs_expected(floated.size(), 0.0);
-   if (extended_pdf && extended_pdf->expectedEvents(obs) != 0.0)
-     {
-       for (int k = 0; k < floated.size(); k++) {
-	 const auto paramresult = static_cast<RooRealVar *>(floated.at(k));
-	 auto paraminternal = static_cast<RooRealVar *>(floatingparams->find(*paramresult));
-	 
-	 *paraminternal = paramresult->getVal();
-	 double eps = 1.0e-4;
-	 double error = paramresult->getError();
-	 paraminternal->setVal(paramresult->getVal() + eps*error);
-	 double expected_plus = log(extended_pdf->expectedEvents(obs));
-	 paraminternal->setVal(paramresult->getVal() - eps*error);
-	 double expected_minus = log(extended_pdf->expectedEvents(obs));
-	 *paraminternal = paramresult->getVal();
-	 double diff = (expected_plus-expected_minus)/(2.0*eps*error);
-	 diffs_expected[k] = diff;
-       }
-     }
+   if (extended_pdf && extended_pdf->expectedEvents(obs) != 0.0) {
+      for (int k = 0; k < floated.size(); k++) {
+         const auto paramresult = static_cast<RooRealVar *>(floated.at(k));
+         auto paraminternal = static_cast<RooRealVar *>(floatingparams->find(*paramresult));
+
+         *paraminternal = paramresult->getVal();
+         double eps = 1.0e-4;
+         double error = paramresult->getError();
+         paraminternal->setVal(paramresult->getVal() + eps * error);
+         double expected_plus = log(extended_pdf->expectedEvents(obs));
+         paraminternal->setVal(paramresult->getVal() - eps * error);
+         double expected_minus = log(extended_pdf->expectedEvents(obs));
+         *paraminternal = paramresult->getVal();
+         double diff = (expected_plus - expected_minus) / (2.0 * eps * error);
+         diffs_expected[k] = diff;
+      }
+   }
 
    // Loop over data
    for (int j = 0; j < data.numEntries(); j++) {
@@ -160,11 +160,11 @@ int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, 
 
       // Fill numerator matrix
       for (std::size_t k = 0; k < floated.size(); k++) {
-	for (std::size_t l = 0; l < floated.size(); l++) {
-	   num(k, l) += data.weightSquared() * (diffs[k]+diffs_expected[k]) * (diffs[l]+diffs_expected[l]); 
+         for (std::size_t l = 0; l < floated.size(); l++) {
+            num(k, l) += data.weightSquared() * (diffs[k] + diffs_expected[k]) * (diffs[l] + diffs_expected[l]);
          }
       }
-   }   
+   }
    num.Similarity(matV);
 
    // Propagate corrected errors to parameters objects
