@@ -71,8 +71,11 @@ int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, 
   RooArgSet obs;
   logpdf.getObservables(data.get(), obs);
 
-  //warning if the dataset is binned
-  if (pdf.isBinnedDistribution(obs)) {
+  // Warning if the dataset is binned. TODO: in some cases,
+  // people also use RooDataSet to encode binned data,
+  // e.g. for simultaneous fits. It would be useful to detect
+  // this in this future as well.
+  if (dynamic_cast<RooDataHist const*>(&data)) {
       oocoutW(&pdf, InputArguments) 
 	<< "RooAbsPdf::fitTo(" << pdf.GetName()
 	<< ") WARNING: Asymptotic error correction is requested for a binned data set. "
