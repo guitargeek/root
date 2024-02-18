@@ -104,7 +104,9 @@ int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, 
    std::vector<std::unique_ptr<RooDerivative>> derivatives;
    const RooArgList &floated = rw->floatParsFinal();
    std::unique_ptr<RooArgSet> floatingparams{
-     static_cast<RooArgSet *>(logpdf.getParameters(data)->selectByAttrib("Constant", false))};
+   RooArgSet allparams;
+   logpdf.getParameters(data.get(), allparams);
+   std::unique_ptr<RooArgSet> floatingparams{static_cast<RooArgSet *>(allparams.selectByAttrib("Constant", false))};
 
    // Calculate derivatives of logpdf
    for (const auto paramresult : floated) {
