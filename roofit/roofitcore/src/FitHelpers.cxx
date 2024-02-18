@@ -126,7 +126,7 @@ int calcAsymptoticCorrectedCovariance(RooAbsReal &pdf, RooMinimizer &minimizer, 
    std::vector<double> diffs_expected(floated.size(), 0.0);
    if (extended_pdf && extended_pdf->expectedEvents(obs) != 0.0)
      {
-       for (int k = 0; k < floated.getSize(); k++) {
+       for (int k = 0; k < floated.size(); k++) {
 	 const auto paramresult = static_cast<RooRealVar *>(floated.at(k));
 	 auto paraminternal = static_cast<RooRealVar *>(floatingparams->find(*paramresult));
 	 
