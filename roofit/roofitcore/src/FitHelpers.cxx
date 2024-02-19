@@ -682,7 +682,7 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
    auto evalBackend = static_cast<RooFit::EvalBackend::Value>(pc.getInt("EvalBackend"));
 
    // Construct BatchModeNLL if requested
-   if (evalBackend != RooFit::EvalBackend::Value::Legacy) {
+   if (evalBackend != RooFit::EvalBackend::Value::Cpu) {
 
       // Set the normalization range. We need to do it now, because it will be
       // considered in `compileForNormSet`.

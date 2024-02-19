@@ -410,9 +410,11 @@ RooCmdArg BatchMode(std::string const &batchMode)
       << "The BatchMode() command argument is deprecated. Please use EvalBackend() instead." << std::endl;
    std::string lower = batchMode;
    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
    if (lower == "off") {
       return EvalBackend::Legacy();
-   } else if (lower == "cpu") {
+#endif
+   if (lower == "cpu") {
       return EvalBackend::Cpu();
    } else if (lower == "cuda") {
       return EvalBackend::Cuda();
@@ -494,8 +496,10 @@ EvalBackend::Value EvalBackend::toValue(std::string const &name)
 {
    std::string lower = name;
    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
    if (lower == toName(Value::Legacy))
       return Value::Legacy;
+#endif
    if (lower == toName(Value::Cpu))
       return Value::Cpu;
    if (lower == toName(Value::Cuda))
@@ -507,10 +511,12 @@ EvalBackend::Value EvalBackend::toValue(std::string const &name)
    throw std::runtime_error("Only supported string values for EvalBackend() are \"legacy\", \"cpu\", \"cuda\", "
                             "\"codegen\", or \"codegen_no_grad\".");
 }
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
 EvalBackend EvalBackend::Legacy()
 {
    return EvalBackend(Value::Legacy);
 }
+#endif
 EvalBackend EvalBackend::Cpu()
 {
    return EvalBackend(Value::Cpu);
@@ -533,8 +539,10 @@ std::string EvalBackend::name() const
 }
 std::string EvalBackend::toName(EvalBackend::Value value)
 {
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
    if (value == Value::Legacy)
       return "legacy";
+#endif
    if (value == Value::Cpu)
       return "cpu";
    if (value == Value::Cuda)

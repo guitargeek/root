@@ -42,9 +42,11 @@ namespace {
 
 RooAbsL::ClonePdfData clonePdfData(RooAbsPdf &pdf, RooAbsData &data, RooFit::EvalBackend evalBackend)
 {
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
    if (evalBackend.value() == RooFit::EvalBackend::Value::Legacy) {
       return {&pdf, &data};
    }
+#endif
    // For the evaluation with the BatchMode, the pdf needs to be "compiled" for
    // a given normalization set.
    return {RooFit::Detail::compileForNormSet(pdf, *data.get()), &data};
@@ -59,15 +61,18 @@ RooUnbinnedL::RooUnbinnedL(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended e
    std::unique_ptr<RooArgSet> params(pdf->getParameters(data));
    paramTracker_ = std::make_unique<RooChangeTracker>("chtracker", "change tracker", *params, true);
 
-   if (evalBackend.value() != RooFit::EvalBackend::Value::Legacy) {
-      evaluator_ = std::make_unique<RooFit::Evaluator>(*pdf_, evalBackend.value() == RooFit::EvalBackend::Value::Cuda);
-      std::stack<std::vector<double>>{}.swap(_vectorBuffers);
-      auto dataSpans =
-         RooFit::Detail::BatchModeDataHelpers::getDataSpans(*data, "", nullptr, /*skipZeroWeights=*/true,
-                                                            /*takeGlobalObservablesFromData=*/false, _vectorBuffers);
-      for (auto const &item : dataSpans) {
-         evaluator_->setInput(item.first->GetName(), item.second, false);
-      }
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
+   if (evalBackend.value() == RooFit::EvalBackend::Value::Legacy) {
+      return;
+   }
+#endif
+   evaluator_ = std::make_unique<RooFit::Evaluator>(*pdf_, evalBackend.value() == RooFit::EvalBackend::Value::Cuda);
+   std::stack<std::vector<double>>{}.swap(_vectorBuffers);
+   auto dataSpans =
+      RooFit::Detail::BatchModeDataHelpers::getDataSpans(*data, "", nullptr, /*skipZeroWeights=*/true,
+                                                         /*takeGlobalObservablesFromData=*/false, _vectorBuffers);
+   for (auto const &item : dataSpans) {
+      evaluator_->setInput(item.first->GetName(), item.second, false);
    }
 }
 

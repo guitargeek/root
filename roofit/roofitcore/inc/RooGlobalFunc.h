@@ -238,13 +238,19 @@ RooCmdArg Optimize(Int_t flag=2) ;
 
 class EvalBackend : public RooCmdArg {
 public:
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
    enum class Value { Legacy, Cpu, Cuda, Codegen, CodegenNoGrad };
+#else
+   enum class Value { Cpu, Cuda, Codegen, CodegenNoGrad };
+#endif
 
    EvalBackend(Value value);
 
    EvalBackend(std::string const &name);
 
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
    static EvalBackend Legacy();
+#endif
    static EvalBackend Cpu();
    static EvalBackend Cuda();
    static EvalBackend Codegen();
