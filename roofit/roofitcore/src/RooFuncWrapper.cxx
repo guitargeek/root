@@ -135,7 +135,7 @@ std::string RooFuncWrapper::declareFunction(std::string const &funcBody)
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr) {\n"
+   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr, int const* indexArr) {\n"
                    << funcBody << "\n}";
 
    _allCode << bodyWithSigStrm.str() << std::endl;
@@ -185,9 +185,9 @@ void RooFuncWrapper::createGradient()
    // clang-format off
    std::stringstream dWrapperStrm;
    start = std::chrono::high_resolution_clock::now();
-   dWrapperStrm << "void " << wrapperName << "(double* params, double const* obs, double const* xlArr, double* out) {\n"
+   dWrapperStrm << "void " << wrapperName << "(double* params, double const* obs, double const* xlArr, int const* indexArr, double* out) {\n"
                    "  clad::array_ref<double> cladOut(out, " << _params.size() << ");\n"
-                   "  " << gradName << "(params, obs, xlArr, cladOut);\n"
+                   "  " << gradName << "(params, obs, xlArr, indexArr, cladOut);\n"
                    "}";
    // clang-format on
    _allCode << dWrapperStrm.str() << std::endl;
@@ -205,7 +205,7 @@ void RooFuncWrapper::gradient(double *out) const
    updateGradientVarBuffer();
    std::fill(out, out + _params.size(), 0.0);
 
-   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), out);
+   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _indexArr.data(), out);
 }
 
 void RooFuncWrapper::updateGradientVarBuffer() const
@@ -220,14 +220,14 @@ double RooFuncWrapper::evaluate() const
       return _absReal->getVal();
    updateGradientVarBuffer();
 
-   return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data());
+   return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _indexArr.data());
 }
 
 void RooFuncWrapper::gradient(const double *x, double *g) const
 {
    std::fill(g, g + _params.size(), 0.0);
 
-   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), g);
+   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), _indexArr.data(), g);
 }
 
 std::string RooFuncWrapper::buildCode(RooAbsReal const &head)
@@ -238,6 +238,7 @@ std::string RooFuncWrapper::buildCode(RooAbsReal const &head)
    int idx = 0;
    for (RooAbsArg *param : _params) {
       ctx.addResult(param, "params[" + std::to_string(idx) + "]");
+      ctx.setParamIndex(param, idx);
       idx++;
    }
 
@@ -254,7 +255,13 @@ std::string RooFuncWrapper::buildCode(RooAbsReal const &head)
       }
    }
 
-   return ctx.assembleCode(ctx.getResult(head));
+   auto out = ctx.assembleCode(ctx.getResult(head));
+   _indexArr.resize(2*ctx._paramMaps.size());
+   for (std::size_t i = 0; i < ctx._paramMaps.size(); ++i) {
+      _indexArr[i] = ctx._paramMaps[i].first;
+      _indexArr[ctx._paramMaps.size() + i] = ctx._paramMaps[i].second;
+   }
+   return out;
 }
 
 /// @brief Prints the squashed code body to console.

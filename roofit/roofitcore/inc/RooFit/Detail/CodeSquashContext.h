@@ -112,6 +112,8 @@ public:
    std::string buildArg(std::span<const double> arr);
    std::string buildArg(std::span<const int> arr) { return buildArgSpanImpl(arr); }
 
+   void setParamIndex(RooFit::Detail::DataKey key, std::size_t idx) { _paramIndices[key] = idx; }
+
    Experimental::RooFuncWrapper *_wrapper = nullptr;
 
 private:
@@ -136,6 +138,8 @@ private:
    {
       return std::to_string(x);
    }
+
+   inline std::string buildArg(const char *x) { return x; }
 
    std::string buildArg(std::string const &x) { return x; }
 
@@ -188,6 +192,10 @@ private:
    /// @brief A map to keep track of list names as assigned by addResult.
    std::unordered_map<RooFit::UniqueId<RooAbsCollection>::Value_t, std::string> listNames;
    std::vector<double> &_xlArr;
+   std::size_t _nBuffer = 0;
+   std::unordered_map<RooFit::Detail::DataKey, std::size_t> _paramIndices;
+public:
+   std::vector<std::pair<int, int>> _paramMaps;
 };
 
 template <>

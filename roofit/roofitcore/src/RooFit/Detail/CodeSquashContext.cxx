@@ -91,6 +91,11 @@ std::string CodeSquashContext::assembleCode(std::string const &returnExpr)
       arrDecl += "double auxArr[" + std::to_string(_xlArr.size()) + "];\n";
       arrDecl += "for (int i = 0; i < " + std::to_string(_xlArr.size()) + "; i++) auxArr[i] = xlArr[i];\n";
    }
+   if(_paramMaps.size() > 0) {
+      arrDecl += "double _collectionBuffer[" + std::to_string(_nBuffer) + "];\n";
+      auto n = std::to_string(_paramMaps.size());
+      arrDecl += "for (int i = 0; i < " + n + "; i++) _collectionBuffer[indexArr[i]] = params[indexArr[" + n + " + i]];\n";
+   }
    return arrDecl + _globalScope + _code + "\n return " + returnExpr + ";\n";
 }
 
@@ -234,17 +239,23 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
    bool canSaveOutside = true;
 
    std::stringstream declStrm;
-   declStrm << "double " << savedName << "[] = {";
+   std::size_t i  = 0;
    for (const auto arg : in) {
-      declStrm << getResult(*arg) << ",";
+      auto found = _paramIndices.find(arg);
+      if (found != _paramIndices.end()) {
+         _paramMaps.emplace_back(_nBuffer + i, found->second);
+      } else {
+         declStrm << "_collectionBuffer[" << (_nBuffer +  i) << "] = " << getResult(*arg) << ";\n";
+      }
       canSaveOutside = canSaveOutside && isScopeIndependent(arg);
+      ++i;
    }
-   declStrm.seekp(-1, declStrm.cur);
-   declStrm << "};\n";
 
    addToCodeBody(declStrm.str(), canSaveOutside);
 
    listNames.insert({in.uniqueId().value(), savedName});
+   _nBuffer += in.size();
+   addToCodeBody("double *" + savedName + " = _collectionBuffer + " + std::to_string(_nBuffer - in.size()) + ";\n", canSaveOutside);
    return savedName;
 }
 

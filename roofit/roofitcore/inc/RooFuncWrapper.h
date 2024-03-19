@@ -78,8 +78,8 @@ private:
 
    void buildFuncAndGradFunctors();
 
-   using Func = double (*)(double *, double const *, double const *);
-   using Grad = void (*)(double *, double const *, double const *, double *);
+   using Func = double (*)(double *, double const *, double const *, int const*);
+   using Grad = void (*)(double *, double const *, double const *, int const*, double *);
 
    struct ObsInfo {
       ObsInfo(std::size_t i, std::size_t n) : idx{i}, size{n} {}
@@ -98,6 +98,7 @@ private:
    std::map<RooFit::Detail::DataKey, ObsInfo> _obsInfos;
    std::map<RooFit::Detail::DataKey, std::size_t> _nodeOutputSizes;
    std::vector<double> _xlArr;
+   std::vector<int> _indexArr;
    std::stringstream _allCode;
 };
 
