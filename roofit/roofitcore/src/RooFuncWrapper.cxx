@@ -37,6 +37,7 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal &
                                RooSimultaneous const *simPdf, bool useEvaluator)
    : RooAbsReal{name, title}, _params{"!params", "List of parameters", this}
 {
+   useEvaluator = false;
    if (useEvaluator) {
       _absReal = std::make_unique<RooEvaluatorWrapper>(obj, const_cast<RooAbsData *>(data), false, "", simPdf, false);
    }

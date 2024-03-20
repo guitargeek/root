@@ -1011,6 +1011,7 @@ std::string RooDataHist::declWeightArrayForCodeSquash(RooAbsArg const * /*klass*
 std::string RooDataHist::calculateTreeIndexForCodeSquash(RooAbsArg const * /*klass*/, RooFit::Detail::CodeSquashContext &ctx,
                                                          const RooAbsCollection &coords, bool reverse) const
 {
+   //return ctx.isScopeIndependent(klass) ? "0" : ctx._idx;
    assert(coords.size() == _vars.size());
 
    std::string code;

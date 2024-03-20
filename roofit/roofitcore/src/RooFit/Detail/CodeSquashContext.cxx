@@ -144,7 +144,7 @@ void CodeSquashContext::addToCodeBody(std::string const &in, bool isScopeIndep /
 /// @param in A pointer to the calling class, used to determine the loop dependent variables.
 std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAbsArg const *in)
 {
-   std::string idx = "loopIdx" + std::to_string(_loopLevel);
+   _idx = "loopIdx" + std::to_string(_loopLevel);
 
    std::vector<TNamed const *> vars;
    // set the results of the vector observables
@@ -153,7 +153,7 @@ std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAb
          continue;
 
       vars.push_back(it.first);
-      _nodeNames[it.first] = "obs[" + std::to_string(it.second) + " + " + idx + "]";
+      _nodeNames[it.first] = "obs[" + std::to_string(it.second) + " + " + _idx + "]";
    }
 
    // TODO: we are using the size of the first loop variable to the the number
@@ -172,7 +172,7 @@ std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAb
    _scopePtr = _code.size();
 
    // Make sure that the name of this variable doesn't clash with other stuff
-   addToCodeBody(in, "for(int " + idx + " = 0; " + idx + " < " + std::to_string(numEntries) + "; " + idx + "++) {\n");
+   addToCodeBody(in, "for(int " + _idx + " = 0; " + _idx + " < " + std::to_string(numEntries) + "; " + _idx + "++) {\n");
 
    ++_loopLevel;
    return std::make_unique<LoopScope>(*this, std::move(vars));
@@ -255,6 +255,7 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
 
    listNames.insert({in.uniqueId().value(), savedName});
    _nBuffer += in.size();
+   //return "(_collectionBuffer + " + std::to_string(_nBuffer - in.size()) + ")";
    addToCodeBody("double *" + savedName + " = _collectionBuffer + " + std::to_string(_nBuffer - in.size()) + ";\n", canSaveOutside);
    return savedName;
 }

@@ -114,13 +114,13 @@ public:
 
    void setParamIndex(RooFit::Detail::DataKey key, std::size_t idx) { _paramIndices[key] = idx; }
 
+   bool isScopeIndependent(RooAbsArg const *in) const;
+
    Experimental::RooFuncWrapper *_wrapper = nullptr;
 
 private:
    template <class T>
    std::string buildArgSpanImpl(std::span<const T> arr);
-
-   bool isScopeIndependent(RooAbsArg const *in) const;
 
    void endLoop(LoopScope const &scope);
 
@@ -196,6 +196,7 @@ private:
    std::unordered_map<RooFit::Detail::DataKey, std::size_t> _paramIndices;
 public:
    std::vector<std::pair<int, int>> _paramMaps;
+   std::string _idx;
 };
 
 template <>
