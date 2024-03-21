@@ -21,13 +21,13 @@ It is often called as the LEP Test statistic.
 #include "RooStats/SimpleLikelihoodRatioTestStat.h"
 #include "RooStats/RooStatsUtils.h"
 
-bool RooStats::SimpleLikelihoodRatioTestStat::fgAlwaysReuseNll = true ;
+Bool_t RooStats::SimpleLikelihoodRatioTestStat::fgAlwaysReuseNll = kTRUE ;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooStats::SimpleLikelihoodRatioTestStat::SetAlwaysReuseNLL(bool flag) { fgAlwaysReuseNll = flag ; }
+void RooStats::SimpleLikelihoodRatioTestStat::SetAlwaysReuseNLL(Bool_t flag) { fgAlwaysReuseNll = flag ; }
 
-double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooArgSet& nullPOI) {
+Double_t RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooArgSet& nullPOI) {
 
    if (fFirstEval && ParamsAreEqual()) {
       oocoutW(fNullParameters,InputArguments)
@@ -46,21 +46,21 @@ double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooAr
    RooFit::MsgLevel msglevel = RooMsgService::instance().globalKillBelow();
    RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL);
 
-   bool reuse = (fReuseNll || fgAlwaysReuseNll) ;
+   Bool_t reuse = (fReuseNll || fgAlwaysReuseNll) ;
 
-   bool created = false ;
+   Bool_t created = kFALSE ;
    if (!fNllNull) {
-      std::unique_ptr<RooArgSet> allParams{fNullPdf->getParameters(data)};
-      using namespace RooFit;
-      fNllNull = std::unique_ptr<RooAbsReal>{fNullPdf->createNLL(data, CloneData(false), Constrain(*allParams), GlobalObservables(fGlobalObs), ConditionalObservables(fConditionalObs))};
-      created = true ;
+      RooArgSet* allParams = fNullPdf->getParameters(data);
+      fNllNull = fNullPdf->createNLL(data, RooFit::CloneData(kFALSE),RooFit::Constrain(*allParams),RooFit::GlobalObservables(fGlobalObs),RooFit::ConditionalObservables(fConditionalObs));
+      delete allParams;
+      created = kTRUE ;
    }
    if (reuse && !created) {
-      fNllNull->setData(data, false) ;
+      fNllNull->setData(data, kFALSE) ;
    }
 
    // make sure we set the variables attached to this nll
-   std::unique_ptr<RooArgSet> attachedSet{fNllNull->getVariables()};
+   RooArgSet* attachedSet = fNllNull->getVariables();
    attachedSet->assign(*fNullParameters);
    attachedSet->assign(nullPOI);
    double nullNLL = fNllNull->getVal();
@@ -70,21 +70,22 @@ double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooAr
 
 
    if (!reuse) {
-      fNllNull.reset();
+      delete fNllNull ; fNllNull = NULL ;
    }
+   delete attachedSet;
 
-   created = false ;
+   created = kFALSE ;
    if (!fNllAlt) {
-      std::unique_ptr<RooArgSet> allParams{fAltPdf->getParameters(data)};
-      using namespace RooFit;
-      fNllAlt = std::unique_ptr<RooAbsReal>{fAltPdf->createNLL(data, CloneData(false), Constrain(*allParams), GlobalObservables(fGlobalObs), ConditionalObservables(fConditionalObs))};
-      created = true ;
+      RooArgSet* allParams = fAltPdf->getParameters(data);
+      fNllAlt = fAltPdf->createNLL(data, RooFit::CloneData(kFALSE),RooFit::Constrain(*allParams),RooFit::GlobalObservables(fGlobalObs),RooFit::ConditionalObservables(fConditionalObs));
+      delete allParams;
+      created = kTRUE ;
    }
    if (reuse && !created) {
-      fNllAlt->setData(data, false) ;
+      fNllAlt->setData(data, kFALSE) ;
    }
    // make sure we set the variables attached to this nll
-   attachedSet = std::unique_ptr<RooArgSet>{fNllAlt->getVariables()};
+   attachedSet = fNllAlt->getVariables();
    attachedSet->assign(*fAltParameters);
    double altNLL = fNllAlt->getVal();
 
@@ -96,19 +97,24 @@ double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooAr
 
 
    if (!reuse) {
-      fNllAlt.reset();
+      delete fNllAlt ; fNllAlt = NULL ;
    }
+   delete attachedSet;
 
 
 
    // save this snapshot
    if( fDetailedOutputEnabled ) {
       if( !fDetailedOutput ) {
-         fDetailedOutput = std::make_unique<RooArgSet>( *(new RooRealVar("nullNLL","null NLL",0)), "detailedOut_SLRTS" );
+         fDetailedOutput = new RooArgSet( *(new RooRealVar("nullNLL","null NLL",0)), "detailedOut_SLRTS" );
          fDetailedOutput->add( *(new RooRealVar("altNLL","alternate NLL",0)) );
       }
       fDetailedOutput->setRealValue( "nullNLL", nullNLL );
       fDetailedOutput->setRealValue( "altNLL", altNLL );
+
+//             std::cout << std::endl << "STORING THIS AS DETAILED OUTPUT:" << std::endl;
+//             fDetailedOutput->Print("v");
+//             std::cout << std::endl;
    }
 
 

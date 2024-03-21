@@ -12,6 +12,7 @@ Check the tutorial rs302_JeffreysPriorDemo.C for a demonstration with a simple P
 
 #include "RooJeffreysPrior.h"
 
+#include "RooAbsReal.h"
 #include "RooAbsPdf.h"
 #include "RooErrorHandler.h"
 #include "RooArgSet.h"
@@ -22,6 +23,8 @@ Check the tutorial rs302_JeffreysPriorDemo.C for a demonstration with a simple P
 #include "RooNumIntConfig.h"
 #include "RooRealVar.h"
 #include "RooHelpers.h"
+
+using namespace std;
 
 ClassImp(RooJeffreysPrior);
 
@@ -45,12 +48,27 @@ RooJeffreysPrior::RooJeffreysPrior(const char* name, const char* title,
   _paramSet("!paramSet","Parameters",this),
   _cacheMgr(this, 1, true, false)
 {
-  _obsSet.addTyped<RooAbsReal>(obsSet);
-  _paramSet.addTyped<RooAbsReal>(paramSet);
+  for (const auto comp : obsSet) {
+    if (!dynamic_cast<RooAbsReal*>(comp)) {
+      coutE(InputArguments) << "RooJeffreysPrior::ctor(" << GetName() << ") ERROR: component " << comp->GetName()
+             << " in observable list is not of type RooAbsReal" << endl ;
+      RooErrorHandler::softAbort() ;
+    }
+    _obsSet.add(*comp) ;
+  }
+
+  for (const auto comp : paramSet) {
+    if (!dynamic_cast<RooAbsReal*>(comp)) {
+      coutE(InputArguments) << "RooJeffreysPrior::ctor(" << GetName() << ") ERROR: component " << comp->GetName()
+             << " in parameter list is not of type RooAbsReal" << endl ;
+      RooErrorHandler::softAbort() ;
+    }
+    _paramSet.add(*comp) ;
+  }
 
   // use a different integrator by default.
-  if(paramSet.size()==1)
-    this->specialIntegratorConfig(true)->method1D().setLabel("RooAdaptiveGaussKronrodIntegrator1D")  ;
+  if(paramSet.getSize()==1)
+    this->specialIntegratorConfig(kTRUE)->method1D().setLabel("RooAdaptiveGaussKronrodIntegrator1D")  ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,14 +85,22 @@ RooJeffreysPrior::RooJeffreysPrior(const RooJeffreysPrior& other, const char* na
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooJeffreysPrior::~RooJeffreysPrior()
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return current value of self
 
-double RooJeffreysPrior::evaluate() const
+Double_t RooJeffreysPrior::evaluate() const
 {
   RooHelpers::LocalChangeMsgLevel msgLvlRAII(RooFit::WARNING);
 
 
-  CacheElem* cacheElm = static_cast<CacheElem*>(_cacheMgr.getObj(nullptr));
+  CacheElem* cacheElm = (CacheElem*) _cacheMgr.getObj(nullptr);
   if (!cacheElm) {
     //Internally, we have to enlarge the range of fit parameters to make
     //fits converge even if we are close to the limit of a parameter. Therefore, we clone the pdf and its
@@ -82,7 +108,7 @@ double RooJeffreysPrior::evaluate() const
     //and we start to clone again.
     auto& pdf = _nominal.arg();
     RooAbsPdf* clonePdf = static_cast<RooAbsPdf*>(pdf.cloneTree());
-    std::unique_ptr<RooArgSet> vars{clonePdf->getParameters(_obsSet)};
+    auto vars = clonePdf->getParameters(_obsSet);
     for (auto varTmp : *vars) {
       auto& var = static_cast<RooRealVar&>(*varTmp);
       auto range = var.getRange();
@@ -92,7 +118,7 @@ double RooJeffreysPrior::evaluate() const
 
     cacheElm = new CacheElem;
     cacheElm->_pdf.reset(clonePdf);
-    cacheElm->_pdfVariables = std::move(vars);
+    cacheElm->_pdfVariables.reset(vars);
 
     _cacheMgr.setObj(nullptr, cacheElm);
   }

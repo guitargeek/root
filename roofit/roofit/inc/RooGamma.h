@@ -22,18 +22,15 @@ public:
   RooGamma() {} ;
   RooGamma(const char *name, const char *title,
          RooAbsReal& _x, RooAbsReal& _gamma, RooAbsReal& _beta, RooAbsReal& _mu);
-  RooGamma(const RooGamma& other, const char* name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooGamma(*this,newname); }
+  RooGamma(const RooGamma& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooGamma(*this,newname); }
+  inline virtual ~RooGamma() { }
 
-  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=nullptr) const override ;
-  double analyticalIntegral(Int_t code, const char* rangeName=nullptr) const override ;
+  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const ;
+  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const ;
 
-  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK=true) const override;
-  void generateEvent(Int_t code) override;
-
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
-  std::string
-  buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const override;
+  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK=kTRUE) const;
+  void generateEvent(Int_t code);
 
 protected:
 
@@ -42,13 +39,13 @@ protected:
   RooRealProxy beta ;
   RooRealProxy mu ;
 
-  double evaluate() const override ;
-  void computeBatch(double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
-  inline bool canComputeBatchWithCuda() const override { return true; }
+  double evaluate() const ;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const;
+  inline bool canComputeBatchWithCuda() const { return true; }
 
 private:
 
-  ClassDefOverride(RooGamma,1) // Gaussian PDF
+  ClassDef(RooGamma,1) // Gaussian PDF
 };
 
 #endif

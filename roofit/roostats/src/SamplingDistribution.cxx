@@ -31,7 +31,7 @@ The class supports merging.
 #include <iostream>
 #include <cmath>
 #include <limits>
-using std::numeric_limits;
+using namespace std ;
 
 ClassImp(RooStats::SamplingDistribution);
 
@@ -40,34 +40,42 @@ using namespace RooStats;
 ////////////////////////////////////////////////////////////////////////////////
 /// SamplingDistribution constructor
 
-SamplingDistribution::SamplingDistribution(const char *name, const char *title, std::vector<double> &samplingDist,
-                                           const char *varName)
-   : TNamed(name, title), fSamplingDist(samplingDist), fVarName(varName)
+SamplingDistribution::SamplingDistribution( const char *name, const char *title,
+                   std::vector<Double_t>& samplingDist, const char * varName) :
+  TNamed(name,title)
 {
+  fSamplingDist = samplingDist;
   // need to check STL stuff here.  Will this = operator work as wanted, or do we need:
   //  std::copy(samplingDist.begin(), samplingDist.end(), fSamplingDist.begin());
 
   // WVE must fill sampleWeights vector here otherwise append behavior potentially undefined
   fSampleWeights.resize(fSamplingDist.size(),1.0) ;
+
+  fVarName = varName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// SamplingDistribution constructor
 
-SamplingDistribution::SamplingDistribution(const char *name, const char *title, std::vector<double> &samplingDist,
-                                           std::vector<double> &sampleWeights, const char *varName)
-   : TNamed(name, title), fSamplingDist(samplingDist), fSampleWeights(sampleWeights), fVarName(varName)
+SamplingDistribution::SamplingDistribution( const char *name, const char *title,
+                   std::vector<Double_t>& samplingDist, std::vector<Double_t>& sampleWeights, const char * varName) :
+  TNamed(name,title)
 {
+  fSamplingDist = samplingDist;
+  fSampleWeights = sampleWeights;
   // need to check STL stuff here.  Will this = operator work as wanted, or do we need:
   //  std::copy(samplingDist.begin(), samplingDist.end(), fSamplingDist.begin());
+
+  fVarName = varName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// SamplingDistribution constructor (with name and title)
 
-SamplingDistribution::SamplingDistribution(const char *name, const char *title, const char *varName)
-   : TNamed(name, title), fVarName(varName)
+SamplingDistribution::SamplingDistribution( const char *name, const char *title, const char * varName) :
+  TNamed(name,title)
 {
+  fVarName = varName;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +131,10 @@ SamplingDistribution::SamplingDistribution(
 ////////////////////////////////////////////////////////////////////////////////
 /// SamplingDistribution default constructor
 
-SamplingDistribution::SamplingDistribution() : TNamed("SamplingDistribution_DefaultName", "SamplingDistribution") {}
+SamplingDistribution::SamplingDistribution( ) :
+  TNamed("SamplingDistribution_DefaultName","SamplingDistribution")
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// SamplingDistribution destructor
@@ -135,7 +146,7 @@ SamplingDistribution::~SamplingDistribution()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Merge SamplingDistributions (does nothing if nullptr is given).
+/// Merge SamplingDistributions (does nothing if NULL is given).
 /// If variable name was not set before, it is copied from the added
 /// SamplingDistribution.
 
@@ -174,7 +185,7 @@ void SamplingDistribution::Add(const SamplingDistribution* other)
 /// Returns the integral in the open/closed/mixed interval. Default is [low,high) interval.
 /// Normalization can be turned off.
 
-double SamplingDistribution::Integral(double low, double high, bool normalize, bool lowClosed, bool
+Double_t SamplingDistribution::Integral(Double_t low, Double_t high, Bool_t normalize, Bool_t lowClosed, Bool_t
                                         highClosed) const
 {
    double error = 0;
@@ -224,12 +235,12 @@ void SamplingDistribution::SortValues() const {
 /// Normalization can be turned off.
 /// compute also the error on the integral
 
-double SamplingDistribution::IntegralAndError(double & error, double low, double high, bool normalize, bool lowClosed, bool
+Double_t SamplingDistribution::IntegralAndError(Double_t & error, Double_t low, Double_t high, Bool_t normalize, Bool_t lowClosed, Bool_t
                                                 highClosed) const
 {
    int n = fSamplingDist.size();
    if( n == 0 ) {
-      error = numeric_limits<double>::infinity();
+      error = numeric_limits<Double_t>::infinity();
       return 0.0;
    }
 
@@ -296,25 +307,25 @@ double SamplingDistribution::IntegralAndError(double & error, double low, double
 ////////////////////////////////////////////////////////////////////////////////
 /// returns the closed integral [-inf,x]
 
-double SamplingDistribution::CDF(double x) const {
-   return Integral(-RooNumber::infinity(), x, true, true, true);
+Double_t SamplingDistribution::CDF(Double_t x) const {
+   return Integral(-RooNumber::infinity(), x, kTRUE, kTRUE, kTRUE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// returns the inverse of the cumulative distribution function
 
-double SamplingDistribution::InverseCDF(double pvalue)
+Double_t SamplingDistribution::InverseCDF(Double_t pvalue)
 {
-  double dummy=0;
+  Double_t dummy=0;
   return InverseCDF(pvalue,0,dummy);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// returns the inverse of the cumulative distribution function, with variations depending on number of samples
 
-double SamplingDistribution::InverseCDF(double pvalue,
-                 double sigmaVariation,
-                 double& inverseWithVariation)
+Double_t SamplingDistribution::InverseCDF(Double_t pvalue,
+                 Double_t sigmaVariation,
+                 Double_t& inverseWithVariation)
 {
    if (fSumW.size() != fSamplingDist.size())
       SortValues();
@@ -349,13 +360,12 @@ double SamplingDistribution::InverseCDF(double pvalue,
     int delta = (int)(sigmaVariation*sqrt(1.0*nominal)); // note sqrt(small fraction)
     int variation = nominal+delta;
 
-    if (variation >= (Int_t)fSamplingDist.size() - 1) {
-         inverseWithVariation = RooNumber::infinity();
-    } else if (variation <= 0) {
-         inverseWithVariation = -1. * RooNumber::infinity();
-    } else {
-         inverseWithVariation = fSamplingDist[variation];
-    }
+    if(variation>=(Int_t)fSamplingDist.size()-1)
+      inverseWithVariation = RooNumber::infinity();
+    else if(variation<=0)
+      inverseWithVariation = -1.*RooNumber::infinity();
+    else
+      inverseWithVariation =  fSamplingDist[ variation ];
 
     return fSamplingDist[nominal];
   }
@@ -363,14 +373,15 @@ double SamplingDistribution::InverseCDF(double pvalue,
     int delta = (int)(sigmaVariation*sqrt(1.0*fSamplingDist.size()- nominal)); // note sqrt(small fraction)
     int variation = nominal+delta;
 
-    if (variation >= (Int_t)fSamplingDist.size() - 1) {
-         inverseWithVariation = RooNumber::infinity();
 
-    } else if (variation <= 0) {
-         inverseWithVariation = -1. * RooNumber::infinity();
-    } else {
-         inverseWithVariation = fSamplingDist[variation + 1];
-    }
+    if(variation>=(Int_t)fSamplingDist.size()-1)
+      inverseWithVariation = RooNumber::infinity();
+
+    else if(variation<=0)
+      inverseWithVariation = -1.*RooNumber::infinity();
+    else
+      inverseWithVariation =  fSamplingDist[ variation+1 ];
+
 
     /*
       std::cout << "dgb SamplingDistribution::InverseCDF. variation = " << variation
@@ -392,7 +403,7 @@ double SamplingDistribution::InverseCDF(double pvalue,
 ////////////////////////////////////////////////////////////////////////////////
 /// returns the inverse of the cumulative distribution function
 
-double SamplingDistribution::InverseCDFInterpolate(double pvalue)
+Double_t SamplingDistribution::InverseCDFInterpolate(Double_t pvalue)
 {
    if (fSumW.size() != fSamplingDist.size())
       SortValues();
@@ -409,10 +420,10 @@ double SamplingDistribution::InverseCDFInterpolate(double pvalue)
   if(nominal >= (Int_t)fSamplingDist.size()-1 ) {
     return RooNumber::infinity();
   }
-  double upperX = fSamplingDist[nominal+1];
-  double upperY = ((double) (nominal+1))/fSamplingDist.size();
-  double lowerX =  fSamplingDist[nominal];
-  double lowerY = ((double) nominal)/fSamplingDist.size();
+  Double_t upperX = fSamplingDist[nominal+1];
+  Double_t upperY = ((Double_t) (nominal+1))/fSamplingDist.size();
+  Double_t lowerX =  fSamplingDist[nominal];
+  Double_t lowerY = ((Double_t) nominal)/fSamplingDist.size();
 
   //  std::cout << upperX << " " << upperY << " " << lowerX << " " << lowerY << std::endl;
 

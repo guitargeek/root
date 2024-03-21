@@ -24,11 +24,12 @@
 class RooPullVar : public RooAbsReal {
 public:
 
-  RooPullVar() = default;
+  RooPullVar() ;
   RooPullVar(const char *name, const char *title, RooRealVar& measurement, RooAbsReal& truth) ;
+  virtual ~RooPullVar() ;
 
-  RooPullVar(const RooPullVar& other, const char *name = nullptr);
-  TObject* clone(const char* newname) const override { return new RooPullVar(*this, newname); }
+  RooPullVar(const RooPullVar& other, const char* name = 0);
+  virtual TObject* clone(const char* newname) const { return new RooPullVar(*this, newname); }
 
 
 protected:
@@ -36,9 +37,9 @@ protected:
   RooTemplateProxy<RooRealVar> _meas ;
   RooRealProxy _true ;
 
-  double evaluate() const override;
+  Double_t evaluate() const;
 
-  ClassDefOverride(RooPullVar,1) // Calculation of pull of measurement w.r.t a truth value
+  ClassDef(RooPullVar,1) // Calculation of pull of measurement w.r.t a truth value
 };
 
 #endif

@@ -25,19 +25,20 @@ class RooArgList ;
 class RooRecursiveFraction : public RooAbsReal {
 public:
 
-  RooRecursiveFraction() = default;
+  RooRecursiveFraction() ;
   RooRecursiveFraction(const char *name, const char *title, const RooArgList& fracSet) ;
+  virtual ~RooRecursiveFraction() ;
 
-  RooRecursiveFraction(const RooRecursiveFraction& other, const char *name = nullptr);
-  TObject* clone(const char* newname) const override { return new RooRecursiveFraction(*this, newname); }
+  RooRecursiveFraction(const RooRecursiveFraction& other, const char* name = 0);
+  virtual TObject* clone(const char* newname) const { return new RooRecursiveFraction(*this, newname); }
 
 protected:
 
   RooListProxy _list ;
 
-  double evaluate() const override;
+  Double_t evaluate() const;
 
-  ClassDefOverride(RooRecursiveFraction,1) // Recursive fraction formula f1*(1-f2)*(1-f3) etc...
+  ClassDef(RooRecursiveFraction,1) // Recursive fraction formula f1*(1-f2)*(1-f3) etc...
 } ;
 
 #endif

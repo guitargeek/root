@@ -16,43 +16,34 @@
 #ifndef ROO_EXPONENTIAL
 #define ROO_EXPONENTIAL
 
-#include <RooAbsPdf.h>
-#include <RooRealProxy.h>
+#include "RooAbsPdf.h"
+#include "RooRealProxy.h"
+
+class RooRealVar;
+class RooAbsReal;
 
 class RooExponential : public RooAbsPdf {
 public:
-   RooExponential() {}
-   RooExponential(const char *name, const char *title, RooAbsReal &variable, RooAbsReal &coefficient,
-                  bool negateCoefficient = false);
-   RooExponential(const RooExponential &other, const char *name = nullptr);
-   TObject *clone(const char *newname) const override { return new RooExponential(*this, newname); }
+  RooExponential() {} ;
+  RooExponential(const char *name, const char *title,
+       RooAbsReal& _x, RooAbsReal& _c);
+  RooExponential(const RooExponential& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const override { return new RooExponential(*this,newname); }
+  inline virtual ~RooExponential() { }
 
-   Int_t getAnalyticalIntegral(RooArgSet &allVars, RooArgSet &analVars, const char *rangeName = nullptr) const override;
-   double analyticalIntegral(Int_t code, const char *rangeName = nullptr) const override;
-
-   /// Get the x variable.
-   RooAbsReal const &variable() const { return x.arg(); }
-
-   /// Get the coefficient "c".
-   RooAbsReal const &coefficient() const { return c.arg(); }
-
-   bool negateCoefficient() const { return _negateCoefficient; }
-
-   void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
-   std::string buildCallToAnalyticIntegral(Int_t code, const char *rangeName,
-                                           RooFit::Detail::CodeSquashContext &ctx) const override;
+  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const override;
+  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const override;
 
 protected:
-   RooRealProxy x;
-   RooRealProxy c;
-   bool _negateCoefficient = false;
+  RooRealProxy x;
+  RooRealProxy c;
 
-   double evaluate() const override;
-   void computeBatch(double *output, size_t nEvents, RooFit::Detail::DataMap const &) const override;
-   inline bool canComputeBatchWithCuda() const override { return true; }
-
+  double evaluate() const override;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
+  inline bool canComputeBatchWithCuda() const override { return true; }
+  
 private:
-   ClassDefOverride(RooExponential, 2) // Exponential PDF
+  ClassDefOverride(RooExponential,1) // Exponential PDF
 };
 
 #endif

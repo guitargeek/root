@@ -24,32 +24,33 @@ public:
                           RooAbsReal& _x,
                           RooAbsReal& _k,
                           RooAbsReal& _lambda);
-   RooNonCentralChiSquare(const RooNonCentralChiSquare& other, const char* name=nullptr) ;
-   TObject* clone(const char* newname) const override { return new RooNonCentralChiSquare(*this,newname); }
+   RooNonCentralChiSquare(const RooNonCentralChiSquare& other, const char* name=0) ;
+   virtual TObject* clone(const char* newname) const { return new RooNonCentralChiSquare(*this,newname); }
+   inline virtual ~RooNonCentralChiSquare() { }
 
-   void SetErrorTolerance(double t) {fErrorTol = t;}
+   void SetErrorTolerance(Double_t t) {fErrorTol = t;}
    void SetMaxIters(Int_t mi) {fMaxIters = mi;}
-   void SetForceSum(bool flag);
+   void SetForceSum(Bool_t flag);
 
 
-   Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=nullptr) const override ;
-   double analyticalIntegral(Int_t code, const char* rangeName=nullptr) const override ;
+   Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const ;
+   Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const ;
 
 protected:
 
    RooRealProxy x ;
    RooRealProxy k ;
    RooRealProxy lambda ;
-   double fErrorTol;
+   Double_t fErrorTol;
    Int_t fMaxIters;
-   bool fForceSum;
-   mutable bool fHasIssuedConvWarning;
-   mutable bool fHasIssuedSumWarning;
-   double evaluate() const override ;
+   Bool_t fForceSum;
+   mutable Bool_t fHasIssuedConvWarning;
+   mutable Bool_t fHasIssuedSumWarning;
+   Double_t evaluate() const ;
 
 private:
 
-   ClassDefOverride(RooNonCentralChiSquare,1) // non-central chisquare pdf
+   ClassDef(RooNonCentralChiSquare,1) // non-central chisquare pdf
 };
 
 #endif

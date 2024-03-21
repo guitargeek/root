@@ -22,6 +22,7 @@ for true statistical tests, but it is useful for debugging.
 
 #include "Rtypes.h"
 
+//#include "RooStats/DistributionCreator.h"
 #include "RooStats/TestStatistic.h"
 #include "RooStats/ToyMCSampler.h"
 
@@ -37,13 +38,17 @@ namespace RooStats {
   class DebuggingTestStat : public TestStatistic {
 
    public:
-     DebuggingTestStat() :
-       fTestStatistic{new RooRealVar("UniformTestStatistic","UniformTestStatistic",0,0,1)},
-       fRand{new TRandom()}
-     {}
+     DebuggingTestStat() {
+       fTestStatistic = new RooRealVar("UniformTestStatistic","UniformTestStatistic",0,0,1);
+       fRand = new TRandom();
+     }
+     virtual ~DebuggingTestStat() {
+       //       delete fRand;
+       //       delete fTestStatistic;
+     }
 
-     /// Main interface to evaluate the test statistic on a dataset
-     double Evaluate(RooAbsData& /*data*/, RooArgSet& /*paramsOfInterest*/) override  {
+     // Main interface to evaluate the test statistic on a dataset
+     virtual Double_t Evaluate(RooAbsData& /*data*/, RooArgSet& /*paramsOfInterest*/)  {
        //data = data; // avoid warning
        //paramsOfInterest = paramsOfInterest; //avoid warning
        return fRand->Uniform();
@@ -58,7 +63,7 @@ namespace RooStats {
       TRandom* fRand;
 
    protected:
-      ClassDefOverride(DebuggingTestStat,1)   // A concrete implementation of the TestStatistic interface, useful for debugging.
+      ClassDef(DebuggingTestStat,1)   // A concrete implementation of the TestStatistic interface, useful for debugging.
    };
 
 }

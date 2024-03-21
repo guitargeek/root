@@ -31,10 +31,13 @@ for the analytical convolution with a RooResolutionModel. See RooAbsAnaConvPdf.
 
 #include "RooDecay.h"
 
+#include "RooFit.h"
 #include "RooRealVar.h"
 #include "RooRandom.h"
 
 #include "TError.h"
+
+using namespace std;
 
 ClassImp(RooDecay);
 
@@ -80,15 +83,22 @@ RooDecay::RooDecay(const RooDecay& other, const char* name) :
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Destructor
 
-double RooDecay::coefficient(Int_t /*basisIndex*/) const
+RooDecay::~RooDecay()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+Double_t RooDecay::coefficient(Int_t /*basisIndex*/) const
 {
   return 1 ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Int_t RooDecay::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
+Int_t RooDecay::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t /*staticInitOK*/) const
 {
   if (matchArgs(directVars,generateVars,_t)) return 1 ;
   return 0 ;
@@ -101,9 +111,9 @@ void RooDecay::generateEvent(Int_t code)
   R__ASSERT(code==1) ;
 
   // Generate delta-t dependent
-  while(true) {
-    double rand = RooRandom::uniform() ;
-    double tval(0) ;
+  while(1) {
+    Double_t rand = RooRandom::uniform() ;
+    Double_t tval(0) ;
 
     switch(_type) {
     case SingleSided:

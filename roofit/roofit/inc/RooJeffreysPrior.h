@@ -19,9 +19,10 @@ public:
 
   RooJeffreysPrior() : _cacheMgr(this, 1, true, false) {}
   RooJeffreysPrior(const char *name, const char *title, RooAbsPdf& nominal, const RooArgList& paramSet, const RooArgList& obsSet) ;
+  virtual ~RooJeffreysPrior() ;
 
-  RooJeffreysPrior(const RooJeffreysPrior& other, const char *name = nullptr);
-  TObject* clone(const char* newname) const override { return new RooJeffreysPrior(*this, newname); }
+  RooJeffreysPrior(const RooJeffreysPrior& other, const char* name = 0);
+  virtual TObject* clone(const char* newname) const { return new RooJeffreysPrior(*this, newname); }
 
   const RooArgList& lowList() const { return _obsSet ; }
   const RooArgList& paramList() const { return _paramSet ; }
@@ -32,16 +33,17 @@ protected:
   RooListProxy _obsSet ;   // Observables of the PDF.
   RooListProxy _paramSet ; // Parameters of the PDF.
 
-  double evaluate() const override;
+  Double_t evaluate() const;
 
 private:
   struct CacheElem : public RooAbsCacheElement {
   public:
+      virtual ~CacheElem() = default;
       // Payload
       std::unique_ptr<RooAbsPdf> _pdf;
       std::unique_ptr<RooArgSet> _pdfVariables;
 
-      RooArgList containedArgs(Action) override {
+      virtual RooArgList containedArgs(Action) override {
         RooArgList list(*_pdf);
         list.add(*_pdfVariables, true);
         return list;
@@ -49,7 +51,7 @@ private:
   };
   mutable RooObjCacheManager _cacheMgr; //!
 
-  ClassDefOverride(RooJeffreysPrior,2) // Sum of RooAbsReal objects
+  ClassDef(RooJeffreysPrior,2) // Sum of RooAbsReal objects
 };
 
 #endif

@@ -23,24 +23,25 @@
 class RooUnblindOffset : public RooAbsHiddenReal {
 public:
   // Constructors, assignment etc
-  RooUnblindOffset() = default;
+  RooUnblindOffset() ;
   RooUnblindOffset(const char *name, const char *title,
-         const char *blindString, double scale, RooAbsReal& blindValue);
+         const char *blindString, Double_t scale, RooAbsReal& blindValue);
   RooUnblindOffset(const char *name, const char *title,
-         const char *blindString, double scale, RooAbsReal& blindValue,
+         const char *blindString, Double_t scale, RooAbsReal& blindValue,
          RooAbsCategory& blindState);
-  RooUnblindOffset(const RooUnblindOffset& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override { return new RooUnblindOffset(*this,newname); }
+  RooUnblindOffset(const RooUnblindOffset& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const { return new RooUnblindOffset(*this,newname); }
+  virtual ~RooUnblindOffset();
 
 protected:
 
   // Function evaluation
-  double evaluate() const override ;
+  virtual Double_t evaluate() const ;
 
   RooRealProxy _value ;
   RooBlindTools _blindEngine ;
 
-  ClassDefOverride(RooUnblindOffset,1) // Offset unblinding transformation
+  ClassDef(RooUnblindOffset,1) // Offset unblinding transformation
 };
 
 #endif

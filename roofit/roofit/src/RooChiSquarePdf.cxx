@@ -16,13 +16,15 @@ Here we also implement the analytic integral.
 **/
 
 #include "RooChiSquarePdf.h"
+#include "RooFit.h"
+#include "RooAbsReal.h"
 #include "RooRealVar.h"
 #include "RooBatchCompute.h"
 
 #include "TMath.h"
 
-#include <array>
 #include <cmath>
+using namespace std;
 
 ClassImp(RooChiSquarePdf);
 
@@ -53,21 +55,19 @@ RooChiSquarePdf::RooChiSquarePdf(const RooChiSquarePdf& other, const char* name)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooChiSquarePdf::evaluate() const
+Double_t RooChiSquarePdf::evaluate() const
 {
-   if (_x <= 0)
-      return 0;
+  if(_x <= 0) return 0;
 
-   return pow(_x, (_ndof / 2.) - 1.) * std::exp(-_x / 2.) / TMath::Gamma(_ndof / 2.) / std::pow(2., _ndof / 2.);
+  return  pow(_x,(_ndof/2.)-1.) * exp(-_x/2.) / TMath::Gamma(_ndof/2.) / pow(2.,_ndof/2.);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of ChiSquare distribution.
-void RooChiSquarePdf::computeBatch(double *output, size_t nEvents, RooFit::Detail::DataMap const &dataMap) const
+void RooChiSquarePdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
-   std::array<double, 1> extraArgs{_ndof};
-   RooBatchCompute::compute(dataMap.config(this), RooBatchCompute::ChiSquare, output, nEvents, {dataMap.at(_x)},
-                            extraArgs);
+  auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
+  dispatch->compute(stream, RooBatchCompute::ChiSquare, output, nEvents, {dataMap.at(_x)}, {_ndof});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -85,10 +85,10 @@ Int_t RooChiSquarePdf::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& anal
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooChiSquarePdf::analyticalIntegral(Int_t code, const char* rangeName) const
+Double_t RooChiSquarePdf::analyticalIntegral(Int_t code, const char* rangeName) const
 {
   assert(1 == code); (void)code;
-  double xmin = _x.min(rangeName); double xmax = _x.max(rangeName);
+  Double_t xmin = _x.min(rangeName); Double_t xmax = _x.max(rangeName);
 
   // TMath::Prob needs ndof to be an integer, or it returns 0.
   //  return TMath::Prob(xmin, _ndof) - TMath::Prob(xmax,_ndof);
@@ -96,8 +96,8 @@ double RooChiSquarePdf::analyticalIntegral(Int_t code, const char* rangeName) co
   // cumulative is known based on lower incomplete gamma function, or regularized gamma function
   // Wikipedia defines lower incomplete gamma function without the normalization 1/Gamma(ndof),
   // but it is included in the ROOT implementation.
-  double pmin = TMath::Gamma(_ndof/2,xmin/2);
-  double pmax = TMath::Gamma(_ndof/2,xmax/2);
+  Double_t pmin = TMath::Gamma(_ndof/2,xmin/2);
+  Double_t pmax = TMath::Gamma(_ndof/2,xmax/2);
 
   // only use this if range is appropriate
   return pmax-pmin;

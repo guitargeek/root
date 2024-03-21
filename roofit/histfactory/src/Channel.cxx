@@ -1,5 +1,5 @@
 // @(#)root/roostats:$Id$
-// Author: Kyle Cranmer, George Lewis
+// Author: Kyle Cranmer, George Lewis 
 /*************************************************************************
  * Copyright (C) 1995-2008, Rene Brun and Fons Rademakers.               *
  * All rights reserved.                                                  *
@@ -22,7 +22,7 @@
 
 #include "RooStats/HistFactory/Channel.h"
 #include "HFMsgService.h"
-#include <cstdlib>
+#include <stdlib.h>
 
 #include "TFile.h"
 #include "TKey.h"
@@ -30,7 +30,24 @@
 
 #include "RooStats/HistFactory/HistFactoryException.h"
 
-using std::ofstream;
+using namespace std;
+
+RooStats::HistFactory::Channel::Channel() :
+  fName( "" )
+{
+  // standard constructor
+}
+
+RooStats::HistFactory::Channel::Channel(const Channel& other) :
+  fName( other.fName ),
+  fInputFile( other.fInputFile ),
+  fHistoPath( other.fHistoPath ),
+  fData( other.fData ),
+  fAdditionalData( other.fAdditionalData ),
+  fStatErrorConfig( other.fStatErrorConfig ),
+  fSamples( other.fSamples )
+{ ; }
+
 
 RooStats::HistFactory::Channel::Channel(std::string ChanName, std::string ChanInputFile) :
   fName( ChanName ), fInputFile( ChanInputFile )
@@ -50,17 +67,17 @@ namespace RooStats{
 void RooStats::HistFactory::Channel::AddSample( RooStats::HistFactory::Sample sample )
 {
   // add fully configured sample to channel
-
+  
   sample.SetChannelName( GetName() );
-  fSamples.push_back( sample );
+  fSamples.push_back( sample ); 
 }
 
 void RooStats::HistFactory::Channel::Print( std::ostream& stream ) {
   // print information of channel to given stream
 
   stream << "\t Channel Name: " << fName
-    << "\t InputFile: " << fInputFile
-    << std::endl;
+	 << "\t InputFile: " << fInputFile
+	 << std::endl;
 
   stream << "\t Data:" << std::endl;
   fData.Print( stream );
@@ -70,7 +87,7 @@ void RooStats::HistFactory::Channel::Print( std::ostream& stream ) {
   fStatErrorConfig.Print( stream );
 
 
-  if( !fSamples.empty() ) {
+  if( fSamples.size() != 0 ) {
 
     stream << "\t Samples: " << std::endl;
     for( unsigned int i = 0; i < fSamples.size(); ++i ) {
@@ -78,18 +95,18 @@ void RooStats::HistFactory::Channel::Print( std::ostream& stream ) {
     }
   }
 
-
+  
   stream << "\t End of Channel " << fName <<  std::endl;
 
 
-}
+}  
 
 
 void RooStats::HistFactory::Channel::PrintXML( std::string const& directory, std::string const& prefix ) const {
 
   // Create an XML file for this channel
   cxcoutPHF << "Printing XML Files for channel: " << GetName() << std::endl;
-
+  
   std::string XMLName = prefix + fName + ".xml";
   if(!directory.empty()) XMLName = directory + "/" + XMLName;
 
@@ -99,10 +116,10 @@ void RooStats::HistFactory::Channel::PrintXML( std::string const& directory, std
   xml << "<!--" << std::endl;
   xml << "This xml file created automatically on: " << std::endl;
   // LM: use TTimeStamp since time_t does not work on Windows
-  TTimeStamp t;
-  UInt_t year = 0;
-  UInt_t month = 0;
-  UInt_t day = 0;
+  TTimeStamp t; 
+  UInt_t year = 0; 
+  UInt_t month = 0; 
+  UInt_t day = 0; 
   t.GetDate(true, 0, &year, &month, &day);
   xml << year << '-'
       << month << '-'
@@ -125,7 +142,7 @@ void RooStats::HistFactory::Channel::PrintXML( std::string const& directory, std
   /*
   xml << "    <StatErrorConfig RelErrorThreshold=\"" << fStatErrorConfig.GetRelErrorThreshold() << "\" "
       << "ConstraintType=\"" << Constraint::Name( fStatErrorConfig.GetConstraintType() ) << "\" "
-      << "/> " << std::endl << std::endl;
+      << "/> " << std::endl << std::endl;            
   */
 
   for(auto const& sample : fSamples) {
@@ -156,18 +173,18 @@ void RooStats::HistFactory::Channel::SetData( std::string DataHistoName, std::st
 
 void RooStats::HistFactory::Channel::SetData( TH1* hData ) {
   // set data directly to some histogram
-  fData.SetHisto( hData );
+  fData.SetHisto( hData ); 
 }
 
 void RooStats::HistFactory::Channel::SetData( double val ) {
 
   // For a NumberCounting measurement only
   // Set the value of data in a particular channel
-  //
+  // 
   // Internally, this simply creates a 1-bin TH1F for you
 
   std::string DataHistName = fName + "_data";
-
+  
   // Histogram has 1-bin (hard-coded)
   TH1F* hData = new TH1F( DataHistName.c_str(), DataHistName.c_str(), 1, 0, 1 );
   hData->SetBinContent( 1, val );
@@ -205,16 +222,16 @@ void RooStats::HistFactory::Channel::CollectHistograms() {
 
   // Get the Data Histogram:
 
-  if( !fData.GetInputFile().empty() ) {
-    fData.SetHisto( GetHistogram(fData.GetInputFile(),
-             fData.GetHistoPath(),
-             fData.GetHistoName(),
-             fileHandles) );
+  if( fData.GetInputFile() != "" ) {
+    fData.SetHisto( GetHistogram(fData.GetInputFile(), 
+				 fData.GetHistoPath(),
+				 fData.GetHistoName(),
+				 fileHandles) );
   }
 
   // Collect any histograms for additional Datasets
   for(auto& data : fAdditionalData) {
-    if( !data.GetInputFile().empty() ) {
+    if( data.GetInputFile() != "" ) {
       data.SetHisto( GetHistogram(data.GetInputFile(), data.GetHistoPath(), data.GetHistoName(), fileHandles) );
     }
   }
@@ -228,9 +245,9 @@ void RooStats::HistFactory::Channel::CollectHistograms() {
     // Get the nominal histogram:
     cxcoutDHF << "Collecting Nominal Histogram" << std::endl;
     TH1* Nominal =  GetHistogram(sample.GetInputFile(),
-             sample.GetHistoPath(),
-             sample.GetHistoName(),
-             fileHandles);
+				 sample.GetHistoPath(),
+				 sample.GetHistoName(),
+				 fileHandles);
 
     sample.SetHisto( Nominal );
 
@@ -238,26 +255,26 @@ void RooStats::HistFactory::Channel::CollectHistograms() {
     // Get the StatError Histogram (if necessary)
     if( sample.GetStatError().GetUseHisto() ) {
       sample.GetStatError().SetErrorHist( GetHistogram(sample.GetStatError().GetInputFile(),
-                         sample.GetStatError().GetHistoPath(),
-                         sample.GetStatError().GetHistoName(),
-                         fileHandles) );
+						       sample.GetStatError().GetHistoPath(),
+						       sample.GetStatError().GetHistoName(),
+						       fileHandles) );
     }
 
-
+      
     // Get the HistoSys Variations:
     for( unsigned int histoSysItr = 0; histoSysItr < sample.GetHistoSysList().size(); ++histoSysItr ) {
 
       RooStats::HistFactory::HistoSys& histoSys = sample.GetHistoSysList().at( histoSysItr );
-
-      histoSys.SetHistoLow( GetHistogram(histoSys.GetInputFileLow(),
-                histoSys.GetHistoPathLow(),
-                histoSys.GetHistoNameLow(),
-                fileHandles) );
-
+	
+      histoSys.SetHistoLow( GetHistogram(histoSys.GetInputFileLow(), 
+					 histoSys.GetHistoPathLow(),
+					 histoSys.GetHistoNameLow(),
+					 fileHandles) );
+	
       histoSys.SetHistoHigh( GetHistogram(histoSys.GetInputFileHigh(),
-                 histoSys.GetHistoPathHigh(),
-                 histoSys.GetHistoNameHigh(),
-                 fileHandles) );
+					  histoSys.GetHistoPathHigh(),
+					  histoSys.GetHistoNameHigh(),
+					  fileHandles) );
     } // End Loop over HistoSys
 
 
@@ -266,30 +283,30 @@ void RooStats::HistFactory::Channel::CollectHistograms() {
 
       RooStats::HistFactory::HistoFactor& histoFactor = sample.GetHistoFactorList().at( histoFactorItr );
 
-      histoFactor.SetHistoLow( GetHistogram(histoFactor.GetInputFileLow(),
-                   histoFactor.GetHistoPathLow(),
-                   histoFactor.GetHistoNameLow(),
-                   fileHandles) );
-
+      histoFactor.SetHistoLow( GetHistogram(histoFactor.GetInputFileLow(), 
+					    histoFactor.GetHistoPathLow(),
+					    histoFactor.GetHistoNameLow(),
+					    fileHandles) );
+	
       histoFactor.SetHistoHigh( GetHistogram(histoFactor.GetInputFileHigh(),
-                    histoFactor.GetHistoPathHigh(),
-                    histoFactor.GetHistoNameHigh(),
-                    fileHandles) );
+					     histoFactor.GetHistoPathHigh(),
+					     histoFactor.GetHistoNameHigh(),
+					     fileHandles) );
     } // End Loop over HistoFactor
 
 
       // Get the ShapeSys Variations:
     for( unsigned int shapeSysItr = 0; shapeSysItr < sample.GetShapeSysList().size(); ++shapeSysItr ) {
-
+	
       RooStats::HistFactory::ShapeSys& shapeSys = sample.GetShapeSysList().at( shapeSysItr );
 
-      shapeSys.SetErrorHist( GetHistogram(shapeSys.GetInputFile(),
-                 shapeSys.GetHistoPath(),
-                 shapeSys.GetHistoName(),
-                 fileHandles) );
+      shapeSys.SetErrorHist( GetHistogram(shapeSys.GetInputFile(), 
+					  shapeSys.GetHistoPath(),
+					  shapeSys.GetHistoName(),
+					  fileHandles) );
     } // End Loop over ShapeSys
 
-
+    
     // Get any initial shape for a ShapeFactor
     for( unsigned int shapeFactorItr = 0; shapeFactorItr < sample.GetShapeFactorList().size(); ++shapeFactorItr ) {
 
@@ -297,9 +314,9 @@ void RooStats::HistFactory::Channel::CollectHistograms() {
 
       // Check if we need an InitialShape
       if( shapeFactor.HasInitialShape() ) {
-   TH1* hist = GetHistogram( shapeFactor.GetInputFile(), shapeFactor.GetHistoPath(),
-              shapeFactor.GetHistoName(), fileHandles );
-   shapeFactor.SetInitialShape( hist );
+	TH1* hist = GetHistogram( shapeFactor.GetInputFile(), shapeFactor.GetHistoPath(), 
+				  shapeFactor.GetHistoName(), fileHandles );
+	shapeFactor.SetInitialShape( hist );
       }
 
     } // End Loop over ShapeFactor
@@ -308,14 +325,16 @@ void RooStats::HistFactory::Channel::CollectHistograms() {
 }
 
 
-bool RooStats::HistFactory::Channel::CheckHistograms() const {
+bool RooStats::HistFactory::Channel::CheckHistograms() const { 
 
   // Check that all internal histogram pointers
-  // are properly configured (ie that they're not nullptr)
+  // are properly configured (ie that they're not NULL)
 
-    if( fData.GetHisto() == nullptr && !fData.GetInputFile().empty() ) {
-      cxcoutEHF << "Error: Data Histogram for channel " << GetName() << " is nullptr." << std::endl;
-      return false;
+  try {
+  
+    if( fData.GetHisto() == NULL && fData.GetInputFile() != "" ) {
+      cxcoutEHF << "Error: Data Histogram for channel " << GetName() << " is NULL." << std::endl;
+      throw hf_exc();
     }
 
     // Get the histograms for the samples:
@@ -324,98 +343,109 @@ bool RooStats::HistFactory::Channel::CheckHistograms() const {
       const RooStats::HistFactory::Sample& sample = fSamples.at( sampItr );
 
       // Get the nominal histogram:
-      if( sample.GetHisto() == nullptr ) {
-   cxcoutEHF << "Error: Nominal Histogram for sample " << sample.GetName() << " is nullptr." << std::endl;
-   return false;
-      }
+      if( sample.GetHisto() == NULL ) {
+	cxcoutEHF << "Error: Nominal Histogram for sample " << sample.GetName() << " is NULL." << std::endl;
+	throw hf_exc();
+      } 
       else {
 
-   // Check if any bins are negative
-   std::vector<int> NegativeBinNumber;
-   std::vector<double> NegativeBinContent;
-   const TH1* histNominal = sample.GetHisto();
-   for(int ibin=1; ibin<=histNominal->GetNbinsX(); ++ibin) {
-     if(histNominal->GetBinContent(ibin) < 0) {
-       NegativeBinNumber.push_back(ibin);
-       NegativeBinContent.push_back(histNominal->GetBinContent(ibin));
-     }
-   }
-   if(!NegativeBinNumber.empty()) {
-     cxcoutWHF << "WARNING: Nominal Histogram " << histNominal->GetName() << " for Sample = " << sample.GetName()
-          << " in Channel = " << GetName() << " has negative entries in bin numbers = ";
+	// Check if any bins are negative
+	std::vector<int> NegativeBinNumber;
+	std::vector<double> NegativeBinContent;
+	const TH1* histNominal = sample.GetHisto();
+	for(int ibin=1; ibin<=histNominal->GetNbinsX(); ++ibin) {
+	  if(histNominal->GetBinContent(ibin) < 0) {
+	    NegativeBinNumber.push_back(ibin);
+	    NegativeBinContent.push_back(histNominal->GetBinContent(ibin));
+	  }
+	}
+	if(NegativeBinNumber.size()>0) {
+	  cxcoutWHF << "WARNING: Nominal Histogram " << histNominal->GetName() << " for Sample = " << sample.GetName()
+		    << " in Channel = " << GetName() << " has negative entries in bin numbers = ";
 
-     for(unsigned int ibin=0; ibin<NegativeBinNumber.size(); ++ibin) {
-       if(ibin>0) std::cout << " , " ;
-       std::cout << NegativeBinNumber[ibin] << " : " << NegativeBinContent[ibin] ;
-     }
-     std::cout << std::endl;
-   }
-
+	  for(unsigned int ibin=0; ibin<NegativeBinNumber.size(); ++ibin) {
+	    if(ibin>0) std::cout << " , " ;
+	    std::cout << NegativeBinNumber[ibin] << " : " << NegativeBinContent[ibin] ;
+	  }
+	  std::cout << std::endl;
+	}
+	
       }
 
       // Get the StatError Histogram (if necessary)
       if( sample.GetStatError().GetUseHisto() ) {
-   if( sample.GetStatError().GetErrorHist() == nullptr ) {
-     cxcoutEHF << "Error: Statistical Error Histogram for sample " << sample.GetName() << " is nullptr." << std::endl;
-     return false;
-   }
+	if( sample.GetStatError().GetErrorHist() == NULL ) {
+	  cxcoutEHF << "Error: Statistical Error Histogram for sample " << sample.GetName() << " is NULL." << std::endl;
+	  throw hf_exc();
+	}
       }
 
-
+      
       // Get the HistoSys Variations:
       for( unsigned int histoSysItr = 0; histoSysItr < sample.GetHistoSysList().size(); ++histoSysItr ) {
 
-   const RooStats::HistFactory::HistoSys& histoSys = sample.GetHistoSysList().at( histoSysItr );
+	const RooStats::HistFactory::HistoSys& histoSys = sample.GetHistoSysList().at( histoSysItr );
 
-   if( histoSys.GetHistoLow() == nullptr ) {
-     cxcoutEHF << "Error: HistoSyst Low for Systematic " << histoSys.GetName()
-          << " in sample " << sample.GetName() << " is nullptr." << std::endl;
-     return false;
-   }
-   if( histoSys.GetHistoHigh() == nullptr ) {
-     cxcoutEHF << "Error: HistoSyst High for Systematic " << histoSys.GetName()
-          << " in sample " << sample.GetName() << " is nullptr." << std::endl;
-     return false;
-   }
-
+	if( histoSys.GetHistoLow() == NULL ) {
+	  cxcoutEHF << "Error: HistoSyst Low for Systematic " << histoSys.GetName()
+		    << " in sample " << sample.GetName() << " is NULL." << std::endl;
+	  throw hf_exc();
+	}
+	if( histoSys.GetHistoHigh() == NULL ) {
+	  cxcoutEHF << "Error: HistoSyst High for Systematic " << histoSys.GetName()
+		    << " in sample " << sample.GetName() << " is NULL." << std::endl;
+	  throw hf_exc();
+	}
+	
       } // End Loop over HistoSys
 
 
       // Get the HistoFactor Variations:
       for( unsigned int histoFactorItr = 0; histoFactorItr < sample.GetHistoFactorList().size(); ++histoFactorItr ) {
 
-   const RooStats::HistFactory::HistoFactor& histoFactor = sample.GetHistoFactorList().at( histoFactorItr );
+	const RooStats::HistFactory::HistoFactor& histoFactor = sample.GetHistoFactorList().at( histoFactorItr );
 
-   if( histoFactor.GetHistoLow() == nullptr ) {
-     cxcoutEHF << "Error: HistoSyst Low for Systematic " << histoFactor.GetName()
-          << " in sample " << sample.GetName() << " is nullptr." << std::endl;
-     return false;
-   }
-   if( histoFactor.GetHistoHigh() == nullptr ) {
-     cxcoutEHF << "Error: HistoSyst High for Systematic " << histoFactor.GetName()
-          << " in sample " << sample.GetName() << " is nullptr." << std::endl;
-     return false;
-   }
+	if( histoFactor.GetHistoLow() == NULL ) {
+	  cxcoutEHF << "Error: HistoSyst Low for Systematic " << histoFactor.GetName()
+		    << " in sample " << sample.GetName() << " is NULL." << std::endl;
+	  throw hf_exc();
+	}
+	if( histoFactor.GetHistoHigh() == NULL ) {
+	  cxcoutEHF << "Error: HistoSyst High for Systematic " << histoFactor.GetName()
+		    << " in sample " << sample.GetName() << " is NULL." << std::endl;
+	  throw hf_exc();
+	}
 
       } // End Loop over HistoFactor
 
 
       // Get the ShapeSys Variations:
       for( unsigned int shapeSysItr = 0; shapeSysItr < sample.GetShapeSysList().size(); ++shapeSysItr ) {
+	
+	const RooStats::HistFactory::ShapeSys& shapeSys = sample.GetShapeSysList().at( shapeSysItr );
 
-   const RooStats::HistFactory::ShapeSys& shapeSys = sample.GetShapeSysList().at( shapeSysItr );
-
-   if( shapeSys.GetErrorHist() == nullptr ) {
-     cxcoutEHF << "Error: HistoSyst High for Systematic " << shapeSys.GetName()
-          << " in sample " << sample.GetName() << " is nullptr." << std::endl;
-     return false;
-   }
+	if( shapeSys.GetErrorHist() == NULL ) {
+	  cxcoutEHF << "Error: HistoSyst High for Systematic " << shapeSys.GetName()
+		    << " in sample " << sample.GetName() << " is NULL." << std::endl;
+	  throw hf_exc();
+	}
 
       } // End Loop over ShapeSys
 
     } // End Loop over Samples
 
+  }
+  catch(std::exception& e)
+    {
+      std::cout << e.what() << std::endl;
+      return false;
+    }
+
   return true;
+
+
+
+
 }
 
 
@@ -456,7 +486,7 @@ TH1* RooStats::HistFactory::Channel::GetHistogram(std::string InputFile, std::st
     throw hf_exc();
   }
 
-  auto hist = key->ReadObject<TH1>();
+  auto hist = dynamic_cast<TH1*>(key->ReadObj());
   if( !hist ) {
     cxcoutEHF << "Histogram '" << HistoName
         << "' wasn't found in file '" << InputFile
@@ -465,23 +495,23 @@ TH1* RooStats::HistFactory::Channel::GetHistogram(std::string InputFile, std::st
   }
 
 
-  TH1 * ptr = static_cast<TH1 *>(hist->Clone());
+  TH1 * ptr = (TH1 *) hist->Clone();
 
   if(!ptr){
     std::cerr << "Not all necessary info are set to access the input file. Check your config" << std::endl;
     std::cerr << "filename: " << InputFile
-         << "path: " << HistoPath
-         << "obj: " << HistoName << std::endl;
+	      << "path: " << HistoPath
+	      << "obj: " << HistoName << std::endl;
     throw hf_exc();
   }
 
   ptr->SetDirectory(nullptr);
 
-
+  
 #ifdef DEBUG
-  std::cout << "Found Histogram: " << HistoName " at address: " << ptr
-       << " with integral "   << ptr->Integral() << " and mean " << ptr->GetMean()
-       << std::endl;
+  std::cout << "Found Histogram: " << HistoName " at address: " << ptr 
+	    << " with integral "   << ptr->Integral() << " and mean " << ptr->GetMean() 
+	    << std::endl;
 #endif
 
   // Done

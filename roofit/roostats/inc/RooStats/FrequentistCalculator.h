@@ -29,24 +29,24 @@ namespace RooStats {
                         const RooAbsData &data,
                         const ModelConfig &altModel,
                         const ModelConfig &nullModel,
-                        TestStatSampler* sampler=nullptr
+                        TestStatSampler* sampler=0
       ) :
          HypoTestCalculatorGeneric(data, altModel, nullModel, sampler),
-         fConditionalMLEsNull(nullptr),
-         fConditionalMLEsAlt(nullptr),
+         fConditionalMLEsNull(NULL),
+         fConditionalMLEsAlt(NULL),
          fNToysNull(-1),
          fNToysAlt(-1),
          fNToysNullTail(0),
          fNToysAltTail(0),
-    fFitInfo(nullptr),
+    fFitInfo(NULL),
     fStoreFitInfo(false)
       {
       }
 
-      ~FrequentistCalculator() override {
+      ~FrequentistCalculator() {
          if( fConditionalMLEsNull ) delete fConditionalMLEsNull;
-         if( fConditionalMLEsAlt ) delete fConditionalMLEsAlt;
-         if( fFitInfo ) delete fFitInfo;
+    if( fConditionalMLEsAlt ) delete fConditionalMLEsAlt;
+    if( fFitInfo ) delete fFitInfo;
       }
 
 
@@ -62,7 +62,7 @@ namespace RooStats {
          if( fConditionalMLEsNull ) delete fConditionalMLEsNull;
 
          if( c ) fConditionalMLEsNull = (const RooArgSet*)c->snapshot();
-         else fConditionalMLEsNull = nullptr;
+         else fConditionalMLEsNull = NULL;
       }
 
       /// set given nuisance parameters to a specific value that will be used instead of their
@@ -71,26 +71,26 @@ namespace RooStats {
          if( fConditionalMLEsAlt ) delete fConditionalMLEsAlt;
 
          if( c ) fConditionalMLEsAlt = (const RooArgSet*)c->snapshot();
-         else fConditionalMLEsAlt = nullptr;
+         else fConditionalMLEsAlt = NULL;
       }
 
       void StoreFitInfo(bool val = true) {
          fStoreFitInfo = val;
       }
 
-      const RooArgSet* GetFitInfo() const override {
+      const RooArgSet* GetFitInfo() const {
          return fFitInfo;
       }
 
    protected:
       /// configure TestStatSampler for the Null run
-      int PreNullHook(RooArgSet *parameterPoint, double obsTestStat) const override;
+      int PreNullHook(RooArgSet *parameterPoint, double obsTestStat) const;
 
       /// configure TestStatSampler for the Alt run
-      int PreAltHook(RooArgSet *parameterPoint, double obsTestStat) const override;
+      int PreAltHook(RooArgSet *parameterPoint, double obsTestStat) const;
 
-      void PreHook() const override;
-      void PostHook() const override;
+      void PreHook() const;
+      void PostHook() const;
 
    protected:
       // MLE inputs
@@ -110,7 +110,7 @@ namespace RooStats {
       bool fStoreFitInfo;
 
    protected:
-      ClassDefOverride(FrequentistCalculator,1)
+      ClassDef(FrequentistCalculator,1)
    };
 }
 

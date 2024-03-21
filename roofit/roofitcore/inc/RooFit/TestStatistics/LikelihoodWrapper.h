@@ -17,8 +17,7 @@
 #include "RooAbsArg.h" // enum ConstOpCode
 
 #include <Fit/ParameterSettings.h>
-#include <Math/MinimizerOptions.h>
-#include <Math/Util.h>
+#include "Math/MinimizerOptions.h"
 
 #include <memory> // shared_ptr
 #include <string>
@@ -104,7 +103,7 @@ protected:
 
    bool do_offset_ = false;
    ROOT::Math::KahanSum<double> offset_;
-   ROOT::Math::KahanSum<double> offset_save_ {0.}; ///<!
+   ROOT::Math::KahanSum<double> offset_save_ = 0; ///<!
    OffsettingMode offsetting_mode_ = OffsettingMode::legacy;
    ROOT::Math::KahanSum<double> applyOffsetting(ROOT::Math::KahanSum<double> current_value);
    void swapOffsets();

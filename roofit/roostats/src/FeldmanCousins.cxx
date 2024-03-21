@@ -53,11 +53,11 @@ conditional MLE (eg. profiled values).
 
 */
 
-ClassImp(RooStats::FeldmanCousins);
+ClassImp(RooStats::FeldmanCousins); ;
 
 using namespace RooFit;
 using namespace RooStats;
-using std::endl;
+using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// standard constructor
@@ -66,9 +66,9 @@ FeldmanCousins::FeldmanCousins(RooAbsData& data, ModelConfig& model) :
   fSize(0.05),
   fModel(model),
   fData(data),
-  fTestStatSampler(nullptr),
-  fPointsToTest(nullptr),
-  fPOIToTest(nullptr),
+  fTestStatSampler(0),
+  fPointsToTest(0),
+  fPOIToTest(0),
   fConfBelt(nullptr),
   fAdaptiveSampling(false),
   fAdditionalNToysFactor(1.),
@@ -154,25 +154,27 @@ void FeldmanCousins::CreateParameterPoints() const{
     ooccoutP(&fModel,Generation) << "FeldmanCousins: Model has nuisance parameters, will do profile construction" << endl;
 
     // set nbins for the POI
-    for (auto *myarg2 : static_range_cast<RooRealVar *>(*fModel.GetParametersOfInterest())){
+    TIter it2 = fModel.GetParametersOfInterest()->createIterator();
+    RooRealVar *myarg2;
+    while ((myarg2 = dynamic_cast<RooRealVar*>(it2.Next()))) {
       myarg2->setBins(fNbins);
     }
 
     // get dataset for POI scan
-    //     RooDataHist* parameterScan = nullptr;
-    RooAbsData* parameterScan = nullptr;
-    if (fPOIToTest) {
+    //     RooDataHist* parameterScan = NULL;
+    RooAbsData* parameterScan = NULL;
+    if(fPOIToTest)
       parameterScan = fPOIToTest;
-    } else {
+    else
       parameterScan = new RooDataHist("parameterScan", "", *fModel.GetParametersOfInterest());
-    }
+
 
     ooccoutP(&fModel,Generation) << "FeldmanCousins: # points to test = " << parameterScan->numEntries() << endl;
     // make profile construction
     RooFit::MsgLevel previous  = RooMsgService::instance().globalKillBelow();
     RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL) ;
-    std::unique_ptr<RooAbsReal> nll{pdf->createNLL(fData,RooFit::CloneData(false))};
-    std::unique_ptr<RooAbsReal> profile{nll->createProfile(*fModel.GetParametersOfInterest())};
+    RooAbsReal* nll = pdf->createNLL(fData,RooFit::CloneData(false));
+    RooAbsReal* profile = nll->createProfile(*fModel.GetParametersOfInterest());
 
     RooDataSet* profileConstructionPoints = new RooDataSet("profileConstruction",
                         "profileConstruction",
@@ -186,6 +188,8 @@ void FeldmanCousins::CreateParameterPoints() const{
       profileConstructionPoints->add(*parameters);
     }
     RooMsgService::instance().setGlobalKillBelow(previous) ;
+    delete profile;
+    delete nll;
     if(!fPOIToTest) delete parameterScan;
 
     // done
@@ -195,7 +199,9 @@ void FeldmanCousins::CreateParameterPoints() const{
     // Do full construction
     ooccoutP(&fModel,Generation) << "FeldmanCousins: Model has no nuisance parameters" << endl;
 
-    for (auto *myarg : static_range_cast<RooRealVar *>(*parameters)){
+    TIter it = parameters->createIterator();
+    RooRealVar *myarg;
+    while ((myarg = dynamic_cast<RooRealVar*>(it.Next()))) {
       myarg->setBins(fNbins);
     }
 

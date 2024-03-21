@@ -1,24 +1,23 @@
 // Tests for global observables
 // Authors: Jonas Rembser, CERN  08/2021
 
-#include <RooAbsPdf.h>
-#include <RooCmdConfig.h>
-#include <RooDataSet.h>
-#include <RooFitResult.h>
-#include <RooHelpers.h>
-#include <RooLinkedList.h>
-#include <RooRealVar.h>
-#include <RooWorkspace.h>
-#include <RooRandom.h>
+#include "RooRealVar.h"
+#include "RooMsgService.h"
+#include "RooGaussian.h"
+#include "RooPolynomial.h"
+#include "RooAddPdf.h"
+#include "RooDataSet.h"
+#include "RooProdPdf.h"
+#include "RooFitResult.h"
+#include "RooConstVar.h"
+#include "RooPoisson.h"
+#include "RooProduct.h"
+#include "RooWorkspace.h"
 
-#include "../src/FitHelpers.h"
-
-#include "gtest_wrapper.h"
+#include "gtest/gtest.h"
 
 #include <memory>
 #include <functional>
-
-using RooFit::FitHelpers::minimize;
 
 namespace {
 
@@ -28,9 +27,8 @@ namespace {
 bool isNotIdentical(RooFitResult const &res1, RooFitResult const &res2)
 {
    std::size_t n = res1.floatParsFinal().size();
-   if (n != res2.floatParsFinal().size()) {
+   if (n != res2.floatParsFinal().size())
       return true;
-   }
    for (std::size_t i = 0; i < n; ++i) {
       if (static_cast<RooAbsRealLValue &>(res1.floatParsFinal()[i]).getVal() !=
           static_cast<RooAbsRealLValue &>(res2.floatParsFinal()[i]).getVal())
@@ -44,51 +42,59 @@ bool isNotIdentical(RooFitResult const &res1, RooFitResult const &res2)
 // Test environment to verify that if we use the feature of storing global
 // observables in a RooDataSet, we can reproduce the same fit results as when
 // we track the global observables separately.
-class GlobsTest : public testing::TestWithParam<std::tuple<RooFit::EvalBackend>> {
+class TestGlobalObservables : public ::testing::Test {
 public:
-   GlobsTest() : _evalBackend{RooFit::EvalBackend::Legacy()} {}
-
    void SetUp() override
    {
-      RooRandom::randomGenerator()->SetSeed(1337ul);
-
       // silence log output
-      _changeMsgLvl = std::make_unique<RooHelpers::LocalChangeMsgLevel>(RooFit::WARNING);
+      RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
 
-      _evalBackend = std::get<0>(GetParam());
+      // observables
+      RooRealVar x("x", "x", 0.0, 0.0, 20.0);
+
+      // global observables, always constant in fits
+      RooRealVar gm("gm", "gm", 11.0, 0.0, 20.0);
+      RooRealVar gs("gs", "gs", 1.0, 0.1, 10.0);
+      gm.setConstant(true);
+      gs.setConstant(true);
+
+      // constrained parameters
+      RooRealVar f("f", "f", 0.5, 0.0, 1.0);
+
+      // other parameters
+      RooRealVar m("m", "m", 10.0, 0.0, 20.0);
+      RooRealVar s("s", "s", 2.0, 0.1, 10.0);
 
       // We use the global observable also in the model for the event
       // observables. It's unusual, but let's better do this to also cover the
       // corner case where the global observable is not only part of the
       // constraint term.
-      _ws.factory("Product::sigma({s[2.0, 0.1, 10.0], gs[1.0, 0.1, 10.0]})");
+      RooProduct sigma{"sigma", "sigma", {s, gs}};
 
-      _ws.factory("Gaussian::model(x[0.0, 0.0, 20.0], m[10.0, 0.0, 20.0], sigma)");
+      // build the unconstrained model
+      RooGaussian model("model", "model", x, m, sigma);
 
       // the constraint pdfs, they are RooPoisson so we can't have tests that accidentally
       // pass because of the symmetry of normalizing over x or mu
-      _ws.factory("Poisson::mconstraint(gm[11.0, 0.0, 20.0], m)");
-      _ws.factory("Poisson::sconstraint(gs, s)");
-
-      // global observables, always constant in fits
-      RooRealVar &gm = *_ws.var("gm");
-      RooRealVar &gs = *_ws.var("gs");
-      gm.setConstant(true);
-      gs.setConstant(true);
+      RooPoisson mconstraint("mconstraint", "mconstraint", gm, m);
+      RooPoisson sconstraint("sconstraint", "sconstraint", gs, s);
 
       // the model multiplied with the constraint term
-      _ws.factory("ProdPdf::modelc(model, mconstraint, sconstraint)");
+      RooProdPdf modelc("modelc", "modelc", RooArgSet(model, mconstraint, sconstraint));
 
       // generate small dataset for use in fitting below, also cloned versions
       // with one or two global observables attached
-      _data = std::unique_ptr<RooDataSet>{_ws.pdf("model")->generate(*_ws.var("x"), 50)};
+      _data.reset(model.generate(x, 50));
 
-      _dataWithMeanSigmaGlobs.reset(static_cast<RooDataSet *>(_data->Clone()));
-      _dataWithMeanSigmaGlobs->SetName((std::string(_data->GetName()) + "_gm_gs").c_str());
+      _dataWithMeanSigmaGlobs.reset(
+         static_cast<RooDataSet *>(_data->Clone((std::string(_data->GetName()) + "_gm_gs").c_str())));
       _dataWithMeanSigmaGlobs->setGlobalObservables({gm, gs});
 
       _dataWithMeanGlob.reset(static_cast<RooDataSet *>(_data->Clone((std::string(_data->GetName()) + "_gm").c_str())));
       _dataWithMeanGlob->setGlobalObservables(gm);
+
+      _workspace = std::make_unique<RooWorkspace>("workspace", "workspace");
+      _workspace->import(modelc);
    }
 
    // reset the parameter values to initial values before fits
@@ -97,46 +103,45 @@ public:
       std::vector<std::string> names{"x", "m", "s", "gm", "gs"};
       std::vector<double> values{0.0, 10.0, 2.0, 11.0, 1.0};
       for (std::size_t i = 0; i < names.size(); ++i) {
-         auto *var = _ws.var(names[i]);
+         auto *var = _workspace->var(names[i].c_str());
          var->setVal(values[i]);
          var->setError(0.0);
       }
    }
 
-   RooWorkspace &ws() { return _ws; }
+   RooWorkspace &ws() { return *_workspace; }
    RooDataSet &data() { return *_data; }
    RooDataSet &dataWithMeanSigmaGlobs() { return *_dataWithMeanSigmaGlobs; }
    RooDataSet &dataWithMeanGlob() { return *_dataWithMeanGlob; }
    RooAbsPdf &model() { return *ws().pdf("model"); }
    RooAbsPdf &modelc() { return *ws().pdf("modelc"); }
 
-   std::unique_ptr<RooFitResult> doFit(RooAbsPdf &model, RooAbsData &data, RooCmdArg const &arg1 = {},
-                                       RooCmdArg const &arg2 = {}, RooCmdArg const &arg3 = {},
-                                       RooCmdArg const &arg4 = {})
+   std::unique_ptr<RooFitResult> doFit(RooAbsPdf &model, RooAbsData &data, RooCmdArg const &arg1 = RooCmdArg::none(),
+                                       RooCmdArg const &arg2 = RooCmdArg::none(),
+                                       RooCmdArg const &arg3 = RooCmdArg::none(),
+                                       RooCmdArg const &arg4 = RooCmdArg::none())
    {
       using namespace RooFit;
-      return std::unique_ptr<RooFitResult>{
-         model.fitTo(data, Save(), Verbose(false), PrintLevel(-1), _evalBackend, arg1, arg2, arg3, arg4)};
+      return std::unique_ptr<RooFitResult>(
+         model.fitTo(data, Save(), Verbose(false), PrintLevel(-1), arg1, arg2, arg3, arg4));
    }
 
    void TearDown() override
    {
+      _workspace.reset();
       _data.reset();
       _dataWithMeanSigmaGlobs.reset();
       _data.reset();
-      _changeMsgLvl.reset();
    }
 
 private:
-   RooFit::EvalBackend _evalBackend;
-   RooWorkspace _ws;
+   std::unique_ptr<RooWorkspace> _workspace;
    std::unique_ptr<RooDataSet> _data;
    std::unique_ptr<RooDataSet> _dataWithMeanSigmaGlobs;
    std::unique_ptr<RooDataSet> _dataWithMeanGlob;
-   std::unique_ptr<RooHelpers::LocalChangeMsgLevel> _changeMsgLvl;
 };
 
-TEST_P(GlobsTest, NoConstraints)
+TEST_F(TestGlobalObservables, NoConstraints)
 {
    using namespace RooFit;
 
@@ -166,7 +171,7 @@ TEST_P(GlobsTest, NoConstraints)
    }
 }
 
-TEST_P(GlobsTest, InternalConstraints)
+TEST_F(TestGlobalObservables, InternalConstraints)
 {
    using namespace RooFit;
 
@@ -196,7 +201,7 @@ TEST_P(GlobsTest, InternalConstraints)
    }
 }
 
-TEST_P(GlobsTest, ExternalConstraints)
+TEST_F(TestGlobalObservables, ExternalConstraints)
 {
    using namespace RooFit;
 
@@ -229,7 +234,7 @@ TEST_P(GlobsTest, ExternalConstraints)
    }
 }
 
-TEST_P(GlobsTest, SubsetOfConstraintsFromData)
+TEST_F(TestGlobalObservables, SubsetOfConstraintsFromData)
 {
    using namespace RooFit;
 
@@ -280,30 +285,7 @@ TEST_P(GlobsTest, SubsetOfConstraintsFromData)
    }
 }
 
-namespace {
-
-RooCmdConfig minimizerCfg()
-{
-
-   RooCmdConfig pc("minimizerCfg");
-
-   RooFit::FitHelpers::defineMinimizationOptions(pc);
-
-   std::vector<RooCmdArg> cmdArgs{RooFit::Save(), RooFit::PrintLevel(-1)};
-
-   RooLinkedList cmdList;
-   for (auto &arg : cmdArgs) {
-      cmdList.Add(&arg);
-   }
-
-   pc.process(cmdList);
-
-   return pc;
-}
-
-} // namespace
-
-TEST_P(GlobsTest, ResetDataToWrongData)
+TEST_F(TestGlobalObservables, ResetDataToWrongData)
 {
    using namespace RooFit;
 
@@ -324,14 +306,17 @@ TEST_P(GlobsTest, ResetDataToWrongData)
 
    // check that the fit works when using the dataset with the correct values
    std::unique_ptr<RooAbsReal> nll{model.createNLL(dataWithMeanSigmaGlobs())};
-   auto res2 = minimize(model, *nll, dataWithMeanSigmaGlobs(), minimizerCfg());
+   RooAbsPdf::MinimizerConfig minimizerCfg;
+   minimizerCfg.doSave = true;
+   minimizerCfg.printLevel = -1;
+   auto res2 = model.minimizeNLL(*nll, dataWithMeanSigmaGlobs(), minimizerCfg);
    EXPECT_TRUE(res1->isIdentical(*res2)) << "fitting an model with internal "
                                             "constraints in a RooPrdPdf gave a different result when global "
                                             "observables were stored in the dataset";
 
    nll->setData(*wrongData);
    resetParameters();
-   auto res3 = minimize(model, *nll, *wrongData, minimizerCfg());
+   auto res3 = model.minimizeNLL(*nll, *wrongData, minimizerCfg);
 
    // If resetting the dataset used for the nll worked correctly also for
    // global observables, the fit will now give the wrong result.
@@ -341,7 +326,7 @@ TEST_P(GlobsTest, ResetDataToWrongData)
          "should have";
 }
 
-TEST_P(GlobsTest, ResetDataToCorrectData)
+TEST_F(TestGlobalObservables, ResetDataToCorrectData)
 {
    using namespace RooFit;
 
@@ -363,20 +348,23 @@ TEST_P(GlobsTest, ResetDataToCorrectData)
 
    // check that the fit doesn't work when using the dataset with the wrong values
    std::unique_ptr<RooAbsReal> nll{model.createNLL(*wrongData)};
-   auto res2 = minimize(model, *nll, *wrongData, minimizerCfg());
+   RooAbsPdf::MinimizerConfig minimizerCfg;
+   minimizerCfg.doSave = true;
+   minimizerCfg.printLevel = -1;
+   auto res2 = model.minimizeNLL(*nll, *wrongData, minimizerCfg);
    EXPECT_TRUE(isNotIdentical(*res1, *res2)) << "fitting an model with internal "
                                                 "constraints in a RooPrdPdf ignored the global "
                                                 "observables stored in the dataset";
 
    nll->setData(dataWithMeanSigmaGlobs());
    resetParameters();
-   auto res3 = minimize(model, *nll, dataWithMeanSigmaGlobs(), minimizerCfg());
+   auto res3 = model.minimizeNLL(*nll, dataWithMeanSigmaGlobs(), minimizerCfg);
    EXPECT_TRUE(res1->isIdentical(*res3)) << "resetting the dataset "
                                             "underlying a RooNLLVar didn't change the global observable value, but it "
                                             "should have";
 }
 
-TEST_P(GlobsTest, GlobalObservablesSourceFromModel)
+TEST_F(TestGlobalObservables, GlobalObservablesSourceFromModel)
 {
    using namespace RooFit;
 
@@ -404,7 +392,7 @@ TEST_P(GlobsTest, GlobalObservablesSourceFromModel)
    EXPECT_TRUE(isNotIdentical(*res2, *res3));
 }
 
-TEST_P(GlobsTest, ResetDataButSourceFromModel)
+TEST_F(TestGlobalObservables, ResetDataButSourceFromModel)
 {
    using namespace RooFit;
 
@@ -428,21 +416,17 @@ TEST_P(GlobsTest, ResetDataButSourceFromModel)
    // check that the fit works when using the dataset with the correct values
    std::unique_ptr<RooAbsReal> nll{
       model.createNLL(dataWithMeanSigmaGlobs(), GlobalObservablesSource("model"), GlobalObservables(gm, gs))};
-   auto res2 = minimize(model, *nll, dataWithMeanSigmaGlobs(), minimizerCfg());
+   RooAbsPdf::MinimizerConfig minimizerCfg;
+   minimizerCfg.doSave = true;
+   minimizerCfg.printLevel = -1;
+   auto res2 = model.minimizeNLL(*nll, dataWithMeanSigmaGlobs(), minimizerCfg);
    EXPECT_TRUE(res1->isIdentical(*res2));
 
    nll->setData(*wrongData);
    resetParameters();
-   auto res3 = minimize(model, *nll, *wrongData, minimizerCfg());
+   auto res3 = model.minimizeNLL(*nll, *wrongData, minimizerCfg);
 
    // this time it should still be identical because even though we reset to
    // the wrong data, we set the global observables source to "model"
    EXPECT_TRUE(res1->isIdentical(*res3));
 }
-
-INSTANTIATE_TEST_SUITE_P(TestGlobalObservables, GlobsTest, testing::Values(ROOFIT_EVAL_BACKENDS),
-                         [](testing::TestParamInfo<GlobsTest::ParamType> const &paramInfo) {
-                            std::stringstream ss;
-                            ss << "EvalBackend" << std::get<0>(paramInfo.param).name();
-                            return ss.str();
-                         });

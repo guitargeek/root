@@ -50,15 +50,17 @@ generating the toys (either via a histogram or via an independent model that is 
 #include "RooDataSet.h"
 #include "RooRealVar.h"
 #include "RooAbsPdf.h"
+#include "RooFit.h"
 #include "RooFitResult.h"
 #include "TMath.h"
 #include <string>
 #include <vector>
-#include <cstdio>
+#include <stdio.h>
 #include <sstream>
 #include <iostream>
 
 #include "RooEffProd.h"
+#include "RooNLLVar.h"
 #include "RooWorkspace.h"
 #include "RooDataHist.h"
 #include "RooHistPdf.h"
@@ -68,15 +70,15 @@ generating the toys (either via a histogram or via an independent model that is 
 #include "Math/MinimizerOptions.h"
 
 
-ClassImp(RooStats::BernsteinCorrection);
+ClassImp(RooStats::BernsteinCorrection); ;
 
 using namespace RooFit;
 using namespace RooStats;
-using std::cout, std::endl, std::vector;
+using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-BernsteinCorrection::BernsteinCorrection(double tolerance):
+BernsteinCorrection::BernsteinCorrection(Double_t tolerance):
    fMaxDegree(10), fMaxCorrection(100), fTolerance(tolerance){
 }
 
@@ -101,10 +103,11 @@ Int_t BernsteinCorrection::ImportCorrectedPdf(RooWorkspace* wks,
   std::cout << "BernsteinCorrection::ImportCorrectedPdf -  Doing initial Fit with nominal model " << std::endl;
 
   // initialize alg, by checking how well nominal model fits
+  TString minimType =  ROOT::Math::MinimizerOptions::DefaultMinimizerType();
   int printLevel =  ROOT::Math::MinimizerOptions::DefaultPrintLevel()-1;
 
-  std::unique_ptr<RooFitResult> nominalResult{nominal->fitTo(*data,Save(),Minos(false), Hesse(false),PrintLevel(printLevel))};
-  double lastNll= nominalResult->minNll();
+  RooFitResult* nominalResult = nominal->fitTo(*data,Save(),Minos(kFALSE), Hesse(kFALSE),PrintLevel(printLevel),Minimizer(minimType));
+  Double_t lastNll= nominalResult->minNll();
 
   if (nominalResult->status() != 0 ) {
      std::cout << "BernsteinCorrection::ImportCorrectedPdf  - Error fit with nominal model failed - exit" << std::endl;
@@ -118,7 +121,7 @@ Int_t BernsteinCorrection::ImportCorrectedPdf(RooWorkspace* wks,
   // Local variables that we want to keep in scope after loop
   RooArgList coeff;
   vector<RooRealVar*> coefficients;
-  double q = 1E6;
+  Double_t q = 1E6;
   Int_t degree = -1;
 
   // The while loop
@@ -138,7 +141,7 @@ Int_t BernsteinCorrection::ImportCorrectedPdf(RooWorkspace* wks,
     // Since pdf is normalized - coefficient for degree 0 is fixed to be 1
     if (degree == 0) {
        newCoef->setVal(1);
-       newCoef->setConstant(true);
+       newCoef->setConstant(1);
        continue;
     }
 
@@ -149,7 +152,7 @@ Int_t BernsteinCorrection::ImportCorrectedPdf(RooWorkspace* wks,
     RooEffProd* corrected = new RooEffProd("corrected","",*nominal,*poly);
 
     // check to see how well this correction fits
-    std::unique_ptr<RooFitResult> result{corrected->fitTo(*data,Save(),Minos(false), Hesse(false),PrintLevel(printLevel))};
+    RooFitResult* result = corrected->fitTo(*data,Save(),Minos(kFALSE), Hesse(kFALSE),PrintLevel(printLevel),Minimizer(minimType));
 
     if (result->status() != 0) {
        std::cout << "BernsteinCorrection::ImportCorrectedPdf  - Error fit with corrected model failed" << std::endl;
@@ -186,6 +189,8 @@ Int_t BernsteinCorrection::ImportCorrectedPdf(RooWorkspace* wks,
 
     // update last result for next iteration in loop
     lastNll = result->minNll();
+
+    delete result;
   }
 
   log << "------ End Bernstein Correction Log --------" << endl;
@@ -272,6 +277,7 @@ void BernsteinCorrection::CreateQSamplingDist(RooWorkspace* wks,
   RooDataHist dataHist("dataHist","",*x,*data);
   RooHistPdf toyGen("toyGen","",*x,dataHist);
 
+  TString minimType =  ROOT::Math::MinimizerOptions::DefaultMinimizerType();
   int printLevel =  ROOT::Math::MinimizerOptions::DefaultPrintLevel()-1;
 
   RooFit::MsgLevel msglevel = RooMsgService::instance().globalKillBelow();
@@ -281,35 +287,43 @@ void BernsteinCorrection::CreateQSamplingDist(RooWorkspace* wks,
 
 
   //  TH1F* samplingDist = new TH1F("samplingDist","",20,0,10);
-    double q = 0;
-    double qExtra = 0;
-    // do toys
-    for (int i = 0; i < nToys; ++i) {
-       cout << "on toy " << i << endl;
+  Double_t q = 0, qExtra = 0;
+  // do toys
+  for(int i=0; i<nToys; ++i){
+    cout << "on toy " << i << endl;
 
-       std::unique_ptr<RooDataSet> tmpData{toyGen.generate(*x, data->numEntries())};
-       // check to see how well this correction fits
-       std::unique_ptr<RooFitResult> result{
-          corrected->fitTo(*tmpData, Save(), Minos(false), Hesse(false), PrintLevel(printLevel))};
+    RooDataSet* tmpData = toyGen.generate(*x,data->numEntries());
+    // check to see how well this correction fits
+    RooFitResult* result
+      = corrected->fitTo(*tmpData,Save(),Minos(kFALSE),
+          Hesse(kFALSE),PrintLevel(printLevel),Minimizer(minimType));
 
-       std::unique_ptr<RooFitResult> resultNull{
-          correctedNull->fitTo(*tmpData, Save(), Minos(false), Hesse(false), PrintLevel(printLevel))};
+    RooFitResult* resultNull
+      = correctedNull->fitTo(*tmpData,Save(),Minos(kFALSE),
+          Hesse(kFALSE),PrintLevel(printLevel),Minimizer(minimType));
 
-       std::unique_ptr<RooFitResult> resultExtra{
-          correctedExtra->fitTo(*tmpData, Save(), Minos(false), Hesse(false), PrintLevel(printLevel))};
 
-       // Hypothesis test between previous correction (null)
-       // and this one (alternate).  Use -2 log LR for test statistic
-       q = 2 * (resultNull->minNll() - result->minNll());
+    RooFitResult* resultExtra
+      = correctedExtra->fitTo(*tmpData,Save(),Minos(kFALSE),
+          Hesse(kFALSE),PrintLevel(printLevel),Minimizer(minimType));
 
-       qExtra = 2 * (result->minNll() - resultExtra->minNll());
 
-       samplingDist->Fill(q);
-       samplingDistExtra->Fill(qExtra);
-       if (printLevel > 0) {
-      cout << "NLL Results: null " << resultNull->minNll() << " ref = " << result->minNll() << " extra"
-           << resultExtra->minNll() << endl;
-       }
+    // Hypothesis test between previous correction (null)
+    // and this one (alternate).  Use -2 log LR for test statistic
+    q = 2*(resultNull->minNll() - result->minNll());
+
+    qExtra = 2*(result->minNll() - resultExtra->minNll());
+
+    samplingDist->Fill(q);
+    samplingDistExtra->Fill(qExtra);
+    if (printLevel > 0)
+       cout << "NLL Results: null " <<  resultNull->minNll() << " ref = " << result->minNll() << " extra" << resultExtra->minNll() << endl;
+
+
+    delete tmpData;
+    delete result;
+    delete resultNull;
+    delete resultExtra;
   }
 
   RooMsgService::instance().setGlobalKillBelow(msglevel);

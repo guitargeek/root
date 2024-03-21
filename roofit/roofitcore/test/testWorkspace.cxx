@@ -7,8 +7,6 @@
 #include "RooArgList.h"
 #include "RooRealVar.h"
 #include "RooAbsReal.h"
-#include "RooProdPdf.h"
-#include "RooProduct.h"
 #include "RooStats/ModelConfig.h"
 
 #include "ROOT/StringUtils.hxx"
@@ -24,50 +22,51 @@ using namespace RooStats;
 ///
 TEST(RooWorkspace, CloneModelConfig_ROOT_9777)
 {
-   constexpr bool verbose = false;
-
    const char* filename = "ROOT-9777.root";
 
    RooRealVar x("x", "x", 1, 0, 10);
    RooRealVar mu("mu", "mu", 1, 0, 10);
-   RooRealVar sigma("sigma", "sigma", 1, 0.01, 10);
+   RooRealVar sigma("sigma", "sigma", 1, 0, 10);
 
    RooGaussian pdf("Gauss", "Gauss", x, mu, sigma);
 
    {
       TFile outfile(filename, "RECREATE");
-
+      
       // now create the model config for this problem
-      RooWorkspace ws{"ws"};
-      ModelConfig modelConfig("ModelConfig", &ws);
+      RooWorkspace* w = new RooWorkspace("ws");
+      ModelConfig modelConfig("ModelConfig", w);
       modelConfig.SetPdf(pdf);
       modelConfig.SetParametersOfInterest(RooArgSet(sigma));
       modelConfig.SetGlobalObservables(RooArgSet(mu));
-      ws.import(modelConfig);
+      w->import(modelConfig);
 
-      outfile.WriteObject(&ws, "ws");
+      outfile.WriteObject(w, "ws");
+      delete w;
    }
-
+   
    RooWorkspace *w2;
    {
       TFile infile(filename, "READ");
-      std::unique_ptr<RooWorkspace> ws{infile.Get<RooWorkspace>("ws")};
-      ASSERT_TRUE(ws) << "Workspace not read from file.";
+      RooWorkspace *w;
+      infile.GetObject("ws", w);
+      ASSERT_TRUE(w) << "Workspace not read from file.";
 
-      w2 = new RooWorkspace(*ws);
+      w2 = new RooWorkspace(*w);
+      delete w;
    }
-
-   if(verbose) w2->Print();
+   
+   w2->Print();
 
    ModelConfig *mc = dynamic_cast<ModelConfig*>(w2->genobj("ModelConfig"));
    ASSERT_TRUE(mc) << "ModelConfig not retrieved.";
    mc->Print();
 
    ASSERT_TRUE(mc->GetGlobalObservables()) << "GlobalObsevables in mc broken.";
-   if(verbose) mc->GetGlobalObservables()->Print();
+   mc->GetGlobalObservables()->Print();
 
    ASSERT_TRUE(mc->GetParametersOfInterest()) << "ParametersOfInterest in mc broken.";
-   if(verbose) mc->GetParametersOfInterest()->Print();
+   mc->GetParametersOfInterest()->Print();
 
    gSystem->Unlink(filename);
 }
@@ -77,11 +76,12 @@ TEST(RooWorkspace, CloneModelConfig_ROOT_9777)
 /// Set up a simple workspace for later tests.
 class TestRooWorkspaceWithGaussian : public ::testing::Test {
 protected:
-  TestRooWorkspaceWithGaussian()
+  TestRooWorkspaceWithGaussian() :
+  Test()
   {
     RooRealVar x("x", "x", 1, 0, 10);
     RooRealVar mu("mu", "mu", 1, 0, 10);
-    RooRealVar sigma("sigma", "sigma", 1, 0.01, 10);
+    RooRealVar sigma("sigma", "sigma", 1, 0, 10);
 
     RooGaussian pdf("Gauss", "Gauss", x, mu, sigma);
 
@@ -98,7 +98,7 @@ protected:
     outfile.WriteObject(&w, "ws");
   }
 
-  ~TestRooWorkspaceWithGaussian() override {
+  ~TestRooWorkspaceWithGaussian() {
     gSystem->Unlink(_filename);
   }
 
@@ -233,34 +233,4 @@ TEST_F(TestRooWorkspaceWithGaussian, HashLookupInWorkspace) {
   EXPECT_TRUE(model_constrained_orig->dependsOn(*ws->var("mu")));
   EXPECT_FALSE(model_constrained_orig->dependsOn(*ws->var("mu2")));
   EXPECT_NE(ws->pdf("Gauss_editPdf_orig"), nullptr);
-}
-
-/// Covers an issue about a RooAddPdf constructor not properly picked up by
-/// RooFactoryWSTool.
-TEST(RooWorkspace, Issue_7965)
-{
-   RooWorkspace ws{"ws"};
-   ws.factory("RooAddPdf::addPdf({})");
-
-   ASSERT_NE(ws.pdf("addPdf"), nullptr);
-}
-
-/// Covers an issue about the RooProdPdf constructor taking a RooFit collection
-/// not working and the RooProduct constructors behaving inconsistently.
-TEST(RooWorkspace, Issue_7809)
-{
-   RooWorkspace ws;
-   ws.factory("RooGaussian::a(x[-10,10],0.,1.)");
-   ws.factory("RooGaussian::b(y[-10,10],0.,1.)");
-
-   ws.factory("RooProdPdf::p1({a,b})");
-   ws.factory("RooProduct::p2({x,y})");
-
-   ws.factory("RooProdPdf::p3(a,b)");
-   ws.factory("RooProduct::p4(x,y)");
-
-   ASSERT_EQ(static_cast<RooProdPdf*>(ws.pdf("p1"))->pdfList().size(), 2);
-   ASSERT_EQ(static_cast<RooProduct*>(ws.function("p2"))->components().size(), 2);
-   ASSERT_EQ(static_cast<RooProdPdf*>(ws.pdf("p3"))->pdfList().size(), 2);
-   ASSERT_EQ(static_cast<RooProduct*>(ws.function("p4"))->components().size(), 2);
 }

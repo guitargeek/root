@@ -49,6 +49,7 @@ uniformly over their intervals before construction of the MarkovChain begins.
 
 #include "Rtypes.h"
 #include "RooRealVar.h"
+#include "RooNLLVar.h"
 #include "RooGlobalFunc.h"
 #include "RooDataSet.h"
 #include "RooArgSet.h"
@@ -56,40 +57,58 @@ uniformly over their intervals before construction of the MarkovChain begins.
 #include "RooMsgService.h"
 #include "RooRandom.h"
 #include "TMath.h"
+#include "TFile.h"
 
 ClassImp(RooStats::MetropolisHastings);
 
 using namespace RooFit;
 using namespace RooStats;
-using std::endl;
+using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-MetropolisHastings::MetropolisHastings(RooAbsReal &function, const RooArgSet &paramsOfInterest,
-                                       ProposalFunction &proposalFunction, Int_t numIters)
-   : fFunction(&function), fNumIters(numIters)
+MetropolisHastings::MetropolisHastings()
 {
+   // default constructor
+   fFunction = NULL;
+   fPropFunc = NULL;
+   fNumIters = 0;
+   fNumBurnInSteps = 0;
+   fSign = kSignUnset;
+   fType = kTypeUnset;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+MetropolisHastings::MetropolisHastings(RooAbsReal& function, const RooArgSet& paramsOfInterest,
+      ProposalFunction& proposalFunction, Int_t numIters)
+{
+   fFunction = &function;
    SetParameters(paramsOfInterest);
    SetProposalFunction(proposalFunction);
+   fNumIters = numIters;
+   fNumBurnInSteps = 0;
+   fSign = kSignUnset;
+   fType = kTypeUnset;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 MarkovChain* MetropolisHastings::ConstructChain()
 {
-   if (fParameters.empty() || !fPropFunc || !fFunction) {
-      coutE(Eval) << "Critical members uninitialized: parameters, proposal " <<
+   if (fParameters.getSize() == 0 || !fPropFunc || !fFunction) {
+      coutE(Eval) << "Critical members unintialized: parameters, proposal " <<
                      " function, or (log) likelihood function" << endl;
-         return nullptr;
+         return NULL;
    }
    if (fSign == kSignUnset || fType == kTypeUnset) {
       coutE(Eval) << "Please set type and sign of your function using "
          << "MetropolisHastings::SetType() and MetropolisHastings::SetSign()" <<
          endl;
-      return nullptr;
+      return NULL;
    }
 
-   if (fChainParams.empty()) fChainParams.add(fParameters);
+   if (fChainParams.getSize() == 0) fChainParams.add(fParameters);
 
    RooArgSet x;
    RooArgSet xPrime;
@@ -103,9 +122,7 @@ MarkovChain* MetropolisHastings::ConstructChain()
    chain->SetParameters(fChainParams);
 
    Int_t weight = 0;
-   double xL = 0.0;
-   double xPrimeL = 0.0;
-   double a = 0.0;
+   Double_t xL = 0.0, xPrimeL = 0.0, a = 0.0;
 
    // ibucur: i think the user should have the possibility to display all the message
    //    levels should they want to; maybe a setPrintLevel would be appropriate
@@ -144,15 +161,13 @@ MarkovChain* MetropolisHastings::ConstructChain()
          } else
             hadEvalError = false;
       } else if (fType == kRegular) {
-         if (xL == 0.0) {
+         if (xL == 0.0)
             hadEvalError = true;
-         } else {
+         else
             hadEvalError = false;
-         }
-      } else {
+      } else
          // for now the only 2 types are kLog and kRegular (won't get here)
          hadEvalError = false;
-      }
       ++i;
    }
 
@@ -162,7 +177,7 @@ MarkovChain* MetropolisHastings::ConstructChain()
    }
 
 
-   ooccoutP((TObject *)nullptr, Generation) << "Metropolis-Hastings progress: ";
+   ooccoutP((TObject *)0, Generation) << "Metropolis-Hastings progress: ";
 
    // do main loop
    for (i = 0; i < fNumIters; i++) {
@@ -170,7 +185,7 @@ MarkovChain* MetropolisHastings::ConstructChain()
       hadEvalError = false;
 
       // print a dot every 1% of the chain construction
-      if (i % (fNumIters / 100) == 0) ooccoutP((TObject*)nullptr, Generation) << ".";
+      if (i % (fNumIters / 100) == 0) ooccoutP((TObject*)0, Generation) << ".";
 
       fPropFunc->Propose(xPrime, x);
 
@@ -190,24 +205,22 @@ MarkovChain* MetropolisHastings::ConstructChain()
       //xL = fFunction->getVal();
 
       if (fType == kLog) {
-         if (fSign == kPositive) {
+         if (fSign == kPositive)
             a = xL - xPrimeL;
-         } else {
+         else
             a = xPrimeL - xL;
-         }
       }
       else
          a = xPrimeL / xL;
       //a = xL / xPrimeL;
 
       if (!hadEvalError && !fPropFunc->IsSymmetric(xPrime, x)) {
-         double xPrimePD = fPropFunc->GetProposalDensity(xPrime, x);
-         double xPD      = fPropFunc->GetProposalDensity(x, xPrime);
-         if (fType == kRegular) {
+         Double_t xPrimePD = fPropFunc->GetProposalDensity(xPrime, x);
+         Double_t xPD      = fPropFunc->GetProposalDensity(x, xPrime);
+         if (fType == kRegular)
             a *= xPD / xPrimePD;
-         } else {
+         else
             a += TMath::Log(xPrimePD) - TMath::Log(xPD);
-         }
       }
 
       if (!hadEvalError && ShouldTakeStep(a)) {
@@ -215,7 +228,7 @@ MarkovChain* MetropolisHastings::ConstructChain()
 
          // add the current point with the current weight
          if (weight != 0.0)
-            chain->Add(x, CalcNLL(xL), (double)weight);
+            chain->Add(x, CalcNLL(xL), (Double_t)weight);
 
          // reset the weight and go to xPrime
          weight = 1;
@@ -229,8 +242,8 @@ MarkovChain* MetropolisHastings::ConstructChain()
 
    // make sure to add the last point
    if (weight != 0.0)
-      chain->Add(x, CalcNLL(xL), (double)weight);
-   ooccoutP((TObject *)nullptr, Generation) << endl;
+      chain->Add(x, CalcNLL(xL), (Double_t)weight);
+   ooccoutP((TObject *)0, Generation) << endl;
 
    RooMsgService::instance().setGlobalKillBelow(oldMsgLevel);
 
@@ -248,56 +261,52 @@ MarkovChain* MetropolisHastings::ConstructChain()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool MetropolisHastings::ShouldTakeStep(double a)
+Bool_t MetropolisHastings::ShouldTakeStep(Double_t a)
 {
    if ((fType == kLog && a <= 0.0) || (fType == kRegular && a >= 1.0)) {
       // The proposed point has a higher likelihood than the
       // current point, so we should go there
-      return true;
+      return kTRUE;
    }
    else {
       // generate numbers on a log distribution to decide
       // whether to go to xPrime or stay at x
-      //double rand = fGen.Uniform(1.0);
-      double rand = RooRandom::uniform();
+      //Double_t rand = fGen.Uniform(1.0);
+      Double_t rand = RooRandom::uniform();
       if (fType == kLog) {
          rand = TMath::Log(rand);
          // kbelasco: should this be changed to just (-rand > a) for logical
          // consistency with below test when fType == kRegular?
-         if (-1.0 * rand >= a) {
+         if (-1.0 * rand >= a)
             // we chose to go to the new proposed point
             // even though it has a lower likelihood than the current one
-            return true;
-         }
+            return kTRUE;
       } else {
          // fType must be kRegular
          // kbelasco: ensure that we never visit a point where PDF == 0
          //if (rand <= a)
-         if (rand < a) {
+         if (rand < a)
             // we chose to go to the new proposed point
             // even though it has a lower likelihood than the current one
-            return true;
-         }
+            return kTRUE;
       }
-      return false;
+      return kFALSE;
    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double MetropolisHastings::CalcNLL(double xL)
+Double_t MetropolisHastings::CalcNLL(Double_t xL)
 {
    if (fType == kLog) {
-      if (fSign == kNegative) {
+      if (fSign == kNegative)
          return xL;
-      } else {
+      else
          return -xL;
-      }
    } else {
-      if (fSign == kPositive) {
+      if (fSign == kPositive)
          return -1.0 * TMath::Log(xL);
-      } else {
+      else
          return -1.0 * TMath::Log(-xL);
-      }
    }
 }

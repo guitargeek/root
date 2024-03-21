@@ -14,32 +14,33 @@
 
 #include "Rtypes.h"
 
-class RooWorkspace;
-class RooRealVar;
+class RooWorkspace; 
+class RooRealVar; 
 
 namespace RooStats{
 
    class  NumberCountingPdfFactory {
 
    public:
-      /// need one for expected and one for observed
-      virtual ~NumberCountingPdfFactory() = default;
+      // need one for expected and one for observed
+      NumberCountingPdfFactory();
+      virtual ~NumberCountingPdfFactory();
 
-      void AddModel(double* sigExp, Int_t nchan, RooWorkspace* ws,
-                    const char* pdfName = "CombinedPdf", const char* masterSignalName = "masterSignal") ;
+      void AddModel(Double_t* sigExp, Int_t nchan, RooWorkspace* ws, 
+                    const char* pdfName = "CombinedPdf", const char* masterSignalName = "masterSignal") ; 
 
-      void AddData(double* mainMeas, double* bkgMeas, double* db,
+      void AddData(Double_t* mainMeas, Double_t* bkgMeas, Double_t* db, 
                    Int_t nbins, RooWorkspace* ws, const char* dsName = "NumberCountingData");
-      void AddExpData(double* sigExp, double* bkgExp, double* db,
+      void AddExpData(Double_t* sigExp, Double_t* bkgExp, Double_t* db, 
                       Int_t nbins, RooWorkspace* ws, const char* dsName = "ExpectedNumberCountingData");
-      void AddExpDataWithSideband(double* sigExp, double* bkgExp, double* tau,
+      void AddExpDataWithSideband(Double_t* sigExp, Double_t* bkgExp, Double_t* tau, 
                                   Int_t nbins, RooWorkspace* ws, const char* dsName = "NumberCountingData");
-      void AddDataWithSideband(double* mainMeas, double* sideband, double* tau,
+      void AddDataWithSideband(Double_t* mainMeas, Double_t* sideband, Double_t* tau, 
                                Int_t nbins, RooWorkspace* ws, const char* dsName = "ExpectedNumberCountingData");
 
    private:
-      RooRealVar* SafeObservableCreation(RooWorkspace* ws, const char* varName, double value) ;
-      RooRealVar* SafeObservableCreation(RooWorkspace* ws, const char* varName, double value, double maximum) ;
+      RooRealVar* SafeObservableCreation(RooWorkspace* ws, const char* varName, Double_t value) ;
+      RooRealVar* SafeObservableCreation(RooWorkspace* ws, const char* varName, Double_t value, Double_t maximum) ;
 
 
    protected:

@@ -19,10 +19,9 @@ TEST(RooRealVar, AlternativeBinnings)
     x.setBinning(RooUniformBinning(-9, 10, 20, "uniform"), "uniform");
 
     RooArgSet xSet(x);
-    RooArgSet clones;
-    xSet.snapshot(clones, true);
+    auto clones = xSet.snapshot(true);
 
-    auto& uniform = dynamic_cast<RooRealVar&>(clones["x"]).getBinning("uniform");
+    auto& uniform = dynamic_cast<RooRealVar&>((*clones)["x"]).getBinning("uniform");
     EXPECT_TRUE(uniform.isUniform());
     EXPECT_EQ(uniform.lowBound(), -9.);
     EXPECT_EQ(uniform.highBound(), 10.);
@@ -31,10 +30,12 @@ TEST(RooRealVar, AlternativeBinnings)
     double boundaries[] = {-5., 5., 10.};
     x.setBinning(RooBinning(2, boundaries, "custom"), "uniform");
 
-    auto& overwrittenBinning = dynamic_cast<RooRealVar&>(clones["x"]).getBinning("uniform");
+    auto& overwrittenBinning = dynamic_cast<RooRealVar&>((*clones)["x"]).getBinning("uniform");
     EXPECT_EQ(overwrittenBinning.lowBound(), -5.);
     EXPECT_EQ(overwrittenBinning.highBound(), 10.);
     EXPECT_EQ(overwrittenBinning.binWidth(0), 10.);
+
+    delete clones;
 
     auto& uniformFromX = x.getBinning("uniform");
     EXPECT_EQ(&uniformFromX, &overwrittenBinning);

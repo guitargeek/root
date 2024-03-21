@@ -29,10 +29,22 @@ the error of the blind parameter is identical to that
 of the original parameter.
 **/
 
+#include "RooFit.h"
+
 #include "RooArgSet.h"
 #include "RooUnblindUniform.h"
 
+
+using namespace std;
+
 ClassImp(RooUnblindUniform);
+
+////////////////////////////////////////////////////////////////////////////////
+/// Default constructor
+
+RooUnblindUniform::RooUnblindUniform()
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor from a given RooAbsReal (to hold the blinded value) and a set
@@ -45,7 +57,7 @@ ClassImp(RooUnblindUniform);
 /// only hold the blinded values.
 
 RooUnblindUniform::RooUnblindUniform(const char *name, const char *title,
-                const char *blindString, double scale, RooAbsReal& blindValue)
+                const char *blindString, Double_t scale, RooAbsReal& blindValue)
   : RooAbsHiddenReal(name,title),
   _value("value","Uniform blinded value",this,blindValue),
   _blindEngine(blindString,RooBlindTools::full,0.,scale)
@@ -63,9 +75,16 @@ RooUnblindUniform::RooUnblindUniform(const RooUnblindUniform& other, const char*
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooUnblindUniform::~RooUnblindUniform()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Evaluate RooBlindTools unhide-offset method on blind value
 
-double RooUnblindUniform::evaluate() const
+Double_t RooUnblindUniform::evaluate() const
 {
   return _blindEngine.UnHideUniform(_value);
 }

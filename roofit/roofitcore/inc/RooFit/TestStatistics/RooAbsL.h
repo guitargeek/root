@@ -15,7 +15,6 @@
 
 #include "RooArgSet.h"
 #include "RooAbsArg.h" // enum ConstOpCode
-#include "RooAbsPdf.h"
 
 #include "Math/Util.h" // KahanSum
 
@@ -36,16 +35,9 @@ public:
    static bool isExtendedHelper(RooAbsPdf *pdf, Extended extended);
 
    /// Convenience wrapper class used to distinguish between pdf/data owning and non-owning constructors.
-   class ClonePdfData {
-   public:
-      ClonePdfData(RooAbsPdf *inPdf, RooAbsData *inData) : pdf{inPdf}, data{inData} {}
-      ClonePdfData(std::unique_ptr<RooAbsPdf> inPdf, RooAbsData *inData)
-         : pdf{inPdf.get()}, data{inData}, ownedPdf{std::move(inPdf)}
-      {
-      }
-      RooAbsPdf *pdf = nullptr;
-      RooAbsData *data = nullptr;
-      std::shared_ptr<RooAbsPdf> ownedPdf;
+   struct ClonePdfData {
+      RooAbsPdf *pdf;
+      RooAbsData *data;
    };
 
 private:
@@ -70,6 +62,8 @@ public:
          }
       }
 
+      Section(const Section &section) = default;
+
       std::size_t begin(std::size_t N_total) const { return static_cast<std::size_t>(N_total * begin_fraction); }
 
       std::size_t end(std::size_t N_total) const
@@ -79,11 +73,6 @@ public:
          } else {
             return static_cast<std::size_t>(N_total * end_fraction);
          }
-      }
-
-      friend bool operator==(const Section &lhs, const Section &rhs)
-      {
-         return lhs.begin_fraction == rhs.begin_fraction && lhs.end_fraction == rhs.end_fraction;
       }
 
       double begin_fraction;
@@ -107,7 +96,7 @@ public:
    evaluatePartition(Section events, std::size_t components_begin, std::size_t components_end) = 0;
 
    // necessary from MinuitFcnGrad to reach likelihood properties:
-   virtual std::unique_ptr<RooArgSet> getParameters();
+   virtual RooArgSet *getParameters();
 
    /// \brief Interface function signaling a request to perform constant term optimization.
    ///
@@ -117,8 +106,6 @@ public:
 
    virtual std::string GetName() const;
    virtual std::string GetTitle() const;
-   virtual std::string GetInfo() const { return GetClassName() + "::" + pdf_->GetName(); }
-   virtual std::string GetClassName() const = 0;
 
    // necessary in RooMinimizer (via LikelihoodWrapper)
    inline virtual double defaultErrorLevel() const { return 0.5; }
@@ -141,7 +128,7 @@ protected:
    // ownership, we would have used that instead.
    std::shared_ptr<RooAbsPdf> pdf_;
    std::shared_ptr<RooAbsData> data_;
-   std::unique_ptr<RooArgSet> normSet_; ///< Pointer to set with observables used for normalization
+   std::unique_ptr<RooArgSet> normSet_; // Pointer to set with observables used for normalization
 
    std::size_t N_events_ = 1;
    std::size_t N_components_ = 1;

@@ -23,48 +23,53 @@ namespace RooStats {
   public:
 
      /// default constructors
-    explicit PointSetInterval(const char *name = nullptr);
+    explicit PointSetInterval(const char* name = 0);
 
     /// constructor from name and data set specifying the interval points
     PointSetInterval(const char* name, RooAbsData&);
 
+    /// destructor
+    virtual ~PointSetInterval();
+
+
     /// check if parameter is in the interval
-    bool IsInInterval(const RooArgSet&) const override;
+    virtual Bool_t IsInInterval(const RooArgSet&) const;
 
     /// set the confidence level for the interval
-    void SetConfidenceLevel(double cl) override {fConfidenceLevel = cl;}
+    virtual void SetConfidenceLevel(Double_t cl) {fConfidenceLevel = cl;}
 
     /// return the confidence level for the interval
-    double ConfidenceLevel() const override {return fConfidenceLevel;}
+    virtual Double_t ConfidenceLevel() const {return fConfidenceLevel;}
 
-    // Method to return lower limit on a given parameter
-    // double LowerLimit(RooRealVar& param) ; // could provide, but misleading?
-    // double UpperLimit(RooRealVar& param) ; // could provide, but misleading?
+    /// Method to return lower limit on a given parameter
+    ///  Double_t LowerLimit(RooRealVar& param) ; // could provide, but misleading?
+    ///      Double_t UpperLimit(RooRealVar& param) ; // could provide, but misleading?
 
     /// return a cloned list with the parameter of interest
-    RooArgSet* GetParameters() const override;
+    virtual RooArgSet* GetParameters() const;
 
     /// return a copy of the data set (points) defining this interval
     RooAbsData* GetParameterPoints() const {return (RooAbsData*)fParameterPointsInInterval->Clone();}
 
     /// return a cloned list with the parameter of interest
-    bool CheckParameters(const RooArgSet&) const override ;
+    Bool_t CheckParameters(const RooArgSet&) const ;
 
     /// return lower limit on a given parameter
-    double LowerLimit(RooRealVar& param) ;
+    Double_t LowerLimit(RooRealVar& param) ;
 
     /// return upper limit on a given parameter
-    double UpperLimit(RooRealVar& param) ;
+    Double_t UpperLimit(RooRealVar& param) ;
 
 
   protected:
 
-    ClassDefOverride(PointSetInterval,1)  // Concrete implementation of ConfInterval for simple 1-D intervals in the form [a,b]
+    ClassDef(PointSetInterval,1)  /// Concrete implementation of ConfInterval for simple 1-D intervals in the form [a,b]
 
   private:
 
-    double fConfidenceLevel;              ///< confidence level
-    RooAbsData* fParameterPointsInInterval; ///< either a histogram (RooDataHist) or a tree (RooDataSet)
+    //    RooArgSet* fParameters; // parameter of interest
+    Double_t fConfidenceLevel; /// confidence level
+    RooAbsData* fParameterPointsInInterval; /// either a histogram (RooDataHist) or a tree (RooDataSet)
 
 
   };

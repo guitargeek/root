@@ -23,6 +23,8 @@
 Lightweight interface adaptor that exports a RooAbsPdf as a functor.
 **/
 
+
+#include "RooFit.h"
 #include "Riostream.h"
 
 #include "RooFunctor.h"
@@ -31,32 +33,57 @@ Lightweight interface adaptor that exports a RooAbsPdf as a functor.
 #include "RooAbsPdf.h"
 #include "RooArgSet.h"
 
-#include <cassert>
+#include <assert.h>
+
+
+
+using namespace std;
 
 ClassImp(RooFunctor);
+;
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooFunctor::RooFunctor(const RooAbsFunc &func)
-   : _binding(const_cast<RooAbsFunc *>(&func)), _x(func.getDimension()), _nobs(func.getDimension())
+RooFunctor::RooFunctor(const RooAbsFunc& func)
 {
+  _ownBinding = kFALSE ;
+
+  _x = new Double_t[func.getDimension()] ; 
+
+  _nobs = func.getDimension() ;
+  _npar = 0 ;
+  _binding = (RooAbsFunc*) &func ;
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Store list of observables
 
-RooFunctor::RooFunctor(const RooAbsReal &func, const RooArgList &observables, const RooArgList &parameters)
-   : RooFunctor{func, observables, parameters, observables}
+RooFunctor::RooFunctor(const RooAbsReal& func, const RooArgList& observables, const RooArgList& parameters) 
 {
+  _nset.add(observables) ;
+
+  // Make list of all variables to be bound
+  RooArgList allVars(observables) ;
+  allVars.add(parameters) ;
+
+  // Create RooFit function binding
+  _binding = new RooRealBinding(func,allVars,&_nset,kFALSE,0) ;
+  _ownBinding = kTRUE ;
+
+  // Allocate transfer array
+  _x = new Double_t[allVars.getSize()] ; 
+  _nobs = observables.getSize() ;
+  _npar = parameters.getSize() ;
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Store normalization set
 
-RooFunctor::RooFunctor(const RooAbsReal &func, const RooArgList &observables, const RooArgList &parameters,
-                       const RooArgSet &nset)
-   : _npar(parameters.size()), _nobs(observables.size())
+RooFunctor::RooFunctor(const RooAbsReal& func, const RooArgList& observables, const RooArgList& parameters, const RooArgSet& nset) 
 {
   _nset.add(nset) ;
 
@@ -65,51 +92,71 @@ RooFunctor::RooFunctor(const RooAbsReal &func, const RooArgList &observables, co
   allVars.add(parameters) ;
 
   // Create RooFit function binding
-  _ownedBinding = std::make_unique<RooRealBinding>(func,allVars,&_nset,false,nullptr) ;
+  _binding = new RooRealBinding(func,allVars,&_nset,kFALSE,0) ;
+  _ownBinding = kTRUE ;
 
   // Allocate transfer array
-  _x.resize(allVars.size());
+  _x = new Double_t[allVars.getSize()] ; 
+  _nobs = observables.getSize() ;
+  _npar = parameters.getSize() ;
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
 RooFunctor::RooFunctor(const RooFunctor& other) :
+  _ownBinding(other._ownBinding),
   _nset(other._nset),
-  _binding{other._binding},
+  _binding(0),
   _npar(other._npar),
   _nobs(other._nobs)
 {
-  if (other._ownedBinding) {
-    _ownedBinding = std::make_unique<RooRealBinding>(static_cast<RooRealBinding&>(*other._ownedBinding),&_nset);
+  if (other._ownBinding) {
+    _binding = new RooRealBinding((RooRealBinding&)*other._binding,&_nset) ;
+  } else {
+    _binding = other._binding ;
   }
-  _x.resize(_nobs + _npar);
+  _x = new Double_t[_nobs+_npar] ;
 }
 
-RooFunctor::~RooFunctor() = default;
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooFunctor::~RooFunctor() 
+{
+  if (_ownBinding) delete _binding ; 
+  delete[] _x ;
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooFunctor::eval(const double *x) const
+Double_t RooFunctor::eval(const Double_t *x) const
 {
-  return binding()(x) ;
+  return (*_binding)(x) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooFunctor::eval(double x) const
+Double_t RooFunctor::eval(Double_t x) const
 {
-  return binding()(&x) ;
+  return (*_binding)(&x) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooFunctor::eval(const double *x, const double *p) const
+Double_t RooFunctor::eval(const Double_t *x, const Double_t *p) const
 {
-  for (int i=0 ; i<_nobs ; i++) {
-    _x[i] = x[i] ;
+  for (int i=0 ; i<_nobs ; i++) { 
+    _x[i] = x[i] ; 
   }
-  for (int i=0 ; i<_npar ; i++) {
-    _x[i+_nobs] = p[i] ;
+  for (int i=0 ; i<_npar ; i++) { 
+    _x[i+_nobs] = p[i] ; 
   }
-  return binding()(_x.data());
+  return (*_binding)(_x) ;
 }

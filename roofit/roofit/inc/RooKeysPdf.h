@@ -4,7 +4,8 @@
  *    File: $Id: RooKeysPdf.h,v 1.10 2007/05/11 09:13:07 verkerke Exp $
  * Authors:                                                                  *
  *   GR, Gerhard Raven,   UC San Diego,        raven@slac.stanford.edu       *
- *   DK, David Kirkby,    UC Irvine,         dkirkby@uci.edu                 * WV, Wouter Verkerke, UC Santa Barbara, verkerke@slac.stanford.edu       *
+ *   DK, David Kirkby,    UC Irvine,         dkirkby@uci.edu                 *
+ *   WV, Wouter Verkerke, UC Santa Barbara, verkerke@slac.stanford.edu       *
  *                                                                           *
  * Copyright (c) 2000-2005, Regents of the University of California          *
  *                          and Stanford University. All rights reserved.    *
@@ -30,54 +31,52 @@ public:
   RooKeysPdf() ;
   RooKeysPdf(const char *name, const char *title,
              RooAbsReal& x, RooDataSet& data, Mirror mirror= NoMirror,
-        double rho=1);
+        Double_t rho=1);
   RooKeysPdf(const char *name, const char *title,
              RooAbsReal& x, RooRealVar& xdata, RooDataSet& data, Mirror mirror= NoMirror,
-        double rho=1);
-  RooKeysPdf(const RooKeysPdf& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override {return new RooKeysPdf(*this,newname); }
-  ~RooKeysPdf() override;
+        Double_t rho=1);
+  RooKeysPdf(const RooKeysPdf& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const {return new RooKeysPdf(*this,newname); }
+  virtual ~RooKeysPdf();
 
-  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,
-     const char* rangeName = nullptr) const override;
-  double analyticalIntegral(Int_t code, const char* rangeName = nullptr) const override;
-  Int_t getMaxVal(const RooArgSet& vars) const override;
-  double maxVal(Int_t code) const override;
+  virtual Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,
+     const char* rangeName = 0) const;
+  virtual Double_t analyticalIntegral(Int_t code, const char* rangeName = 0) const;
+  virtual Int_t getMaxVal(const RooArgSet& vars) const;
+  virtual Double_t maxVal(Int_t code) const;
 
   void LoadDataSet( RooDataSet& data);
 
 protected:
 
   RooRealProxy _x ;
-  double evaluate() const override;
+  Double_t evaluate() const;
 
 private:
   // how far you have to go out in a Gaussian until it is smaller than the
   // machine precision
-  static const double _nSigma; //!
+  static const Double_t _nSigma; //!
 
-  Int_t _nEvents = 0;
-  double *_dataPts = nullptr;  //[_nEvents]
-  double *_dataWgts = nullptr; //[_nEvents]
-  double *_weights = nullptr;  //[_nEvents]
-  double _sumWgt = 0.0;
+  Int_t _nEvents;
+  Double_t *_dataPts;  //[_nEvents]
+  Double_t *_dataWgts; //[_nEvents]
+  Double_t *_weights;  //[_nEvents]
+  Double_t _sumWgt ;
 
-  constexpr static int _nPoints{1000};
-  double _lookupTable[_nPoints+1];
+  enum { _nPoints = 1000 };
+  Double_t _lookupTable[_nPoints+1];
 
-  double g(double x,double sigma) const;
+  Double_t g(Double_t x,Double_t sigma) const;
 
-  bool _mirrorLeft = false;
-  bool _mirrorRight = false;
-  bool _asymLeft = false;
-  bool _asymRight = false;
+  Bool_t _mirrorLeft, _mirrorRight;
+  Bool_t _asymLeft, _asymRight;
 
   // cached info on variable
   Char_t _varName[128];
-  double _lo, _hi, _binWidth;
-  double _rho;
+  Double_t _lo, _hi, _binWidth;
+  Double_t _rho;
 
-  ClassDefOverride(RooKeysPdf,2) // One-dimensional non-parametric kernel estimation p.d.f.
+  ClassDef(RooKeysPdf,2) // One-dimensional non-parametric kernel estimation p.d.f.
 };
 
 #endif

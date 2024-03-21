@@ -15,7 +15,7 @@
 
 // Execute code on library loading by running code in the constructor of a
 // class that is a static class member of another class.
-#define STATIC_EXECUTE(MY_FUNC)   \
+#define STATIC_EXECUTE(MY_CODE)   \
    struct StaticExecutorWrapper { \
       struct Executor {           \
          template <class Func>    \
@@ -27,6 +27,6 @@
       static Executor executor;   \
    };                             \
                                   \
-   StaticExecutorWrapper::Executor StaticExecutorWrapper::executor{MY_FUNC};
+   StaticExecutorWrapper::Executor StaticExecutorWrapper::executor{[]() { MY_CODE }};
 
 #endif

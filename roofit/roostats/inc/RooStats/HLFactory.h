@@ -16,13 +16,15 @@
 #ifndef RooStats_HLFactory
 #define RooStats_HLFactory
 
+#include "TString.h"
 #include "RooAbsPdf.h"
 #include "RooCategory.h"
 #include "RooDataSet.h"
 #include "RooWorkspace.h"
 
 
- class TString;
+// class TString;
+// class RooDataSet;
 
 namespace RooStats {
 
@@ -32,7 +34,7 @@ namespace RooStats {
 
     /// Constructor
     HLFactory(const char *name,
-              const char *fileName=nullptr,
+              const char *fileName=0,
               bool isVerbose = false);
 
     /// Constructor with external RooWorkspace
@@ -44,13 +46,13 @@ namespace RooStats {
     HLFactory();
 
     /// Default Destructor
-    ~HLFactory() override;
+    ~HLFactory();
 
     /// Add channel for the combination
     int AddChannel(const char* label,
                    const char* SigBkgPdfName,
-                   const char* BkgPdfName=nullptr,
-                   const char* datasetName=nullptr);
+                   const char* BkgPdfName=0,
+                   const char* datasetName=0);
 
     /// Dump the Workspace content as configuration file
     /* It needs some workspace object list or something..*/
@@ -76,11 +78,50 @@ namespace RooStats {
 
   private:
 
+    /// The category of the combination
+    RooCategory* fComboCat;
+
+    /// The background model combination
+    RooAbsPdf* fComboBkgPdf;
+
+    /// The signal plus background model combination
+    RooAbsPdf* fComboSigBkgPdf;
+
+    /// The datasets combination
+    RooDataSet* fComboDataset;
+
+    /// Flag to keep trace of the status of the combination
+    bool fCombinationDone;
+
     /// Create the category for the combinations
     void fCreateCategory();
 
     /// Check the length of the lists
     bool fNamesListsConsistent();
+
+    /// List of channels names to combine for the signal plus background pdfs
+    TList fSigBkgPdfNames;
+
+    /// List of channels names to combine for the background pdfs
+    TList fBkgPdfNames;
+
+    /// List of channels names to combine for the datasets
+    TList fDatasetsNames;
+
+    /// List of channels names to combine for the datasets
+    TList fLabelsNames;
+
+    /// The verbosity flag
+    bool fVerbose;
+
+    /// Keep trace of the inclusion deepness
+    int fInclusionLevel;
+
+    /// The RooWorkspace containing the models and variables
+    RooWorkspace* fWs;
+
+    /// Owns workspace
+    bool fOwnWs;
 
     /// Read the actual cfg file
     int fReadFile(const char*fileName, bool is_included = false);
@@ -88,21 +129,8 @@ namespace RooStats {
     /// Parse a single line an puts the content in the RooWorkSpace
     int fParseLine(TString& line);
 
-    RooCategory *fComboCat = nullptr;     ///< The category of the combination
-    RooAbsPdf *fComboBkgPdf = nullptr;    ///< The background model combination
-    RooAbsPdf *fComboSigBkgPdf = nullptr; ///< The signal plus background model combination
-    RooDataSet *fComboDataset = nullptr;  ///< The datasets combination
-    bool fCombinationDone = false;        ///< Flag to keep trace of the status of the combination
-    TList fSigBkgPdfNames;                ///< List of channels names to combine for the signal plus background pdfs
-    TList fBkgPdfNames;                   ///< List of channels names to combine for the background pdfs
-    TList fDatasetsNames;                 ///< List of channels names to combine for the datasets
-    TList fLabelsNames;                   ///< List of channels names to combine for the datasets
-    bool fVerbose = false;                ///< The verbosity flag
-    int fInclusionLevel = 0;              ///< Keep trace of the inclusion deepness
-    RooWorkspace *fWs = nullptr;          ///< The RooWorkspace containing the models and variables
-    bool fOwnWs = false;                  ///< Owns workspace
 
-  ClassDefOverride(HLFactory,1)  // The high Level Model Factory to create models from datacards
+  ClassDef(HLFactory,1)  // The high Level Model Factory to create models from datacards
 
   };
 }

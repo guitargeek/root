@@ -38,17 +38,10 @@
 /// as unowned elements.
 ///
 ///
-/// Uniquely identifying RooArgSet objects
-/// ---------------------------------------
-///
-/// \warning Before v6.28, it was ensured that no RooArgSet objects on the heap
-/// were located at an address that had already been used for a RooArgSet before.
-/// With v6.28, this is not guaranteed anymore. Hence, if your code uses pointer
-/// comparisons to uniquely identify RooArgSet instances, please consider using
-/// the new `RooArgSet::uniqueId()`.
 
 #include "RooArgSet.h"
 
+#include "TClass.h"
 #include "RooStreamParser.h"
 #include "RooFormula.h"
 #include "RooAbsRealLValue.h"
@@ -66,7 +59,7 @@
 #include <iomanip>
 #include <stdexcept>
 
-using std::istream, std::ostream, std::ifstream, std::ofstream, std::endl;
+using namespace std ;
 
 #if (__GNUC__==3&&__GNUC_MINOR__==2&&__GNUC_PATCHLEVEL__==3)
 char* operator+( streampos&, char* );
@@ -105,23 +98,21 @@ void RooArgSet::cleanup()
 ////////////////////////////////////////////////////////////////////////////////
 /// Overloaded new operator guarantees that all RooArgSets allocated with new
 /// have a unique address, a property that is exploited in several places
-/// in roofit to quickly index contents on normalization set pointers.
+/// in roofit to quickly index contents on normalization set pointers. 
 /// The memory pool only allocates space for the class itself. The elements
 /// stored in the set are stored outside the pool.
 
 void* RooArgSet::operator new (size_t bytes)
 {
-  // To make sure that derived classes don't use this operator
-  if (bytes != sizeof(RooArgSet)) {
-    return ::operator new(bytes);
-  }
+  //This will fail if a derived class uses this operator
+  assert(sizeof(RooArgSet) == bytes);
 
   return memPool()->allocate(bytes);
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Overloaded new operator with placement does not guarantee that all
+/// Overloaded new operator with placement does not guarante that all
 /// RooArgSets allocated with new have a unique address, but uses the global
 /// operator.
 
@@ -140,6 +131,8 @@ void RooArgSet::operator delete (void* ptr)
   if (memPool()->deallocate(ptr))
     return;
 
+  std::cerr << __func__ << " " << ptr << " is not in any of the pools." << std::endl;
+
   // Not part of any pool; use global op delete:
   ::operator delete(ptr);
 }
@@ -150,9 +143,10 @@ void RooArgSet::operator delete (void* ptr)
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 
-RooArgSet::RooArgSet()
+RooArgSet::RooArgSet() :
+  RooAbsCollection()
 {
-  TRACE_CREATE;
+  TRACE_CREATE
 }
 
 
@@ -164,7 +158,7 @@ RooArgSet::RooArgSet(const RooAbsCollection& coll) :
   RooAbsCollection(coll.GetName())
 {
   add(coll,true) ; // verbose to catch duplicate errors
-  TRACE_CREATE;
+  TRACE_CREATE
 }
 
 
@@ -180,10 +174,10 @@ RooArgSet::RooArgSet(const RooAbsCollection& collection, const RooAbsArg* var1) 
   RooAbsCollection(collection.GetName())
 {
   if (var1 && !collection.contains(*var1)) {
-    add(*var1,true) ;
+    add(*var1,kTRUE) ;
   }
-  add(collection,true) ; // verbose to catch duplicate errors
-  TRACE_CREATE;
+  add(collection,kTRUE) ; // verbose to catch duplicate errors
+  TRACE_CREATE
 }
 
 
@@ -192,7 +186,7 @@ RooArgSet::RooArgSet(const RooAbsCollection& collection, const RooAbsArg* var1) 
 RooArgSet::RooArgSet(const char *name) :
   RooAbsCollection(name)
 {
-  TRACE_CREATE;
+  TRACE_CREATE
 }
 
 
@@ -203,7 +197,7 @@ RooArgSet::RooArgSet(const RooArgSet& set1, const RooArgSet& set2, const char *n
 {
   add(set1) ;
   add(set2) ;
-  TRACE_CREATE;
+  TRACE_CREATE
 }
 
 
@@ -215,15 +209,18 @@ RooArgSet::RooArgSet(const RooArgSet& set1, const RooArgSet& set2, const char *n
 RooArgSet::RooArgSet(const TCollection& tcoll, const char* name) :
   RooAbsCollection(name)
 {
-  for(TObject* obj : tcoll) {
+  TIterator* iter = tcoll.MakeIterator() ;
+  TObject* obj ;
+  while((obj=iter->Next())) {
     if (!dynamic_cast<RooAbsArg*>(obj)) {
-      coutW(InputArguments) << "RooArgSet::RooArgSet(TCollection) element " << obj->GetName()
-             << " is not a RooAbsArg, ignored" << endl ;
+      coutW(InputArguments) << "RooArgSet::RooArgSet(TCollection) element " << obj->GetName() 
+			    << " is not a RooAbsArg, ignored" << endl ;
       continue ;
     }
-    add(*static_cast<RooAbsArg*>(obj)) ;
+    add(*(RooAbsArg*)obj) ;
   }
-  TRACE_CREATE;
+  delete iter ;
+  TRACE_CREATE
 }
 
 
@@ -234,16 +231,16 @@ RooArgSet::RooArgSet(const TCollection& tcoll, const char* name) :
 RooArgSet::RooArgSet(const RooArgSet& other, const char *name)
   : RooAbsCollection(other,name)
 {
-  TRACE_CREATE;
+  TRACE_CREATE
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Destructor
 
-RooArgSet::~RooArgSet()
+RooArgSet::~RooArgSet() 
 {
-  TRACE_DESTROY;
+  TRACE_DESTROY  
 }
 
 
@@ -260,13 +257,13 @@ RooArgSet::~RooArgSet()
 /// ```
 /// will not replace the element "x", it just assigns the values of y.
 RooAbsArg& RooArgSet::operator[](const TString& name) const
-{
+{     
   RooAbsArg* arg = find(name) ;
   if (!arg) {
     coutE(InputArguments) << "RooArgSet::operator[](" << GetName() << ") ERROR: no element named " << name << " in set" << endl ;
     throw std::invalid_argument((TString("No element named '") + name + "' in set " + GetName()).Data());
   }
-  return *arg ;
+  return *arg ; 
 }
 
 
@@ -274,21 +271,21 @@ RooAbsArg& RooArgSet::operator[](const TString& name) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Check if element with var's name is already in set
 
-bool RooArgSet::checkForDup(const RooAbsArg& var, bool silent) const
+Bool_t RooArgSet::checkForDup(const RooAbsArg& var, Bool_t silent) const 
 {
   RooAbsArg *other = find(var);
   if (other) {
     if (other != &var) {
       if (!silent) {
-   // print a warning if this variable is not the same one we
-   // already have
-   coutE(InputArguments) << "RooArgSet::checkForDup: ERROR argument with name " << var.GetName() << " is already in this set" << endl;
+	// print a warning if this variable is not the same one we
+	// already have
+	coutE(InputArguments) << "RooArgSet::checkForDup: ERROR argument with name " << var.GetName() << " is already in this set" << endl;
       }
     }
     // don't add duplicates
-    return true;
+    return kTRUE;
   }
-  return false ;
+  return kFALSE ;
 }
 
 
@@ -308,7 +305,7 @@ void RooArgSet::writeToFile(const char* fileName) const
     coutE(InputArguments) << "RooArgSet::writeToFile(" << GetName() << ") error opening file " << fileName << endl ;
     return ;
   }
-  writeToStream(ofs,false) ;
+  writeToStream(ofs,kFALSE) ;
 }
 
 
@@ -317,14 +314,14 @@ void RooArgSet::writeToFile(const char* fileName) const
 /// Read contents of the argset from specified file.
 /// See readFromStream() for details
 
-bool RooArgSet::readFromFile(const char* fileName, const char* flagReadAtt, const char* section, bool verbose)
+Bool_t RooArgSet::readFromFile(const char* fileName, const char* flagReadAtt, const char* section, Bool_t verbose) 
 {
   ifstream ifs(fileName) ;
   if (ifs.fail()) {
     coutE(InputArguments) << "RooArgSet::readFromFile(" << GetName() << ") error opening file " << fileName << endl ;
-    return true ;
+    return kTRUE ;
   }
-  return readFromStream(ifs,false,flagReadAtt,section,verbose) ;
+  return readFromStream(ifs,kFALSE,flagReadAtt,section,verbose) ;
 }
 
 
@@ -332,10 +329,10 @@ bool RooArgSet::readFromFile(const char* fileName, const char* flagReadAtt, cons
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Write the contents of the argset in ASCII form to given stream.
-///
+/// 
 /// A line is written for each element contained in the form
 /// `<argName> = <argValue>`
-///
+/// 
 /// The `<argValue>` part of each element is written by the arguments'
 /// writeToStream() function.
 /// \param os The stream to write to.
@@ -343,7 +340,7 @@ bool RooArgSet::readFromFile(const char* fileName, const char* flagReadAtt, cons
 /// \note In compact mode, the stream cannot be read back into a RooArgSet,
 /// but only into a RooArgList, because the variable names are lost.
 /// \param section If non-null, add a section header like `[<section>]`.
-void RooArgSet::writeToStream(ostream& os, bool compact, const char* section) const
+void RooArgSet::writeToStream(ostream& os, Bool_t compact, const char* section) const
 {
   if (section && section[0] != '\0')
     os << '[' << section << ']' << '\n';
@@ -357,7 +354,7 @@ void RooArgSet::writeToStream(ostream& os, bool compact, const char* section) co
   } else {
     for (const auto next : _list) {
       os << next->GetName() << " = " ;
-      next->writeToStream(os,false) ;
+      next->writeToStream(os,kFALSE) ;
       os << endl ;
     }
   }
@@ -368,15 +365,15 @@ void RooArgSet::writeToStream(ostream& os, bool compact, const char* section) co
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Read the contents of the argset in ASCII form from given stream.
-///
+/// 
 /// The stream is read to end-of-file and each line is assumed to be
 /// of the form
 /// \code
 ///   <argName> = <argValue>
 /// \endcode
 /// Lines starting with argNames not matching any element in the list
-/// will be ignored with a warning message. In addition limited C++ style
-/// preprocessing and flow control is provided. The following constructions
+/// will be ignored with a warning message. In addition limited C++ style 
+/// preprocessing and flow control is provided. The following constructions 
 /// are recognized:
 /// \code
 ///   include "include.file"
@@ -394,7 +391,7 @@ void RooArgSet::writeToStream(ostream& os, bool compact, const char* section) co
 /// \endcode
 ///
 /// All expressions are evaluated by RooFormula, and may involve any of
-/// the sets variables.
+/// the sets variables. 
 /// \code
 ///   echo <Message>
 /// \endcode
@@ -402,39 +399,39 @@ void RooArgSet::writeToStream(ostream& os, bool compact, const char* section) co
 /// \code
 ///   abort
 /// \endcode
-/// Force termination of read sequence with error status
+/// Force termination of read sequence with error status 
 ///
 /// The value of each argument is read by the arguments readFromStream
 /// function.
 
-bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAtt, const char* section, bool verbose)
+Bool_t RooArgSet::readFromStream(istream& is, Bool_t compact, const char* flagReadAtt, const char* section, Bool_t verbose) 
 {
   if (compact) {
     coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << ") compact mode not supported" << endl ;
-    return true ;
+    return kTRUE ;
   }
 
   RooStreamParser parser(is) ;
   parser.setPunctuation("=") ;
   TString token ;
-  bool retVal(false) ;
+  Bool_t retVal(kFALSE) ;
 
   // Conditional stack and related state variables
   // coverity[UNINIT]
-  bool anyCondTrue[100] ;
-  bool condStack[100] ;
-  bool lastLineWasElse=false ;
+  Bool_t anyCondTrue[100] ;
+  Bool_t condStack[100] ;
+  Bool_t lastLineWasElse=kFALSE ;
   Int_t condStackLevel=0 ;
-  condStack[0]=true ;
+  condStack[0]=kTRUE ;
 
   // Prepare section processing
   TString sectionHdr("[") ;
   if (section) sectionHdr.Append(section) ;
   sectionHdr.Append("]") ;
-  bool inSection(section?false:true) ;
+  Bool_t inSection(section?kFALSE:kTRUE) ;
 
-  bool reprocessToken = false ;
-  while (true) {
+  Bool_t reprocessToken = kFALSE ;
+  while (1) {
 
     if (is.eof() || is.fail() || parser.atEOF()) {
       break ;
@@ -444,9 +441,9 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
     if (!reprocessToken) {
       token = parser.readToken() ;
     }
-    reprocessToken = false ;
+    reprocessToken = kFALSE ;
 
-    // Skip empty lines
+    // Skip empty lines 
     if (token.IsNull()) {
       continue ;
     }
@@ -455,18 +452,18 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
     if (!token.CompareTo("include")) {
       if (parser.atEOL()) {
         coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName()
-                   << "): no filename found after include statement" << endl ;
-        return true ;
+			          << "): no filename found after include statement" << endl ;
+        return kTRUE ;
       }
       TString filename = parser.readLine() ;
       ifstream incfs(filename) ;
       if (!incfs.good()) {
         coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): cannot open include file " << filename << endl ;
-        return true ;
+        return kTRUE ;
       }
-      coutI(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): processing include file "
+      coutI(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): processing include file " 
           << filename << endl ;
-      if (readFromStream(incfs,compact,flagReadAtt,inSection?nullptr:section,verbose)) return true ;
+      if (readFromStream(incfs,compact,flagReadAtt,inSection?0:section,verbose)) return kTRUE ;
       continue ;
     }
 
@@ -488,7 +485,7 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
 
     // If section is specified, ignore all data outside specified section
     if (!inSection) {
-      parser.zapToEnd(true) ;
+      parser.zapToEnd(kTRUE) ;
       continue ;
     }
 
@@ -498,23 +495,22 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
       // Extract conditional expressions and check validity
       TString expr = parser.readLine() ;
       RooFormula form(expr,expr,*this) ;
-      if (!form.ok()) return true ;
+      if (!form.ok()) return kTRUE ;
 
       // Evaluate expression
-      bool status = form.eval()?true:false ;
+      Bool_t status = form.eval()?kTRUE:kFALSE ;
       if (lastLineWasElse) {
         anyCondTrue[condStackLevel] |= status ;
-        lastLineWasElse=false ;
+        lastLineWasElse=kFALSE ;
       } else {
         condStackLevel++ ;
         anyCondTrue[condStackLevel] = status ;
       }
       condStack[condStackLevel] = status ;
 
-      if (verbose) {
-        cxcoutD(Eval) << "RooArgSet::readFromStream(" << GetName() << "): conditional expression " << expr << " = "
-                      << (condStack[condStackLevel] ? "true" : "false") << endl;
-      }
+      if (verbose) cxcoutD(Eval) << "RooArgSet::readFromStream(" << GetName() 
+				     << "): conditional expression " << expr << " = "
+				     << (condStack[condStackLevel]?"true":"false") << endl ;
       continue ; // go to next line
     }
 
@@ -527,41 +523,41 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
       if (parser.atEOL()) {
         // simple else: process if nothing else was true
         condStack[condStackLevel] = !anyCondTrue[condStackLevel] ;
-        parser.zapToEnd(false) ;
+        parser.zapToEnd(kFALSE) ;
         continue ;
       } else {
         // if anything follows it should be 'if'
         token = parser.readToken() ;
         if (token.CompareTo("if")) {
           coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): syntax error: 'else " << token << "'" << endl ;
-          return true ;
+          return kTRUE ;
         } else {
           if (anyCondTrue[condStackLevel]) {
             // No need for further checking, true conditional already processed
-            condStack[condStackLevel] = false ;
-            parser.zapToEnd(false) ;
+            condStack[condStackLevel] = kFALSE ;
+            parser.zapToEnd(kFALSE) ;
             continue ;
           } else {
             // Process as normal 'if' no true conditional was encountered
-            reprocessToken = true ;
-            lastLineWasElse=true ;
+            reprocessToken = kTRUE ;
+            lastLineWasElse=kTRUE ;
             continue ;
           }
         }
-      }
+      }	
     }
 
     if (!token.CompareTo("endif")) {
       // Must have seen an if statement before
       if (condStackLevel==0) {
         coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): unmatched 'endif'" << endl ;
-        return true ;
+        return kTRUE ;
       }
 
       // Decrease stack by one
       condStackLevel-- ;
       continue ;
-    }
+    } 
 
     // If current conditional is true
     if (condStack[condStackLevel]) {
@@ -571,35 +567,35 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
         TString message = parser.readLine() ;
         coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): >> " << message << endl ;
         continue ;
-      }
+      } 
 
       // Process abort statements
       if (!token.CompareTo("abort")) {
         TString message = parser.readLine() ;
         coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): USER ABORT" << endl ;
-        return true ;
-      }
+        return kTRUE ;
+      } 
 
-      // Interpret the rest as <arg> = <value_expr>
+      // Interpret the rest as <arg> = <value_expr> 
       RooAbsArg *arg ;
 
       if ((arg = find(token)) && !arg->getAttribute("Dynamic")) {
-        if (parser.expectToken("=",true)) {
-          parser.zapToEnd(true) ;
-          retVal=true ;
+        if (parser.expectToken("=",kTRUE)) {
+          parser.zapToEnd(kTRUE) ;
+          retVal=kTRUE ;
           coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName()
-                << "): missing '=' sign: " << arg << endl ;
+				    << "): missing '=' sign: " << arg << endl ;
           continue ;
         }
-        bool argRet = arg->readFromStream(is,false,verbose) ;
-        if (!argRet && flagReadAtt) arg->setAttribute(flagReadAtt,true) ;
+        Bool_t argRet = arg->readFromStream(is,kFALSE,verbose) ;
+        if (!argRet && flagReadAtt) arg->setAttribute(flagReadAtt,kTRUE) ;
         retVal |= argRet ;
       } else {
         if (verbose) {
           coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): argument "
               << token << " not in list, ignored" << endl ;
         }
-        parser.zapToEnd(true) ;
+        parser.zapToEnd(kTRUE) ;
       }
     } else {
       parser.readLine() ;
@@ -609,39 +605,46 @@ bool RooArgSet::readFromStream(istream& is, bool compact, const char* flagReadAt
   // Did we fully unwind the conditional stack?
   if (condStackLevel!=0) {
     coutE(InputArguments) << "RooArgSet::readFromStream(" << GetName() << "): missing 'endif'" << endl ;
-    return true ;
+    return kTRUE ;
   }
 
   return retVal ;
 }
 
 
-bool RooArgSet::isInRange(const char* rangeSpec)
+Bool_t RooArgSet::isInRange(const char* rangeSpec) 
 {
   char buf[1024] ;
   strlcpy(buf,rangeSpec,1024) ;
   char* token = strtok(buf,",") ;
+  
+  TIterator* iter = createIterator() ;
 
   while(token) {
 
-    bool accept=true ;
-    for (auto * lvarg : dynamic_range_cast<RooAbsRealLValue*>(*this)) {
+    Bool_t accept=kTRUE ;
+    iter->Reset() ;
+    RooAbsArg* arg ;
+    while((arg=(RooAbsArg*)iter->Next())) {
+      RooAbsRealLValue* lvarg = dynamic_cast<RooAbsRealLValue*>(arg) ;
       if (lvarg) {
-   if (!lvarg->inRange(token)) {
-     accept=false ;
-     break ;
-   }
+	if (!lvarg->inRange(token)) {
+	  accept=kFALSE ;
+	  break ;
+	}
       }
       // WVE MUST HANDLE RooAbsCategoryLValue ranges as well
     }
     if (accept) {
-      return true ;
+      delete iter ;
+      return kTRUE ;
     }
 
-    token = strtok(nullptr,",") ;
+    token = strtok(0,",") ;
   }
 
-  return false ;
+  delete iter ;
+  return kFALSE ;
 }
 
 

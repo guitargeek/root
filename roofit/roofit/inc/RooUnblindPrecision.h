@@ -26,24 +26,25 @@ class RooCategory ;
 class RooUnblindPrecision : public RooAbsHiddenReal {
 public:
   // Constructors, assignment etc
-  RooUnblindPrecision() = default;
+  RooUnblindPrecision() ;
   RooUnblindPrecision(const char *name, const char *title,
-            const char *blindString, double centralValue, double scale, RooAbsReal& blindValue, bool sin2betaMode=false);
+            const char *blindString, Double_t centralValue, Double_t scale, RooAbsReal& blindValue, Bool_t sin2betaMode=kFALSE);
   RooUnblindPrecision(const char *name, const char *title,
-            const char *blindString, double centralValue, double scale,
-            RooAbsReal& blindValue, RooAbsCategory& blindState, bool sin2betaMode=false);
-  RooUnblindPrecision(const RooUnblindPrecision& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override { return new RooUnblindPrecision(*this,newname); }
+            const char *blindString, Double_t centralValue, Double_t scale,
+            RooAbsReal& blindValue, RooAbsCategory& blindState, Bool_t sin2betaMode=kFALSE);
+  RooUnblindPrecision(const RooUnblindPrecision& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const { return new RooUnblindPrecision(*this,newname); }
+  virtual ~RooUnblindPrecision();
 
 protected:
 
   // Function evaluation
-  double evaluate() const override ;
+  virtual Double_t evaluate() const ;
 
   RooRealProxy _value ;          // Holder of the blind value
   RooBlindTools _blindEngine ;   // Blinding engine
 
-  ClassDefOverride(RooUnblindPrecision,1) // Precision unblinding transformation
+  ClassDef(RooUnblindPrecision,1) // Precision unblinding transformation
 };
 
 #endif

@@ -19,11 +19,12 @@
 \class RooStringVar
 \ingroup Roofitcore
 
-A RooAbsArg implementing string values.
+RooStringVar is a RooAbsArg implementing string values.
 **/
 
 #include "RooStringVar.h"
 
+#include "RooFit.h"
 #include "Riostream.h"
 #include "TTree.h"
 #include "RooStreamParser.h"
@@ -35,10 +36,10 @@ A RooAbsArg implementing string values.
 /// Constructor with initial value. The size argument is ignored.
 RooStringVar::RooStringVar(const char *name, const char *title, const char* value, Int_t) :
   RooAbsArg(name, title),
-  _string(value), _stringAddr(&_string)
+  _string(value)
 {
   setValueDirty();
-}
+}  
 
 
 
@@ -47,7 +48,7 @@ RooStringVar::RooStringVar(const char *name, const char *title, const char* valu
 
 RooStringVar::RooStringVar(const RooStringVar& other, const char* name) :
   RooAbsArg(other, name),
-  _string(other._string), _stringAddr(&_string)
+  _string(other._string)
 {
   setValueDirty();
 }
@@ -56,10 +57,9 @@ RooStringVar::RooStringVar(const RooStringVar& other, const char* name) :
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Read object contents from given stream
-bool RooStringVar::readFromStream(std::istream& is, bool compact, bool)
+bool RooStringVar::readFromStream(std::istream& is, Bool_t compact, Bool_t)
 {
-  TString token;
-  TString errorPrefix("RooStringVar::readFromStream(");
+  TString token,errorPrefix("RooStringVar::readFromStream(") ;
   errorPrefix.Append(GetName()) ;
   errorPrefix.Append(")") ;
   RooStreamParser parser(is,errorPrefix) ;
@@ -67,7 +67,7 @@ bool RooStringVar::readFromStream(std::istream& is, bool compact, bool)
   TString newValue ;
 
   if (compact) {
-    parser.readString(newValue,true) ;
+    parser.readString(newValue,kTRUE) ;
   } else {
     newValue = parser.readLine() ;
   }
@@ -85,7 +85,7 @@ bool RooStringVar::readFromStream(std::istream& is, bool compact, bool)
 /// Warning: This function copies the cached values of source,
 ///          it is the callers responsibility to make sure the cache is clean
 
-void RooStringVar::copyCache(const RooAbsArg* source, bool /*valueOnly*/, bool setValDirty)
+void RooStringVar::copyCache(const RooAbsArg* source, Bool_t /*valueOnly*/, Bool_t setValDirty)
 {
   auto other = dynamic_cast<const RooStringVar*>(source) ;
   assert(other);
@@ -106,7 +106,7 @@ void RooStringVar::attachToTree(TTree& t, Int_t)
   // First determine if branch is taken
   TBranch* branch ;
   if ((branch = t.GetBranch(GetName()))) {
-    t.SetBranchAddress(GetName(), &_stringAddr);
+    t.SetBranchAddress(GetName(), &_string);
   } else {
     t.Branch(GetName(), &_string);
   }
@@ -134,11 +134,11 @@ void RooStringVar::fillTreeBranch(TTree& t)
 ////////////////////////////////////////////////////////////////////////////////
 /// (De)Activate associated tree branch
 
-void RooStringVar::setTreeBranchStatus(TTree& t, bool active)
+void RooStringVar::setTreeBranchStatus(TTree& t, Bool_t active)
 {
   TBranch* branch = t.GetBranch(GetName()) ;
   if (branch) {
-    t.SetBranchStatus(GetName(),active?true:false) ;
+    t.SetBranchStatus(GetName(),active?1:0) ;
   }
 }
 

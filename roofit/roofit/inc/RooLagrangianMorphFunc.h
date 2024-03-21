@@ -53,6 +53,7 @@
 #define ROO_LAGRANGIAN_MORPH
 
 #include "RooFit/Floats.h"
+#include "RooAbsArg.h"
 #include "RooAbsReal.h"
 #include "RooArgList.h"
 #include "RooRatio.h"
@@ -63,6 +64,7 @@
 #include "TMatrixD.h"
 
 class RooWorkspace;
+class RooParamHistFunc;
 class RooProduct;
 class RooRealVar;
 class TPair;
@@ -83,8 +85,8 @@ public:
    typedef std::map<const std::string, FlagSet> FlagMap;
 
    struct Config {
+
       std::string observableName;
-      RooRealVar *observable = nullptr;
       std::string fileName;
       ParamMap paramCards;
       FlagMap flagValues;
@@ -96,10 +98,11 @@ public:
       std::vector<RooArgList *> vertices;
       std::vector<std::vector<const char *>> nonInterfering;
       bool allowNegativeYields = true;
-      bool normalize = false;
    };
 
    RooLagrangianMorphFunc();
+   RooLagrangianMorphFunc(const char *name, const char *title, const char *filename, const char *observableName,
+                          const RooArgSet &couplings, const RooArgSet &inputs);
    RooLagrangianMorphFunc(const char *name, const char *title, const Config &config);
    RooLagrangianMorphFunc(const RooLagrangianMorphFunc &other, const char *newName);
 
@@ -109,13 +112,13 @@ public:
    std::list<double> *plotSamplingHint(RooAbsRealLValue & /*obs*/, double /*xlo*/, double /*xhi*/) const override;
    bool isBinnedDistribution(const RooArgSet &obs) const override;
    double evaluate() const override;
-   TObject *clone(const char *newname) const override { return new RooLagrangianMorphFunc(*this, newname); }
+   TObject *clone(const char *newname) const override;
 
    bool checkObservables(const RooArgSet *nset) const override;
    bool forceAnalyticalInt(const RooAbsArg &arg) const override;
    Int_t getAnalyticalIntegralWN(RooArgSet &allVars, RooArgSet &numVars, const RooArgSet *normSet,
-                                 const char *rangeName = nullptr) const override;
-   double analyticalIntegralWN(Int_t code, const RooArgSet *normSet, const char *rangeName = nullptr) const override;
+                                 const char *rangeName = 0) const override;
+   double analyticalIntegralWN(Int_t code, const RooArgSet *normSet, const char *rangeName = 0) const override;
    void printMetaArgs(std::ostream &os) const override;
    RooAbsArg::CacheMode canNodeBeCached() const override;
    void setCacheAndTrackHints(RooArgSet &) override;
@@ -178,6 +181,8 @@ private:
    void disableInterference(const std::vector<const char *> &nonInterfering);
    void disableInterferences(const std::vector<std::vector<const char *>> &nonInterfering);
 
+   void addFolders(const RooArgList &folders);
+
    bool hasCache() const;
    RooLagrangianMorphFunc::CacheElem *getCache() const;
    void updateSampleWeights();
@@ -203,10 +208,10 @@ public:
    std::map<std::string, std::string>
    createWeightStrings(const ParamMap &inputs, const std::vector<RooArgList *> &vertices, RooArgList &couplings,
                        const FlagMap &flagValues, const RooArgList &flags,
-                       const std::vector<std::vector<std::string>> &nonInterfering);
+                       const std::vector<RooArgList *> &nonInterfering);
    RooArgSet createWeights(const ParamMap &inputs, const std::vector<RooArgList *> &vertices, RooArgList &couplings,
                            const FlagMap &inputFlags, const RooArgList &flags,
-                           const std::vector<std::vector<std::string>> &nonInterfering);
+                           const std::vector<RooArgList *> &nonInterfering);
    RooArgSet createWeights(const ParamMap &inputs, const std::vector<RooArgList *> &vertices, RooArgList &couplings);
 
    bool updateCoefficients();
@@ -252,9 +257,9 @@ private:
    RooListProxy _flags;
    Config _config;
    std::vector<std::vector<RooListProxy *>> _diagrams;
-   std::vector<std::vector<std::string>> _nonInterfering;
+   std::vector<RooListProxy *> _nonInterfering;
 
-   ClassDefOverride(RooLagrangianMorphFunc, 2)
+   ClassDefOverride(RooLagrangianMorphFunc, 1)
 };
 
 #endif

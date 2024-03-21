@@ -15,44 +15,44 @@
 #ifndef ROO_PARAMETRIC_STEP_FUNCTION
 #define ROO_PARAMETRIC_STEP_FUNCTION
 
-#include <RooRealProxy.h>
-#include <RooListProxy.h>
-#include <RooAbsPdf.h>
+#include "TArrayD.h"
+#include "RooAbsPdf.h"
+#include "RooRealProxy.h"
+#include "RooListProxy.h"
 
-#include <TArrayD.h>
-
+class RooRealVar;
 class RooArgList ;
 
 class RooParametricStepFunction : public RooAbsPdf {
 public:
 
-   RooParametricStepFunction() {}
+   RooParametricStepFunction() : _nBins(0), _coefIter(0) {}
 
   RooParametricStepFunction(const char *name, const char *title,
-      RooAbsReal& x, const RooArgList& coefList, TArrayD const& limits, Int_t nBins=1) ;
+      RooAbsReal& x, const RooArgList& coefList, TArrayD& limits, Int_t nBins=1) ;
 
-  RooParametricStepFunction(const RooParametricStepFunction& other, const char* name = nullptr);
-  TObject* clone(const char* newname) const override { return new RooParametricStepFunction(*this, newname); }
+  RooParametricStepFunction(const RooParametricStepFunction& other, const char* name = 0);
+  virtual TObject* clone(const char* newname) const { return new RooParametricStepFunction(*this, newname); }
+  virtual ~RooParametricStepFunction() ;
 
-  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=nullptr) const override ;
-  double analyticalIntegral(Int_t code, const char* rangeName=nullptr) const override ;
-  Int_t getnBins() const { return _nBins; }
-  double* getLimits() { return _limits.GetArray(); }
-
-  std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
+  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const ;
+  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const ;
+  Int_t getnBins();
+  Double_t* getLimits();
 
 protected:
 
-  double lastBinValue() const ;
+  Double_t lastBinValue() const ;
 
   RooRealProxy _x;
   RooListProxy _coefList ;
   TArrayD _limits;
-  Int_t _nBins = 0;
+  Int_t _nBins ;
+  TIterator* _coefIter ;  //! do not persist
 
-  double evaluate() const override;
+  Double_t evaluate() const;
 
-  ClassDefOverride(RooParametricStepFunction,1) // Parametric Step Function Pdf
+  ClassDef(RooParametricStepFunction,1) // Parametric Step Function Pdf
 };
 
 #endif

@@ -11,14 +11,13 @@
  */
 
 #include <RooFitHS3/RooJSONFactoryWSTool.h>
-#include <RooFitHS3/JSONIO.h>
-#include <RooFit/Detail/JSONInterface.h>
+#include <RooFitHS3/JSONInterface.h>
 
-#include <RooStats/HistFactory/Detail/HistFactoryImpl.h>
 #include <RooStats/HistFactory/ParamHistFunc.h>
 #include <RooStats/HistFactory/PiecewiseInterpolation.h>
 #include <RooStats/HistFactory/FlexibleInterpVar.h>
 #include <RooConstVar.h>
+#include <RooCategory.h>
 #include <RooRealVar.h>
 #include <RooDataHist.h>
 #include <RooHistFunc.h>
@@ -26,84 +25,86 @@
 #include <RooBinWidthFunction.h>
 #include <RooProdPdf.h>
 #include <RooPoisson.h>
-#include <RooLognormal.h>
 #include <RooGaussian.h>
 #include <RooProduct.h>
 #include <RooWorkspace.h>
 
+#include <TH1.h>
+
+#include <stack>
+
 #include "static_execute.h"
-#include "JSONIOUtils.h"
 
-using RooFit::Detail::JSONNode;
-
-using namespace RooStats::HistFactory;
-using namespace RooStats::HistFactory::Detail;
-using namespace RooStats::HistFactory::Detail::MagicConstants;
+using RooFit::Experimental::JSONNode;
 
 namespace {
-
-inline void writeAxis(JSONNode &axis, RooRealVar const &obs)
+inline void collectNames(const JSONNode &n, std::vector<std::string> &names)
 {
-   auto &binning = obs.getBinning();
-   if (binning.isUniform()) {
-      axis["nbins"] << obs.numBins();
-      axis["min"] << obs.getMin();
-      axis["max"] << obs.getMax();
-   } else {
-      auto &edges = axis["edges"];
-      edges.set_seq();
-      double val = binning.binLow(0);
-      edges.append_child() << val;
-      for (int i = 0; i < binning.numBins(); ++i) {
-         val = binning.binHigh(i);
-         edges.append_child() << val;
-      }
+   for (const auto &c : n.children()) {
+      names.push_back(RooJSONFactoryWSTool::name(c));
    }
 }
 
-double round_prec(double d, int nSig)
+inline void stackError(const JSONNode &n, std::vector<double> &sumW, std::vector<double> &sumW2)
 {
-   if (d == 0.0)
-      return 0.0;
-   int ndigits = std::floor(std::log10(std::abs(d))) + 1 - nSig;
-   double sf = std::pow(10, ndigits);
-   if (std::abs(d / sf) < 2)
-      ndigits--;
-   return sf * std::round(d / sf);
-}
-
-// To avoid repeating the same string literals that can potentially get out of
-// sync.
-namespace Literals {
-constexpr auto staterror = "staterror";
-}
-
-void erasePrefix(std::string &str, std::string_view prefix)
-{
-   if (startsWith(str, prefix)) {
-      str.erase(0, prefix.size());
+   if (!n.is_map())
+      return;
+   if (!n.has_child("counts"))
+      throw "no counts given";
+   if (!n["counts"].is_seq())
+      throw "counts are not in list form";
+   if (!n.has_child("errors"))
+      throw "no errors given";
+   if (!n["errors"].is_seq())
+      throw "errors are not in list form";
+   if (n["counts"].num_children() != n["errors"].num_children()) {
+      throw "inconsistent bin numbers";
+   }
+   const size_t nbins = n["counts"].num_children();
+   for (size_t ibin = 0; ibin < nbins; ++ibin) {
+      double w = n["counts"][ibin].val_float();
+      double e = n["errors"][ibin].val_float();
+      if (ibin < sumW.size())
+         sumW[ibin] += w;
+      else
+         sumW.push_back(w);
+      if (ibin < sumW2.size())
+         sumW2[ibin] += e * e;
+      else
+         sumW2.push_back(e * e);
    }
 }
 
-void eraseSuffix(std::string &str, std::string_view suffix)
+std::vector<std::string> getVarnames(const RooHistFunc *hf)
 {
-   if (endsWith(str, suffix)) {
-      str.erase(str.size() - suffix.size());
-   }
+   const RooDataHist &dh = hf->dataHist();
+   RooArgList vars(*dh.get());
+   return RooJSONFactoryWSTool::names(&vars);
 }
 
-template <class Coll>
-void sortByName(Coll &coll)
+std::unique_ptr<TH1> histFunc2TH1(const RooHistFunc *hf)
 {
-   std::sort(coll.begin(), coll.end(), [](auto &l, auto &r) { return l.name < r.name; });
+   if (!hf)
+      RooJSONFactoryWSTool::error("null pointer passed to histFunc2TH1");
+   const RooDataHist &dh = hf->dataHist();
+   RooArgSet *vars = hf->getVariables();
+   auto varnames = RooJSONFactoryWSTool::names(vars);
+   std::unique_ptr<TH1> hist{hf->createHistogram(RooJSONFactoryWSTool::concat(vars).c_str())};
+   hist->SetDirectory(nullptr);
+   auto volumes = dh.binVolumes(0, dh.numEntries());
+   for (size_t i = 0; i < volumes.size(); ++i) {
+      hist->SetBinContent(i + 1, hist->GetBinContent(i + 1) / volumes[i]);
+      hist->SetBinError(i + 1, sqrt(hist->GetBinContent(i + 1)));
+   }
+   return hist;
 }
 
 template <class T>
 T *findClient(RooAbsArg *gamma)
 {
    for (const auto &client : gamma->clients()) {
-      if (auto casted = dynamic_cast<T *>(client)) {
-         return casted;
+      if (client->InheritsFrom(T::Class())) {
+         return static_cast<T *>(client);
       } else {
          T *c = findClient<T>(client);
          if (c)
@@ -113,371 +114,431 @@ T *findClient(RooAbsArg *gamma)
    return nullptr;
 }
 
-RooAbsPdf *findConstraint(RooAbsArg *g)
+RooRealVar *getNP(RooJSONFactoryWSTool *tool, const char *parname)
 {
-   RooPoisson *constraint_p = findClient<RooPoisson>(g);
-   if (constraint_p)
-      return constraint_p;
-   RooGaussian *constraint_g = findClient<RooGaussian>(g);
-   if (constraint_g)
-      return constraint_g;
-   RooLognormal *constraint_l = findClient<RooLognormal>(g);
-   if (constraint_l)
-      return constraint_l;
-   return nullptr;
+   RooRealVar *par = tool->workspace()->var(parname);
+   if (!tool->workspace()->var(parname)) {
+      par = (RooRealVar *)tool->workspace()->factory(TString::Format("%s[0.,-5,5]", parname).Data());
+   }
+   if (par) {
+      par->setAttribute("np");
+   }
+   TString globname = TString::Format("nom_%s", parname);
+   RooRealVar *nom = tool->workspace()->var(globname.Data());
+   if (!nom) {
+      nom = (RooRealVar *)tool->workspace()->factory((globname + "[0.]").Data());
+   }
+   if (nom) {
+      nom->setAttribute("glob");
+      nom->setRange(-5, 5);
+      nom->setConstant(true);
+   }
+   TString constrname = TString::Format("sigma_%s", parname);
+   RooRealVar *sigma = tool->workspace()->var(constrname.Data());
+   if (!sigma) {
+      sigma = (RooRealVar *)tool->workspace()->factory((constrname + "[1.]").Data());
+   }
+   if (sigma) {
+      sigma->setRange(sigma->getVal(), sigma->getVal());
+      sigma->setConstant(true);
+   }
+   if (!par)
+      RooJSONFactoryWSTool::error(TString::Format("unable to find nuisance parameter '%s'", parname));
+   return par;
+}
+RooAbsPdf *getConstraint(RooJSONFactoryWSTool *tool, const std::string &sysname)
+{
+   RooAbsPdf *pdf = tool->workspace()->pdf((sysname + "_constraint").c_str());
+   if (!pdf) {
+      pdf = (RooAbsPdf *)(tool->workspace()->factory(
+         TString::Format("RooGaussian::%s_constraint(alpha_%s,nom_alpha_%s,sigma_alpha_%s)", sysname.c_str(),
+                         sysname.c_str(), sysname.c_str(), sysname.c_str())
+            .Data()));
+   }
+   if (!pdf) {
+      RooJSONFactoryWSTool::error(TString::Format("unable to find constraint term '%s'", sysname.c_str()));
+   }
+   return pdf;
 }
 
-std::string toString(TClass *c)
-{
-   if (!c) {
-      return "Const";
-   }
-   if (c == RooPoisson::Class()) {
-      return "Poisson";
-   }
-   if (c == RooGaussian::Class()) {
-      return "Gauss";
-   }
-   if (c == RooLognormal::Class()) {
-      return "Lognormal";
-   }
-   return "unknown";
-}
-
-inline std::string defaultGammaName(std::string const &sysname, std::size_t i)
-{
-   return "gamma_" + sysname + "_bin_" + std::to_string(i);
-}
-
-/// Export the names of the gamma parameters to the modifier struct if the
-/// names don't match the default gamma parameter names, which is gamma_<sysname>_bin_<i>
-void optionallyExportGammaParameters(JSONNode &mod, std::string const &sysname,
-                                     std::vector<std::string> const &paramNames)
-{
-   for (std::size_t i = 0; i < paramNames.size(); ++i) {
-      if (paramNames[i] != defaultGammaName(sysname, i)) {
-         mod["parameters"].fill_seq(paramNames);
-         return;
-      }
-   }
-}
-
-RooRealVar &createNominal(RooWorkspace &ws, std::string const &parname, double val, double min, double max)
-{
-   RooRealVar &nom = getOrCreate<RooRealVar>(ws, "nom_" + parname, val, min, max);
-   nom.setConstant(true);
-   return nom;
-}
-
-/// Get the conventional name of the constraint pdf for a constrained
-/// parameter.
-std::string constraintName(std::string const &paramName)
-{
-   return paramName + "Constraint";
-}
-
-RooAbsPdf &getConstraint(RooWorkspace &ws, const std::string &pname)
-{
-   RooRealVar *constrParam = ws.var(pname);
-   constrParam->setError(1.0);
-   return getOrCreate<RooGaussian>(ws, constraintName(pname), *constrParam, *ws.var("nom_" + pname), 1.);
-}
-
-ParamHistFunc &createPHF(const std::string &phfname, std::string const &sysname,
-                         const std::vector<std::string> &parnames, const std::vector<double> &vals,
-                         RooJSONFactoryWSTool &tool, RooArgList &constraints, const RooArgSet &observables,
-                         const std::string &constraintType, double gammaMin, double gammaMax, double minSigma)
-{
-   RooWorkspace &ws = *tool.workspace();
-
-   RooArgList gammas;
-   for (std::size_t i = 0; i < vals.size(); ++i) {
-      const std::string name = parnames.empty() ? defaultGammaName(sysname, i) : parnames[i];
-      gammas.add(getOrCreate<RooRealVar>(ws, name, 1., gammaMin, gammaMax));
-   }
-
-   auto &phf = tool.wsEmplace<ParamHistFunc>(phfname, observables, gammas);
-
-   if (constraintType != "Const") {
-      auto constraintsInfo = createGammaConstraints(
-         gammas, vals, minSigma, constraintType == "Poisson" ? Constraint::Poisson : Constraint::Gaussian);
-      for (auto const &term : constraintsInfo.constraints) {
-         ws.import(*term, RooFit::RecycleConflictNodes());
-         constraints.add(*ws.pdf(term->GetName()));
-      }
-   } else {
-      for (auto *gamma : static_range_cast<RooRealVar *>(gammas)) {
-         gamma->setConstant(true);
-      }
-   }
-
-   return phf;
-}
-
-bool hasStaterror(const JSONNode &comp)
-{
-   if (!comp.has_child("modifiers"))
-      return false;
-   for (const auto &mod : comp["modifiers"].children()) {
-      if (mod["type"].val() == ::Literals::staterror)
-         return true;
-   }
-   return false;
-}
-
-const JSONNode &findStaterror(const JSONNode &comp)
-{
-   if (comp.has_child("modifiers")) {
-      for (const auto &mod : comp["modifiers"].children()) {
-         if (mod["type"].val() == ::Literals::staterror)
-            return mod;
-      }
-   }
-   RooJSONFactoryWSTool::error("sample '" + RooJSONFactoryWSTool::name(comp) + "' does not have a " +
-                               ::Literals::staterror + " modifier!");
-}
-
-bool importHistSample(RooJSONFactoryWSTool &tool, RooDataHist &dh, RooArgSet const &varlist,
-                      RooAbsArg const *mcStatObject, const std::string &fprefix, const JSONNode &p,
-                      RooArgList &constraints)
-{
-   RooWorkspace &ws = *tool.workspace();
-
-   std::string sampleName = RooJSONFactoryWSTool::name(p);
-   std::string prefixedName = fprefix + "_" + sampleName;
-
-   std::string channelName = fprefix;
-   erasePrefix(channelName, "model_");
-
-   if (!p.has_child("data")) {
-      RooJSONFactoryWSTool::error("sample '" + sampleName + "' does not define a 'data' key");
-   }
-
-   auto &hf = tool.wsEmplace<RooHistFunc>("hist_" + prefixedName, varlist, dh);
-   hf.SetTitle(RooJSONFactoryWSTool::name(p).c_str());
-
-   RooArgList shapeElems;
-   RooArgList normElems;
-
-   shapeElems.add(tool.wsEmplace<RooBinWidthFunction>(prefixedName + "_binWidth", hf, true));
-
-   if (hasStaterror(p)) {
-      shapeElems.add(*mcStatObject);
-   }
-
-   if (p.has_child("modifiers")) {
-      RooArgList overall_nps;
-      std::vector<double> overall_low;
-      std::vector<double> overall_high;
-
-      RooArgList histNps;
-      RooArgList histoLo;
-      RooArgList histoHi;
-
-      int idx = 0;
-      for (const auto &mod : p["modifiers"].children()) {
-         std::string const &modtype = mod["type"].val();
-         std::string const &sysname =
-            mod.has_child("name")
-               ? mod["name"].val()
-               : (mod.has_child("parameter") ? mod["parameter"].val() : "syst_" + std::to_string(idx));
-         ++idx;
-         if (modtype == "staterror") {
-            // this is dealt with at a different place, ignore it for now
-         } else if (modtype == "normfactor") {
-            RooRealVar &constrParam = getOrCreate<RooRealVar>(ws, sysname, 1., -3, 5);
-            normElems.add(constrParam);
-            if (auto constrInfo = mod.find("constraint_name")) {
-               auto constraint = tool.request<RooAbsReal>(constrInfo->val(), sampleName);
-               if (auto gauss = dynamic_cast<RooGaussian const *>(constraint)) {
-                  constrParam.setError(gauss->getSigma().getVal());
-               }
-               constraints.add(*constraint);
-            }
-         } else if (modtype == "normsys") {
-            auto *parameter = mod.find("parameter");
-            std::string parname(parameter ? parameter->val() : "alpha_" + sysname);
-            createNominal(ws, parname, 0.0, -10, 10);
-            overall_nps.add(getOrCreate<RooRealVar>(ws, parname, 0., -5, 5));
-            auto &data = mod["data"];
-            // the below contains a a hack to cut off variations that go below 0
-            // this is needed because with interpolation code 4, which is the default, interpolation is done in
-            // log-space. hence, values <= 0 result in NaN which propagate throughout the model and cause evaluations to
-            // fail if you know a nicer way to solve this, please go ahead and fix the lines below
-            overall_low.push_back(data["lo"].val_double() > 0 ? data["lo"].val_double()
-                                                              : std::numeric_limits<double>::epsilon());
-            overall_high.push_back(data["hi"].val_double() > 0 ? data["hi"].val_double()
-                                                               : std::numeric_limits<double>::epsilon());
-            constraints.add(getConstraint(ws, parname));
-         } else if (modtype == "histosys") {
-            auto *parameter = mod.find("parameter");
-            std::string parname(parameter ? parameter->val() : "alpha_" + sysname);
-            createNominal(ws, parname, 0.0, -10, 10);
-            histNps.add(getOrCreate<RooRealVar>(ws, parname, 0., -5, 5));
-            auto &data = mod["data"];
-            histoLo.add(tool.wsEmplace<RooHistFunc>(
-               sysname + "Low_" + prefixedName, varlist,
-               RooJSONFactoryWSTool::readBinnedData(data["lo"], sysname + "Low_" + prefixedName, varlist)));
-            histoHi.add(tool.wsEmplace<RooHistFunc>(
-               sysname + "High_" + prefixedName, varlist,
-               RooJSONFactoryWSTool::readBinnedData(data["hi"], sysname + "High_" + prefixedName, varlist)));
-            constraints.add(getConstraint(ws, parname));
-         } else if (modtype == "shapesys") {
-            std::string funcName = channelName + "_" + sysname + "_ShapeSys";
-            // funcName should be "<channel_name>_<sysname>_ShapeSys"
-            std::vector<double> vals;
-            for (const auto &v : mod["data"]["vals"].children()) {
-               vals.push_back(v.val_double());
-            }
-            std::vector<std::string> parnames;
-            for (const auto &v : mod["parameters"].children()) {
-               parnames.push_back(v.val());
-            }
-            if (vals.empty()) {
-               RooJSONFactoryWSTool::error("unable to instantiate shapesys '" + sysname + "' with 0 values!");
-            }
-            std::string constraint(mod["constraint"].val());
-            shapeElems.add(createPHF(funcName, sysname, parnames, vals, tool, constraints, varlist, constraint,
-                                     defaultGammaMin, defaultShapeSysGammaMax, minShapeUncertainty));
-         } else if (modtype == "custom") {
-            RooAbsReal *obj = ws.function(sysname);
-            if (!obj) {
-               RooJSONFactoryWSTool::error("unable to find custom modifier '" + sysname + "'");
-            }
-            if (obj->dependsOn(varlist)) {
-               shapeElems.add(*obj);
-            } else {
-               normElems.add(*obj);
-            }
-         } else {
-            RooJSONFactoryWSTool::error("modifier '" + sysname + "' of unknown type '" + modtype + "'");
-         }
-      }
-
-      std::string interpName = sampleName + "_" + channelName + "_epsilon";
-      if (!overall_nps.empty()) {
-         auto &v = tool.wsEmplace<RooStats::HistFactory::FlexibleInterpVar>(interpName, overall_nps, 1., overall_low,
-                                                                            overall_high);
-         v.setAllInterpCodes(4); // default HistFactory interpCode
-         normElems.add(v);
-      } else {
-         RooConstVar interp(interpName.c_str(), "", 1.);
-         ws.import(interp);
-      }
-      if (!histNps.empty()) {
-         auto &v = tool.wsEmplace<PiecewiseInterpolation>("histoSys_" + prefixedName, hf, histoLo, histoHi, histNps);
-         v.setPositiveDefinite();
-         v.setAllInterpCodes(4); // default interpCode for HistFactory
-         shapeElems.add(v);
-      } else {
-         shapeElems.add(hf);
-      }
-   }
-
-   tool.wsEmplace<RooProduct>(prefixedName + "_shapes", shapeElems);
-   if (!normElems.empty()) {
-      tool.wsEmplace<RooProduct>(prefixedName + "_scaleFactors", normElems);
-   } else {
-      ws.factory("RooConstVar::" + prefixedName + "_scaleFactors(1.)");
-   }
-
-   return true;
-}
-
-class HistFactoryImporter : public RooFit::JSONIO::Importer {
+class RooHistogramFactory : public RooJSONFactoryWSTool::Importer {
 public:
-   bool importArg(RooJSONFactoryWSTool *tool, const JSONNode &p) const override
+   bool importFunction(RooJSONFactoryWSTool *tool, const JSONNode &p) const override
    {
-      std::string name = RooJSONFactoryWSTool::name(p);
-      if (!p.has_child("samples")) {
-         RooJSONFactoryWSTool::error("no samples in '" + name + "', skipping.");
+      std::string name(RooJSONFactoryWSTool::name(p));
+      std::string prefix = RooJSONFactoryWSTool::genPrefix(p, true);
+      if (prefix.size() > 0)
+         name = prefix + name;
+      if (!p.has_child("data")) {
+         RooJSONFactoryWSTool::error("function '" + name + "' is of histogram type, but does not define a 'data' key");
       }
-      double statErrThresh = 0;
-      std::string statErrType = "Poisson";
-      if (p.has_child(::Literals::staterror)) {
-         auto &staterr = p[::Literals::staterror];
-         if (staterr.has_child("relThreshold"))
-            statErrThresh = staterr["relThreshold"].val_double();
-         if (staterr.has_child("constraint"))
-            statErrType = staterr["constraint"].val();
-      }
-      std::vector<double> sumW;
-      std::vector<double> sumW2;
-      std::vector<std::string> gammaParnames;
-      RooArgSet observables = RooJSONFactoryWSTool::readAxes(p);
+      try {
+         std::stack<std::unique_ptr<RooAbsArg>> ownedArgsStack;
+         RooArgSet shapeElems;
+         RooArgSet normElems;
+         RooArgSet varlist;
+         tool->getObservables(p["data"], prefix, varlist);
 
-      std::string fprefix = name;
-
-      std::vector<std::unique_ptr<RooDataHist>> data;
-      for (const auto &comp : p["samples"].children()) {
-         std::unique_ptr<RooDataHist> dh = RooJSONFactoryWSTool::readBinnedData(
-            comp["data"], fprefix + "_" + RooJSONFactoryWSTool::name(comp) + "_dataHist", observables);
-         size_t nbins = dh->numEntries();
-
-         if (hasStaterror(comp)) {
-            if (sumW.empty()) {
-               sumW.resize(nbins);
-               sumW2.resize(nbins);
+         auto getBinnedData = [&tool, &p, &varlist](std::string const &binnedDataName) -> RooDataHist & {
+            auto *dh = dynamic_cast<RooDataHist *>(tool->workspace()->embeddedData(binnedDataName.c_str()));
+            if (!dh) {
+               auto dhForImport = tool->readBinnedData(p["data"], binnedDataName, varlist);
+               tool->workspace()->import(*dhForImport, RooFit::Silence(true), RooFit::Embedded());
+               dh = static_cast<RooDataHist *>(tool->workspace()->embeddedData(dhForImport->GetName()));
             }
-            for (size_t i = 0; i < nbins; ++i) {
-               sumW[i] += dh->weight(i);
-               sumW2[i] += dh->weightSquared(i);
+            return *dh;
+         };
+
+         RooDataHist &dh = getBinnedData(name);
+         auto hf = std::make_unique<RooHistFunc>(("hist_" + name).c_str(), RooJSONFactoryWSTool::name(p).c_str(),
+                                                 *(dh.get()), dh);
+         ownedArgsStack.push(std::make_unique<RooBinWidthFunction>(
+            TString::Format("%s_binWidth", (!prefix.empty() ? prefix : name).c_str()).Data(),
+            TString::Format("%s_binWidth", (!prefix.empty() ? prefix : name).c_str()).Data(), *hf, true));
+         shapeElems.add(*ownedArgsStack.top());
+
+         if (p.has_child("statError") && p["statError"].val_bool()) {
+            RooAbsArg *phf = tool->getScopeObject("mcstat");
+            if (phf) {
+               shapeElems.add(*phf);
+            } else {
+               RooJSONFactoryWSTool::error("function '" + name +
+                                           "' has 'statError' active, but no element called 'mcstat' in scope!");
             }
-            if (gammaParnames.empty()) {
-               if (auto staterrorParams = findStaterror(comp).find("parameters")) {
-                  for (const auto &v : staterrorParams->children()) {
-                     gammaParnames.push_back(v.val());
-                  }
+         }
+
+         if (p.has_child("normFactors")) {
+            for (const auto &nf : p["normFactors"].children()) {
+               std::string nfname(RooJSONFactoryWSTool::name(nf));
+               RooAbsReal *r = tool->workspace()->var(nfname.c_str());
+               if (r) {
+                  normElems.add(*r);
+               } else {
+                  normElems.add(
+                     *(RooRealVar *)tool->workspace()->factory(TString::Format("%s[1.]", nfname.c_str()).Data()));
                }
             }
          }
-         data.emplace_back(std::move(dh));
-      }
 
-      RooAbsArg *mcStatObject = nullptr;
-      RooArgList constraints;
-      if (!sumW.empty()) {
-         std::string channelName = name;
-         erasePrefix(channelName, "model_");
-
-         std::vector<double> errs(sumW.size());
-         for (size_t i = 0; i < sumW.size(); ++i) {
-            errs[i] = std::sqrt(sumW2[i]) / sumW[i];
-            // avoid negative sigma. This NP will be set constant anyway later
-            errs[i] = std::max(errs[i], 0.);
+         if (p.has_child("overallSystematics")) {
+            RooArgList nps;
+            std::vector<double> low;
+            std::vector<double> high;
+            for (const auto &sys : p["overallSystematics"].children()) {
+               std::string sysname(RooJSONFactoryWSTool::name(sys));
+               std::string parname(sys.has_child("parameter") ? RooJSONFactoryWSTool::name(sys["parameter"])
+                                                              : "alpha_" + sysname);
+               RooRealVar *par = ::getNP(tool, parname.c_str());
+               if (par) {
+                  nps.add(*par);
+                  low.push_back(sys["low"].val_float());
+                  high.push_back(sys["high"].val_float());
+               } else {
+                  RooJSONFactoryWSTool::error("overall systematic '" + sysname + "' doesn't have a valid parameter!");
+               }
+            }
+            auto v = std::make_unique<RooStats::HistFactory::FlexibleInterpVar>(
+               ("overallSys_" + name).c_str(), ("overallSys_" + name).c_str(), nps, 1., low, high);
+            v->setAllInterpCodes(4); // default HistFactory interpCode
+            normElems.add(*v);
+            ownedArgsStack.push(std::move(v));
          }
 
-         mcStatObject =
-            &createPHF("mc_stat_" + channelName, "stat_" + channelName, gammaParnames, errs, *tool, constraints,
-                       observables, statErrType, defaultGammaMin, defaultStatErrorGammaMax, statErrThresh);
-      }
+         if (p.has_child("histogramSystematics")) {
+            RooArgList nps;
+            RooArgList low;
+            RooArgList high;
+            for (const auto &sys : p["histogramSystematics"].children()) {
+               std::string sysname(RooJSONFactoryWSTool::name(sys));
+               std::string parname(sys.has_child("parameter") ? RooJSONFactoryWSTool::name(sys["parameter"])
+                                                              : "alpha_" + sysname);
+               RooAbsReal *par = ::getNP(tool, parname.c_str());
+               nps.add(*par);
+               RooDataHist &dh_low = getBinnedData(sysname + "Low_" + name);
+               ownedArgsStack.push(std::make_unique<RooHistFunc>(
+                  (sysname + "Low_" + name).c_str(), RooJSONFactoryWSTool::name(p).c_str(), *(dh_low.get()), dh_low));
+               low.add(*ownedArgsStack.top());
+               RooDataHist &dh_high = getBinnedData(sysname + "High_" + name);
+               ownedArgsStack.push(std::make_unique<RooHistFunc>((sysname + "High_" + name).c_str(),
+                                                                 RooJSONFactoryWSTool::name(p).c_str(),
+                                                                 *(dh_high.get()), dh_high));
+               high.add(*ownedArgsStack.top());
+            }
+            auto v = std::make_unique<PiecewiseInterpolation>(("histoSys_" + name).c_str(),
+                                                              ("histoSys_" + name).c_str(), *hf, low, high, nps, false);
+            v->setAllInterpCodes(4); // default interpCode for HistFactory
+            shapeElems.add(*v);
+            ownedArgsStack.push(std::move(v));
+         } else {
+            shapeElems.add(*hf);
+            ownedArgsStack.push(std::move(hf));
+         }
 
-      int idx = 0;
-      RooArgList funcs;
-      RooArgList coefs;
-      for (const auto &comp : p["samples"].children()) {
-         importHistSample(*tool, *data[idx], observables, mcStatObject, fprefix, comp, constraints);
-         ++idx;
+         if (p.has_child("shapeSystematics")) {
+            for (const auto &sys : p["shapeSystematics"].children()) {
+               std::string sysname(RooJSONFactoryWSTool::name(sys));
+               std::string funcName = prefix + sysname + "_ShapeSys";
+               RooAbsArg *phf = tool->getScopeObject(funcName);
+               if (!phf) {
+                  RooJSONFactoryWSTool::error("PHF '" + funcName +
+                                              "' should have been created but cannot be found in scope.");
+               }
+               shapeElems.add(*phf);
+            }
+         }
 
-         std::string const &compName = RooJSONFactoryWSTool::name(comp);
-         funcs.add(*tool->request<RooAbsReal>(fprefix + "_" + compName + "_shapes", name));
-         coefs.add(*tool->request<RooAbsReal>(fprefix + "_" + compName + "_scaleFactors", name));
-      }
-
-      if (constraints.empty()) {
-         tool->wsEmplace<RooRealSumPdf>(name, funcs, coefs, true);
-      } else {
-         std::string sumName = name + "_model";
-         erasePrefix(sumName, "model_");
-         auto &sum = tool->wsEmplace<RooRealSumPdf>(sumName, funcs, coefs, true);
-         sum.SetTitle(name.c_str());
-         tool->wsEmplace<RooProdPdf>(name, constraints, RooFit::Conditional(sum, observables));
+         RooProduct shape(name.c_str(), (name + "_shape").c_str(), shapeElems);
+         tool->workspace()->import(shape, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
+         if (normElems.size() > 0) {
+            RooProduct norm((name + "_norm").c_str(), (name + "_norm").c_str(), normElems);
+            tool->workspace()->import(norm, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
+         } else {
+            tool->workspace()->factory(("RooConstVar::" + name + "_norm(1.)").c_str());
+         }
+      } catch (const std::runtime_error &e) {
+         RooJSONFactoryWSTool::error("function '" + name +
+                                     "' is of histogram type, but 'data' is not a valid definition. " + e.what() + ".");
       }
       return true;
    }
 };
 
-class FlexibleInterpVarStreamer : public RooFit::JSONIO::Exporter {
+class RooRealSumPdfFactory : public RooJSONFactoryWSTool::Importer {
+public:
+   std::unique_ptr<ParamHistFunc> createPHF(const std::string &sysname, const std::string &phfname,
+                                            const std::vector<double> &vals, RooWorkspace &w, RooArgList &constraints,
+                                            const RooArgSet &observables, const std::string &constraintType,
+                                            RooArgList &gammas, double gamma_min, double gamma_max) const
+   {
+      RooArgList ownedComponents;
+
+      std::string funcParams = "gamma_" + sysname;
+      gammas.add(ParamHistFunc::createParamSet(w, funcParams.c_str(), observables, gamma_min, gamma_max));
+      auto phf = std::make_unique<ParamHistFunc>(phfname.c_str(), phfname.c_str(), observables, gammas);
+      for (auto &g : gammas) {
+         g->setAttribute("np");
+      }
+
+      if (constraintType == "Gauss") {
+         for (size_t i = 0; i < vals.size(); ++i) {
+            TString nomname = TString::Format("nom_%s", gammas[i].GetName());
+            TString poisname = TString::Format("%s_constraint", gammas[i].GetName());
+            TString sname = TString::Format("%s_sigma", gammas[i].GetName());
+            auto nom = std::make_unique<RooRealVar>(nomname.Data(), nomname.Data(), 1);
+            nom->setAttribute("glob");
+            nom->setConstant(true);
+            nom->setRange(0, std::max(10., gamma_max));
+            auto sigma = std::make_unique<RooConstVar>(sname.Data(), sname.Data(), vals[i]);
+            auto g = static_cast<RooRealVar *>(gammas.at(i));
+            auto gaus = std::make_unique<RooGaussian>(poisname.Data(), poisname.Data(), *nom, *g, *sigma);
+            gaus->addOwnedComponents(std::move(nom), std::move(sigma));
+            constraints.add(*gaus, true);
+            ownedComponents.addOwned(std::move(gaus), true);
+         }
+      } else if (constraintType == "Poisson") {
+         for (size_t i = 0; i < vals.size(); ++i) {
+            double tau_float = vals[i];
+            TString tname = TString::Format("%s_tau", gammas[i].GetName());
+            TString nomname = TString::Format("nom_%s", gammas[i].GetName());
+            TString prodname = TString::Format("%s_poisMean", gammas[i].GetName());
+            TString poisname = TString::Format("%s_constraint", gammas[i].GetName());
+            auto tau = std::make_unique<RooConstVar>(tname.Data(), tname.Data(), tau_float);
+            auto nom = std::make_unique<RooRealVar>(nomname.Data(), nomname.Data(), tau_float);
+            nom->setAttribute("glob");
+            nom->setConstant(true);
+            nom->setMin(0);
+            RooArgSet elems{gammas[i], *tau};
+            auto prod = std::make_unique<RooProduct>(prodname.Data(), prodname.Data(), elems);
+            auto pois = std::make_unique<RooPoisson>(poisname.Data(), poisname.Data(), *nom, *prod);
+            pois->addOwnedComponents(std::move(tau), std::move(nom), std::move(prod));
+            pois->setNoRounding(true);
+            constraints.add(*pois, true);
+            ownedComponents.addOwned(std::move(pois), true);
+         }
+      } else {
+         RooJSONFactoryWSTool::error("unknown constraint type " + constraintType);
+      }
+      for (auto &g : gammas) {
+         for (auto client : g->clients()) {
+            if (client->InheritsFrom(RooAbsPdf::Class()) && !constraints.find(*client)) {
+               constraints.add(*client);
+            }
+         }
+      }
+      phf->recursiveRedirectServers(observables);
+      // Transfer ownership of gammas and owned constraints to the ParamHistFunc
+      phf->addOwnedComponents(std::move(ownedComponents));
+
+      return phf;
+   }
+
+   std::unique_ptr<ParamHistFunc> createPHFMCStat(const std::string &name, const std::vector<double> &sumW,
+                                                  const std::vector<double> &sumW2, RooWorkspace &w,
+                                                  RooArgList &constraints, const RooArgSet &observables,
+                                                  double statErrorThreshold, const std::string &statErrorType) const
+   {
+      if (sumW.size() == 0)
+         return nullptr;
+
+      RooArgList gammas;
+      std::string phfname = std::string("mc_stat_") + name;
+      std::string sysname = std::string("stat_") + name;
+      std::vector<double> vals(sumW.size());
+      std::vector<double> errs(sumW.size());
+
+      for (size_t i = 0; i < sumW.size(); ++i) {
+         errs[i] = sqrt(sumW2[i]) / sumW[i];
+         if (statErrorType == "Gauss") {
+            vals[i] = std::max(errs[i], 0.); // avoid negative sigma. This NP will be set constant anyway later
+         } else if (statErrorType == "Poisson") {
+            vals[i] = sumW[i] * sumW[i] / sumW2[i];
+         }
+      }
+
+      auto phf = createPHF(sysname, phfname, vals, w, constraints, observables, statErrorType, gammas, 0, 10);
+
+      // set constant NPs which are below the MC stat threshold, and remove them from the np list
+      for (size_t i = 0; i < sumW.size(); ++i) {
+         auto g = static_cast<RooRealVar *>(gammas.at(i));
+         g->setError(errs[i]);
+         if (errs[i] < statErrorThreshold) {
+            g->setConstant(true); // all negative errs are set constant
+         }
+      }
+
+      return phf;
+   }
+
+   std::unique_ptr<ParamHistFunc> createPHFShapeSys(const JSONNode &p, const std::string &phfname, RooWorkspace &w,
+                                                    RooArgList &constraints, const RooArgSet &observables) const
+   {
+      std::string sysname(RooJSONFactoryWSTool::name(p));
+      std::vector<double> vals;
+      for (const auto &v : p["vals"].children()) {
+         vals.push_back(v.val_float());
+      }
+      RooArgList gammas;
+      return createPHF(sysname, phfname, vals, w, constraints, observables, p["constraint"].val(), gammas, 0, 1000);
+   }
+
+   bool importPdf(RooJSONFactoryWSTool *tool, const JSONNode &p) const override
+   {
+      std::string name(RooJSONFactoryWSTool::name(p));
+      RooArgList funcs;
+      RooArgList coefs;
+      RooArgList constraints;
+      if (!p.has_child("samples")) {
+         RooJSONFactoryWSTool::error("no samples in '" + name + "', skipping.");
+      }
+      std::vector<std::string> usesStatError;
+      double statErrorThreshold = 0;
+      std::string statErrorType = "Poisson";
+      if (p.has_child("statError")) {
+         auto &staterr = p["statError"];
+         if (staterr.has_child("relThreshold"))
+            statErrorThreshold = staterr["relThreshold"].val_float();
+         if (staterr.has_child("constraint"))
+            statErrorType = staterr["constraint"].val();
+      }
+      std::vector<double> sumW;
+      std::vector<double> sumW2;
+      std::vector<double> dummy;
+      std::vector<std::string> sysnames;
+      std::vector<std::string> funcnames;
+      std::vector<std::string> coefnames;
+      RooArgSet observables;
+      if (p.has_child("observables")) {
+         tool->getObservables(p, name, observables);
+         tool->setScopeObservables(observables);
+      }
+      for (const auto &comp : p["samples"].children()) {
+         std::string fname(RooJSONFactoryWSTool::name(comp));
+         auto &def = comp.is_container() ? comp : p["functions"][fname.c_str()];
+         std::string fprefix = RooJSONFactoryWSTool::genPrefix(def, true);
+         if (def["type"].val() == "hist-sample") {
+            try {
+               if (observables.empty()) {
+                  tool->getObservables(comp["data"], fprefix, observables);
+               }
+               if (def.has_child("overallSystematics"))
+                  ::collectNames(def["overallSystematics"], sysnames);
+               if (def.has_child("histogramSystematics"))
+                  ::collectNames(def["histogramSystematics"], sysnames);
+               if (def.has_child("shapeSystematics")) { // ShapeSys are special case. Create PHFs here if needed
+                  std::vector<std::string> shapeSysNames;
+                  ::collectNames(def["shapeSystematics"], shapeSysNames);
+                  for (auto &sysname : shapeSysNames) {
+                     std::string phfname = name + "_" + sysname + "_ShapeSys";
+                     auto phf = tool->getScopeObject(phfname);
+                     if (!phf) {
+                        auto newphf = createPHFShapeSys(def["shapeSystematics"][sysname], phfname, *(tool->workspace()),
+                                                        constraints, observables);
+                        tool->workspace()->import(*newphf, RooFit::RecycleConflictNodes(), RooFit::Silence(true));
+                        tool->setScopeObject(phfname, tool->workspace()->function(phfname.c_str()));
+                     }
+                  }
+               }
+            } catch (const char *s) {
+               RooJSONFactoryWSTool::error("function '" + name + "' unable to collect observables from function " +
+                                           fname + ". " + s);
+            }
+            try {
+               if (comp["statError"].val_bool()) {
+                  ::stackError(def["data"], sumW, sumW2);
+               }
+            } catch (const char *s) {
+               RooJSONFactoryWSTool::error("function '" + name + "' unable to sum statError from function " + fname +
+                                           ". " + s);
+            }
+         }
+         funcnames.push_back(fprefix + fname);
+         coefnames.push_back(fprefix + fname + "_norm");
+      }
+
+      auto phf = createPHFMCStat(name, sumW, sumW2, *(tool->workspace()), constraints, observables, statErrorThreshold,
+                                 statErrorType);
+      if (phf) {
+         tool->workspace()->import(*phf, RooFit::RecycleConflictNodes(), RooFit::Silence(true));
+         tool->setScopeObject("mcstat", tool->workspace()->function(phf->GetName()));
+      }
+
+      tool->importFunctions(p["samples"]);
+      for (const auto &fname : funcnames) {
+         RooAbsReal *func = tool->request<RooAbsReal>(fname.c_str(), name);
+         funcs.add(*func);
+      }
+      for (const auto &coefname : coefnames) {
+         RooAbsReal *coef = tool->request<RooAbsReal>(coefname.c_str(), name);
+         coefs.add(*coef);
+      }
+      for (auto sysname : sysnames) {
+         RooAbsPdf *pdf = ::getConstraint(tool, sysname.c_str());
+         constraints.add(*pdf);
+      }
+      if (constraints.empty()) {
+         RooRealSumPdf sum(name.c_str(), name.c_str(), funcs, coefs, true);
+         sum.setAttribute("BinnedLikelihood");
+         tool->workspace()->import(sum, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
+      } else {
+         RooRealSumPdf sum((name + "_model").c_str(), name.c_str(), funcs, coefs, true);
+         sum.setAttribute("BinnedLikelihood");
+         tool->workspace()->import(sum, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
+         RooArgList lhelems;
+         lhelems.add(sum);
+         RooProdPdf prod(name.c_str(), name.c_str(), RooArgSet(constraints), RooFit::Conditional(lhelems, observables));
+         tool->workspace()->import(prod, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
+      }
+
+      tool->clearScope();
+
+      return true;
+   }
+};
+
+} // namespace
+
+namespace {
+class FlexibleInterpVarStreamer : public RooJSONFactoryWSTool::Exporter {
 public:
    std::string const &key() const override
    {
@@ -486,18 +547,22 @@ public:
    }
    bool exportObject(RooJSONFactoryWSTool *, const RooAbsArg *func, JSONNode &elem) const override
    {
-      auto fip = static_cast<const RooStats::HistFactory::FlexibleInterpVar *>(func);
+      const RooStats::HistFactory::FlexibleInterpVar *fip =
+         static_cast<const RooStats::HistFactory::FlexibleInterpVar *>(func);
       elem["type"] << key();
-      elem["interpolationCodes"].fill_seq(fip->interpolationCodes());
-      RooJSONFactoryWSTool::fillSeq(elem["vars"], fip->variables());
+      auto &vars = elem["vars"];
+      vars.set_seq();
+      for (const auto &v : fip->variables()) {
+         vars.append_child() << v->GetName();
+      }
       elem["nom"] << fip->nominal();
-      elem["high"].fill_seq(fip->high(), fip->variables().size());
-      elem["low"].fill_seq(fip->low(), fip->variables().size());
+      elem["high"] << fip->high();
+      elem["low"] << fip->low();
       return true;
    }
 };
 
-class PiecewiseInterpolationStreamer : public RooFit::JSONIO::Exporter {
+class PiecewiseInterpolationStreamer : public RooJSONFactoryWSTool::Exporter {
 public:
    std::string const &key() const override
    {
@@ -508,47 +573,41 @@ public:
    {
       const PiecewiseInterpolation *pip = static_cast<const PiecewiseInterpolation *>(func);
       elem["type"] << key();
-      elem["interpolationCodes"].fill_seq(pip->interpolationCodes());
-      elem["positiveDefinite"] << pip->positiveDefinite();
-      RooJSONFactoryWSTool::fillSeq(elem["vars"], pip->paramList());
-      elem["nom"] << pip->nominalHist()->GetName();
-      RooJSONFactoryWSTool::fillSeq(elem["high"], pip->highList(), pip->paramList().size());
-      RooJSONFactoryWSTool::fillSeq(elem["low"], pip->lowList(), pip->paramList().size());
-      return true;
-   }
-};
-
-class PiecewiseInterpolationFactory : public RooFit::JSONIO::Importer {
-public:
-   bool importArg(RooJSONFactoryWSTool *tool, const JSONNode &p) const override
-   {
-      std::string name(RooJSONFactoryWSTool::name(p));
-
-      RooArgList vars{tool->requestArgList<RooRealVar>(p, "vars")};
-
-      auto &pip = tool->wsEmplace<PiecewiseInterpolation>(name, *tool->requestArg<RooAbsReal>(p, "nom"),
-                                                          tool->requestArgList<RooAbsReal>(p, "low"),
-                                                          tool->requestArgList<RooAbsReal>(p, "high"), vars);
-
-      pip.setPositiveDefinite(p["positiveDefinite"].val_bool());
-
-      if (p.has_child("interpolationCodes")) {
-         std::size_t i = 0;
-         for (auto const &node : p["interpolationCodes"].children()) {
-            pip.setInterpCode(*static_cast<RooAbsReal *>(vars.at(i)), node.val_int(), true);
-            ++i;
-         }
+      elem["interpolationCodes"] << pip->interpolationCodes();
+      auto &vars = elem["vars"];
+      vars.set_seq();
+      for (const auto &v : pip->paramList()) {
+         vars.append_child() << v->GetName();
       }
 
+      auto &nom = elem["nom"];
+      nom << pip->nominalHist()->GetName();
+
+      auto &high = elem["high"];
+      high.set_seq();
+      for (const auto &v : pip->highList()) {
+         high.append_child() << v->GetName();
+      }
+
+      auto &low = elem["low"];
+      low.set_seq();
+      for (const auto &v : pip->lowList()) {
+         low.append_child() << v->GetName();
+      }
       return true;
    }
 };
+} // namespace
 
-class FlexibleInterpVarFactory : public RooFit::JSONIO::Importer {
+namespace {
+class PiecewiseInterpolationFactory : public RooJSONFactoryWSTool::Importer {
 public:
-   bool importArg(RooJSONFactoryWSTool *tool, const JSONNode &p) const override
+   bool importFunction(RooJSONFactoryWSTool *tool, const JSONNode &p) const override
    {
       std::string name(RooJSONFactoryWSTool::name(p));
+      if (!p.has_child("vars")) {
+         RooJSONFactoryWSTool::error("no vars of '" + name + "'");
+      }
       if (!p.has_child("high")) {
          RooJSONFactoryWSTool::error("no high variations of '" + name + "'");
       }
@@ -559,501 +618,323 @@ public:
          RooJSONFactoryWSTool::error("no nominal variation of '" + name + "'");
       }
 
-      double nom(p["nom"].val_double());
+      std::string nomname(p["nom"].val());
+      RooAbsReal *nominal = tool->request<RooAbsReal>(nomname, name);
 
-      RooArgList vars{tool->requestArgList<RooRealVar>(p, "vars")};
-
-      std::vector<double> high;
-      high << p["high"];
-
-      std::vector<double> low;
-      low << p["low"];
-
-      if (vars.size() != low.size() || vars.size() != high.size()) {
-         RooJSONFactoryWSTool::error("FlexibleInterpVar '" + name +
-                                     "' has non-matching lengths of 'vars', 'high' and 'low'!");
+      RooArgList vars;
+      for (const auto &d : p["vars"].children()) {
+         std::string objname(RooJSONFactoryWSTool::name(d));
+         RooRealVar *obj = tool->request<RooRealVar>(objname, name);
+         vars.add(*obj);
       }
 
-      auto &fip = tool->wsEmplace<RooStats::HistFactory::FlexibleInterpVar>(name, vars, nom, low, high);
+      RooArgList high;
+      for (const auto &d : p["high"].children()) {
+         std::string objname(RooJSONFactoryWSTool::name(d));
+         RooAbsReal *obj = tool->request<RooAbsReal>(objname, name);
+         high.add(*obj);
+      }
+
+      RooArgList low;
+      for (const auto &d : p["low"].children()) {
+         std::string objname(RooJSONFactoryWSTool::name(d));
+         RooAbsReal *obj = tool->request<RooAbsReal>(objname, name);
+         low.add(*obj);
+      }
+
+      PiecewiseInterpolation pip(name.c_str(), name.c_str(), *nominal, low, high, vars);
 
       if (p.has_child("interpolationCodes")) {
-         size_t i = 0;
-         for (auto const &node : p["interpolationCodes"].children()) {
-            fip.setInterpCode(*static_cast<RooAbsReal *>(vars.at(i)), node.val_int());
-            ++i;
+         for (size_t i = 0; i < vars.size(); ++i) {
+            pip.setInterpCode(*static_cast<RooAbsReal *>(vars.at(i)), p["interpolationCodes"][i].val_int(), true);
          }
       }
 
+      tool->workspace()->import(pip, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
       return true;
    }
 };
+} // namespace
 
-void collectElements(RooArgSet &elems, RooAbsArg *arg)
-{
-   if (auto prod = dynamic_cast<RooProduct *>(arg)) {
+namespace {
+class HistFactoryStreamer : public RooJSONFactoryWSTool::Exporter {
+public:
+   bool autoExportDependants() const override { return false; }
+   void collectElements(RooArgSet &elems, RooProduct *prod) const
+   {
       for (const auto &e : prod->components()) {
-         collectElements(elems, e);
-      }
-   } else {
-      elems.add(*arg);
-   }
-}
-
-struct NormFactor {
-   std::string name;
-   RooAbsArg const *param = nullptr;
-   RooAbsPdf const *constraint = nullptr;
-   NormFactor(RooAbsArg const &par, RooAbsPdf const *constr = nullptr)
-      : name{par.GetName()}, param{&par}, constraint{constr}
-   {
-   }
-};
-
-struct NormSys {
-   std::string name;
-   RooAbsArg const *param = nullptr;
-   double low;
-   double high;
-   TClass *constraint = RooGaussian::Class();
-   NormSys(const std::string &n, RooAbsArg *const p, double h, double l, TClass *c)
-      : name(n), param(p), low(l), high(h), constraint(c)
-   {
-   }
-};
-struct HistoSys {
-   std::string name;
-   RooAbsArg const *param = nullptr;
-   std::vector<double> low;
-   std::vector<double> high;
-   TClass *constraint = RooGaussian::Class();
-   HistoSys(const std::string &n, RooAbsArg *const p, RooHistFunc *l, RooHistFunc *h, TClass *c)
-      : name(n), param(p), constraint(c)
-   {
-      low.assign(l->dataHist().weightArray(), l->dataHist().weightArray() + l->dataHist().numEntries());
-      high.assign(h->dataHist().weightArray(), h->dataHist().weightArray() + h->dataHist().numEntries());
-   }
-};
-struct ShapeSys {
-   std::string name;
-   std::vector<double> constraints;
-   std::vector<std::string> parameters;
-   TClass *constraint = nullptr;
-   ShapeSys(const std::string &n) : name{n} {}
-};
-struct Sample {
-   std::string name;
-   std::vector<double> hist;
-   std::vector<double> histError;
-   std::vector<NormFactor> normfactors;
-   std::vector<NormSys> normsys;
-   std::vector<HistoSys> histosys;
-   std::vector<ShapeSys> shapesys;
-   std::vector<RooAbsReal *> otherElements;
-   bool useBarlowBeestonLight = false;
-   std::vector<std::string> staterrorParameters;
-   TClass *barlowBeestonLightConstraint = RooPoisson::Class();
-   Sample(const std::string &n) : name{n} {}
-};
-
-void addNormFactor(RooRealVar const *par, Sample &sample, RooWorkspace *ws)
-{
-   std::string parname = par->GetName();
-   bool isConstrained = false;
-   for (RooAbsArg const *pdf : ws->allPdfs()) {
-      if (auto gauss = dynamic_cast<RooGaussian const *>(pdf)) {
-         if (parname == gauss->getX().GetName()) {
-            sample.normfactors.emplace_back(*par, gauss);
-            isConstrained = true;
+         if (e->InheritsFrom(RooProduct::Class())) {
+            collectElements(elems, (RooProduct *)e);
+         } else {
+            elems.add(*e);
          }
       }
    }
-   if (!isConstrained)
-      sample.normfactors.emplace_back(*par);
-}
-
-bool tryExportHistFactory(RooJSONFactoryWSTool *tool, const std::string &pdfname, const RooRealSumPdf *sumpdf,
-                          JSONNode &elem)
-{
-   RooWorkspace *ws = tool->workspace();
-   RooArgSet customModifiers;
-
-   if (!sumpdf)
-      return false;
-
-   std::string channelName = pdfname;
-   erasePrefix(channelName, "model_");
-   eraseSuffix(channelName, "_model");
-
-   for (RooAbsArg *sample : sumpdf->funcList()) {
-      if (!dynamic_cast<RooProduct *>(sample) && !dynamic_cast<RooRealSumPdf *>(sample)) {
+   bool tryExport(const RooProdPdf *prodpdf, JSONNode &elem) const
+   {
+      std::string chname(prodpdf->GetName());
+      if (chname.find("model_") == 0) {
+         chname = chname.substr(6);
+      }
+      RooRealSumPdf *sumpdf = nullptr;
+      for (const auto &v : prodpdf->pdfList()) {
+         if (v->InheritsFrom(RooRealSumPdf::Class())) {
+            sumpdf = static_cast<RooRealSumPdf *>(v);
+         }
+      }
+      if (!sumpdf)
          return false;
+      for (const auto &sample : sumpdf->funcList()) {
+         if (!sample->InheritsFrom(RooProduct::Class()) && !sample->InheritsFrom(RooRealSumPdf::Class()))
+            return false;
       }
-   }
 
-   std::map<int, double> tot_yield;
-   std::map<int, double> tot_yield2;
-   std::map<int, double> rel_errors;
-   RooArgSet const *varSet = nullptr;
-   long unsigned int nBins = 0;
+      bool has_poisson_constraints = false;
+      bool has_gauss_constraints = false;
+      std::map<int, double> tot_yield;
+      std::map<int, double> tot_yield2;
+      std::map<int, double> rel_errors;
+      std::map<std::string, std::unique_ptr<TH1>> bb_histograms;
+      std::map<std::string, std::unique_ptr<TH1>> nonbb_histograms;
+      std::vector<std::string> varnames;
 
-   std::vector<Sample> samples;
+      for (size_t sampleidx = 0; sampleidx < sumpdf->funcList().size(); ++sampleidx) {
+         const auto func = sumpdf->funcList().at(sampleidx);
+         const auto coef = sumpdf->coefList().at(sampleidx);
+         std::string samplename = func->GetName();
+         if (samplename.find("L_x_") == 0)
+            samplename = samplename.substr(4);
+         auto end = samplename.find("_" + chname);
+         if (end < samplename.size())
+            samplename = samplename.substr(0, end);
 
-   for (size_t sampleidx = 0; sampleidx < sumpdf->funcList().size(); ++sampleidx) {
-      PiecewiseInterpolation *pip = nullptr;
-      RooStats::HistFactory::FlexibleInterpVar *fip = nullptr;
-      std::vector<ParamHistFunc *> phfs;
-
-      const auto func = sumpdf->funcList().at(sampleidx);
-      Sample sample(func->GetName());
-      erasePrefix(sample.name, "L_x_");
-      eraseSuffix(sample.name, "_shapes");
-      eraseSuffix(sample.name, "_" + channelName);
-      erasePrefix(sample.name, pdfname + "_");
-      RooArgSet elems;
-      collectElements(elems, func);
-      collectElements(elems, sumpdf->coefList().at(sampleidx));
-
-      auto updateObservables = [&](RooDataHist const &dataHist) {
-         if (varSet == nullptr) {
-            varSet = dataHist.get();
-            nBins = dataHist.numEntries();
+         RooArgSet elems;
+         if (func->InheritsFrom(RooProduct::Class())) {
+            collectElements(elems, (RooProduct *)func);
+         } else {
+            elems.add(*func);
          }
-         if (sample.hist.empty()) {
-            auto *w = dataHist.weightArray();
-            sample.hist.assign(w, w + dataHist.numEntries());
+         if (coef->InheritsFrom(RooProduct::Class())) {
+            collectElements(elems, (RooProduct *)coef);
+         } else {
+            elems.add(*coef);
          }
-      };
+         std::unique_ptr<TH1> hist;
+         std::vector<ParamHistFunc *> phfs;
+         PiecewiseInterpolation *pip = nullptr;
+         std::vector<const RooAbsArg *> norms;
 
-      for (RooAbsArg *e : elems) {
-         if (TString(e->GetName()).Contains("binWidth")) {
-            // The bin width modifiers are handled separately. We can't just
-            // check for the RooBinWidthFunction type here, because prior to
-            // ROOT 6.26, the multiplication with the inverse bin width was
-            // done in a different way (like a normfactor with a RooRealVar,
-            // but it was stored in the dataset).
-            // Fortunately, the name was similar, so we can match the modifier
-            // name.
-         } else if (auto constVar = dynamic_cast<RooConstVar *>(e)) {
-            if (constVar->getVal() != 1.) {
-               sample.normfactors.emplace_back(*e);
+         RooStats::HistFactory::FlexibleInterpVar *fip = nullptr;
+         for (const auto &e : elems) {
+            if (e->InheritsFrom(RooConstVar::Class())) {
+               if (((RooConstVar *)e)->getVal() == 1.)
+                  continue;
+               norms.push_back(e);
+            } else if (e->InheritsFrom(RooRealVar::Class())) {
+               norms.push_back(e);
+            } else if (e->InheritsFrom(RooHistFunc::Class())) {
+               const RooHistFunc *hf = static_cast<const RooHistFunc *>(e);
+               if (varnames.size() == 0) {
+                  varnames = getVarnames(hf);
+               }
+               if (!hist) {
+                  hist = histFunc2TH1(hf);
+               }
+            } else if (e->InheritsFrom(RooStats::HistFactory::FlexibleInterpVar::Class())) {
+               fip = static_cast<RooStats::HistFactory::FlexibleInterpVar *>(e);
+            } else if (e->InheritsFrom(PiecewiseInterpolation::Class())) {
+               pip = static_cast<PiecewiseInterpolation *>(e);
+            } else if (e->InheritsFrom(ParamHistFunc::Class())) {
+               phfs.push_back((ParamHistFunc *)e);
             }
-         } else if (auto par = dynamic_cast<RooRealVar *>(e)) {
-            addNormFactor(par, sample, ws);
-         } else if (auto hf = dynamic_cast<const RooHistFunc *>(e)) {
-            updateObservables(hf->dataHist());
-         } else if (auto phf = dynamic_cast<ParamHistFunc *>(e)) {
-            phfs.push_back(phf);
-         } else if (!fip && (fip = dynamic_cast<RooStats::HistFactory::FlexibleInterpVar *>(e))) {
-         } else if (!pip && (pip = dynamic_cast<PiecewiseInterpolation *>(e))) {
-         } else if (auto real = dynamic_cast<RooAbsReal *>(e)) {
-            sample.otherElements.push_back(real);
          }
-      }
-
-      // see if we can get the observables
-      if (pip) {
-         if (auto nh = dynamic_cast<RooHistFunc const *>(pip->nominalHist())) {
-            updateObservables(nh->dataHist());
+         if (pip) {
+            if (!hist && pip->nominalHist()->InheritsFrom(RooHistFunc::Class())) {
+               hist = histFunc2TH1(static_cast<const RooHistFunc *>(pip->nominalHist()));
+            }
+            if (varnames.empty() && pip->nominalHist()->InheritsFrom(RooHistFunc::Class())) {
+               varnames = getVarnames(dynamic_cast<const RooHistFunc *>(pip->nominalHist()));
+            }
          }
-      }
-
-      // sort and configure norms
-      sortByName(sample.normfactors);
-
-      // sort and configure the normsys
-      if (fip) {
-         for (size_t i = 0; i < fip->variables().size(); ++i) {
-            RooAbsArg *var = fip->variables().at(i);
-            std::string sysname(var->GetName());
-            erasePrefix(sysname, "alpha_");
-            sample.normsys.emplace_back(sysname, var, fip->high()[i], fip->low()[i], findConstraint(var)->IsA());
+         if (!hist) {
+            return false;
          }
-         sortByName(sample.normsys);
-      }
 
-      // sort and configure the histosys
-      if (pip) {
-         for (size_t i = 0; i < pip->paramList().size(); ++i) {
-            RooAbsArg *var = pip->paramList().at(i);
-            std::string sysname(var->GetName());
-            erasePrefix(sysname, "alpha_");
-            if (auto lo = dynamic_cast<RooHistFunc *>(pip->lowList().at(i))) {
-               if (auto hi = dynamic_cast<RooHistFunc *>(pip->highList().at(i))) {
-                  sample.histosys.emplace_back(sysname, var, lo, hi, findConstraint(var)->IsA());
+         elem["name"] << chname;
+         elem["type"] << key();
+
+         auto &samples = elem["samples"];
+         samples.set_map();
+         auto &s = samples[samplename];
+         s.set_map();
+         s["type"] << "hist-sample";
+
+         for (const auto &norm : norms) {
+            auto &nfs = s["normFactors"];
+            nfs.set_seq();
+            nfs.append_child() << norm->GetName();
+         }
+
+         if (pip) {
+            auto &systs = s["histogramSystematics"];
+            systs.set_map();
+            for (size_t i = 0; i < pip->paramList().size(); ++i) {
+               std::string sysname(pip->paramList().at(i)->GetName());
+               if (sysname.find("alpha_") == 0) {
+                  sysname = sysname.substr(6);
+               }
+               auto &sys = systs[sysname];
+               sys.set_map();
+               auto &dataLow = sys["dataLow"];
+               if (pip->lowList().at(i)->InheritsFrom(RooHistFunc::Class())) {
+                  auto histLow = histFunc2TH1(static_cast<RooHistFunc *>(pip->lowList().at(i)));
+                  RooJSONFactoryWSTool::exportHistogram(*histLow, dataLow, varnames, 0, false, false);
+               }
+               auto &dataHigh = sys["dataHigh"];
+               if (pip->highList().at(i)->InheritsFrom(RooHistFunc::Class())) {
+                  auto histHigh = histFunc2TH1(static_cast<RooHistFunc *>(pip->highList().at(i)));
+                  RooJSONFactoryWSTool::exportHistogram(*histHigh, dataHigh, varnames, 0, false, false);
                }
             }
          }
-         sortByName(sample.histosys);
-      }
 
-      for (ParamHistFunc *phf : phfs) {
-         if (startsWith(std::string(phf->GetName()), "mc_stat_")) { // MC stat uncertainty
-            int idx = 0;
-            for (const auto &g : phf->paramList()) {
-               sample.staterrorParameters.push_back(g->GetName());
-               ++idx;
-               RooAbsPdf *constraint = findConstraint(g);
-               if (tot_yield.find(idx) == tot_yield.end()) {
-                  tot_yield[idx] = 0;
-                  tot_yield2[idx] = 0;
+         if (fip) {
+            auto &systs = s["overallSystematics"];
+            systs.set_map();
+            for (size_t i = 0; i < fip->variables().size(); ++i) {
+               std::string sysname(fip->variables().at(i)->GetName());
+               if (sysname.find("alpha_") == 0) {
+                  sysname = sysname.substr(6);
                }
-               tot_yield[idx] += sample.hist[idx - 1];
-               tot_yield2[idx] += (sample.hist[idx - 1] * sample.hist[idx - 1]);
-               if (constraint) {
-                  sample.barlowBeestonLightConstraint = constraint->IsA();
-                  if (RooPoisson *constraint_p = dynamic_cast<RooPoisson *>(constraint)) {
+               auto &sys = systs[sysname];
+               sys.set_map();
+               sys["low"] << fip->low()[i];
+               sys["high"] << fip->high()[i];
+            }
+         }
+         bool has_mc_stat = false;
+         for (auto phf : phfs) {
+            if (TString(phf->GetName()).BeginsWith("mc_stat_")) { // MC stat uncertainty
+               has_mc_stat = true;
+               s["statError"] << 1;
+               int idx = 0;
+               for (const auto &g : phf->paramList()) {
+                  ++idx;
+                  RooPoisson *constraint_p = findClient<RooPoisson>(g);
+                  RooGaussian *constraint_g = findClient<RooGaussian>(g);
+                  if (tot_yield.find(idx) == tot_yield.end()) {
+                     tot_yield[idx] = 0;
+                     tot_yield2[idx] = 0;
+                  }
+                  tot_yield[idx] += hist->GetBinContent(idx);
+                  tot_yield2[idx] += (hist->GetBinContent(idx) * hist->GetBinContent(idx));
+                  if (constraint_p) {
                      double erel = 1. / std::sqrt(constraint_p->getX().getVal());
                      rel_errors[idx] = erel;
-                  } else if (RooGaussian *constraint_g = dynamic_cast<RooGaussian *>(constraint)) {
+                     has_poisson_constraints = true;
+                  } else if (constraint_g) {
                      double erel = constraint_g->getSigma().getVal() / constraint_g->getMean().getVal();
                      rel_errors[idx] = erel;
-                  } else {
-                     RooJSONFactoryWSTool::error(
-                        "currently, only RooPoisson and RooGaussian are supported as constraint types");
+                     has_gauss_constraints = true;
                   }
                }
-            }
-            sample.useBarlowBeestonLight = true;
-         } else { // other ShapeSys
-            ShapeSys sys(phf->GetName());
-            erasePrefix(sys.name, channelName + "_");
-            eraseSuffix(sys.name, "_ShapeSys");
-
-            for (const auto &g : phf->paramList()) {
-               sys.parameters.push_back(g->GetName());
-               RooAbsPdf *constraint = findConstraint(g);
-               if (!constraint)
-                  constraint = ws->pdf(constraintName(g->GetName()));
-               if (!constraint && !g->isConstant()) {
-                  RooJSONFactoryWSTool::error("cannot find constraint for " + std::string(g->GetName()));
-               } else if (!constraint) {
-                  sys.constraints.push_back(0.0);
-               } else if (auto constraint_p = dynamic_cast<RooPoisson *>(constraint)) {
-                  sys.constraints.push_back(1. / std::sqrt(constraint_p->getX().getVal()));
-                  if (!sys.constraint) {
-                     sys.constraint = RooPoisson::Class();
-                  }
-               } else if (auto constraint_g = dynamic_cast<RooGaussian *>(constraint)) {
-                  sys.constraints.push_back(constraint_g->getSigma().getVal() / constraint_g->getMean().getVal());
-                  if (!sys.constraint) {
-                     sys.constraint = RooGaussian::Class();
+               bb_histograms[samplename] = std::move(hist);
+            } else { // other ShapeSys
+               auto &shapesysts = s["shapeSystematics"];
+               shapesysts.set_map();
+               // Getting the name of the syst is tricky.
+               TString sysName(phf->GetName());
+               sysName.Remove(sysName.Index("_ShapeSys"));
+               sysName.Remove(0, chname.size() + 1);
+               auto &sys = shapesysts[sysName.Data()];
+               sys.set_map();
+               auto &cstrts = sys["vals"];
+               cstrts.set_seq();
+               bool is_poisson = false;
+               for (const auto &g : phf->paramList()) {
+                  RooPoisson *constraint_p = findClient<RooPoisson>(g);
+                  RooGaussian *constraint_g = findClient<RooGaussian>(g);
+                  if (constraint_p) {
+                     is_poisson = true;
+                     cstrts.append_child() << constraint_p->getX().getVal();
+                  } else if (constraint_g) {
+                     is_poisson = false;
+                     cstrts.append_child() << constraint_g->getSigma().getVal() / constraint_g->getMean().getVal();
                   }
                }
+               if (is_poisson) {
+                  sys["constraint"] << "Poisson";
+               } else {
+                  sys["constraint"] << "Gauss";
+               }
             }
-            sample.shapesys.emplace_back(std::move(sys));
          }
+         if (!has_mc_stat) {
+            nonbb_histograms[samplename] = std::move(hist);
+            s["statError"] << 0;
+         }
+         auto &ns = s["namespaces"];
+         ns.set_seq();
+         ns.append_child() << chname;
       }
-      sortByName(sample.shapesys);
 
-      // add the sample
-      samples.emplace_back(std::move(sample));
-   }
-
-   sortByName(samples);
-
-   for (auto &sample : samples) {
-      if (sample.hist.empty()) {
-         return false;
+      auto &samples = elem["samples"];
+      for (const auto &hist : nonbb_histograms) {
+         auto &s = samples[hist.first];
+         auto &data = s["data"];
+         RooJSONFactoryWSTool::writeObservables(*hist.second, elem, varnames);
+         RooJSONFactoryWSTool::exportHistogram(*hist.second, data, varnames, 0, false, false);
       }
-      if (sample.useBarlowBeestonLight) {
-         sample.histError.resize(sample.hist.size());
+      for (const auto &hist : bb_histograms) {
+         auto &s = samples[hist.first];
          for (auto bin : rel_errors) {
             // reverse engineering the correct partial error
             // the (arbitrary) convention used here is that all samples should have the same relative error
             const int i = bin.first;
             const double relerr_tot = bin.second;
-            const double count = sample.hist[i - 1];
-            // this reconstruction is inherently imprecise, so we truncate it at some decimal places to make sure that
-            // we don't carry around too many useless digits
-            sample.histError[i - 1] = round_prec(relerr_tot * tot_yield[i] / std::sqrt(tot_yield2[i]) * count, 7);
+            const double count = hist.second->GetBinContent(i);
+            hist.second->SetBinError(i, relerr_tot * tot_yield[i] / sqrt(tot_yield2[i]) * count);
          }
+         auto &data = s["data"];
+         RooJSONFactoryWSTool::writeObservables(*hist.second, elem, varnames);
+         RooJSONFactoryWSTool::exportHistogram(*hist.second, data, varnames, 0, false, true);
       }
+      auto &statError = elem["statError"];
+      statError.set_map();
+      if (has_poisson_constraints) {
+         statError["constraint"] << "Poisson";
+      } else if (has_gauss_constraints) {
+         statError["constraint"] << "Gauss";
+      }
+      return true;
    }
 
-   bool observablesWritten = false;
-   for (const auto &sample : samples) {
-
-      elem["type"] << "histfactory_dist";
-
-      auto &s = RooJSONFactoryWSTool::appendNamedChild(elem["samples"], sample.name);
-
-      auto &modifiers = s["modifiers"];
-      modifiers.set_seq();
-
-      for (const auto &nf : sample.normfactors) {
-         auto &mod = modifiers.append_child();
-         mod.set_map();
-         mod["name"] << nf.name;
-         mod["parameter"] << nf.param->GetName();
-         mod["type"] << "normfactor";
-         if (nf.constraint) {
-            mod["constraint_name"] << nf.constraint->GetName();
-            tool->queueExport(*nf.constraint);
-         }
-      }
-
-      for (const auto &sys : sample.normsys) {
-         auto &mod = modifiers.append_child();
-         mod.set_map();
-         mod["name"] << sys.name;
-         mod["type"] << "normsys";
-         mod["parameter"] << sys.param->GetName();
-         mod["constraint"] << toString(sys.constraint);
-         auto &data = mod["data"].set_map();
-         data["lo"] << sys.low;
-         data["hi"] << sys.high;
-      }
-
-      for (const auto &sys : sample.histosys) {
-         auto &mod = modifiers.append_child();
-         mod.set_map();
-         mod["name"] << sys.name;
-         mod["type"] << "histosys";
-         mod["parameter"] << sys.param->GetName();
-         mod["constraint"] << toString(sys.constraint);
-         auto &data = mod["data"].set_map();
-         if (nBins != sys.low.size() || nBins != sys.high.size()) {
-            std::stringstream ss;
-            ss << "inconsistent binning: " << nBins << " bins expected, but " << sys.low.size() << "/"
-               << sys.high.size() << " found in nominal histogram errors!";
-            RooJSONFactoryWSTool::error(ss.str().c_str());
-         }
-         RooJSONFactoryWSTool::exportArray(nBins, sys.low.data(), data["lo"].set_map()["contents"]);
-         RooJSONFactoryWSTool::exportArray(nBins, sys.high.data(), data["hi"].set_map()["contents"]);
-      }
-
-      for (const auto &sys : sample.shapesys) {
-         auto &mod = modifiers.append_child();
-         mod.set_map();
-         mod["name"] << sys.name;
-         mod["type"] << "shapesys";
-         optionallyExportGammaParameters(mod, sys.name, sys.parameters);
-         mod["constraint"] << toString(sys.constraint);
-         if (sys.constraint) {
-            auto &vals = mod["data"].set_map()["vals"];
-            vals.fill_seq(sys.constraints);
-         } else {
-            auto &vals = mod["data"].set_map()["vals"];
-            vals.set_seq();
-            for (std::size_t i = 0; i < sys.parameters.size(); ++i) {
-               vals.append_child() << 0;
-            }
-         }
-      }
-
-      for (const auto &other : sample.otherElements) {
-         auto &mod = modifiers.append_child();
-         mod.set_map();
-         mod["name"] << other->GetName();
-         customModifiers.add(*other);
-         mod["type"] << "custom";
-      }
-
-      if (sample.useBarlowBeestonLight) {
-         auto &mod = modifiers.append_child();
-         mod.set_map();
-         mod["name"] << ::Literals::staterror;
-         mod["type"] << ::Literals::staterror;
-         optionallyExportGammaParameters(mod, "stat_" + channelName, sample.staterrorParameters);
-         mod["constraint"] << toString(sample.barlowBeestonLightConstraint);
-      }
-
-      if (!observablesWritten) {
-         auto &output = elem["axes"].set_seq();
-         for (auto *obs : static_range_cast<RooRealVar *>(*varSet)) {
-            auto &out = output.append_child().set_map();
-            out["name"] << obs->GetName();
-            writeAxis(out, *obs);
-         }
-         observablesWritten = true;
-      }
-      auto &dataNode = s["data"].set_map();
-      if (nBins != sample.hist.size()) {
-         std::stringstream ss;
-         ss << "inconsistent binning: " << nBins << " bins expected, but " << sample.hist.size()
-            << " found in nominal histogram!";
-         RooJSONFactoryWSTool::error(ss.str().c_str());
-      }
-      RooJSONFactoryWSTool::exportArray(nBins, sample.hist.data(), dataNode["contents"]);
-      if (!sample.histError.empty()) {
-         if (nBins != sample.histError.size()) {
-            std::stringstream ss;
-            ss << "inconsistent binning: " << nBins << " bins expected, but " << sample.histError.size()
-               << " found in nominal histogram errors!";
-            RooJSONFactoryWSTool::error(ss.str().c_str());
-         }
-         RooJSONFactoryWSTool::exportArray(nBins, sample.histError.data(), dataNode["errors"]);
-      }
-   }
-
-   // Export all the custom modifiers
-   for (RooAbsArg *modifier : customModifiers) {
-      tool->queueExport(*modifier);
-   }
-
-   // Export all model parameters
-   RooArgSet parameters;
-   sumpdf->getParameters(varSet, parameters);
-   for (RooAbsArg *param : parameters) {
-      // This should exclude the global observables
-      if (!startsWith(std::string{param->GetName()}, "nom_")) {
-         tool->queueExport(*param);
-      }
-   }
-
-   return true;
-}
-
-class HistFactoryStreamer_ProdPdf : public RooFit::JSONIO::Exporter {
-public:
-   bool autoExportDependants() const override { return false; }
-   bool tryExport(RooJSONFactoryWSTool *tool, const RooProdPdf *prodpdf, JSONNode &elem) const
-   {
-      RooRealSumPdf *sumpdf = nullptr;
-      for (RooAbsArg *v : prodpdf->pdfList()) {
-         sumpdf = dynamic_cast<RooRealSumPdf *>(v);
-      }
-      return tryExportHistFactory(tool, prodpdf->GetName(), sumpdf, elem);
-   }
    std::string const &key() const override
    {
-      static const std::string keystring = "histfactory_dist";
+      static const std::string keystring = "histfactory";
       return keystring;
    }
-   bool exportObject(RooJSONFactoryWSTool *tool, const RooAbsArg *p, JSONNode &elem) const override
+   bool exportObject(RooJSONFactoryWSTool *, const RooAbsArg *p, JSONNode &elem) const override
    {
-      return tryExport(tool, static_cast<const RooProdPdf *>(p), elem);
+      const RooProdPdf *prodpdf = static_cast<const RooProdPdf *>(p);
+      if (tryExport(prodpdf, elem)) {
+         return true;
+      }
+      return false;
    }
 };
 
-class HistFactoryStreamer_SumPdf : public RooFit::JSONIO::Exporter {
-public:
-   bool autoExportDependants() const override { return false; }
-   bool tryExport(RooJSONFactoryWSTool *tool, const RooRealSumPdf *sumpdf, JSONNode &elem) const
-   {
-      return tryExportHistFactory(tool, sumpdf->GetName(), sumpdf, elem);
-   }
-   std::string const &key() const override
-   {
-      static const std::string keystring = "histfactory_dist";
-      return keystring;
-   }
-   bool exportObject(RooJSONFactoryWSTool *tool, const RooAbsArg *p, JSONNode &elem) const override
-   {
-      return tryExport(tool, static_cast<const RooRealSumPdf *>(p), elem);
-   }
-};
+STATIC_EXECUTE(
 
-STATIC_EXECUTE([]() {
-   using namespace RooFit::JSONIO;
+   using Tool = RooJSONFactoryWSTool;
 
-   registerImporter<HistFactoryImporter>("histfactory_dist", true);
-   registerImporter<PiecewiseInterpolationFactory>("interpolation", true);
-   registerImporter<FlexibleInterpVarFactory>("interpolation0d", true);
-   registerExporter<FlexibleInterpVarStreamer>(RooStats::HistFactory::FlexibleInterpVar::Class(), true);
-   registerExporter<PiecewiseInterpolationStreamer>(PiecewiseInterpolation::Class(), true);
-   registerExporter<HistFactoryStreamer_ProdPdf>(RooProdPdf::Class(), true);
-   registerExporter<HistFactoryStreamer_SumPdf>(RooRealSumPdf::Class(), true);
-});
+   Tool::registerImporter<RooRealSumPdfFactory>("histfactory", true);
+   Tool::registerImporter<RooHistogramFactory>("hist-sample", true);
+   Tool::registerImporter<PiecewiseInterpolationFactory>("interpolation", true);
+   Tool::registerExporter<FlexibleInterpVarStreamer>(RooStats::HistFactory::FlexibleInterpVar::Class(), true);
+   Tool::registerExporter<PiecewiseInterpolationStreamer>(PiecewiseInterpolation::Class(), true);
+   Tool::registerExporter<HistFactoryStreamer>(RooProdPdf::Class(), true);
+
+)
 
 } // namespace

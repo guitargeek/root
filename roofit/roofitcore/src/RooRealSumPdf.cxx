@@ -19,7 +19,7 @@
     \ingroup Roofitcore
 
 
-Implements a PDF constructed from a sum of functions:
+The class RooRealSumPdf implements a PDF constructed from a sum of functions:
 \f[
   \mathrm{PDF}(x) = \frac{ \sum_{i=1}^{n-1} \mathrm{coef}_i * \mathrm{func}_i(x) + \left[ 1 - \sum_{i=1}^{n-1} \mathrm{coef}_i \right] * \mathrm{func}_n(x) }
             {\sum_{i=1}^{n-1} \mathrm{coef}_i * \int \mathrm{func}_i(x)dx  + \left[ 1 - \sum_{i=1}^{n-1} \mathrm{coef}_i \right] * \int \mathrm{func}_n(x) dx }
@@ -46,12 +46,12 @@ to the fractions of the various functions. **This requires setting the last argu
 
 #include "RooRealSumPdf.h"
 
-#include "RooNormalizedPdf.h"
 #include "RooRealIntegral.h"
 #include "RooRealProxy.h"
 #include "RooRealVar.h"
 #include "RooMsgService.h"
 #include "RooNaNPacker.h"
+#include "RunContext.h"
 
 #include <TError.h>
 
@@ -59,17 +59,22 @@ to the fractions of the various functions. **This requires setting the last argu
 #include <memory>
 #include <stdexcept>
 
-using std::list, std::endl, std::ostream;
+using namespace std;
 
 ClassImp(RooRealSumPdf);
 
-bool RooRealSumPdf::_doFloorGlobal = false ;
+Bool_t RooRealSumPdf::_doFloorGlobal = kFALSE ; 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Default constructor
 /// coverity[UNINIT_CTOR]
 
-RooRealSumPdf::RooRealSumPdf() : _normIntMgr(this, 10) {}
+RooRealSumPdf::RooRealSumPdf() : _normIntMgr(this,10)
+{
+
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor with name and title
@@ -79,9 +84,13 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title) :
   _normIntMgr(this,10),
   _funcList("!funcList","List of functions",this),
   _coefList("!coefList","List of coefficients",this),
-  _extended(false)
+  _extended(false),
+  _doFloor(false)
 {
+
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Construct p.d.f consisting of \f$ \mathrm{coef}_1 * \mathrm{func}_1 + (1-\mathrm{coef}_1) * \mathrm{func}_2 \f$.
@@ -89,12 +98,12 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title) :
 /// but the resulting sum is not, which is enforced at runtime.
 
 RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
-           RooAbsReal& func1, RooAbsReal& func2, RooAbsReal& coef1) :
+		     RooAbsReal& func1, RooAbsReal& func2, RooAbsReal& coef1) : 
   RooRealSumPdf(name, title)
 {
   // Special constructor with two functions and one coefficient
 
-  _funcList.add(func1) ;
+  _funcList.add(func1) ;  
   _funcList.add(func2) ;
   _coefList.add(coef1) ;
 
@@ -116,7 +125,7 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
 ///   \sum_i^{N-1} \mathrm{coef}_i \cdot \mathrm{func}_i + (1 - \sum_i \mathrm{coef}_i ) \cdot \mathrm{func}_N,
 /// \f]
 /// if \f$ N_\mathrm{coef} = N_\mathrm{func} - 1 \f$.
-///
+/// 
 /// All coefficients and functions are allowed to be negative
 /// but the sum (*i.e.* the PDF) is not, which is enforced at runtime.
 ///
@@ -126,55 +135,44 @@ RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
 /// \param inCoefList List of coefficients
 /// \param extended   Interpret as extended PDF (requires equal number of functions and coefficients)
 
-RooRealSumPdf::RooRealSumPdf(const char *name, const char *title, const RooArgList &inFuncList,
-                             const RooArgList &inCoefList, bool extended)
-   : RooRealSumPdf(name, title)
+RooRealSumPdf::RooRealSumPdf(const char *name, const char *title,
+    const RooArgList& inFuncList, const RooArgList& inCoefList, Bool_t extended) :
+  RooRealSumPdf(name, title)
 {
-  setExtended(extended);
+  _extended = extended;
 
-  RooRealSumPdf::initializeFuncsAndCoefs(*this, inFuncList, inCoefList, _funcList, _coefList);
-}
-
-
-void RooRealSumPdf::initializeFuncsAndCoefs(RooAbsReal const& caller,
-                                            const RooArgList& inFuncList, const RooArgList& inCoefList,
-                                            RooArgList& funcList, RooArgList& coefList)
-{
-  const std::string className = caller.ClassName();
-  const std::string constructorName = className + "::" + className;
-
-  if (!(inFuncList.size()==inCoefList.size()+1 || inFuncList.size()==inCoefList.size())) {
-    oocoutE(&caller, InputArguments) << constructorName << "(" << caller.GetName()
-           << ") number of pdfs and coefficients inconsistent, must have Nfunc=Ncoef or Nfunc=Ncoef+1" << std::endl;
-    throw std::invalid_argument(className + ": Number of PDFs and coefficients is inconsistent.");
+  if (!(inFuncList.getSize()==inCoefList.getSize()+1 || inFuncList.getSize()==inCoefList.getSize())) {
+    coutE(InputArguments) << "RooRealSumPdf::RooRealSumPdf(" << GetName() 
+			  << ") number of pdfs and coefficients inconsistent, must have Nfunc=Ncoef or Nfunc=Ncoef+1" << endl ;
+    throw std::invalid_argument("RooRealSumPdf: Number of PDFs and coefficients is inconsistent.");
   }
-
+ 
   // Constructor with N functions and N or N-1 coefs
   for (unsigned int i = 0; i < inCoefList.size(); ++i) {
     const auto& func = inFuncList[i];
     const auto& coef = inCoefList[i];
 
     if (!dynamic_cast<const RooAbsReal*>(&coef)) {
-      oocoutW(&caller, InputArguments) << constructorName << "(" << caller.GetName() << ") coefficient " << coef.GetName() << " is not of type RooAbsReal, ignored" << std::endl ;
+      coutW(InputArguments) << "RooRealSumPdf::RooRealSumPdf(" << GetName() << ") coefficient " << coef.GetName() << " is not of type RooAbsReal, ignored" << endl ;
       continue ;
     }
     if (!dynamic_cast<const RooAbsReal*>(&func)) {
-      oocoutW(&caller, InputArguments) << constructorName << "(" << caller.GetName() << ") func " << func.GetName() << " is not of type RooAbsReal, ignored" << std::endl ;
+      coutW(InputArguments) << "RooRealSumPdf::RooRealSumPdf(" << GetName() << ") func " << func.GetName() << " is not of type RooAbsReal, ignored" << endl ;
       continue ;
     }
-    funcList.add(func) ;
-    coefList.add(coef) ;
+    _funcList.add(func) ;
+    _coefList.add(coef) ;
   }
 
   if (inFuncList.size() == inCoefList.size() + 1) {
     const auto& func = inFuncList[inFuncList.size()-1];
     if (!dynamic_cast<const RooAbsReal*>(&func)) {
-      oocoutE(&caller, InputArguments) << constructorName << "(" << caller.GetName() << ") last func " << func.GetName() << " is not of type RooAbsReal, fatal error" << std::endl ;
-      throw std::invalid_argument(className + ": Function passed as is not of type RooAbsReal.");
+      coutE(InputArguments) << "RooRealSumPdf::RooRealSumPdf(" << GetName() << ") last func " << func.GetName() << " is not of type RooAbsReal, fatal error" << endl ;
+      throw std::invalid_argument("RooRealSumPdf: Function passed as is not of type RooAbsReal.");
     }
-    funcList.add(func);
+    _funcList.add(func);
   }
-
+  
 }
 
 
@@ -194,36 +192,50 @@ RooRealSumPdf::RooRealSumPdf(const RooRealSumPdf& other, const char* name) :
 
 }
 
-////////////////////////////////////////////////////////////////////////////////
 
-RooAbsPdf::ExtendMode RooRealSumPdf::extendMode() const
+
+////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooRealSumPdf::~RooRealSumPdf()
 {
-  return (_extended && (_funcList.size()==_coefList.size())) ? CanBeExtended : CanNotBeExtended ;
+
 }
 
 
-double RooRealSumPdf::evaluate(RooAbsReal const& caller,
-                               RooArgList const& funcList,
-                               RooArgList const& coefList,
-                               bool doFloor,
-                               bool & hasWarnedBefore)
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+RooAbsPdf::ExtendMode RooRealSumPdf::extendMode() const 
+{
+  return (_extended && (_funcList.getSize()==_coefList.getSize())) ? CanBeExtended : CanNotBeExtended ;
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Calculate the current value
+
+Double_t RooRealSumPdf::evaluate() const 
 {
   // Do running sum of coef/func pairs, calculate lastCoef.
   double value = 0;
   double sumCoeff = 0.;
-  for (unsigned int i = 0; i < funcList.size(); ++i) {
-    const auto func = static_cast<RooAbsReal*>(&funcList[i]);
-    const auto coef = static_cast<RooAbsReal*>(i < coefList.size() ? &coefList[i] : nullptr);
+  for (unsigned int i = 0; i < _funcList.size(); ++i) {
+    const auto func = static_cast<RooAbsReal*>(&_funcList[i]);
+    const auto coef = static_cast<RooAbsReal*>(i < _coefList.size() ? &_coefList[i] : nullptr);
     const double coefVal = coef != nullptr ? coef->getVal() : (1. - sumCoeff);
 
     // Warn about degeneration of last coefficient
     if (coef == nullptr && (coefVal < 0 || coefVal > 1.)) {
-      if (!hasWarnedBefore) {
-        oocoutW(&caller, Eval) << caller.ClassName() << "::evaluate(" << caller.GetName()
+      if (!_haveWarned) {
+        coutW(Eval) << "RooRealSumPdf::evaluate(" << GetName()
             << ") WARNING: sum of FUNC coefficients not in range [0-1], value="
-            << sumCoeff << ". This means that the PDF is not properly normalised."
-            << " If the PDF was meant to be extended, provide as many coefficients as functions." << std::endl;
-        hasWarnedBefore = true;
+            << sumCoeff << ". This means that the PDF is not properly normalised. If the PDF was meant to be extended, provide as many coefficients as functions." << endl ;
+        _haveWarned = true;
       }
       // Signal that we are in an undefined region:
       value = RooNaNPacker::packFloatIntoNaN(100.f * (coefVal < 0. ? -coefVal : coefVal - 1.));
@@ -237,19 +249,15 @@ double RooRealSumPdf::evaluate(RooAbsReal const& caller,
   }
 
   // Introduce floor if so requested
-  return value < 0 && doFloor ? 0.0 : value;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Calculate the current value
-
-double RooRealSumPdf::evaluate() const
-{
-  return evaluate(*this, _funcList, _coefList, _doFloor || _doFloorGlobal, _haveWarned);
+  if (value<0 && (_doFloor || _doFloorGlobal)) {
+    value = 0 ;
+  }
+  
+  return value ;
 }
 
 
-void RooRealSumPdf::computeBatch(double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const {
+void RooRealSumPdf::computeBatch(cudaStream_t* /*stream*/, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const {
   // Do running sum of coef/func pairs, calculate lastCoef.
   for (unsigned int j = 0; j < nEvents; ++j) {
     output[j] = 0.0;
@@ -277,7 +285,7 @@ void RooRealSumPdf::computeBatch(double* output, size_t nEvents, RooFit::Detail:
     // Warn about degeneration of last coefficient
     if (coef == nullptr && (coefVal < 0 || coefVal > 1.)) {
       if (!_haveWarned) {
-        coutW(Eval) << "RooRealSumPdf::computeBatch(" << GetName()
+        coutW(Eval) << "RooRealSumPdf::evaluateSpan(" << GetName()
             << ") WARNING: sum of FUNC coefficients not in range [0-1], value="
             << sumCoeff << ". This means that the PDF is not properly normalised. If the PDF was meant to be extended, provide as many coefficients as functions." << endl ;
         _haveWarned = true;
@@ -297,88 +305,6 @@ void RooRealSumPdf::computeBatch(double* output, size_t nEvents, RooFit::Detail:
   }
 }
 
-void RooRealSumPdf::translateImpl(RooFit::Detail::CodeSquashContext &ctx, RooAbsArg const *klass,
-                                  RooArgList const &funcList, RooArgList const &coefList)
-{
-   bool noLastCoeff = funcList.size() != coefList.size();
-   std::string sum;
-   std::string lastCoeff;
-
-   if (funcList.size() < 3) {
-      lastCoeff = "(1";
-
-      std::size_t i;
-      for (i = 0; i < coefList.size(); ++i) {
-         auto coeff = ctx.getResult(coefList[i]);
-         sum += "(" + ctx.getResult(funcList[i]) + " * " + coeff + ") +";
-         if (noLastCoeff)
-            lastCoeff += " - " + coeff;
-      }
-      lastCoeff += ")";
-
-      if (noLastCoeff) {
-         sum += "(" + ctx.getResult(funcList[i]) + " * " + lastCoeff + ")";
-      } else {
-         sum.pop_back();
-      }
-
-   } else {
-      std::string const &funcName = ctx.buildArg(funcList);
-      std::string const &coeffName = ctx.buildArg(coefList);
-      std::string const &coeffSize = std::to_string(coefList.size());
-
-      sum = ctx.getTmpVarName();
-      lastCoeff = ctx.getTmpVarName();
-      ctx.addToCodeBody(klass, "double " + sum + " = 0, " + lastCoeff + "= 0;\n");
-
-      std::string iterator = "i_" + ctx.getTmpVarName();
-      std::string subscriptExpr = "[" + iterator + "]";
-
-      std::string code = "for(int " + iterator + " = 0; " + iterator + " < " + coeffSize + "; " + iterator + "++) {\n" +
-                         sum + " += " + funcName + subscriptExpr + " * " + coeffName + subscriptExpr + ";\n";
-      if (noLastCoeff)
-         code += lastCoeff + " += " + coeffName + subscriptExpr + ";\n";
-      code += "}\n";
-
-      if (noLastCoeff)
-         code += sum + " += " + funcName + "[" + coeffSize + "]" + " * (1 - " + lastCoeff + ");\n";
-      ctx.addToCodeBody(klass, code);
-   }
-
-   ctx.addResult(klass, sum);
-}
-
-void RooRealSumPdf::translate(RooFit::Detail::CodeSquashContext &ctx) const
-{
-   translateImpl(ctx, this, _funcList, _coefList);
-}
-
-bool RooRealSumPdf::checkObservables(RooAbsReal const& caller, RooArgSet const* nset,
-                                     RooArgList const& funcList, RooArgList const& coefList)
-{
-  bool ret(false) ;
-
-  for (unsigned int i=0; i < coefList.size(); ++i) {
-    const auto& coef = coefList[i];
-    const auto& func = funcList[i];
-
-    if (func.observableOverlaps(nset, coef)) {
-      oocoutE(&caller, InputArguments) << caller.ClassName() << "::checkObservables(" << caller.GetName()
-             << "): ERROR: coefficient " << coef.GetName()
-             << " and FUNC " << func.GetName() << " have one or more observables in common" << std::endl;
-      ret = true ;
-    }
-    if (coef.dependsOn(*nset)) {
-      oocoutE(&caller, InputArguments) << caller.ClassName() << "::checkObservables(" << caller.GetName()
-             << "): ERROR coefficient " << coef.GetName()
-             << " depends on one or more of the following observables" ; nset->Print("1") ;
-      ret = true ;
-    }
-  }
-
-  return ret ;
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Check if FUNC is valid for given normalization set.
@@ -388,68 +314,80 @@ bool RooRealSumPdf::checkObservables(RooAbsReal const& caller, RooArgSet const* 
 /// In the present implementation, coefficients may not be observables or derive
 /// from observables.
 
-bool RooRealSumPdf::checkObservables(const RooArgSet* nset) const
+Bool_t RooRealSumPdf::checkObservables(const RooArgSet* nset) const 
 {
-  return checkObservables(*this, nset, _funcList, _coefList);
+  Bool_t ret(kFALSE) ;
+
+  for (unsigned int i=0; i < _coefList.size(); ++i) {
+    const auto& coef = _coefList[i];
+    const auto& func = _funcList[i];
+
+    if (func.observableOverlaps(nset, coef)) {
+      coutE(InputArguments) << "RooRealSumPdf::checkObservables(" << GetName() << "): ERROR: coefficient " << coef.GetName()
+			    << " and FUNC " << func.GetName() << " have one or more observables in common" << endl ;
+      ret = kTRUE ;
+    }
+    if (coef.dependsOn(*nset)) {
+      coutE(InputArguments) << "RooRealPdf::checkObservables(" << GetName() << "): ERROR coefficient " << coef.GetName()
+			    << " depends on one or more of the following observables" ; nset->Print("1") ;
+      ret = kTRUE ;
+    }
+  }
+  
+  return ret ;
 }
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Advertise that all integrals can be handled internally.
 
-Int_t RooRealSumPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars,
-                    const RooArgSet* normSet2, const char* rangeName) const
-{
-  return getAnalyticalIntegralWN(*this, _normIntMgr, _funcList, _coefList, allVars, analVars, normSet2, rangeName);
-}
-
-
-Int_t RooRealSumPdf::getAnalyticalIntegralWN(RooAbsReal const& caller, RooObjCacheManager & normIntMgr,
-                                             RooArgList const& funcList, RooArgList const& /*coefList*/,
-                                             RooArgSet& allVars, RooArgSet& analVars,
-                                             const RooArgSet* normSet2, const char* rangeName)
+Int_t RooRealSumPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, 
+					     const RooArgSet* normSet2, const char* rangeName) const 
 {
   // Handle trivial no-integration scenario
-  if (allVars.empty()) return 0 ;
-  if (caller.getForceNumInt()) return 0 ;
+  if (allVars.getSize()==0) return 0 ;
+  if (_forceNumInt) return 0 ;
 
   // Select subset of allVars that are actual dependents
   analVars.add(allVars) ;
-  std::unique_ptr<RooArgSet> normSet;
-  if(normSet2) {
-    normSet = std::make_unique<RooArgSet>();
-    caller.getObservables(normSet2, *normSet);
-  }
+  RooArgSet* normSet = normSet2 ? getObservables(normSet2) : 0 ;
 
 
   // Check if this configuration was created before
   Int_t sterileIdx(-1) ;
-  auto* cache = static_cast<CacheElem*>(normIntMgr.getObj(normSet.get(),&analVars,&sterileIdx,RooNameReg::ptr(rangeName)));
+  CacheElem* cache = (CacheElem*) _normIntMgr.getObj(normSet,&analVars,&sterileIdx,RooNameReg::ptr(rangeName)) ;
   if (cache) {
     //cout << "RooRealSumPdf("<<this<<")::getAnalyticalIntegralWN:"<<GetName()<<"("<<allVars<<","<<analVars<<","<<(normSet2?*normSet2:RooArgSet())<<","<<(rangeName?rangeName:"<none>") << " -> " << _normIntMgr.lastIndex()+1 << " (cached)" << endl;
-    return normIntMgr.lastIndex()+1 ;
+    return _normIntMgr.lastIndex()+1 ;
   }
-
+  
   // Create new cache element
   cache = new CacheElem ;
 
-  // Make list of function projection and normalization integrals
-  for (const auto elm : funcList) {
+  // Make list of function projection and normalization integrals 
+  for (const auto elm : _funcList) {
     const auto func = static_cast<RooAbsReal*>(elm);
 
-    std::unique_ptr<RooAbsReal> funcInt{func->createIntegral(analVars,rangeName)};
-    if(auto funcRealInt = dynamic_cast<RooRealIntegral*>(funcInt.get())) funcRealInt->setAllowComponentSelection(true);
-    cache->_funcIntList.addOwned(std::move(funcInt));
-    if (normSet && !normSet->empty()) {
-      cache->_funcNormList.addOwned(std::unique_ptr<RooAbsReal>{func->createIntegral(*normSet)});
+    RooAbsReal* funcInt = func->createIntegral(analVars,rangeName) ;
+    if(funcInt->InheritsFrom(RooRealIntegral::Class())) ((RooRealIntegral*)funcInt)->setAllowComponentSelection(true);
+    cache->_funcIntList.addOwned(*funcInt) ;
+    if (normSet && normSet->getSize()>0) {
+      RooAbsReal* funcNorm = func->createIntegral(*normSet) ;
+      cache->_funcNormList.addOwned(*funcNorm) ;
     }
   }
 
   // Store cache element
-  Int_t code = normIntMgr.setObj(normSet.get(),&analVars,(RooAbsCacheElement*)cache,RooNameReg::ptr(rangeName)) ;
+  Int_t code = _normIntMgr.setObj(normSet,&analVars,(RooAbsCacheElement*)cache,RooNameReg::ptr(rangeName)) ;
+
+  if (normSet) {
+    delete normSet ;
+  }
 
   //cout << "RooRealSumPdf("<<this<<")::getAnalyticalIntegralWN:"<<GetName()<<"("<<allVars<<","<<analVars<<","<<(normSet2?*normSet2:RooArgSet())<<","<<(rangeName?rangeName:"<none>") << " -> " << code+1 << endl;
-  return code+1 ;
+  return code+1 ; 
 }
 
 
@@ -459,51 +397,42 @@ Int_t RooRealSumPdf::getAnalyticalIntegralWN(RooAbsReal const& caller, RooObjCac
 /// Implement analytical integrations by deferring integration of component
 /// functions to integrators of components.
 
-double RooRealSumPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet2, const char* rangeName) const
-{
-  return analyticalIntegralWN(*this, _normIntMgr, _funcList, _coefList, code, normSet2, rangeName, _haveWarned);
-}
-
-double RooRealSumPdf::analyticalIntegralWN(RooAbsReal const& caller, RooObjCacheManager & normIntMgr,
-                                           RooArgList const& funcList, RooArgList const& coefList,
-                                           Int_t code, const RooArgSet* normSet2, const char* rangeName,
-                                           bool hasWarnedBefore)
+Double_t RooRealSumPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet2, const char* rangeName) const 
 {
   // Handle trivial passthrough scenario
-  if (code==0) return caller.getVal(normSet2) ;
+  if (code==0) return getVal(normSet2) ;
 
 
   // WVE needs adaptation for rangeName feature
-  auto* cache = static_cast<CacheElem*>(normIntMgr.getObjByIndex(code-1));
-  if (cache==nullptr) { // revive the (sterilized) cache
+  CacheElem* cache = (CacheElem*) _normIntMgr.getObjByIndex(code-1) ;
+  if (cache==0) { // revive the (sterilized) cache
     //cout << "RooRealSumPdf("<<this<<")::analyticalIntegralWN:"<<GetName()<<"("<<code<<","<<(normSet2?*normSet2:RooArgSet())<<","<<(rangeName?rangeName:"<none>") << ": reviving cache "<< endl;
-    RooArgSet vars;
-    caller.getParameters(nullptr, vars);
-    RooArgSet iset = normIntMgr.selectFromSet2(vars, code-1);
-    RooArgSet nset = normIntMgr.selectFromSet1(vars, code-1);
+    std::unique_ptr<RooArgSet> vars( getParameters(RooArgSet()) );
+    RooArgSet iset = _normIntMgr.selectFromSet2(*vars, code-1);
+    RooArgSet nset = _normIntMgr.selectFromSet1(*vars, code-1);
     RooArgSet dummy;
-    Int_t code2 = caller.getAnalyticalIntegralWN(iset,dummy,&nset,rangeName);
+    Int_t code2 = getAnalyticalIntegralWN(iset,dummy,&nset,rangeName);
     R__ASSERT(code==code2); // must have revived the right (sterilized) slot...
-    cache = static_cast<CacheElem*>(normIntMgr.getObjByIndex(code-1)) ;
-    R__ASSERT(cache!=nullptr);
+    cache = (CacheElem*) _normIntMgr.getObjByIndex(code-1) ;
+    R__ASSERT(cache!=0);
   }
 
-  double value(0) ;
+  Double_t value(0) ;
 
-  // N funcs, N-1 coefficients
-  double lastCoef(1) ;
-  auto funcIt = funcList.begin();
+  // N funcs, N-1 coefficients 
+  Double_t lastCoef(1) ;
+  auto funcIt = _funcList.begin();
   auto funcIntIt = cache->_funcIntList.begin();
-  for (const auto coefArg : coefList) {
-    assert(funcIt != funcList.end());
+  for (const auto coefArg : _coefList) {
+    assert(funcIt != _funcList.end());
     const auto coef = static_cast<const RooAbsReal*>(coefArg);
     const auto func = static_cast<const RooAbsReal*>(*funcIt++);
     const auto funcInt = static_cast<RooAbsReal*>(*funcIntIt++);
 
-    double coefVal = coef->getVal(normSet2) ;
+    Double_t coefVal = coef->getVal(normSet2) ;
     if (coefVal) {
       assert(func);
-      if (normSet2 ==nullptr || func->isSelectedComp()) {
+      if (normSet2 ==0 || func->isSelectedComp()) {
         assert(funcInt);
         value += funcInt->getVal()*coefVal ;
       }
@@ -511,38 +440,36 @@ double RooRealSumPdf::analyticalIntegralWN(RooAbsReal const& caller, RooObjCache
     }
   }
 
-  const bool haveLastCoef = funcList.size() == coefList.size();
-
-  if (!haveLastCoef) {
+  if (!haveLastCoef()) {
     // Add last func with correct coefficient
     const auto func = static_cast<const RooAbsReal*>(*funcIt);
     const auto funcInt = static_cast<RooAbsReal*>(*funcIntIt);
     assert(func);
 
-    if (normSet2 ==nullptr || func->isSelectedComp()) {
+    if (normSet2 ==0 || func->isSelectedComp()) {
       assert(funcInt);
       value += funcInt->getVal()*lastCoef ;
     }
 
     // Warn about coefficient degeneration
-    if (!hasWarnedBefore && (lastCoef<0 || lastCoef>1)) {
-      oocoutW(&caller, Eval) << caller.ClassName() << "::evaluate(" << caller.GetName()
-            << " WARNING: sum of FUNC coefficients not in range [0-1], value="
-            << 1-lastCoef << endl ;
+    if (!_haveWarned && (lastCoef<0 || lastCoef>1)) {
+      coutW(Eval) << "RooRealSumPdf::evaluate(" << GetName() 
+		      << " WARNING: sum of FUNC coefficients not in range [0-1], value="
+		      << 1-lastCoef << endl ;
     }
   }
 
-  double normVal(1) ;
-  if (normSet2 && !normSet2->empty()) {
+  Double_t normVal(1) ;
+  if (normSet2 && normSet2->getSize()>0) {
     normVal = 0 ;
 
-    // N funcs, N-1 coefficients
+    // N funcs, N-1 coefficients 
     auto funcNormIter = cache->_funcNormList.begin();
-    for (const auto coefAsArg : coefList) {
+    for (const auto coefAsArg : _coefList) {
       auto coef = static_cast<RooAbsReal*>(coefAsArg);
       auto funcNorm = static_cast<RooAbsReal*>(*funcNormIter++);
 
-      double coefVal = coef->getVal(normSet2);
+      Double_t coefVal = coef->getVal(normSet2);
       if (coefVal) {
         assert(funcNorm);
         normVal += funcNorm->getVal()*coefVal ;
@@ -550,7 +477,7 @@ double RooRealSumPdf::analyticalIntegralWN(RooAbsReal const& caller, RooObjCache
     }
 
     // Add last func with correct coefficient
-    if (!haveLastCoef) {
+    if (!haveLastCoef()) {
       auto funcNorm = static_cast<RooAbsReal*>(*funcNormIter);
       assert(funcNorm);
 
@@ -564,9 +491,9 @@ double RooRealSumPdf::analyticalIntegralWN(RooAbsReal const& caller, RooObjCache
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooRealSumPdf::expectedEvents(const RooArgSet* nset) const
+Double_t RooRealSumPdf::expectedEvents(const RooArgSet* nset) const
 {
-  double n = getNorm(nset) ;
+  Double_t n = getNorm(nset) ;  
   if (n<0) {
     logEvalError("Expected number of events is negative") ;
   }
@@ -576,46 +503,41 @@ double RooRealSumPdf::expectedEvents(const RooArgSet* nset) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<double>* RooRealSumPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
+std::list<Double_t>* RooRealSumPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
 {
-  return binBoundaries(_funcList, obs, xlo, xhi);
-}
-
-
-std::list<double>* RooRealSumPdf::binBoundaries(RooArgList const& funcList, RooAbsRealLValue& obs, double xlo, double xhi)
-{
-  std::list<double>* sumBinB = nullptr;
-  bool needClean(false) ;
-
+  list<Double_t>* sumBinB = 0 ;
+  Bool_t needClean(kFALSE) ;
+  
   // Loop over components pdf
-  for (auto * func : static_range_cast<RooAbsReal*>(funcList)) {
+  for (const auto elm : _funcList) {
+    auto func = static_cast<RooAbsReal*>(elm);
 
-    list<double>* funcBinB = func->binBoundaries(obs,xlo,xhi) ;
-
+    list<Double_t>* funcBinB = func->binBoundaries(obs,xlo,xhi) ;
+    
     // Process hint
     if (funcBinB) {
       if (!sumBinB) {
-   // If this is the first hint, then just save it
-   sumBinB = funcBinB ;
+	// If this is the first hint, then just save it
+	sumBinB = funcBinB ;
       } else {
+	
+	list<Double_t>* newSumBinB = new list<Double_t>(sumBinB->size()+funcBinB->size()) ;
 
-   std::list<double>* newSumBinB = new list<double>(sumBinB->size()+funcBinB->size()) ;
-
-   // Merge hints into temporary array
-   merge(funcBinB->begin(),funcBinB->end(),sumBinB->begin(),sumBinB->end(),newSumBinB->begin()) ;
-
-   // Copy merged array without duplicates to new sumBinBArrau
-   delete sumBinB ;
-   delete funcBinB ;
-   sumBinB = newSumBinB ;
-   needClean = true ;
+	// Merge hints into temporary array
+	merge(funcBinB->begin(),funcBinB->end(),sumBinB->begin(),sumBinB->end(),newSumBinB->begin()) ;
+	
+	// Copy merged array without duplicates to new sumBinBArrau
+	delete sumBinB ;
+	delete funcBinB ;
+	sumBinB = newSumBinB ;
+	needClean = kTRUE ;	
       }
     }
   }
 
   // Remove consecutive duplicates
   if (needClean) {
-    list<double>::iterator new_end = unique(sumBinB->begin(),sumBinB->end()) ;
+    list<Double_t>::iterator new_end = unique(sumBinB->begin(),sumBinB->end()) ;
     sumBinB->erase(new_end,sumBinB->end()) ;
   }
 
@@ -625,72 +547,62 @@ std::list<double>* RooRealSumPdf::binBoundaries(RooArgList const& funcList, RooA
 
 
 /// Check if all components that depend on `obs` are binned.
-bool RooRealSumPdf::isBinnedDistribution(const RooArgSet& obs) const
+Bool_t RooRealSumPdf::isBinnedDistribution(const RooArgSet& obs) const 
 {
-  return isBinnedDistribution(_funcList, obs);
-}
-
-
-bool RooRealSumPdf::isBinnedDistribution(RooArgList const& funcList, const RooArgSet& obs)
-{
-  for (auto* func : static_range_cast<RooAbsReal*>(funcList)) {
+  for (const auto elm : _funcList) {
+    auto func = static_cast<RooAbsReal*>(elm);
 
     if (func->dependsOn(obs) && !func->isBinnedDistribution(obs)) {
-      return false ;
+      return kFALSE ;
     }
   }
-
-  return true  ;
+  
+  return kTRUE  ;  
 }
+
+
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<double>* RooRealSumPdf::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
+std::list<Double_t>* RooRealSumPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
 {
-  return plotSamplingHint(_funcList, obs, xlo, xhi);
-}
-
-std::list<double>* RooRealSumPdf::plotSamplingHint(RooArgList const& funcList, RooAbsRealLValue& obs, double xlo, double xhi)
-{
-  std::list<double>* sumHint = nullptr;
-  bool needClean(false) ;
-
+  list<Double_t>* sumHint = 0 ;
+  Bool_t needClean(kFALSE) ;
+  
   // Loop over components pdf
-  for (const auto elm : funcList) {
+  for (const auto elm : _funcList) {
     auto func = static_cast<RooAbsReal*>(elm);
 
-    list<double>* funcHint = func->plotSamplingHint(obs,xlo,xhi) ;
-
+    list<Double_t>* funcHint = func->plotSamplingHint(obs,xlo,xhi) ;
+    
     // Process hint
     if (funcHint) {
       if (!sumHint) {
 
-   // If this is the first hint, then just save it
-   sumHint = funcHint ;
+	// If this is the first hint, then just save it
+	sumHint = funcHint ;
 
       } else {
+	
+	list<Double_t>* newSumHint = new list<Double_t>(sumHint->size()+funcHint->size()) ;
+	
+	// Merge hints into temporary array
+	merge(funcHint->begin(),funcHint->end(),sumHint->begin(),sumHint->end(),newSumHint->begin()) ;
 
-   auto* newSumHint = new std::list<double>(sumHint->size()+funcHint->size()) ;
-
-   // the lists must be sorted before merging them
-   funcHint->sort();
-   sumHint->sort();
-   // Merge hints into temporary array
-   merge(funcHint->begin(),funcHint->end(),sumHint->begin(),sumHint->end(),newSumHint->begin()) ;
-
-   // Copy merged array without duplicates to new sumHintArrau
-   delete sumHint ;
-   sumHint = newSumHint ;
-   needClean = true ;
+	// Copy merged array without duplicates to new sumHintArrau
+	delete sumHint ;
+	sumHint = newSumHint ;
+	needClean = kTRUE ;	
       }
     }
   }
 
   // Remove consecutive duplicates
   if (needClean) {
-    sumHint->erase(std::unique(sumHint->begin(),sumHint->end()), sumHint->end()) ;
+    list<Double_t>::iterator new_end = unique(sumHint->begin(),sumHint->end()) ;
+    sumHint->erase(new_end,sumHint->end()) ;
   }
 
   return sumHint ;
@@ -702,122 +614,54 @@ std::list<double>* RooRealSumPdf::plotSamplingHint(RooArgList const& funcList, R
 ////////////////////////////////////////////////////////////////////////////////
 /// Label OK'ed components of a RooRealSumPdf with cache-and-track
 
-void RooRealSumPdf::setCacheAndTrackHints(RooArgSet& trackNodes)
+void RooRealSumPdf::setCacheAndTrackHints(RooArgSet& trackNodes) 
 {
-  setCacheAndTrackHints(_funcList, trackNodes);
-}
-
-
-void RooRealSumPdf::setCacheAndTrackHints(RooArgList const& funcList, RooArgSet& trackNodes)
-{
-  for (const auto sarg : funcList) {
+  for (const auto sarg : _funcList) {
     if (sarg->canNodeBeCached()==Always) {
       trackNodes.add(*sarg) ;
-      //cout << "tracking node RealSumPdf component " << sarg->ClassName() << "::" << sarg->GetName() << endl ;
+      //cout << "tracking node RealSumPdf component " << sarg->IsA()->GetName() << "::" << sarg->GetName() << endl ;
     }
   }
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Customized printing of arguments of a RooRealSumPdf to more intuitively reflect the contents of the
 /// product operator construction
 
-void RooRealSumPdf::printMetaArgs(ostream& os) const
-{
-  printMetaArgs(_funcList, _coefList, os);
-}
-
-
-void RooRealSumPdf::printMetaArgs(RooArgList const& funcList, RooArgList const& coefList, ostream& os)
+void RooRealSumPdf::printMetaArgs(ostream& os) const 
 {
 
-  bool first(true) ;
+  Bool_t first(kTRUE) ;
+    
+  if (_coefList.getSize()!=0) {
+    auto funcIter = _funcList.begin();
 
-  if (!coefList.empty()) {
-    auto funcIter = funcList.begin();
-
-    for (const auto coef : coefList) {
+    for (const auto coef : _coefList) {
       if (!first) {
         os << " + " ;
       } else {
-        first = false ;
+        first = kFALSE ;
       }
       const auto func = *(funcIter++);
       os << coef->GetName() << " * " << func->GetName();
     }
 
-    if (funcIter != funcList.end()) {
+    if (funcIter != _funcList.end()) {
       os << " + [%] * " << (*funcIter)->GetName() ;
     }
   } else {
 
-    for (const auto func : funcList) {
+    for (const auto func : _funcList) {
       if (!first) {
         os << " + " ;
       } else {
-        first = false ;
+        first = kFALSE ;
       }
-      os << func->GetName() ;
-    }
+      os << func->GetName() ; 
+    }  
   }
 
-  os << " " ;
-}
-
-std::unique_ptr<RooAbsArg>
-RooRealSumPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const
-{
-   if (normSet.empty() || selfNormalized()) {
-      return RooAbsPdf::compileForNormSet({}, ctx);
-   }
-   std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf *>(this->Clone()));
-
-   if (ctx.likelihoodMode() && pdfClone->getAttribute("BinnedLikelihood")) {
-
-      // This has to be done before compiling the servers, such that the
-      // RooBinWidthFunctions know to disable themselves.
-      ctx.setBinnedLikelihoodMode(true);
-
-      ctx.markAsCompiled(*pdfClone);
-      ctx.compileServers(*pdfClone, {});
-
-      pdfClone->setAttribute("BinnedLikelihoodActive");
-      // If this is a binned likelihood, we're flagging it in the context.
-      // Then, the RooBinWidthFunctions know that they should not put
-      // themselves in the computation graph. Like this, the pdf values can
-      // directly be interpreted as yields, without multiplying them with the
-      // bin widths again in the NLL. However, the NLL class has to be careful
-      // to only skip the bin with multiplication when there actually were
-      // RooBinWidthFunctions! This is not the case for old workspace before
-      // ROOT 6.26. Therefore, we use the "BinnedLikelihoodActiveYields"
-      // attribute to let the NLL know what it should do.
-      if (ctx.binWidthFuncFlag()) {
-         pdfClone->setAttribute("BinnedLikelihoodActiveYields");
-      }
-      return pdfClone;
-   }
-
-   ctx.compileServers(*pdfClone, {});
-
-   RooArgSet depList;
-   pdfClone->getObservables(&normSet, depList);
-
-   auto newArg = std::make_unique<RooNormalizedPdf>(*pdfClone, depList);
-
-   // The direct servers are this pdf and the normalization integral, which
-   // don't need to be compiled further.
-   for (RooAbsArg *server : newArg->servers()) {
-      ctx.markAsCompiled(*server);
-   }
-   ctx.markAsCompiled(*newArg);
-   newArg->addOwnedComponents(std::move(pdfClone));
-   return newArg;
-}
-
-std::unique_ptr<RooAbsReal> RooRealSumPdf::createExpectedEventsFunc(const RooArgSet *nset) const
-{
-   if (nset == nullptr)
-      return nullptr;
-   return std::unique_ptr<RooAbsReal>{createIntegral(*nset, *getIntegratorConfig(), normRange())};
+  os << " " ;    
 }

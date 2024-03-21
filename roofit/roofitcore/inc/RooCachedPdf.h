@@ -22,34 +22,35 @@ public:
   RooCachedPdf() {} ;
   RooCachedPdf(const char *name, const char *title, RooAbsPdf& _pdf, const RooArgSet& cacheObs);
   RooCachedPdf(const char *name, const char *title, RooAbsPdf& _pdf);
-  RooCachedPdf(const RooCachedPdf& other, const char* name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooCachedPdf(*this,newname); }
+  RooCachedPdf(const RooCachedPdf& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooCachedPdf(*this,newname); }
+  virtual ~RooCachedPdf() ;
 
-  void preferredObservableScanOrder(const RooArgSet& obs, RooArgSet& orderedObs) const override ;
+  virtual void preferredObservableScanOrder(const RooArgSet& obs, RooArgSet& orderedObs) const ;
 
 protected:
 
-  /// Return the base name for cache objects, in this case the name of the cached p.d.f
-  const char* inputBaseName() const override {
-    return pdf.arg().GetName() ;
+  virtual const char* inputBaseName() const { 
+    // Return the base name for cache objects, in this case the name of the cached p.d.f
+    return pdf.arg().GetName() ; 
   } ;
-  RooFit::OwningPtr<RooArgSet> actualObservables(const RooArgSet& nset) const override;
-  RooFit::OwningPtr<RooArgSet> actualParameters(const RooArgSet& nset) const override ;
-  void fillCacheObject(PdfCacheElem& cachePdf) const override ;
-  double evaluate() const override {
+  virtual RooArgSet* actualObservables(const RooArgSet& nset) const ;
+  virtual RooArgSet* actualParameters(const RooArgSet& nset) const ;
+  virtual void fillCacheObject(PdfCacheElem& cachePdf) const ;
+  virtual Double_t evaluate() const { 
     // Dummy evaluate, it is never called
-    return 0 ;
+    return 0 ; 
   }
 
-  const char* payloadUniqueSuffix() const override { return pdf.arg().aggregateCacheUniqueSuffix() ; }
-
-  RooRealProxy pdf ;       ///< Proxy to p.d.f being cached
-  RooSetProxy  _cacheObs ; ///< Observable to be cached
+  virtual const char* payloadUniqueSuffix() const { return pdf.arg().aggregateCacheUniqueSuffix() ; }
+  
+  RooRealProxy pdf ;       // Proxy to p.d.f being cached
+  RooSetProxy  _cacheObs ; // Observable to be cached
 
 private:
 
-  ClassDefOverride(RooCachedPdf,1) // P.d.f class that wraps another p.d.f and caches its output
+  ClassDef(RooCachedPdf,1) // P.d.f class that wraps another p.d.f and caches its output 
 
 };
-
+ 
 #endif

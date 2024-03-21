@@ -19,27 +19,32 @@
 \class RooConvCoefVar
 \ingroup Roofitcore
 
-Auxiliary class that represents the coefficient
+RooConvCoefVar is an auxilary class that represents the coefficient
 of a RooAbsAnaConvPdf implementation as a separate RooAbsReal object
 to be able to interface these coefficient terms with the generic
-RooRealIntegral integration mechanism.
+RooRealIntegral integration mechanism
 **/
+
+#include "RooFit.h"
 
 #include "RooAbsAnaConvPdf.h"
 #include "RooConvCoefVar.h"
 
+using namespace std;
+
 ClassImp(RooConvCoefVar);
+;
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructor given a RooAbsAnaConvPdf a coefficient index and a set with the
-/// convoluted observable(s).
+/// Constuctor given a RooAbsAnaConvPdf a coefficient index and a set with the
+/// convoluted observable(s)
 
-RooConvCoefVar::RooConvCoefVar(const char *name, const char *title, const RooAbsAnaConvPdf& input,
-                Int_t coefIdx, const RooArgSet* varList) :
+RooConvCoefVar::RooConvCoefVar(const char *name, const char *title, const RooAbsAnaConvPdf& input, 
+			       Int_t coefIdx, const RooArgSet* varList) :
   RooAbsReal(name,title),
   _varSet("varSet","Set of coefficient variables",this),
-  _convPdf("convPdf","Convoluted PDF",this,(RooAbsReal&)input,false,false),
+  _convPdf("convPdf","Convoluted PDF",this,(RooAbsReal&)input,kFALSE,kFALSE),
   _coefIdx(coefIdx)
 {
   if (varList) _varSet.add(*varList) ;
@@ -63,9 +68,9 @@ RooConvCoefVar::RooConvCoefVar(const RooConvCoefVar& other, const char* name) :
 ////////////////////////////////////////////////////////////////////////////////
 /// Return value of chosen coefficient
 
-double RooConvCoefVar::getValV(const RooArgSet*) const
-{
-  return evaluate() ;
+Double_t RooConvCoefVar::getValV(const RooArgSet*) const 
+{ 
+  return evaluate() ; 
 }
 
 
@@ -73,9 +78,9 @@ double RooConvCoefVar::getValV(const RooArgSet*) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return value of chosen coefficient
 
-double RooConvCoefVar::evaluate() const
+Double_t RooConvCoefVar::evaluate() const 
 {
-  return (const_cast<RooAbsAnaConvPdf &>(static_cast<RooAbsAnaConvPdf const&>(_convPdf.arg()))).coefficient(_coefIdx) ;
+  return ((RooAbsAnaConvPdf&)_convPdf.arg()).coefficient(_coefIdx) ;
 }
 
 
@@ -83,9 +88,9 @@ double RooConvCoefVar::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return analytical integration capabilities of chosen coefficient
 
-Int_t RooConvCoefVar::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const
+Int_t RooConvCoefVar::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const 
 {
-  Int_t code = (static_cast<RooAbsAnaConvPdf const&>(_convPdf.arg())).getCoefAnalyticalIntegral(_coefIdx,allVars,analVars,rangeName) ;
+  Int_t code = ((RooAbsAnaConvPdf&)_convPdf.arg()).getCoefAnalyticalIntegral(_coefIdx,allVars,analVars,rangeName) ;
   return code ;
 }
 
@@ -94,7 +99,8 @@ Int_t RooConvCoefVar::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analV
 ////////////////////////////////////////////////////////////////////////////////
 /// Return analytical integral of chosen coefficient
 
-double RooConvCoefVar::analyticalIntegral(Int_t code, const char* rangeName) const
+Double_t RooConvCoefVar::analyticalIntegral(Int_t code, const char* rangeName) const 
 {
-  return (static_cast<RooAbsAnaConvPdf const&>(_convPdf.arg())).coefAnalyticalIntegral(_coefIdx,code,rangeName) ;
+  return ((RooAbsAnaConvPdf&)_convPdf.arg()).coefAnalyticalIntegral(_coefIdx,code,rangeName) ;
 }
+

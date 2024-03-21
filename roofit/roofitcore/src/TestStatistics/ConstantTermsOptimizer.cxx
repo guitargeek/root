@@ -58,12 +58,12 @@ void ConstantTermsOptimizer::enableConstantTermsOptimization(RooAbsReal *functio
    // dataset is constructed in terms of a RooVectorDataStore
    if (applyTrackingOpt) {
       if (!dynamic_cast<RooVectorDataStore *>(dataset->store())) {
-         oocoutW(nullptr, Optimization)
+         oocoutW((TObject *)nullptr, Optimization)
             << "enableConstantTermsOptimization(function: " << function->GetName()
             << ", dataset: " << dataset->GetName()
             << ") WARNING Cache-and-track optimization (Optimize level 2) is only available for datasets"
             << " implemented in terms of RooVectorDataStore - ignoring this option for current dataset" << std::endl;
-         applyTrackingOpt = false;
+         applyTrackingOpt = kFALSE;
       }
    }
 
@@ -74,12 +74,12 @@ void ConstantTermsOptimizer::enableConstantTermsOptimization(RooAbsReal *functio
          arg->setCacheAndTrackHints(trackNodes);
       }
       // Do not set CacheAndTrack on constant expressions
-      auto constNodes = static_cast<RooArgSet *>(trackNodes.selectByAttrib("Constant", true));
+      auto constNodes = (RooArgSet *)trackNodes.selectByAttrib("Constant", kTRUE);
       trackNodes.remove(*constNodes);
       delete constNodes;
 
       // Set CacheAndTrack flag on all remaining nodes
-      trackNodes.setAttribAll("CacheAndTrack", true);
+      trackNodes.setAttribAll("CacheAndTrack", kTRUE);
    }
 
    // Find all nodes that depend exclusively on constant parameters
@@ -98,26 +98,26 @@ void ConstantTermsOptimizer::enableConstantTermsOptimization(RooAbsReal *functio
       cacheArg->setOperMode(RooAbsArg::AClean);
    }
 
-   std::unique_ptr<RooArgSet> constNodes {static_cast<RooArgSet *>(cached_nodes.selectByAttrib("ConstantExpressionCached", true))};
+   std::unique_ptr<RooArgSet> constNodes {(RooArgSet *)cached_nodes.selectByAttrib("ConstantExpressionCached", kTRUE)};
    RooArgSet actualTrackNodes(cached_nodes);
    actualTrackNodes.remove(*constNodes);
-   if (!constNodes->empty()) {
-      if (constNodes->size() < 20) {
-         oocoutI(nullptr, Minimization)
+   if (constNodes->getSize() > 0) {
+      if (constNodes->getSize() < 20) {
+         oocoutI((TObject*)nullptr, Minimization)
             << " The following expressions have been identified as constant and will be precalculated and cached: "
             << *constNodes << std::endl;
       } else {
-         oocoutI(nullptr, Minimization) << " A total of " << constNodes->size()
+         oocoutI((TObject*)nullptr, Minimization) << " A total of " << constNodes->getSize()
                              << " expressions have been identified as constant and will be precalculated and cached."
                              << std::endl;
       }
    }
-   if (!actualTrackNodes.empty()) {
-      if (actualTrackNodes.size() < 20) {
-         oocoutI(nullptr, Minimization) << " The following expressions will be evaluated in cache-and-track mode: "
+   if (actualTrackNodes.getSize() > 0) {
+      if (actualTrackNodes.getSize() < 20) {
+         oocoutI((TObject*)nullptr, Minimization) << " The following expressions will be evaluated in cache-and-track mode: "
                              << actualTrackNodes << std::endl;
       } else {
-         oocoutI(nullptr, Minimization) << " A total of " << constNodes->size()
+         oocoutI((TObject*)nullptr, Minimization) << " A total of " << constNodes->getSize()
                              << " expressions will be evaluated in cache-and-track-mode." << std::endl;
       }
    }
@@ -133,17 +133,17 @@ void ConstantTermsOptimizer::disableConstantTermsOptimization(RooAbsReal *functi
    dataset->resetCache();
 
    // Reactivate all tree branches
-   dataset->setArgStatus(*dataset->get(), true);
+   dataset->setArgStatus(*dataset->get(), kTRUE);
 
    // Reset all nodes to ADirty
    optimizeCaching(function, norm_set, observables, dataset);
 
    // Disable propagation of dirty state flags for observables
-   dataset->setDirtyProp(false);
+   dataset->setDirtyProp(kFALSE);
 
    //   _cachedNodes.removeAll();
 
-   //   _optimized = false;
+   //   _optimized = kFALSE;
 }
 
 void ConstantTermsOptimizer::optimizeCaching(RooAbsReal *function, RooArgSet *norm_set, RooArgSet *observables, RooAbsData *dataset)
@@ -156,7 +156,7 @@ void ConstantTermsOptimizer::optimizeCaching(RooAbsReal *function, RooArgSet *no
    function->optimizeCacheMode(*observables);
 
    // Disable propagation of dirty state flags for observables
-   dataset->setDirtyProp(false);
+   dataset->setDirtyProp(kFALSE);
 
    // Disable reading of observables that are not used
    dataset->optimizeReadingWithCaching(*function, RooArgSet(), requiredExtraObservables()) ;

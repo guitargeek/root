@@ -16,21 +16,21 @@
 #ifndef ROO_ABS_CATEGORY_LVALUE
 #define ROO_ABS_CATEGORY_LVALUE
 
-#include <RooAbsCategory.h>
-#include <RooAbsLValue.h>
-
+#include "RooAbsCategory.h"
+#include "RooAbsLValue.h"
 #include <list>
 #include <string>
-#include <utility> // for std::pair
+#include <utility>
 
 class RooAbsCategoryLValue : public RooAbsCategory, public RooAbsLValue {
 public:
   // Constructor, assignment etc.
   RooAbsCategoryLValue() {
     // Default constructor
-  }
+  } ;
   RooAbsCategoryLValue(const char *name, const char *title);
-  RooAbsCategoryLValue(const RooAbsCategoryLValue& other, const char* name=nullptr) ;
+  RooAbsCategoryLValue(const RooAbsCategoryLValue& other, const char* name=0) ;
+  virtual ~RooAbsCategoryLValue();
 
   // Value modifiers
   ////////////////////////////////////////////////////////////////////////////////
@@ -55,8 +55,8 @@ public:
   /// If printError is set, a message will be printed if
   /// the specified state name does not represent a valid state.
   /// \return bool to signal an error.
-  virtual bool setLabel(const char* label, bool printError=true) = 0;
-  /// \copydoc setLabel(const char*, bool)
+  virtual bool setLabel(const char* label, Bool_t printError=kTRUE) = 0;
+  /// \copydoc setLabel(const char*, Bool_t)
   bool setLabel(const std::string& label, bool printError = true) {
     return setLabel(label.c_str(), printError);
   }
@@ -71,40 +71,40 @@ public:
   }
 
 
-  RooAbsArg& operator=(int index) ;
-  RooAbsArg& operator=(const char* label) ;
+  RooAbsArg& operator=(int index) ; 
+  RooAbsArg& operator=(const char* label) ; 
   RooAbsArg& operator=(const RooAbsCategory& other) ;
 
   // Binned fit interface
-  void setBin(Int_t ibin, const char* rangeName=nullptr) override ;
+  virtual void setBin(Int_t ibin, const char* rangeName=0) ;
   /// Get the index of the plot bin for the current value of this category.
-  Int_t getBin(const char* /*rangeName*/=nullptr) const override {
+  virtual Int_t getBin(const char* /*rangeName*/=nullptr) const {
     return getCurrentOrdinalNumber();
   }
-  Int_t numBins(const char* rangeName=nullptr) const override ;
-  double getBinWidth(Int_t /*i*/, const char* /*rangeName*/=nullptr) const override {
-    // Return volume of i-th bin (according to binning named rangeName if rangeName!=nullptr)
-    return 1.0 ;
+  virtual Int_t numBins(const char* rangeName=nullptr) const ;
+  virtual Double_t getBinWidth(Int_t /*i*/, const char* /*rangeName*/=0) const { 
+    // Return volume of i-th bin (according to binning named rangeName if rangeName!=0)
+    return 1.0 ; 
   }
-  double volume(const char* rangeName) const override {
+  virtual Double_t volume(const char* rangeName) const { 
     // Return span of range with given name (=number of states included in this range)
-    return numTypes(rangeName) ;
+    return numTypes(rangeName) ; 
   }
-  void randomize(const char* rangeName=nullptr) override;
+  virtual void randomize(const char* rangeName=0);
 
-  const RooAbsBinning* getBinningPtr(const char* /*rangeName*/) const override { return nullptr ; }
-  std::list<std::string> getBinningNames() const override { return std::list<std::string>(1, "") ; }
-  Int_t getBin(const RooAbsBinning* /*ptr*/) const override { return getBin((const char*)nullptr) ; }
+  virtual const RooAbsBinning* getBinningPtr(const char* /*rangeName*/) const { return 0 ; }
+  virtual std::list<std::string> getBinningNames() const { return std::list<std::string>(1, "") ; }
+  virtual Int_t getBin(const RooAbsBinning* /*ptr*/) const { return getBin((const char*)0) ; }
 
 
-  inline void setConstant(bool value= true) {
-    // Declare category constant
-    setAttribute("Constant",value);
+  inline void setConstant(Bool_t value= kTRUE) { 
+    // Declare category constant 
+    setAttribute("Constant",value); 
   }
-
-  inline bool isLValue() const override {
+  
+  inline virtual Bool_t isLValue() const { 
     // Object is an l-value
-    return true;
+    return kTRUE; 
   }
 
 protected:
@@ -118,9 +118,9 @@ protected:
   }
   /// \endcond
 
-  void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
+  void copyCache(const RooAbsArg* source, Bool_t valueOnly=kFALSE, Bool_t setValDirty=kTRUE) ;
 
-  ClassDefOverride(RooAbsCategoryLValue,1) // Abstract modifiable index variable
+  ClassDef(RooAbsCategoryLValue,1) // Abstract modifiable index variable 
 };
 
 #endif

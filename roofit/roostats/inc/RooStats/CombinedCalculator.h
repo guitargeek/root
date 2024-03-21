@@ -65,12 +65,12 @@ in a common way for several concrete calculators.
 
       CombinedCalculator() :
          fSize(0.),
-         fPdf(nullptr),
-         fData(nullptr)
+         fPdf(0),
+         fData(0)
       {}
 
       CombinedCalculator(RooAbsData& data, RooAbsPdf& pdf, const RooArgSet& paramsOfInterest,
-                         double size = 0.05, const RooArgSet* nullParams = nullptr, const RooArgSet* altParams = nullptr, const RooArgSet* nuisParams = nullptr) :
+                         Double_t size = 0.05, const RooArgSet* nullParams = 0, const RooArgSet* altParams = 0, const RooArgSet* nuisParams = 0) :
 
          fPdf(&pdf),
          fData(&data),
@@ -84,35 +84,41 @@ in a common way for several concrete calculators.
 
       /// constructor from data and model configuration
       CombinedCalculator(RooAbsData& data, const ModelConfig& model,
-                         double size = 0.05) :
-         fPdf(nullptr),
+                         Double_t size = 0.05) :
+         fPdf(0),
          fData(&data)
       {
          SetModel(model);
          SetTestSize(size);
       }
 
+
+      /// destructor.
+      virtual ~CombinedCalculator() { }
+
+
+
       /// Main interface to get a ConfInterval, pure virtual
-      ConfInterval* GetInterval() const override = 0;
+      virtual ConfInterval* GetInterval() const = 0;
       /// main interface to get a HypoTestResult, pure virtual
-      HypoTestResult* GetHypoTest() const override = 0;
+      virtual HypoTestResult* GetHypoTest() const = 0;
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
-      void SetTestSize(double size) override {fSize = size;}
+      virtual void SetTestSize(Double_t size) {fSize = size;}
       /// set the confidence level for the interval (eg. 0.95 for a 95% Confidence Interval)
-      void SetConfidenceLevel(double cl) override {fSize = 1.-cl;}
+      virtual void SetConfidenceLevel(Double_t cl) {fSize = 1.-cl;}
       /// Get the size of the test (eg. rate of Type I error)
-      double Size() const override {return fSize;}
+      virtual Double_t Size() const {return fSize;}
       /// Get the Confidence level for the test
-      double ConfidenceLevel()  const override {return 1.-fSize;}
+      virtual Double_t ConfidenceLevel()  const {return 1.-fSize;}
 
-      /// Set the DataSet, add to the workspace if not already there
-      void SetData(RooAbsData & data) override {
+      /// Set the DataSet, add to the the workspace if not already there
+      virtual void SetData(RooAbsData & data) {
          fData = &data;
       }
 
       /// set the model (in this case can set only the parameters for the null hypothesis)
-      void SetModel(const ModelConfig & model) override {
+      virtual void SetModel(const ModelConfig & model) {
          fPdf = model.GetPdf();
          if (model.GetParametersOfInterest()) SetParameters(*model.GetParametersOfInterest());
          if (model.GetSnapshot()) SetNullParameters(*model.GetSnapshot());
@@ -121,9 +127,9 @@ in a common way for several concrete calculators.
          if (model.GetGlobalObservables()) SetGlobalObservables(*model.GetGlobalObservables());
       }
 
-      void SetNullModel( const ModelConfig &) override {  // to be understood what to do
+      virtual void SetNullModel( const ModelConfig &) {  // to be understood what to do
       }
-      void SetAlternateModel(const ModelConfig &) override {  // to be understood what to do
+      virtual void SetAlternateModel(const ModelConfig &) {  // to be understood what to do
       }
 
       /* specific setting - keep for convenience-  some of them could be removed */
@@ -155,19 +161,19 @@ in a common way for several concrete calculators.
       RooAbsPdf * GetPdf() const { return fPdf; }
       RooAbsData * GetData() const { return fData; }
 
-      double fSize; ///< size of the test (eg. specified rate of Type I error)
+      Double_t fSize; // size of the test (eg. specified rate of Type I error)
 
       RooAbsPdf  * fPdf;
       RooAbsData * fData;
-      RooArgSet fPOI;             ///< RooArgSet specifying parameters of interest for interval
-      RooArgSet fNullParams;      ///< RooArgSet specifying null parameters for hypothesis test
-      RooArgSet fAlternateParams; ///< RooArgSet specifying alternate parameters for hypothesis test
-      RooArgSet fNuisParams;      ///< RooArgSet specifying nuisance parameters for interval
-      RooArgSet fConditionalObs;  ///< RooArgSet specifying the conditional observables
-      RooArgSet fGlobalObs;       ///< RooArgSet specifying the global observables
+      RooArgSet fPOI; // RooArgSet specifying  parameters of interest for interval
+      RooArgSet fNullParams; // RooArgSet specifying null parameters for hypothesis test
+      RooArgSet fAlternateParams; // RooArgSet specifying alternate parameters for hypothesis test       // Is it used ????
+      RooArgSet fNuisParams;// RooArgSet specifying  nuisance parameters for interval
+      RooArgSet fConditionalObs; // RooArgSet specifying the conditional observables
+      RooArgSet fGlobalObs; // RooArgSet specifying the global observables 
 
 
-      ClassDefOverride(CombinedCalculator,2) // A base class that is for tools that can be both HypoTestCalculators and IntervalCalculators
+      ClassDef(CombinedCalculator,2) // A base class that is for tools that can be both HypoTestCalculators and IntervalCalculators
 
    };
 }

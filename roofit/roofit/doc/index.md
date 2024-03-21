@@ -1,4 +1,4 @@
-\defgroup Roofit RooFit
+\defgroup Roofit Roofit
 \brief RooFit main classes for building likelihood models, mainly PDFs.
 \ingroup Roofitmain
 

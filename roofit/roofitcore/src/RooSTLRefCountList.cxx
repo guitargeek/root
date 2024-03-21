@@ -13,30 +13,32 @@
  * listed in LICENSE (http://roofit.sourceforge.net/license.txt)             *
  *****************************************************************************/
 
-/// \cond ROOFIT_INTERNAL
-
 #include "RooSTLRefCountList.h"
 
-#include "RooLinkedList.h"
+#include "RooRefCountList.h"
 #include "RooLinkedListIter.h"
 #include "RooAbsArg.h"
+#include <string>
 
 // Template specialisation used in RooAbsArg:
 ClassImp(RooSTLRefCountList<RooAbsArg>);
 
-/// Converts RooLinkedList to RooSTLRefCountList<RooAbsArg>.
+namespace RooFit {
+namespace STLRefCountListHelpers {
+/// Converts RooRefCountList to RooSTLRefCountList<RooAbsArg>.
 /// This converter only yields lists with T=RooAbsArg. This is ok because this
 /// the old RefCountList was only holding these.
-template <>
-RooSTLRefCountList<RooAbsArg> RooSTLRefCountList<RooAbsArg>::convert(const RooLinkedList& old) {
+RooSTLRefCountList<RooAbsArg> convert(const RooRefCountList& old) {
   RooSTLRefCountList<RooAbsArg> newList;
   newList.reserve(old.GetSize());
 
-  for(TObject * elm : old) {
-    newList.Add(static_cast<RooAbsArg*>(elm), old.findLink(elm)->refCount());
+  auto it = old.fwdIterator();
+  for (RooAbsArg * elm = it.next(); elm != nullptr; elm = it.next()) {
+    newList.Add(elm, old.refCount(elm));
   }
 
   return newList;
 }
+}
+}
 
-/// \endcond

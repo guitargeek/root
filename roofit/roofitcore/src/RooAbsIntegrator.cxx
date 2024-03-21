@@ -19,24 +19,38 @@
 \class RooAbsIntegrator
 \ingroup Roofitcore
 
-Abstract interface for integrators of real-valued
+RooAbsIntegrator is the abstract interface for integrators of real-valued
 functions that implement the RooAbsFunc interface.
 **/
 
+#include "RooFit.h"
+
 #include "Riostream.h"
+
 
 #include "RooAbsIntegrator.h"
 #include "RooMsgService.h"
 #include "TClass.h"
 
-using std::endl;
+using namespace std;
 
-RooAbsIntegrator::RooAbsIntegrator() = default;
+ClassImp(RooAbsIntegrator);
+;
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Default constructor
+
+RooAbsIntegrator::RooAbsIntegrator() : _function(0), _valid(kFALSE), _printEvalCounter(kFALSE) 
+{
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-RooAbsIntegrator::RooAbsIntegrator(const RooAbsFunc& function, bool doPrintEvalCounter) :
+RooAbsIntegrator::RooAbsIntegrator(const RooAbsFunc& function, Bool_t doPrintEvalCounter) :
   _function(&function), _valid(function.isValid()), _printEvalCounter(doPrintEvalCounter)
 {
 }
@@ -46,15 +60,15 @@ RooAbsIntegrator::RooAbsIntegrator(const RooAbsFunc& function, bool doPrintEvalC
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate integral value with given array of parameter values
 
-double RooAbsIntegrator::calculate(const double *yvec)
+Double_t RooAbsIntegrator::calculate(const Double_t *yvec) 
 {
   integrand()->resetNumCall() ;
 
   integrand()->saveXVec() ;
-  double ret = integral(yvec) ;
+  Double_t ret = integral(yvec) ; 
   integrand()->restoreXVec() ;
-
-  oocxcoutD(static_cast<TObject*>(nullptr), NumIntegration) << "RooAbsIntegrator::calculate(" << _function->getName() << ") number of function calls = " << integrand()->numCall()<<", result  = "<<ret << endl ;
+  
+  cxcoutD(NumIntegration) << IsA()->GetName() << "::calculate(" << _function->getName() << ") number of function calls = " << integrand()->numCall()<<", result  = "<<ret << endl ;
   return ret ;
 }
 
@@ -63,17 +77,17 @@ double RooAbsIntegrator::calculate(const double *yvec)
 ////////////////////////////////////////////////////////////////////////////////
 /// Interface to set limits on integration
 
-bool RooAbsIntegrator::setLimits(double xmin, double xmax)
-{
-  return setLimits(&xmin,&xmax) ;
+Bool_t RooAbsIntegrator::setLimits(Double_t xmin, Double_t xmax) 
+{ 
+  return setLimits(&xmin,&xmax) ; 
 }
-
+ 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Interface function that allows to defer limit definition to integrand definition
 
-bool RooAbsIntegrator::setUseIntegrandLimits(bool)
-{
-  return false ;
-}
+Bool_t RooAbsIntegrator::setUseIntegrandLimits(Bool_t) 
+{ 
+  return kFALSE ; 
+} 

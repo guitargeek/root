@@ -1,18 +1,19 @@
 // Author: Rahul Balasubramanian, CERN  12/2021
 
-#include <RooFormulaVar.h>
-#include <RooPolyFunc.h>
-#include <RooRealVar.h>
-#include <RooWorkspace.h>
-#include <RooWrapperPdf.h>
+#include "RooPolyFunc.h"
 
-#include <gtest/gtest.h>
+#include "RooPolynomial.h"
+#include "RooRealVar.h"
+#include "RooFormulaVar.h"
+#include "RooWrapperPdf.h"
 
 #include <initializer_list>
 #include <iostream>
 #include <memory>
 #include <numeric>
 #include <string>
+
+#include "gtest/gtest.h"
 
 namespace {
 
@@ -45,14 +46,14 @@ using Doubles = std::initializer_list<double>;
 
 TEST(RooPolyFunc, WrappedPdfClosure)
 {
-   RooWorkspace ws;
-   ws.factory("Polynomial::pdf(x[0., -10., 10.], {c0[1.], c1[1.], c2[1.]}, 0)");
-
-   RooRealVar& x = *ws.var("x");
-   RooAbsPdf& pdf = *ws.pdf("pdf");
-
+   RooRealVar x("x", "x", 0., -10., 10.);
    auto polyfunc = makePolyFunc1D(x);
    RooWrapperPdf wrapperpdf("wrappdf", "wrappdf", *polyfunc);
+
+   RooRealVar c0("c0", "c0", 1.);
+   RooRealVar c1("c1", "c1", 1.);
+   RooRealVar c2("c2", "c2", 1.);
+   RooPolynomial pdf("pdf", "pdf", x, RooArgList(c0, c1, c2), /*lowestOrder=*/0.0);
 
    RooArgSet normSet{x};
    for (double theX : Doubles{-10., -5., -1., -0.5, 0., 0.5, 1., 5., 10.}) {
@@ -80,7 +81,7 @@ TEST(RooPolyFunc, TaylorExpansionClosure1D)
 {
    RooRealVar x("x", "x", 0., -10., 10.);
    auto polyfunc = makePolyFunc1D(x);
-   auto taylor = RooPolyFunc::taylorExpand("taylor", "taylor expansion", *polyfunc, {x}, 2);
+   auto taylor = RooPolyFunc::taylorExpand("taylor", "taylor expansion", *polyfunc, RooArgSet{x}, 0.0, 2);
    for (double theX : Doubles{0., 0.5, 1., 5., 10.}) {
       x = theX;
       // Taylor epansion of 2nd degree polynomial from RooPolyFunc
@@ -94,7 +95,7 @@ TEST(RooPolyFunc, TaylorExpansionClosure2D)
    RooRealVar x("x", "x", 0., -10., 10.);
    RooRealVar y("y", "y", 0., -10., 10.);
    auto polyfunc = makePolyFunc2D(x, y);
-   auto taylor = RooPolyFunc::taylorExpand("taylor", "taylor expansion", *polyfunc, {x, y}, 2);
+   auto taylor = RooPolyFunc::taylorExpand("taylor", "taylor expansion", *polyfunc, RooArgSet{x, y}, 0.0, 2);
    for (double theX : Doubles{0., 0.5, 1., 5., 10.}) {
       for (double theY : Doubles{0., 0.5, 1., 5., 10.}) {
          x = theX;

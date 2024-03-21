@@ -19,32 +19,44 @@
 \class RooNumber
 \ingroup Roofitcore
 
-Provides numeric constants used in \ref Roofitmain.
+Class RooNumber implements numeric constants used by RooFit
 **/
 
-#include <RooNumber.h>
+#include "RooFit.h"
+#include "RooNumber.h"
 
-/// @brief  Returns an std::to_string compatible number (i.e. rounds infinities back to the nearest representable
-/// value). This function is primarily used in the code-squashing for AD and as such encodes infinities to double's
-/// maximum value. We do this because 1, std::to_string cannot handle infinities correctly on some platforms
-/// (e.g. 32 bit debian) and 2, Clad (the AD tool) cannot handle differentiating std::numeric_limits::infinity directly.
-std::string RooNumber::toString(double x)
+using namespace std;
+
+ClassImp(RooNumber);
+;
+
+#ifdef HAS_NUMERIC_LIMITS
+
+#include <numeric_limits.h>
+Double_t RooNumber::_Infinity= numeric_limits<Double_t>::infinity();
+#else
+
+// This assumes a well behaved IEEE-754 floating point implementation.
+// The next line may generate a compiler warning that can be ignored.
+Double_t RooNumber::_Infinity= 1.0e30 ;  //1./0.;
+
+#endif
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return internal infinity representation
+
+Double_t RooNumber::infinity() 
 {
-   int sign = isInfinite(x);
-   double out = x;
-   if (sign)
-      out = sign == 1 ? std::numeric_limits<double>::max() : std::numeric_limits<double>::min();
-   return std::to_string(out);
+  return _Infinity ;
 }
 
-double &RooNumber::staticRangeEpsRel()
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return true if x is infinite by RooNumBer internal specification
+
+Int_t RooNumber::isInfinite(Double_t x) 
 {
-   static double epsRel = 0.0;
-   return epsRel;
+  return (x >= +_Infinity) ? +1 : ((x <= -_Infinity) ? -1 : 0);
 }
 
-double &RooNumber::staticRangeEpsAbs()
-{
-   static double epsAbs = 0.0;
-   return epsAbs;
-}

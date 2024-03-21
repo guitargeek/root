@@ -40,7 +40,6 @@ public:
    void update_state() override;
 
    enum class GradientCalculatorMode { ExactlyMinuit2, AlmostMinuit2 };
-   bool isCalculating() override { return isCalculating_; };
 
 private:
    void run_derivator(unsigned int i_component) const;
@@ -73,7 +72,6 @@ private:
    bool receive_task_result_on_master(const zmq::message_t &message) override;
 
    void update_workers_state();
-   void update_workers_state_isCalculating();
    void calculate_all();
 
    // members
@@ -85,8 +83,6 @@ private:
    std::size_t N_tasks_ = 0;
    std::size_t N_tasks_at_workers_ = 0;
    std::vector<double> minuit_internal_x_;
-
-   mutable bool isCalculating_ = false;
 };
 
 } // namespace TestStatistics

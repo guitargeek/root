@@ -31,9 +31,8 @@ RooRealL::RooRealL(const char *name, const char *title, std::shared_ptr<RooAbsL>
    : RooAbsReal(name, title), likelihood_(std::move(likelihood)),
      vars_proxy_("varsProxy", "proxy set of parameters", this)
 {
-   std::unique_ptr<RooArgSet> params{likelihood_->getParameters()};
-   vars_obs_.add(*params);
-   vars_proxy_.add(*params);
+   vars_obs_.add(*likelihood_->getParameters());
+   vars_proxy_.add(*likelihood_->getParameters());
 }
 
 RooRealL::RooRealL(const RooRealL &other, const char *name)
@@ -42,7 +41,7 @@ RooRealL::RooRealL(const RooRealL &other, const char *name)
    vars_obs_.add(other.vars_obs_) ;
 }
 
-double RooRealL::evaluate() const
+Double_t RooRealL::evaluate() const
 {
    // Transfer values from proxy variables to internal variables of likelihood
    if (!vars_proxy_.empty()) {
@@ -51,7 +50,7 @@ double RooRealL::evaluate() const
          const auto parg = vars_proxy_[i];
 
          if (harg != parg) {
-            (static_cast<RooAbsRealLValue*>(harg))->setVal((static_cast<RooAbsReal*>(parg))->getVal());
+            ((RooAbsRealLValue*)harg)->setVal(((RooAbsReal*)parg)->getVal());
          }
       }
    }
@@ -60,7 +59,7 @@ double RooRealL::evaluate() const
 
    auto ret_kahan = likelihood_->evaluatePartition({0, 1}, 0, last_component);
 
-   const double norm = globalNormalization();
+   const Double_t norm = globalNormalization();
    double ret = ret_kahan.Sum() / norm;
    eval_carry = ret_kahan.Carry() / norm;
 

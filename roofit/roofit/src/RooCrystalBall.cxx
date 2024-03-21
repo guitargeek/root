@@ -47,6 +47,7 @@ where
 **/
 
 #include "RooCrystalBall.h"
+#include "RooAbsReal.h"
 #include "RooHelpers.h"
 #include "TError.h"
 
@@ -94,7 +95,7 @@ RooCrystalBall::RooCrystalBall(const char *name, const char *title, RooAbsReal &
 /// \param title Title for plotting.
 /// \param x The variable of the PDF.
 /// \param x0 Location parameter of the Gaussian component.
-/// \param sigmaLR Width parameter of the Gaussian component.
+/// \param sigma Width parameter of the Gaussian component.
 /// \param alphaL Location of transition to a power law on the left, in standard deviations away from the mean.
 /// \param nL Exponent of power-law tail on the left.
 /// \param alphaR Location of transition to a power law on the right, in standard deviations away from the mean.
@@ -122,7 +123,7 @@ RooCrystalBall::RooCrystalBall(const char *name, const char *title, RooAbsReal &
 /// \param title Title for plotting.
 /// \param x The variable of the PDF.
 /// \param x0 Location parameter of the Gaussian component.
-/// \param sigmaLR Width parameter of the Gaussian component.
+/// \param sigma Width parameter of the Gaussian component.
 /// \param alpha Location of transition to a power law, in standard deviations away from the mean.
 /// \param n Exponent of power-law tail.
 /// \param doubleSided Whether the tail is only on one side or on both sides
@@ -200,7 +201,7 @@ inline double integrateTailRegular(double sigma, double alpha, double n, double 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooCrystalBall::evaluate() const
+Double_t RooCrystalBall::evaluate() const
 {
    const double x = x_;
    const double x0 = x0_;
@@ -238,7 +239,7 @@ Int_t RooCrystalBall::getAnalyticalIntegral(RooArgSet &allVars, RooArgSet &analV
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooCrystalBall::analyticalIntegral(Int_t code, const char *rangeName) const
+Double_t RooCrystalBall::analyticalIntegral(Int_t code, const char *rangeName) const
 {
    R__ASSERT(code == 1);
 
@@ -292,7 +293,7 @@ Int_t RooCrystalBall::getMaxVal(const RooArgSet &vars) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooCrystalBall::maxVal(Int_t code) const
+Double_t RooCrystalBall::maxVal(Int_t code) const
 {
    R__ASSERT(code == 1);
 

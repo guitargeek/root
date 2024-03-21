@@ -22,24 +22,23 @@
 class RooExtendedTerm : public RooAbsPdf {
 public:
 
-  RooExtendedTerm() = default;
+  RooExtendedTerm() ;
   RooExtendedTerm(const char *name, const char *title, const RooAbsReal& n) ;
-  RooExtendedTerm(const RooExtendedTerm& other, const char* name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooExtendedTerm(*this,newname) ; }
+  RooExtendedTerm(const RooExtendedTerm& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooExtendedTerm(*this,newname) ; }
+  virtual ~RooExtendedTerm() ;
 
-  double evaluate() const override { return 1. ; }
+  Double_t evaluate() const { return 1. ; }
 
-  ExtendMode extendMode() const override { return CanBeExtended ; }
+  virtual ExtendMode extendMode() const { return CanBeExtended ; }
   /// Return number of expected events, in other words the value of the associated n parameter.
-  double expectedEvents(const RooArgSet* nset) const override ;
-
-  std::unique_ptr<RooAbsReal> createExpectedEventsFunc(const RooArgSet* nset) const override;
+  virtual Double_t expectedEvents(const RooArgSet* nset) const ;
 
 protected:
 
-  RooRealProxy _n ;          ///< Number of expected events
+  RooRealProxy _n ;          // Number of expected events
 
-  ClassDefOverride(RooExtendedTerm,1) // Meta-p.d.f flat in all observables introducing only extended ML term
+  ClassDef(RooExtendedTerm,1) // Meta-p.d.f flat in all observables introducing only extended ML term
 };
 
 #endif

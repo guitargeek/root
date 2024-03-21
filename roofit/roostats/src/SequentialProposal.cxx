@@ -19,9 +19,11 @@ by moving only in one coordinate (chosen randomly) at each step
 #include <RooArgSet.h>
 #include <iostream>
 #include <memory>
+#include <TIterator.h>
 #include <RooRandom.h>
 #include <RooStats/RooStatsUtils.h>
 
+using namespace std;
 
 ClassImp(RooStats::SequentialProposal);
 
@@ -29,7 +31,11 @@ namespace RooStats {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-SequentialProposal::SequentialProposal(double divisor) : fDivisor(1. / divisor) {}
+SequentialProposal::SequentialProposal(double divisor) :
+    ProposalFunction(),
+    fDivisor(1./divisor)
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Populate xPrime with a new proposed point
@@ -37,24 +43,19 @@ SequentialProposal::SequentialProposal(double divisor) : fDivisor(1. / divisor) 
 void SequentialProposal::Propose(RooArgSet& xPrime, RooArgSet& x )
 {
    RooStats::SetParameters(&x, &xPrime);
-   int n = xPrime.size();
+   RooLinkedListIter it(xPrime.iterator());
+   RooRealVar* var;
+   int n = xPrime.getSize();
    int j = int( floor(RooRandom::uniform()*n) );
-   int i = 0;
-   for (auto *var : static_range_cast<RooRealVar *>(xPrime)) {
+   for (int i = 0; (var = (RooRealVar*)it.Next()) != NULL; ++i) {
       if (i == j) {
-         double val = var->getVal();
-         double max = var->getMax();
-         double min = var->getMin();
-         double len = max - min;
-         val += RooRandom::gaussian() * len * fDivisor;
-         while (val > max)
-            val -= len;
-         while (val < min)
-            val += len;
-         var->setVal(val);
-         // std::cout << "Proposing a step along " << var->GetName() << std::endl;
+        double val = var->getVal(), max = var->getMax(), min = var->getMin(), len = max - min;
+        val += RooRandom::gaussian() * len * fDivisor;
+        while (val > max) val -= len;
+        while (val < min) val += len;
+        var->setVal(val);
+        //std::cout << "Proposing a step along " << var->GetName() << std::endl;
       }
-      ++i;
    }
 }
 
@@ -62,11 +63,11 @@ void SequentialProposal::Propose(RooArgSet& xPrime, RooArgSet& x )
 /// Return the probability of proposing the point x1 given the starting
 /// point x2
 
-bool SequentialProposal::IsSymmetric(RooArgSet& , RooArgSet& ) {
+Bool_t SequentialProposal::IsSymmetric(RooArgSet& , RooArgSet& ) {
    return true;
 }
 
-double SequentialProposal::GetProposalDensity(RooArgSet& ,
+Double_t SequentialProposal::GetProposalDensity(RooArgSet& ,
                                                 RooArgSet& )
 {
    return 1.0; // should not be needed

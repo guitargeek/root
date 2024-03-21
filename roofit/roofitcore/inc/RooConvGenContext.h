@@ -30,40 +30,41 @@ class RooFFTConvPdf ;
 
 class RooConvGenContext : public RooAbsGenContext {
 public:
-  RooConvGenContext(const RooFFTConvPdf &model, const RooArgSet &vars, const RooDataSet *prototype= nullptr,
-          const RooArgSet* auxProto=nullptr, bool _verbose= false);
-  RooConvGenContext(const RooNumConvPdf &model, const RooArgSet &vars, const RooDataSet *prototype= nullptr,
-          const RooArgSet* auxProto=nullptr, bool _verbose= false);
-  RooConvGenContext(const RooAbsAnaConvPdf &model, const RooArgSet &vars, const RooDataSet *prototype= nullptr,
-          const RooArgSet* auxProto=nullptr, bool _verbose= false);
+  RooConvGenContext(const RooFFTConvPdf &model, const RooArgSet &vars, const RooDataSet *prototype= 0,
+		    const RooArgSet* auxProto=0, Bool_t _verbose= kFALSE);
+  RooConvGenContext(const RooNumConvPdf &model, const RooArgSet &vars, const RooDataSet *prototype= 0,
+		    const RooArgSet* auxProto=0, Bool_t _verbose= kFALSE);
+  RooConvGenContext(const RooAbsAnaConvPdf &model, const RooArgSet &vars, const RooDataSet *prototype= 0,
+		    const RooArgSet* auxProto=0, Bool_t _verbose= kFALSE);
+  virtual ~RooConvGenContext();
 
-  void setProtoDataOrder(Int_t* lut) override ;
+  virtual void setProtoDataOrder(Int_t* lut) ;
 
-  void attach(const RooArgSet& params) override ;
+  virtual void attach(const RooArgSet& params) ;
 
-  void printMultiline(std::ostream &os, Int_t content, bool verbose=false, TString indent="") const override ;
+  virtual void printMultiline(std::ostream &os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const ;
 
-  void initGenerator(const RooArgSet &theEvent) override;
-  void generateEvent(RooArgSet &theEvent, Int_t remaining) override;
+  virtual void initGenerator(const RooArgSet &theEvent);
+  virtual void generateEvent(RooArgSet &theEvent, Int_t remaining);
 
 protected:
 
   RooConvGenContext(const RooConvGenContext& other) ;
 
-  std::unique_ptr<RooAbsGenContext> _pdfGen ;    ///< Physics model generator context
-  std::unique_ptr<RooAbsGenContext> _modelGen ;  ///< Resolution model generator context
-  TString _convVarName ;                         ///< Name of convolution variable
-  std::unique_ptr<RooArgSet> _pdfVarsOwned ;     ///< Owning version of pdfVars ;
-  std::unique_ptr<RooArgSet> _modelVarsOwned ;   ///< Owning version of modelVars ;
-  std::unique_ptr<RooArgSet> _pdfVars ;          ///< Holder of PDF x truth event
-  std::unique_ptr<RooArgSet> _modelVars ;        ///< Holder of resModel event
-  std::unique_ptr<RooArgSet> _pdfCloneSet ;      ///< Owner of PDF clone
-  std::unique_ptr<RooArgSet> _modelCloneSet ;    ///< Owner of resModel clone
-  RooRealVar* _cvModel{nullptr};                 ///< Convolution variable in resModel event
-  RooRealVar* _cvPdf{nullptr};                   ///< Convolution variable in PDFxTruth event
-  RooRealVar* _cvOut{nullptr};                   ///< Convolution variable in output event
+  RooAbsGenContext* _pdfGen ;   // Physics model generator context
+  RooAbsGenContext* _modelGen ; // Resolution model generator context
+  TString _convVarName ;        // Name of convolution variable
+  RooArgSet* _pdfVarsOwned ;    // Owning version of pdfVars ;
+  RooArgSet* _modelVarsOwned ;  // Owning version of modelVars ;
+  RooArgSet* _pdfVars ;         // Holder of PDF x truth event
+  RooArgSet* _modelVars ;       // Holder of resModel event
+  RooArgSet* _pdfCloneSet ;     // Owner of PDF clone
+  RooArgSet* _modelCloneSet ;   // Owner of resModel clone
+  RooRealVar* _cvModel{nullptr};         // Convolution variable in resModel event
+  RooRealVar* _cvPdf{nullptr};           // Convolution variable in PDFxTruth event
+  RooRealVar* _cvOut{nullptr};           // Convolution variable in output event
 
-  ClassDefOverride(RooConvGenContext,0) // Context for generating a dataset from a PDF
+  ClassDef(RooConvGenContext,0) // Context for generating a dataset from a PDF
 };
 
 #endif

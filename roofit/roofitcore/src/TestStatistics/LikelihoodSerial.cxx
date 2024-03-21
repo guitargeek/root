@@ -53,7 +53,7 @@ LikelihoodSerial::LikelihoodSerial(std::shared_ptr<RooAbsL> likelihood, std::sha
    // should also somehow be updated in this class.
 }
 
-/// \brief Helper function for the constructor.
+/// \brief Helper function for the constuctor.
 ///
 /// This is a separate function (instead of just in ctor) for historical reasons.
 /// Its predecessor RooRealMPFE::initVars() was used from multiple ctors, but also
@@ -67,7 +67,7 @@ void LikelihoodSerial::initVars()
    _saveVars.removeAll();
 
    // Retrieve non-constant parameters
-   std::unique_ptr<RooArgSet> vars{likelihood_->getParameters()};
+   auto vars = std::make_unique<RooArgSet>(*likelihood_->getParameters());
 
    RooArgList varList(*vars);
 

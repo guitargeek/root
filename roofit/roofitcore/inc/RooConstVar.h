@@ -19,24 +19,30 @@
 #include "RooAbsReal.h"
 
 class RooArgSet ;
+namespace RooBatchCompute {
+  struct RunContext;
+}
 
 class RooConstVar final : public RooAbsReal {
 public:
   // Constructors, assignment etc
   RooConstVar() { }
-  RooConstVar(const char *name, const char *title, double value);
-  RooConstVar(const RooConstVar& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override { return new RooConstVar(*this,newname); }
+  RooConstVar(const char *name, const char *title, Double_t value);
+  RooConstVar(const RooConstVar& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const { return new RooConstVar(*this,newname); }
+  virtual ~RooConstVar() = default;
 
   /// Return (constant) value.
-  double getValV(const RooArgSet*) const override {
+  virtual Double_t getValV(const RooArgSet*) const {
     return _value;
   }
 
-  void writeToStream(std::ostream& os, bool compact) const override ;
+  RooSpan<const double> getValues(RooBatchCompute::RunContext& evalData, const RooArgSet*) const;
+
+  void writeToStream(std::ostream& os, Bool_t compact) const ;
 
   /// Returns false, as the value of the constant doesn't depend on other objects.
-  bool isDerived() const override {
+  virtual Bool_t isDerived() const { 
     return false;
   }
 
@@ -48,15 +54,13 @@ public:
     _value = value;
   }
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
-
 protected:
 
-  double evaluate() const override {
+  Double_t evaluate() const {
     return _value;
   }
 
-  ClassDefOverride(RooConstVar,2) // Constant RooAbsReal value object
+  ClassDef(RooConstVar,2) // Constant RooAbsReal value object
 };
 
 #endif

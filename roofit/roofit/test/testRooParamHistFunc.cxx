@@ -1,7 +1,7 @@
 // Tests for RooParamHistFunc
 // Author: Jonas Rembser, CERN  03/2020
 
-#include <RooHelpers.h>
+#include <RooMsgService.h>
 #include <RooParamHistFunc.h>
 #include <RooRealSumPdf.h>
 #include <RooRealVar.h>
@@ -20,7 +20,8 @@ TEST(RooParamHistFunc, Integration)
    // inspired by this issue on GitHub:
    // https://github.com/root-project/root/issues/7182
 
-   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+   auto& msg = RooMsgService::instance();
+   msg.setGlobalKillBelow(RooFit::WARNING);
 
    constexpr int nBins = 20;
    constexpr double xMin = 0;
@@ -75,7 +76,8 @@ TEST(RooParamHistFunc, IntegrationAndCloning)
    // The test was inspired by this error reported on the forum:
    // https://root-forum.cern.ch/t/barlow-beeston-in-subrange/43909/5
 
-   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+   auto& msg = RooMsgService::instance();
+   msg.setGlobalKillBelow(RooFit::WARNING);
 
    using namespace RooFit;
 

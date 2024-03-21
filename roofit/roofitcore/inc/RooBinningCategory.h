@@ -23,26 +23,28 @@
 class RooBinningCategory : public RooAbsCategory {
 
 public:
-  RooBinningCategory() = default;
-  RooBinningCategory(const char *name, const char *title, RooAbsRealLValue& inputVar, const char* binningName=nullptr, const char* catTypeName=nullptr);
-  RooBinningCategory(const RooBinningCategory& other, const char *name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooBinningCategory(*this, newname); }
+  // Constructors etc.
+  inline RooBinningCategory() { }
+  RooBinningCategory(const char *name, const char *title, RooAbsRealLValue& inputVar, const char* binningName=0, const char* catTypeName=0);
+  RooBinningCategory(const RooBinningCategory& other, const char *name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooBinningCategory(*this, newname); }
+  virtual ~RooBinningCategory();
 
-  /// Printing interface (human readable)
-  void printMultiline(std::ostream& os, Int_t content, bool verbose=false, TString indent="") const override ;
+  // Printing interface (human readable)
+  virtual void printMultiline(std::ostream& os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const ;
 
 protected:
+  
+  void initialize(const char* catTypeName=0) ;
 
-  void initialize(const char* catTypeName=nullptr) ;
+  RooTemplateProxy<RooAbsRealLValue> _inputVar; // Input variable that is mapped
+  TString _bname ;         // Name of the binning specification to be used to perform the mapping
 
-  RooTemplateProxy<RooAbsRealLValue> _inputVar; ///< Input variable that is mapped
-  TString _bname ;         ///< Name of the binning specification to be used to perform the mapping
-
-  value_type evaluate() const override;
+  virtual value_type evaluate() const;
   /// The shape of this category does not need to be recomputed, as it creates states on the fly.
-  void recomputeShape() override { }
+  void recomputeShape() { }
 
-  ClassDefOverride(RooBinningCategory,1) // RealVar-to-Category function defined by bin boundaries on input var
+  ClassDef(RooBinningCategory,1) // RealVar-to-Category function defined by bin boundaries on input var
 };
 
 #endif

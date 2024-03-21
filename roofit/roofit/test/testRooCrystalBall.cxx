@@ -1,16 +1,21 @@
 // Author: Jonas Rembser, CERN  02/2021
 
-#include <RooCrystalBall.h>
-#include <RooCBShape.h>
+#include "RooCrystalBall.h"
+#include "RooCBShape.h"
 
-#include <RooRealVar.h>
-#include <RooDataSet.h>
-#include <RooGenericPdf.h>
-#include <RooNumIntConfig.h>
-#include <RooFormulaVar.h>
-#include <RooFitResult.h>
+#include "RooRealVar.h"
+#include "RooGaussian.h"
+#include "RooLinearVar.h"
+#include "RooRealConstant.h"
+#include "RooFirstMoment.h"
+#include "RooGenericPdf.h"
+#include "RooNumIntConfig.h"
+#include "RooDataSet.h"
+#include "RooFormulaVar.h"
+#include "RooFitResult.h"
 
-#include <RooPlot.h>
+#include "TCanvas.h"
+#include "RooPlot.h"
 
 #include <numeric>
 #include <string>
@@ -107,7 +112,7 @@ TEST(RooCrystalBall, SingleTailAndFullySymmetric)
 
    RooCBShape crystalBallOnlyLeftTailOld("cb1Old", "cb3Old", x, x0, sigma, alpha, n);
    RooCBShape crystalBallOnlyRightTailOld("cb2Old", "cb2Old", x, x0, sigma, minusAlpha, n);
-   // RooSDSCBShape crystalBallFullySymmetricOld("cb3Old", "cb3Old", x, x0, sigma, alpha, n);
+   //RooSDSCBShape crystalBallFullySymmetricOld("cb3Old", "cb3Old", x, x0, sigma, alpha, n);
 
    auto formulaOnlyLeftTail = makeCrystalBallFormulaOnlyLeftTail();
    auto formulaOnlyRightTail = makeCrystalBallFormulaOnlyRightTail();
@@ -152,7 +157,7 @@ TEST(RooCrystalBall, SingleTailAndFullySymmetric)
                      << theX << " " << theX0 << " " << theSigma << " " << theAlpha << " " << theN;
 
                   // Compare fully symmetric version with RooSDSCBShape which should match
-                  // EXPECT_FLOAT_EQ(crystalBallFullySymmetricOld.getVal(), crystalBallFullySymmetricRef->getVal())
+                  //EXPECT_FLOAT_EQ(crystalBallFullySymmetricOld.getVal(), crystalBallFullySymmetricRef->getVal())
                   //  << theX << " " << theX0 << " " << theSigma << " " << theAlpha << " " << theN;
                }
             }
@@ -173,7 +178,7 @@ TEST(RooCrystalBall, DoubleSided)
 
    // in the symmetric Gaussian core case, we also compare with the old implementation `RooDSCBShape`
    RooCrystalBall crystalBall("crystalBall", "crystalBall", x, x0, sigma, alphaL, nL, alphaR, nR);
-   // RooDSCBShape crystalBallOld("crystalBallOld", "crystalBallOld", x, x0, sigma, alphaL, nL, alphaR, nR);
+   //RooDSCBShape crystalBallOld("crystalBallOld", "crystalBallOld", x, x0, sigma, alphaL, nL, alphaR, nR);
 
    auto formula = makeCrystalBallFormulaDoubleSided();
 
@@ -202,9 +207,9 @@ TEST(RooCrystalBall, DoubleSided)
                            << theX << " " << theX0 << " " << theSigma << " " << theAlphaL << " " << theNL << " "
                            << theAlphaR << " " << theNR;
 
-                        // EXPECT_FLOAT_EQ(crystalBallOld.getVal(), crystalBallRef->getVal())
-                        //    << theX << " " << theX0 << " " << theSigma << " " << theAlphaL << " " << theNL << " "
-                        //    << theAlphaR << " " << theNR;
+                        //EXPECT_FLOAT_EQ(crystalBallOld.getVal(), crystalBallRef->getVal())
+                        //   << theX << " " << theX0 << " " << theSigma << " " << theAlphaL << " " << theNL << " "
+                        //   << theAlphaR << " " << theNR;
                      }
                   }
                }
@@ -271,10 +276,10 @@ TEST(RooCrystalBall, Integral)
    crystalBallNumInt.setIntegratorConfig(intConfig);
    crystalBallNumInt.forceNumInt(true);
 
-   std::unique_ptr<RooAbsReal> integral{crystalBall.createIntegral(x)};
-   std::unique_ptr<RooAbsReal> integralRanged{crystalBall.createIntegral(x, "integrationRange")};
-   std::unique_ptr<RooAbsReal> numInt{crystalBallNumInt.createIntegral(x)};
-   std::unique_ptr<RooAbsReal> numIntRanged{crystalBallNumInt.createIntegral(x, "integrationRange")};
+   auto integral = crystalBall.createIntegral(x);
+   auto integralRanged = crystalBall.createIntegral(x, "integrationRange");
+   auto numInt = crystalBallNumInt.createIntegral(x);
+   auto numIntRanged = crystalBallNumInt.createIntegral(x, "integrationRange");
 
    for (double theX0 : {0.}) {
       for (double theSigmaL : {10., 20.}) {
@@ -353,13 +358,13 @@ TEST(RooCrystalBall, Generator)
    alphaR = 1.3;
    nR = 0.1;
 
-   std::unique_ptr<RooPlot> frame{x.frame(RooFit::Title("RooCrystalBall"))};
-   std::unique_ptr<RooDataSet> data{crystalBall.generate(x, RooFit::NumEvents(10000))};
-   data->plotOn(frame.get());
-   crystalBall.plotOn(frame.get(), RooFit::LineColor(kRed), RooFit::LineColor(kDotted));
+   auto frame = x.frame(RooFit::Title("RooCrystalBall"));
+   auto data = crystalBall.generate(x, RooFit::NumEvents(10000));
+   data->plotOn(frame);
+   crystalBall.plotOn(frame, RooFit::LineColor(kRed), RooFit::LineColor(kDotted));
    crystalBall.fitTo(*data, RooFit::PrintLevel(-1));
-   crystalBall.plotOn(frame.get(), RooFit::LineColor(kBlue), RooFit::LineColor(kDashed));
-   crystalBall.paramOn(frame.get());
+   crystalBall.plotOn(frame, RooFit::LineColor(kBlue), RooFit::LineColor(kDashed));
+   crystalBall.paramOn(frame);
 
    EXPECT_LT(frame->chiSquare(), 1.);
 
@@ -371,14 +376,14 @@ TEST(RooCrystalBall, Generator)
    alphaR = 1.0;
    nR = 0.2;
 
-   frame = std::unique_ptr<RooPlot>{x.frame(RooFit::Title("RooCrystalBall"))};
-   std::unique_ptr<RooDataSet> data2{crystalBall.generate(x, 10000.)};
-   data2->plotOn(frame.get());
-   crystalBall.plotOn(frame.get(), RooFit::LineColor(kBlue));
+   frame = x.frame(RooFit::Title("RooCrystalBall"));
+   auto data2 = crystalBall.generate(x, 10000.);
+   data2->plotOn(frame);
+   crystalBall.plotOn(frame, RooFit::LineColor(kBlue));
    EXPECT_LT(frame->chiSquare(), 1.);
 
    auto res = crystalBall.fitTo(*data2, RooFit::Save(), RooFit::PrintLevel(-1));
-   crystalBall.plotOn(frame.get(), RooFit::LineColor(kRed), RooFit::LineStyle(kDashed));
-   crystalBall.paramOn(frame.get());
+   crystalBall.plotOn(frame, RooFit::LineColor(kRed), RooFit::LineStyle(kDashed));
+   crystalBall.paramOn(frame);
    EXPECT_LT(frame->chiSquare(res->floatParsInit().size()), 1.);
 }

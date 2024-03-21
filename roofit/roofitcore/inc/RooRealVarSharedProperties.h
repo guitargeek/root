@@ -19,7 +19,7 @@
 \class RooRealVarSharedProperties
 \ingroup Roofitcore
 
-Implementation of RooSharedProperties
+Class RooRealVarSharedProperties is an implementation of RooSharedProperties
 that stores the properties of a RooRealVar that are shared among clones.
 For RooRealVars these are the definitions of the named ranges.
 **/
@@ -45,7 +45,7 @@ public:
   RooRealVarSharedProperties(const char* uuidstr) : RooSharedProperties(uuidstr) {}
 
   /// Destructor
-  ~RooRealVarSharedProperties() override {
+  virtual ~RooRealVarSharedProperties() {
     if (_ownBinnings) {
       for (auto& item : _altBinning) {
         delete item.second;
@@ -61,9 +61,9 @@ protected:
 
   friend class RooRealVar ;
 
-  std::unordered_map<std::string,RooAbsBinning*> _altBinning ;  ///< Optional alternative ranges and binnings
+  std::unordered_map<std::string,RooAbsBinning*> _altBinning ;  // Optional alternative ranges and binnings
   bool _ownBinnings{true}; //!
-  ClassDefOverride(RooRealVarSharedProperties,2) // Shared properties of a RooRealVar clone set
+  ClassDef(RooRealVarSharedProperties,2) // Shared properties of a RooRealVar clone set
 };
 
 

@@ -70,13 +70,7 @@ private:
    RooArgList save_vars_; // Copy of variables
 
    LikelihoodType likelihood_type_;
-   std::size_t n_tasks_at_workers_ = 0;
-
-   // warning: don't use the following values directly, use the getters instead!
-   std::size_t n_event_tasks_;
-   std::size_t n_component_tasks_;
-   std::size_t getNEventTasks();
-   std::size_t getNComponentTasks();
+   std::size_t N_tasks_at_workers_ = 0;
 };
 
 std::ostream &operator<<(std::ostream &out, const LikelihoodJob::update_state_mode value);

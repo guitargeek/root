@@ -19,7 +19,7 @@
 \class RooDLLSignificanceMCSModule
 \ingroup Roofitcore
 
-Add-on module to RooMCStudy that
+RooDLLSignificanceMCSModule is an add-on modules to RooMCStudy that
 calculates the significance of a signal by comparing the likelihood of
 a fit fit with a given parameter floating with a fit with that given
 parameter fixed to a nominal value (usually zero). The difference in
@@ -35,25 +35,28 @@ to test that assumption.
 #include "RooDataSet.h"
 #include "RooRealVar.h"
 #include "TString.h"
+#include "RooFit.h"
 #include "RooFitResult.h"
 #include "RooDLLSignificanceMCSModule.h"
 #include "RooMsgService.h"
 
 
 
-using std::endl;
+using namespace std;
 
 ClassImp(RooDLLSignificanceMCSModule);
+  ;
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor of module with parameter to be interpreted as nSignal and the value of the
 /// null hypothesis for nSignal (usually zero)
 
-RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const RooRealVar& param, double nullHypoValue) :
+RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const RooRealVar& param, Double_t nullHypoValue) : 
   RooAbsMCStudyModule(Form("RooDLLSignificanceMCSModule_%s",param.GetName()),Form("RooDLLSignificanceMCSModule_%s",param.GetName())),
-  _parName(param.GetName()),
-  _nullValue(nullHypoValue)
+  _parName(param.GetName()), 
+  _data(0), _nll0h(0), _dll0h(0), _sig0h(0), _nullValue(nullHypoValue)
 {
 }
 
@@ -63,10 +66,10 @@ RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const RooRealVar& param
 /// Constructor of module with parameter name to be interpreted as nSignal and the value of the
 /// null hypothesis for nSignal (usually zero)
 
-RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const char* parName, double nullHypoValue) :
+RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const char* parName, Double_t nullHypoValue) :
   RooAbsMCStudyModule(Form("RooDLLSignificanceMCSModule_%s",parName),Form("RooDLLSignificanceMCSModule_%s",parName)),
-  _parName(parName),
-  _nullValue(nullHypoValue)
+  _parName(parName), 
+  _data(0), _nll0h(0), _dll0h(0), _sig0h(0), _nullValue(nullHypoValue)
 {
 }
 
@@ -75,45 +78,66 @@ RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const char* parName, do
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const RooDLLSignificanceMCSModule& other) :
-  RooAbsMCStudyModule(other),
+RooDLLSignificanceMCSModule::RooDLLSignificanceMCSModule(const RooDLLSignificanceMCSModule& other) : 
+  RooAbsMCStudyModule(other), 
   _parName(other._parName),
-  _nullValue(other._nullValue)
+  _data(0), _nll0h(0), _dll0h(0), _sig0h(0), _nullValue(other._nullValue)
 {
 }
 
-RooDLLSignificanceMCSModule::~RooDLLSignificanceMCSModule() = default;
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooDLLSignificanceMCSModule:: ~RooDLLSignificanceMCSModule() 
+{
+  if (_nll0h) {
+    delete _nll0h ;
+  }    
+  if (_dll0h) {
+    delete _dll0h ;
+  }    
+  if (_sig0h) {
+    delete _sig0h ;
+  }
+  if (_data) {
+    delete _data ;
+  }
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Initialize module after attachment to RooMCStudy object
 
-bool RooDLLSignificanceMCSModule::initializeInstance()
+Bool_t RooDLLSignificanceMCSModule::initializeInstance()
 {
   // Check that parameter is also present in fit parameter list of RooMCStudy object
   if (!fitParams()->find(_parName.c_str())) {
     coutE(InputArguments) << "RooDLLSignificanceMCSModule::initializeInstance:: ERROR: No parameter named " << _parName << " in RooMCStudy!" << endl ;
-    return false ;
+    return kFALSE ;
   }
 
   // Construct variable that holds -log(L) fit with null hypothesis for given parameter
-  std::string nll0hName = "nll_nullhypo_" + _parName;
-  std::string nll0hTitle = "-log(L) with null hypothesis for param " + _parName;
-  _nll0h = std::make_unique<RooRealVar>(nll0hName.c_str(),nll0hTitle.c_str(),0) ;
+  TString nll0hName = Form("nll_nullhypo_%s",_parName.c_str()) ;
+  TString nll0hTitle = Form("-log(L) with null hypothesis for param %s",_parName.c_str()) ;
+  _nll0h = new RooRealVar(nll0hName.Data(),nll0hTitle.Data(),0) ;
 
   // Construct variable that holds -log(L) fit with null hypothesis for given parameter
-  std::string dll0hName = "dll_nullhypo_" + _parName;
-  std::string dll0hTitle = "-log(L) difference w.r.t null hypo for param " + _parName;
-  _dll0h = std::make_unique<RooRealVar>(dll0hName.c_str(),dll0hTitle.c_str(),0) ;
+  TString dll0hName = Form("dll_nullhypo_%s",_parName.c_str()) ;
+  TString dll0hTitle = Form("-log(L) difference w.r.t null hypo for param %s",_parName.c_str()) ;
+  _dll0h = new RooRealVar(dll0hName.Data(),dll0hTitle.Data(),0) ;
 
   // Construct variable that holds significance corresponding to delta(-log(L)) w.r.t to null hypothesis for given parameter
-  std::string sig0hName = "significance_nullhypo_" + _parName;
-  std::string sig0hTitle = "Gaussian signficiance of Delta(-log(L)) w.r.t null hypo for param " + _parName;
-  _sig0h = std::make_unique<RooRealVar>(sig0hName.c_str(),sig0hTitle.c_str(),-10,100) ;
+  TString sig0hName = Form("significance_nullhypo_%s",_parName.c_str()) ;
+  TString sig0hTitle = Form("Gaussian signficiance of Delta(-log(L)) w.r.t null hypo for param %s",_parName.c_str()) ;
+  _sig0h = new RooRealVar(sig0hName.Data(),sig0hTitle.Data(),-10,100) ;
 
   // Create new dataset to be merged with RooMCStudy::fitParDataSet
-  _data = std::make_unique<RooDataSet>("DeltaLLSigData","Additional data for Delta(-log(L)) study",RooArgSet(*_nll0h,*_dll0h,*_sig0h)) ;
+  _data = new RooDataSet("DeltaLLSigData","Additional data for Delta(-log(L)) study",RooArgSet(*_nll0h,*_dll0h,*_sig0h)) ;
 
-  return true ;
+  return kTRUE ;
 }
 
 
@@ -121,10 +145,10 @@ bool RooDLLSignificanceMCSModule::initializeInstance()
 ////////////////////////////////////////////////////////////////////////////////
 /// Initialize module at beginning of RooCMStudy run
 
-bool RooDLLSignificanceMCSModule::initializeRun(Int_t /*numSamples*/)
+Bool_t RooDLLSignificanceMCSModule::initializeRun(Int_t /*numSamples*/) 
 {
   _data->reset() ;
-  return true ;
+  return kTRUE ;
 }
 
 
@@ -134,9 +158,9 @@ bool RooDLLSignificanceMCSModule::initializeRun(Int_t /*numSamples*/)
 /// calculations of this module so that it is merged with
 /// RooMCStudy::fitParDataSet() by RooMCStudy
 
-RooDataSet* RooDLLSignificanceMCSModule::finalizeRun()
+RooDataSet* RooDLLSignificanceMCSModule::finalizeRun() 
 {
-  return _data.get();
+  return _data ;
 }
 
 
@@ -144,25 +168,27 @@ RooDataSet* RooDLLSignificanceMCSModule::finalizeRun()
 ////////////////////////////////////////////////////////////////////////////////
 /// Save likelihood from nominal fit, fix chosen parameter to its
 /// null hypothesis value and rerun fit Save difference in likelihood
-/// and associated Gaussian significance in auxiliary dataset
+/// and associated Gaussian significance in auxilary dataset
 
-bool RooDLLSignificanceMCSModule::processAfterFit(Int_t /*sampleNum*/)
+Bool_t RooDLLSignificanceMCSModule::processAfterFit(Int_t /*sampleNum*/)  
 {
   RooRealVar* par = static_cast<RooRealVar*>(fitParams()->find(_parName.c_str())) ;
   par->setVal(_nullValue) ;
-  par->setConstant(true) ;
-  std::unique_ptr<RooFitResult> frnull{refit()};
-  par->setConstant(false) ;
-
+  par->setConstant(kTRUE) ;
+  RooFitResult* frnull = refit() ;
+  par->setConstant(kFALSE) ;
+  
   _nll0h->setVal(frnull->minNll()) ;
 
-  double deltaLL = (frnull->minNll() - nllVar()->getVal()) ;
-  double signif = deltaLL>0 ? sqrt(2*deltaLL) : -sqrt(-2*deltaLL) ;
+  Double_t deltaLL = (frnull->minNll() - nllVar()->getVal()) ;
+  Double_t signif = deltaLL>0 ? sqrt(2*deltaLL) : -sqrt(-2*deltaLL) ;
   _sig0h->setVal(signif) ;
   _dll0h->setVal(deltaLL) ;
 
 
   _data->add(RooArgSet(*_nll0h,*_dll0h,*_sig0h)) ;
 
-  return true ;
+  delete frnull ;
+
+  return kTRUE ;
 }

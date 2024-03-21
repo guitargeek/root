@@ -30,10 +30,21 @@ public:
   RooConstraintSum() {}
   RooConstraintSum(const char *name, const char *title, const RooArgSet& constraintSet, const RooArgSet& paramSet, bool takeGlobalObservablesFromData=false) ;
 
-  RooConstraintSum(const RooConstraintSum& other, const char* name = nullptr);
-  TObject* clone(const char* newname) const override { return new RooConstraintSum(*this, newname); }
+  RooConstraintSum(const RooConstraintSum& other, const char* name = 0);
+  virtual TObject* clone(const char* newname) const override { return new RooConstraintSum(*this, newname); }
 
   const RooArgList& list() { return _set1 ; }
+
+  static std::unique_ptr<RooAbsReal> createConstraintTerm(
+        std::string const& name,
+        RooAbsPdf const& pdf,
+        RooAbsData const& data,
+        RooArgSet const* constrainedParameters,
+        RooArgSet const* externalConstraints,
+        RooArgSet const* globalObservables,
+        const char* globalObservablesTag,
+        bool takeGlobalObservablesFromData,
+        RooWorkspace * workspace);
 
   bool setData(RooAbsData const& data, bool cloneData=true);
   /// \copydoc setData(RooAbsData const&, bool)
@@ -41,18 +52,17 @@ public:
     return setData(static_cast<RooAbsData const&>(data), cloneData);
   }
 
-  void computeBatch(double* output, size_t size, RooFit::Detail::DataMap const&) const override;
+  void computeBatch(cudaStream_t*, double* output, size_t size, RooFit::Detail::DataMap const&) const override;
 
-  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext & ctx) const override;
+  std::unique_ptr<RooArgSet> fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const override;
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
 protected:
 
   RooListProxy _set1 ;    ///< Set of constraint terms
   RooArgSet _paramSet ; ///< Set of parameters to which constraints apply
   const bool _takeGlobalObservablesFromData = false; ///< If the global observable values are taken from data
 
-  double evaluate() const override;
+  Double_t evaluate() const override;
 
   ClassDefOverride(RooConstraintSum,4) // sum of -log of set of RooAbsPdf representing parameter constraints
 };

@@ -21,7 +21,7 @@ namespace RooStats {
 
     public:
 
-      /// Initialize based on an already-created HistFactory Model
+      /// Initialze based on an already-created HistFactory Model
       HistFactoryNavigation(ModelConfig* mc);
       HistFactoryNavigation(const std::string& File,
              const std::string& WorkspaceName="combined",
@@ -76,7 +76,7 @@ namespace RooStats {
       THStack* GetChannelStack(const std::string& channel, const std::string& name="");
 
       /// Draw a stack of the channel, and include data if the pointer is supplied
-      void DrawChannel(const std::string& channel, RooDataSet* data=nullptr);
+      void DrawChannel(const std::string& channel, RooDataSet* data=NULL);
 
       /// Get the RooAbsReal function for a given sample in a given channel
       RooAbsReal* SampleFunction(const std::string& channel, const std::string& sample);
@@ -92,7 +92,7 @@ namespace RooStats {
 
       /// Find a node in the pdf and replace it with a new node
       /// These nodes can be functions, pdf's, RooRealVar's, etc
-      /// Will do minimal checking to make sure the replacement makes sense
+      /// Will do minimial checking to make sure the replacement makes sense
       void ReplaceNode(const std::string& ToReplace, RooAbsArg* ReplaceWith);
 
       // Set any RooRealVar's const (or not const) if they match
@@ -115,13 +115,13 @@ namespace RooStats {
       std::vector< std::string > GetChannelSampleList(const std::string& channel);
 
       // Return the RooRealVar by the same name used in the model
-      // If not found, return nullptr
+      // If not found, return NULL
       RooRealVar* var(const std::string& varName) const;
 
       /*
       // Add a channel to the pdf
       // Combine the data if it is provided
-      void AddChannel(const std::string& channel, RooAbsPdf* pdf, RooDataSet* data=nullptr);
+      void AddChannel(const std::string& channel, RooAbsPdf* pdf, RooDataSet* data=NULL);
       */
 
       /*
@@ -141,7 +141,7 @@ namespace RooStats {
       void SetPrintWidths(const std::string& channel);
 
       /// Fetch the node information for the pdf in question, and
-      /// save it in the various collections in this class
+      /// save it in the varous collections in this class
       void _GetNodes(ModelConfig* mc);
       void _GetNodes(RooAbsPdf* model, const RooArgSet* observables);
 
@@ -149,7 +149,7 @@ namespace RooStats {
       /// void PrettyPrintHistogram(TH1* hist);
       void PrintMultiDimHist(TH1* hist, int bin_print_width);
 
-      /// Make a histogram from a function
+      /// Make a histogram from a funciton
       /// Edit so it can take a RooArgSet of parameters
       TH1* MakeHistFromRooFunction( RooAbsReal* func, RooArgList vars, std::string name="Hist" );
 

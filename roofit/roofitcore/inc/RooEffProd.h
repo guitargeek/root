@@ -21,24 +21,22 @@ public:
   // Constructors, assignment etc
   RooEffProd() {}
   RooEffProd(const char *name, const char *title, RooAbsPdf& pdf, RooAbsReal& efficiency);
-  RooEffProd(const RooEffProd& other, const char* name=nullptr);
+  RooEffProd(const RooEffProd& other, const char* name=0);
 
-  TObject* clone(const char* newname) const override { return new RooEffProd(*this,newname); }
+  virtual TObject* clone(const char* newname) const { return new RooEffProd(*this,newname); }
 
-  RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype,
-                                       const RooArgSet* auxProto, bool verbose) const override;
+  virtual RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype,
+                                       const RooArgSet* auxProto, Bool_t verbose) const;
 
 protected:
 
   // Function evaluation
-  double evaluate() const override ;
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
-
+  virtual Double_t evaluate() const ;
 
   RooRealProxy _pdf ;               ///< Probability Density function
   RooRealProxy _eff;                ///< Efficiency function
 
-  ClassDefOverride(RooEffProd,2) // Product operator p.d.f of (PDF x efficiency) implementing optimized generator context
+  ClassDef(RooEffProd,2) // Product operator p.d.f of (PDF x efficiency) implementing optimized generator context
 };
 
 #endif

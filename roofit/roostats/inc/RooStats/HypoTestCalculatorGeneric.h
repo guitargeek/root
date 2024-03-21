@@ -38,31 +38,31 @@ namespace RooStats {
                         const RooAbsData &data,
                         const ModelConfig &altModel,
                         const ModelConfig &nullModel,
-                        TestStatSampler* sampler=nullptr
+                        TestStatSampler* sampler=0
       );
 
 
-      ~HypoTestCalculatorGeneric() override;
+      ~HypoTestCalculatorGeneric();
 
 
    public:
 
       /// inherited methods from HypoTestCalculator interface
-      HypoTestResult* GetHypoTest() const override;
+      virtual HypoTestResult* GetHypoTest() const;
 
-      /// set the model for the null hypothesis (only B)
-      void SetNullModel(const ModelConfig &nullModel) override { fNullModel = &nullModel; }
+      // set the model for the null hypothesis (only B)
+      virtual void SetNullModel(const ModelConfig &nullModel) { fNullModel = &nullModel; }
       const RooAbsData * GetData(void) const { return fData; }
       const ModelConfig* GetNullModel(void) const { return fNullModel; }
-      virtual const RooArgSet* GetFitInfo() const { return nullptr; }
+      virtual const RooArgSet* GetFitInfo() const { return NULL; }
       /// Set the model for the alternate hypothesis  (S+B)
-      void SetAlternateModel(const ModelConfig &altModel) override { fAltModel = &altModel; }
+      virtual void SetAlternateModel(const ModelConfig &altModel) { fAltModel = &altModel; }
       const ModelConfig* GetAlternateModel(void) const { return fAltModel; }
       /// Set the DataSet
-      void SetData(RooAbsData &data) override { fData = &data; }
+      virtual void SetData(RooAbsData &data) { fData = &data; }
 
       /// Returns instance of TestStatSampler. Use to change properties of
-      /// TestStatSampler, e.g. GetTestStatSampler.SetTestSize(double size);
+      /// TestStatSampler, e.g. GetTestStatSampler.SetTestSize(Double_t size);
       TestStatSampler* GetTestStatSampler(void) const { return fTestStatSampler; }
 
       /// Set this for re-using always the same toys for alternate hypothesis in
@@ -91,17 +91,17 @@ namespace RooStats {
 
    private:
       void SetupSampler(const ModelConfig& model) const;
-      void SetAdaptiveLimits(double obsTestStat, bool forNull) const;
+      void SetAdaptiveLimits(Double_t obsTestStat, Bool_t forNull) const;
       SamplingDistribution* GenerateSamplingDistribution(
          ModelConfig *thisModel,
          double obsTestStat,
-         RooAbsPdf *impDens=nullptr,
-         const RooArgSet *impSnapshot=nullptr
+         RooAbsPdf *impDens=NULL,
+         const RooArgSet *impSnapshot=NULL
       ) const;
 
 
    protected:
-   ClassDefOverride(HypoTestCalculatorGeneric,2)
+   ClassDef(HypoTestCalculatorGeneric,2)
 };
 }
 

@@ -17,8 +17,9 @@
 #define ROO_TREE_DATA_STORE
 
 #include "RooAbsDataStore.h"
+#include "RunContext.h"
 
-#include <string_view>
+#include "ROOT/RStringView.hxx"
 
 #include <vector>
 #include <list>
@@ -34,119 +35,120 @@ class RooArgSet ;
 class RooTreeDataStore : public RooAbsDataStore {
 public:
 
-  RooTreeDataStore() ;
-  RooTreeDataStore(TTree* t, const RooArgSet& vars, const char* wgtVarName=nullptr) ;
+  RooTreeDataStore() ; 
+  RooTreeDataStore(TTree* t, const RooArgSet& vars, const char* wgtVarName=0) ; 
 
-  // Empty constructor
-  RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, const char* wgtVarName=nullptr) ;
-  RooAbsDataStore* clone(const char* newname=nullptr) const override { return new RooTreeDataStore(*this,newname) ; }
-  RooAbsDataStore* clone(const RooArgSet& vars, const char* newname=nullptr) const override { return new RooTreeDataStore(*this,vars,newname) ; }
+  WRITE_TSTRING_COMPATIBLE_CONSTRUCTOR(RooTreeDataStore)
 
-  std::unique_ptr<RooAbsDataStore> reduce(RooStringView name, RooStringView title,
-                          const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                          std::size_t nStart, std::size_t nStop) override;
+  // Empty ctor
+  RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const char* wgtVarName=0) ;
+  virtual RooAbsDataStore* clone(const char* newname=0) const { return new RooTreeDataStore(*this,newname) ; }
+  virtual RooAbsDataStore* clone(const RooArgSet& vars, const char* newname=0) const { return new RooTreeDataStore(*this,vars,newname) ; }
 
-  // Constructor from TTree
-  RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, TTree& t, const char* selExpr=nullptr, const char* wgtVarName=nullptr) ;
+  // Ctors from TTree
+  RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, TTree& t, const RooFormulaVar& select, const char* wgtVarName=0) ; 
+  RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, TTree& t, const char* selExpr=0, const char* wgtVarName=0) ; 
 
-  // Constructor from DataStore
-  RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, const RooAbsDataStore& tds, const char* selExpr=nullptr, const char* wgtVarName=nullptr) ;
+  // Ctors from DataStore
+  RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const RooAbsDataStore& tds, const RooFormulaVar& select, const char* wgtVarName=0) ;
+  RooTreeDataStore(std::string_view name, std::string_view title, const RooArgSet& vars, const RooAbsDataStore& tds, const char* selExpr=0, const char* wgtVarName=0) ;
 
-  RooTreeDataStore(RooStringView name, RooStringView title, RooAbsDataStore& tds,
-                   const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                   Int_t nStart, Int_t nStop, const char* wgtVarName=nullptr) ;
+  RooTreeDataStore(std::string_view name, std::string_view title, RooAbsDataStore& tds, 
+		   const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
+		   Int_t nStart, Int_t nStop, Bool_t /*copyCache*/, const char* wgtVarName=0) ;
 
-  RooTreeDataStore(const RooTreeDataStore& other, const char* newname=nullptr) ;
-  RooTreeDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=nullptr) ;
-  ~RooTreeDataStore() override ;
+  RooTreeDataStore(const RooTreeDataStore& other, const char* newname=0) ;
+  RooTreeDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
+  virtual ~RooTreeDataStore() ;
 
 
   // Write current row
-  Int_t fill() override ;
+  virtual Int_t fill() ;
 
   // Retrieve a row
   using RooAbsDataStore::get ;
-  const RooArgSet* get(Int_t index) const override ;
+  virtual const RooArgSet* get(Int_t index) const ;
   using RooAbsDataStore::weight ;
-  double weight() const override ;
-  double weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
-  void weightError(double& lo, double& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
-  bool isWeighted() const override { return (_wgtVar!=nullptr||_extWgtArray!=nullptr) ; }
+  virtual Double_t weight() const ;
+  virtual Double_t weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const ;
+  virtual void weightError(Double_t& lo, Double_t& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const ; 
+  virtual Bool_t isWeighted() const { return (_wgtVar!=0||_extWgtArray!=0) ; }
 
-  RooAbsData::RealSpans getBatches(std::size_t first, std::size_t len) const override {
+  RooAbsData::RealSpans getBatches(std::size_t first, std::size_t len) const {
     //TODO
     std::cerr << "This functionality is not yet implemented for tree data stores." << std::endl;
     throw std::logic_error("getBatches() not implemented in RooTreeDataStore.");
     (void)first; (void)len;
     return {};
   }
-  std::span<const double> getWeightBatch(std::size_t first, std::size_t len) const override;
+  virtual RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len) const;
 
   // Change observable name
-  bool changeObservableName(const char* from, const char* to) override ;
-
-  // Add one column
-  RooAbsArg* addColumn(RooAbsArg& var, bool adjustRange=true) override ;
+  virtual Bool_t changeObservableName(const char* from, const char* to) ;
+  
+  // Add one or more columns
+  virtual RooAbsArg* addColumn(RooAbsArg& var, Bool_t adjustRange=kTRUE) ;
+  virtual RooArgSet* addColumns(const RooArgList& varList) ;
 
   // Merge column-wise
-  RooAbsDataStore* merge(const RooArgSet& allvars, std::list<RooAbsDataStore*> dstoreList) override ;
+  RooAbsDataStore* merge(const RooArgSet& allvars, std::list<RooAbsDataStore*> dstoreList) ;
 
-  // Add rows
-  void append(RooAbsDataStore& other) override ;
+  // Add rows 
+  virtual void append(RooAbsDataStore& other) ;
 
   // General & bookkeeping methods
-  double sumEntries() const override ;
-  Int_t numEntries() const override ;
-  void reset() override ;
+  virtual Double_t sumEntries() const ;
+  virtual Int_t numEntries() const ;
+  virtual void reset() ;
 
   // Buffer redirection routines used in inside RooAbsOptTestStatistics
-  void attachBuffers(const RooArgSet& extObs) override ;
-  void resetBuffers() override ;
+  virtual void attachBuffers(const RooArgSet& extObs) ; 
+  virtual void resetBuffers() ;  
   void restoreAlternateBuffers() ;
-
+  
   // Tree access
   TTree& tree() { return *_tree ; }
-  const TTree* tree() const override { return _tree ; }
+  virtual const TTree* tree() const { return _tree ; }  
 
   // Forwarded from TTree
   Stat_t GetEntries() const;
-  void Reset(Option_t* option=nullptr);
+  void Reset(Option_t* option=0);
   Int_t Fill();
   Int_t GetEntry(Int_t entry = 0, Int_t getall = 0);
 
-  void   Draw(Option_t* option = "") override ;
+  void	Draw(Option_t* option = "") ;
 
   // Constant term  optimizer interface
-  void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=nullptr, bool skipZeroWeights=false) override ;
-  const RooAbsArg* cacheOwner() override { return _cacheOwner ; }
-  void setArgStatus(const RooArgSet& set, bool active) override ;
-  void resetCache() override ;
+  virtual void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kFALSE) ;
+  virtual const RooAbsArg* cacheOwner() { return _cacheOwner ; }
+  virtual void setArgStatus(const RooArgSet& set, Bool_t active) ;
+  virtual void resetCache() ;
 
-  void loadValues(const TTree *t, const RooFormulaVar* select=nullptr, const char* rangeName=nullptr, Int_t nStart=0, Int_t nStop=2000000000)  ;
-  void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=nullptr, const char* rangeName=nullptr,
-      std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max()) override;
+  void loadValues(const TTree *t, const RooFormulaVar* select=0, const char* rangeName=0, Int_t nStart=0, Int_t nStop=2000000000)  ;
+  void loadValues(const RooAbsDataStore *tds, const RooFormulaVar* select=0, const char* rangeName=0,
+      std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max());
 
-  void checkInit() const override;
+  virtual void checkInit() const;
 
-  void setExternalWeightArray(const double* arrayWgt, const double* arrayWgtErrLo,
-      const double* arrayWgtErrHi, const double* arraySumW2) override {
-    _extWgtArray = arrayWgt ;
+  void setExternalWeightArray(const Double_t* arrayWgt, const Double_t* arrayWgtErrLo,
+      const Double_t* arrayWgtErrHi, const Double_t* arraySumW2) {
+    _extWgtArray = arrayWgt ; 
     _extWgtErrLoArray = arrayWgtErrLo ;
     _extWgtErrHiArray = arrayWgtErrHi ;
     _extSumW2Array = arraySumW2 ;
   }
-
+  
   const RooArgSet& row() { return _varsww ; }
 
  private:
 
   friend class RooVectorDataStore ;
 
-  RooArgSet varsNoWeight(const RooArgSet& allVars, const char* wgtName=nullptr) ;
-  RooRealVar* weightVar(const RooArgSet& allVars, const char* wgtName=nullptr) ;
+  RooArgSet varsNoWeight(const RooArgSet& allVars, const char* wgtName=0) ;
+  RooRealVar* weightVar(const RooArgSet& allVars, const char* wgtName=0) ;
 
   void initialize();
-  void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) override ;
+  void attachCache(const RooAbsArg* newOwner, const RooArgSet& cachedVars) ;
 
   // TTree Branch buffer size control
   void setBranchBufferSize(Int_t size) { _defTreeBufSize = size ; }
@@ -154,31 +156,31 @@ public:
 
   std::string makeTreeName() const;
 
-  static Int_t _defTreeBufSize ;
+  static Int_t _defTreeBufSize ;  
 
-  void createTree(RooStringView name, RooStringView title) ;
-  TTree *_tree = nullptr;                 // TTree holding the data points
-  TTree *_cacheTree = nullptr;            //! TTree holding the cached function values
-  const RooAbsArg* _cacheOwner = nullptr; //! Object owning cache contents
-  mutable bool _defCtor = false;        //! Was object constructed with default ctor?
+  void createTree(std::string_view name, std::string_view title) ; 
+  TTree *_tree ;           // TTree holding the data points
+  TTree *_cacheTree ;      //! TTree holding the cached function values
+  const RooAbsArg* _cacheOwner ; //! Object owning cache contents
+  mutable Bool_t _defCtor ;//! Was object constructed with default ctor?
 
   RooArgSet _varsww ;
-  RooRealVar* _wgtVar = nullptr;     // Pointer to weight variable (if set)
+  RooRealVar* _wgtVar ;     // Pointer to weight variable (if set)
 
-  const double* _extWgtArray{nullptr};         ///<! External weight array
-  const double* _extWgtErrLoArray{nullptr};    ///<! External weight array - low error
-  const double* _extWgtErrHiArray{nullptr};    ///<! External weight array - high error
-  const double* _extSumW2Array{nullptr};       ///<! External sum of weights array
+  const Double_t* _extWgtArray{nullptr};         //! External weight array
+  const Double_t* _extWgtErrLoArray{nullptr};    //! External weight array - low error
+  const Double_t* _extWgtErrHiArray{nullptr};    //! External weight array - high error
+  const Double_t* _extSumW2Array{nullptr};       //! External sum of weights array
   mutable std::unique_ptr<std::vector<double>> _weightBuffer; //! Buffer for weights in case a batch of values is requested.
 
-  mutable double  _curWgt = 1.0;      ///< Weight of current event
-  mutable double  _curWgtErrLo = 0.0; ///< Weight of current event
-  mutable double  _curWgtErrHi = 0.0; ///< Weight of current event
-  mutable double  _curWgtErr = 0.0;   ///< Weight of current event
+  mutable Double_t  _curWgt ;      // Weight of current event
+  mutable Double_t  _curWgtErrLo ; // Weight of current event
+  mutable Double_t  _curWgtErrHi ; // Weight of current event
+  mutable Double_t  _curWgtErr ;   // Weight of current event
 
-  RooArgSet _attachedBuffers ; ///<! Currently attached buffers (if different from _varsww)
+  RooArgSet _attachedBuffers ; //! Currently attached buffers (if different from _varsww)
 
-  ClassDefOverride(RooTreeDataStore, 2) // TTree-based Data Storage class
+  ClassDef(RooTreeDataStore, 2) // TTree-based Data Storage class
 };
 
 

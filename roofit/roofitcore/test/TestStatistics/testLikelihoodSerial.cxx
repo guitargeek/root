@@ -16,17 +16,14 @@
 #include <RooWorkspace.h>
 #include <RooMinimizer.h>
 #include <RooFitResult.h>
-#ifdef ROOFIT_LEGACY_EVAL_BACKEND
 #include <RooNLLVar.h>
-#endif
 #include "RooDataHist.h" // complete type in Binned test
 #include "RooCategory.h" // complete type in MultiBinnedConstraint test
 #include <RooFit/TestStatistics/RooUnbinnedL.h>
 #include <RooFit/TestStatistics/RooBinnedL.h>
-#include <RooFit/TestStatistics/RooSumL.h>
+#include <RooFit/TestStatistics/optional_parameter_types.h>
 #include <RooFit/TestStatistics/buildLikelihood.h>
 #include <RooFit/TestStatistics/RooRealL.h>
-#include <RooHelpers.h>
 
 #include "Math/Util.h" // KahanSum
 
@@ -39,11 +36,7 @@ using RooFit::TestStatistics::LikelihoodWrapper;
 
 class Environment : public testing::Environment {
 public:
-   void SetUp() override { _changeMsgLvl = std::make_unique<RooHelpers::LocalChangeMsgLevel>(RooFit::ERROR); }
-   void TearDown() override { _changeMsgLvl.reset(); }
-
-private:
-   std::unique_ptr<RooHelpers::LocalChangeMsgLevel> _changeMsgLvl;
+   void SetUp() override { RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR); }
 };
 
 // Previously, we just called AddGlobalTestEnvironment in global namespace, but this caused either a warning about an
@@ -62,7 +55,7 @@ protected:
    void SetUp() override
    {
       RooRandom::randomGenerator()->SetSeed(seed);
-      clean_flags = std::make_unique<RooFit::TestStatistics::WrapperCalculationCleanFlags>();
+      clean_flags = std::make_shared<RooFit::TestStatistics::WrapperCalculationCleanFlags>();
    }
 
    std::size_t seed = 23;
@@ -70,7 +63,7 @@ protected:
    std::unique_ptr<RooAbsReal> nll;
    std::unique_ptr<RooArgSet> values;
    RooAbsPdf *pdf;
-   std::unique_ptr<RooAbsData> data;
+   RooAbsData *data;
    std::shared_ptr<RooFit::TestStatistics::RooAbsL> likelihood;
    std::shared_ptr<RooFit::TestStatistics::WrapperCalculationCleanFlags> clean_flags;
 };
@@ -86,8 +79,8 @@ protected:
       w.factory("Uniform::u(x)");
 
       // Generate template histograms
-      std::unique_ptr<RooDataHist> h_sig{w.pdf("g")->generateBinned(*w.var("x"), 1000)};
-      std::unique_ptr<RooDataHist> h_bkg{w.pdf("u")->generateBinned(*w.var("x"), 1000)};
+      RooDataHist *h_sig = w.pdf("g")->generateBinned(*w.var("x"), 1000);
+      RooDataHist *h_bkg = w.pdf("u")->generateBinned(*w.var("x"), 1000);
 
       w.import(*h_sig, RooFit::Rename("h_sig"));
       w.import(*h_bkg, RooFit::Rename("h_bkg"));
@@ -104,7 +97,7 @@ protected:
 TEST_F(LikelihoodSerialTest, UnbinnedGaussian1D)
 {
    std::tie(nll, pdf, data, values) = generate_1D_gaussian_pdf_nll(w, 10000);
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    auto nll0 = nll->getVal();
@@ -112,16 +105,15 @@ TEST_F(LikelihoodSerialTest, UnbinnedGaussian1D)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
 
-#ifdef ROOFIT_LEGACY_EVAL_BACKEND
 TEST_F(LikelihoodSerialTest, UnbinnedGaussianND)
 {
    unsigned int N = 4;
 
-   std::tie(nll, pdf, data, values) = generate_ND_gaussian_pdf_nll(w, N, 1000, RooFit::EvalBackend::Legacy());
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   std::tie(nll, pdf, data, values) = generate_ND_gaussian_pdf_nll(w, N, 1000);
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    auto nll0 = nll->getVal();
@@ -129,17 +121,16 @@ TEST_F(LikelihoodSerialTest, UnbinnedGaussianND)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
-#endif // ROOFIT_LEGACY_EVAL_BACKEND
 
 TEST_F(LikelihoodSerialBinnedDatasetTest, UnbinnedPdf)
 {
-   data = std::unique_ptr<RooDataHist>{pdf->generateBinned(*w.var("x"))};
+   data = pdf->generateBinned(*w.var("x"));
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data)};
+   nll.reset(pdf->createNLL(*data));
 
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    auto nll0 = nll->getVal();
@@ -147,14 +138,13 @@ TEST_F(LikelihoodSerialBinnedDatasetTest, UnbinnedPdf)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
 
-#ifdef ROOFIT_LEGACY_EVAL_BACKEND
 TEST_F(LikelihoodSerialBinnedDatasetTest, BinnedManualNLL)
 {
    pdf->setAttribute("BinnedLikelihood");
-   data = std::unique_ptr<RooDataHist>{pdf->generateBinned(*w.var("x"))};
+   data = pdf->generateBinned(*w.var("x"));
 
    // manually create NLL, ripping all relevant parts from RooAbsPdf::createNLL, except here we also set binnedL = true
    RooArgSet projDeps;
@@ -165,7 +155,7 @@ TEST_F(LikelihoodSerialBinnedDatasetTest, BinnedManualNLL)
    int extended = 2;
    RooNLLVar nll_manual("nlletje", "-log(likelihood)", *pdf, *data, projDeps, extended, nll_config);
 
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    auto nll0 = nll_manual.getVal();
@@ -173,9 +163,8 @@ TEST_F(LikelihoodSerialBinnedDatasetTest, BinnedManualNLL)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
-#endif
 
 TEST_F(LikelihoodSerialTest, SimBinned)
 {
@@ -185,9 +174,9 @@ TEST_F(LikelihoodSerialTest, SimBinned)
    w.factory("Uniform::u(x)");
 
    // Generate template histograms
-   std::unique_ptr<RooDataHist> h_sigA{w.pdf("gA")->generateBinned(*w.var("x"), 1000)};
-   std::unique_ptr<RooDataHist> h_sigB{w.pdf("gB")->generateBinned(*w.var("x"), 1000)};
-   std::unique_ptr<RooDataHist> h_bkg{w.pdf("u")->generateBinned(*w.var("x"), 1000)};
+   RooDataHist *h_sigA = w.pdf("gA")->generateBinned(*w.var("x"), 1000);
+   RooDataHist *h_sigB = w.pdf("gB")->generateBinned(*w.var("x"), 1000);
+   RooDataHist *h_bkg = w.pdf("u")->generateBinned(*w.var("x"), 1000);
 
    w.import(*h_sigA, RooFit::Rename("h_sigA"));
    w.import(*h_sigB, RooFit::Rename("h_sigB"));
@@ -204,16 +193,16 @@ TEST_F(LikelihoodSerialTest, SimBinned)
    w.pdf("model_A")->setAttribute("BinnedLikelihood");
    w.pdf("model_B")->setAttribute("BinnedLikelihood");
 
-   // Construct simultaneous pdf
+   // Construct simulatenous pdf
    w.factory("SIMUL::model(index[A,B],A=model_A,B=model_B)");
 
    // Construct dataset
    pdf = w.pdf("model");
-   data = std::unique_ptr<RooDataSet>{pdf->generate({*w.var("x"), *w.cat("index")}, RooFit::AllBinned())};
+   data = pdf->generate(RooArgSet(*w.var("x"), *w.cat("index")), RooFit::AllBinned());
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data)};
+   nll.reset(pdf->createNLL(*data));
 
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    auto nll0 = nll->getVal();
@@ -221,7 +210,7 @@ TEST_F(LikelihoodSerialTest, SimBinned)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
 
 TEST_F(LikelihoodSerialTest, BinnedConstrained)
@@ -233,8 +222,8 @@ TEST_F(LikelihoodSerialTest, BinnedConstrained)
 
    // Generate template histograms
 
-   std::unique_ptr<RooDataHist> h_sig{w.pdf("g")->generateBinned(*w.var("x"), 1000)};
-   std::unique_ptr<RooDataHist> h_bkg{w.pdf("u")->generateBinned(*w.var("x"), 1000)};
+   RooDataHist *h_sig = w.pdf("g")->generateBinned(*w.var("x"), 1000);
+   RooDataHist *h_bkg = w.pdf("u")->generateBinned(*w.var("x"), 1000);
 
    w.import(*h_sig, RooFit::Rename("h_sig"));
    w.import(*h_bkg, RooFit::Rename("h_bkg"));
@@ -252,21 +241,22 @@ TEST_F(LikelihoodSerialTest, BinnedConstrained)
 
    pdf = w.pdf("model");
    // Construct dataset from physics pdf
-   data = std::unique_ptr<RooDataHist>{w.pdf("model_phys")->generateBinned(*w.var("x"))};
+   data = w.pdf("model_phys")->generateBinned(*w.var("x"));
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data, RooFit::GlobalObservables(*w.var("alpha_bkg_obs")))};
+   nll.reset(pdf->createNLL(*data, RooFit::GlobalObservables(*w.var("alpha_bkg_obs"))));
 
    // --------
 
    auto nll0 = nll->getVal();
 
-   likelihood = RooFit::TestStatistics::NLLFactory{*pdf, *data}.GlobalObservables(*w.var("alpha_bkg_obs")).build();
+   likelihood = RooFit::TestStatistics::buildLikelihood(
+      pdf, data, RooFit::TestStatistics::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs"))));
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
 
 TEST_F(LikelihoodSerialTest, SimUnbinned)
@@ -279,21 +269,21 @@ TEST_F(LikelihoodSerialTest, SimUnbinned)
 
    pdf = w.pdf("model");
    // Construct dataset from physics pdf
-   data = std::unique_ptr<RooDataSet>{pdf->generate({*w.var("x"), *w.cat("index")})};
+   data = pdf->generate(RooArgSet(*w.var("x"), *w.cat("index")));
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data)};
+   nll.reset(pdf->createNLL(*data));
 
    // --------
 
    auto nll0 = nll->getVal();
 
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
 
 TEST_F(LikelihoodSerialTest, SimUnbinnedNonExtended)
@@ -311,14 +301,14 @@ TEST_F(LikelihoodSerialTest, SimUnbinnedNonExtended)
    w.cat("index")->setLabel("B");
    dB->addColumn(*w.cat("index"));
 
-   data = std::unique_ptr<RooDataSet>{static_cast<RooDataSet *>(dA->Clone())};
-   static_cast<RooDataSet &>(*data).append(*dB);
+   data = (RooDataSet *)dA->Clone();
+   dynamic_cast<RooDataSet *>(data)->append(*dB);
 
    pdf = w.pdf("model");
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data)};
+   nll.reset(pdf->createNLL(*data));
 
-   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data.get());
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    auto nll0 = nll->getVal();
@@ -326,7 +316,7 @@ TEST_F(LikelihoodSerialTest, SimUnbinnedNonExtended)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   EXPECT_EQ(nll0, nll1);
 }
 
 class LikelihoodSerialSimBinnedConstrainedTest : public LikelihoodSerialTest {
@@ -367,57 +357,48 @@ protected:
       w.factory("PROD::model_A(model_phys_A,model_subs_A)");
       w.factory("PROD::model_B(model_phys_B,model_subs_B)");
 
-      // Construct simultaneous pdf
+      // Construct simulatenous pdf
       w.factory("SIMUL::model(index[A,B],A=model_A,B=model_B)");
 
       pdf = w.pdf("model");
       // Construct dataset from physics pdf
-      data = std::unique_ptr<RooDataSet>{pdf->generate({*w.var("x"), *w.cat("index")}, RooFit::AllBinned())};
+      data = pdf->generate(RooArgSet(*w.var("x"), *w.cat("index")), RooFit::AllBinned());
    }
 };
 
 TEST_F(LikelihoodSerialSimBinnedConstrainedTest, BasicParameters)
 {
    // original test:
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(
-      *data, RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B"))))};
+   nll.reset(pdf->createNLL(
+      *data, RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")))));
 
    // --------
 
    auto nll0 = nll->getVal();
 
-   likelihood = RooFit::TestStatistics::NLLFactory{*pdf, *data}
-                   .GlobalObservables({*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")})
-                   .build();
+   likelihood = RooFit::TestStatistics::buildLikelihood(
+      pdf, data, RooFit::TestStatistics::GlobalObservables({*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")}));
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
 
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_DOUBLE_EQ(nll0, nll1.Sum());
+   EXPECT_DOUBLE_EQ(nll0, nll1);
 }
 
-#ifdef ROOFIT_LEGACY_EVAL_BACKEND
 TEST_F(LikelihoodSerialSimBinnedConstrainedTest, ConstrainedAndOffset)
 {
-   // A variation to test some additional parameters (ConstrainedParameters and offsetting)
-
-   // The reference likelihood is using the legacy evaluation backend, because
-   // the multiprocess test statistics classes were designed to give values
-   // that are bit-by-bit identical with the old test statistics based on
-   // RooAbsTestStatistic.
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data, RooFit::Constrain(RooArgSet(*w.var("alpha_bkg_obs_A"))),
-                                                    RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_B"))),
-                                                    RooFit::Offset(true), RooFit::EvalBackend::Legacy())};
+   // a variation to test some additional parameters (ConstrainedParameters and offsetting)
+   nll.reset(pdf->createNLL(*data, RooFit::Constrain(RooArgSet(*w.var("alpha_bkg_obs_A"))),
+                            RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_B"))), RooFit::Offset(kTRUE)));
 
    // --------
 
    auto nll0 = nll->getVal();
 
-   likelihood = RooFit::TestStatistics::NLLFactory{*pdf, *data}
-                   .ConstrainedParameters(*w.var("alpha_bkg_obs_A"))
-                   .GlobalObservables(*w.var("alpha_bkg_obs_B"))
-                   .build();
+   likelihood = RooFit::TestStatistics::buildLikelihood(
+      pdf, data, RooFit::TestStatistics::ConstrainedParameters(RooArgSet(*w.var("alpha_bkg_obs_A"))),
+      RooFit::TestStatistics::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_B"))));
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
    nll_ts->enableOffsetting(true);
 
@@ -429,8 +410,8 @@ TEST_F(LikelihoodSerialSimBinnedConstrainedTest, ConstrainedAndOffset)
    // manually add the offset.
    ROOT::Math::KahanSum<double> nll1 = nll_ts->getResult() + nll_ts->offset();
 
-   EXPECT_DOUBLE_EQ(nll0, nll1.Sum());
-   EXPECT_FALSE(nll_ts->offset().Sum() == 0);
+   EXPECT_DOUBLE_EQ(nll0, nll1);
+   EXPECT_FALSE(nll_ts->offset() == 0);
 
    // also check against RooRealL value
    RooFit::TestStatistics::RooRealL nll_real("real_nll", "RooRealL version", likelihood);
@@ -438,24 +419,24 @@ TEST_F(LikelihoodSerialSimBinnedConstrainedTest, ConstrainedAndOffset)
    auto nll2 = nll_real.getVal();
 
    EXPECT_EQ(nll0, nll2);
-   EXPECT_DOUBLE_EQ(nll1.Sum(), nll2);
+   EXPECT_DOUBLE_EQ(nll1, nll2);
 }
-#endif // ROOFIT_LEGACY_EVAL_BACKEND
 
 TEST_F(LikelihoodSerialTest, BatchedUnbinnedGaussianND)
 {
    unsigned int N = 4;
 
-   auto backend = RooFit::EvalBackend::Cpu();
+   bool batch_mode = true;
 
-   std::tie(nll, pdf, data, values) = generate_ND_gaussian_pdf_nll(w, N, 1000, backend);
-   auto nll0 = nll->getVal();
-
-   likelihood = RooFit::TestStatistics::NLLFactory{*pdf, *data}.EvalBackend(backend).build();
+   std::tie(nll, pdf, data, values) = generate_ND_gaussian_pdf_nll(w, N, 1000, batch_mode);
+   likelihood = RooFit::TestStatistics::buildLikelihood(pdf, data);
+   dynamic_cast<RooFit::TestStatistics::RooUnbinnedL *>(likelihood.get())->setUseBatchedEvaluations(true);
    auto nll_ts = LikelihoodWrapper::create(RooFit::TestStatistics::LikelihoodMode::serial, likelihood, clean_flags);
+
+   auto nll0 = nll->getVal();
 
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_NEAR(nll0, nll1.Sum(), 1e-14 * nll0);
+   EXPECT_NEAR(nll0, nll1, 1e-14 * nll0);
 }

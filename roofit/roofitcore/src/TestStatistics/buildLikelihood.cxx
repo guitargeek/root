@@ -53,15 +53,15 @@ namespace RooFit {
  */
 namespace TestStatistics {
 
-namespace { // private implementation details
+namespace {  // private implementation details
 
-RooArgSet getConstraintsSet(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrained_parameters,
-                            RooArgSet const &external_constraints, RooArgSet global_observables,
-                            std::string const &global_observables_tag)
+RooArgSet getConstraintsSet(RooAbsPdf *pdf, RooAbsData *data, ConstrainedParameters constrained_parameters,
+                            ExternalConstraints external_constraints, GlobalObservables global_observables,
+                            std::string global_observables_tag)
 {
    // BEGIN CONSTRAINT COLLECTION; copied from RooAbsPdf::createNLL
 
-   bool doStripDisconnected = false;
+   Bool_t doStripDisconnected = kFALSE;
    // If no explicit list of parameters to be constrained is specified apply default algorithm
    // All terms of RooProdPdfs that do not contain observables and share parameters with one or more
    // terms that do contain observables are added as constraints.
@@ -69,18 +69,18 @@ RooArgSet getConstraintsSet(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrai
    bool did_default_constraint_algo = false;
    std::size_t N_default_constraints = 0;
 #endif
-   if (constrained_parameters.empty()) {
-      std::unique_ptr<RooArgSet> default_constraints{pdf->getParameters(*data, false)};
-      constrained_parameters.add(*default_constraints);
-      doStripDisconnected = true;
+   if (constrained_parameters.set.getSize() == 0) {
+      std::unique_ptr<RooArgSet> default_constraints{pdf->getParameters(*data, kFALSE)};
+      constrained_parameters.set.add(*default_constraints);
+      doStripDisconnected = kTRUE;
 #ifndef NDEBUG
       did_default_constraint_algo = true;
-      N_default_constraints = default_constraints->size();
+      N_default_constraints = default_constraints->getSize();
 #endif
    }
 #ifndef NDEBUG
    if (did_default_constraint_algo) {
-      assert(N_default_constraints == static_cast<std::size_t>(constrained_parameters.size()));
+      assert(N_default_constraints == static_cast<std::size_t>(constrained_parameters.set.getSize()));
    }
 #endif
 
@@ -88,35 +88,37 @@ RooArgSet getConstraintsSet(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrai
    RooArgSet allConstraints;
 
    if (!global_observables_tag.empty()) {
-      if (!global_observables.empty()) {
-         global_observables.removeAll();
+      if (global_observables.set.getSize() > 0) {
+         global_observables.set.removeAll();
       }
       std::unique_ptr<RooArgSet> allVars{pdf->getVariables()};
-      global_observables.add(*dynamic_cast<RooArgSet *>(allVars->selectByAttrib(global_observables_tag.c_str(), true)));
-      oocoutI(nullptr, Minimization) << "User-defined specification of global observables definition with tag named '"
-                                     << global_observables_tag << "'" << std::endl;
-   } else if (global_observables.empty()) {
+      global_observables.set.add(
+         *dynamic_cast<RooArgSet *>(allVars->selectByAttrib(global_observables_tag.c_str(), kTRUE)));
+      oocoutI((TObject *)nullptr, Minimization)
+         << "User-defined specification of global observables definition with tag named '" << global_observables_tag
+         << "'" << std::endl;
+   } else if (global_observables.set.getSize() == 0) {
       // neither global_observables nor global_observables_tag was given - try if a default tag is defined in the head
       // node
       const char *defGlobObsTag = pdf->getStringAttribute("DefaultGlobalObservablesTag");
       if (defGlobObsTag) {
-         oocoutI(nullptr, Minimization)
+         oocoutI((TObject *)nullptr, Minimization)
             << "p.d.f. provides built-in specification of global observables definition with tag named '"
             << defGlobObsTag << "'" << std::endl;
          std::unique_ptr<RooArgSet> allVars{pdf->getVariables()};
-         global_observables.add(*dynamic_cast<RooArgSet *>(allVars->selectByAttrib(defGlobObsTag, true)));
+         global_observables.set.add(*dynamic_cast<RooArgSet *>(allVars->selectByAttrib(defGlobObsTag, kTRUE)));
       }
    }
 
    // EGP: removed workspace (RooAbsPdf::_myws) based stuff for now; TODO: reconnect this class to workspaces
 
-   if (!constrained_parameters.empty()) {
+   if (constrained_parameters.set.getSize() > 0) {
       std::unique_ptr<RooArgSet> constraints{
-         pdf->getAllConstraints(*data->get(), constrained_parameters, doStripDisconnected)};
+         pdf->getAllConstraints(*data->get(), constrained_parameters.set, doStripDisconnected)};
       allConstraints.add(*constraints);
    }
-   if (!external_constraints.empty()) {
-      allConstraints.add(external_constraints);
+   if (external_constraints.set.getSize() > 0) {
+      allConstraints.add(external_constraints.set);
    }
 
    return allConstraints;
@@ -141,30 +143,38 @@ RooArgSet getConstraintsSet(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrai
  * \return A unique pointer to a RooSubsidiaryL that contains all terms in the pdf that can be
  * calculated separately from the other components in the full likelihood.
  */
-std::unique_ptr<RooSubsidiaryL> buildSubsidiaryL(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrained_parameters,
-                                                 RooArgSet const &external_constraints, RooArgSet global_observables,
-                                                 std::string const &global_observables_tag)
+std::unique_ptr<RooSubsidiaryL>
+buildSubsidiaryL(RooAbsPdf *pdf, RooAbsData *data, ConstrainedParameters constrained_parameters,
+                 ExternalConstraints external_constraints, GlobalObservables global_observables,
+                 std::string global_observables_tag)
 {
    auto allConstraints = getConstraintsSet(pdf, data, constrained_parameters, external_constraints, global_observables,
                                            global_observables_tag);
 
    std::unique_ptr<RooSubsidiaryL> subsidiary_likelihood;
    // Include constraints, if any, in likelihood
-   if (!allConstraints.empty()) {
+   if (allConstraints.getSize() > 0) {
 
-      oocoutI(nullptr, Minimization) << " Including the following constraint terms in minimization: " << allConstraints
-                                     << std::endl;
-      if (!global_observables.empty()) {
-         oocoutI(nullptr, Minimization) << "The following global observables have been defined: " << global_observables
-                                        << std::endl;
+      oocoutI((TObject *)nullptr, Minimization)
+         << " Including the following contraint terms in minimization: " << allConstraints << std::endl;
+      if (global_observables.set.getSize() > 0) {
+         oocoutI((TObject *)nullptr, Minimization)
+            << "The following global observables have been defined: " << global_observables.set << std::endl;
       }
       std::string name("likelihood for pdf ");
       name += pdf->GetName();
       subsidiary_likelihood = std::make_unique<RooSubsidiaryL>(
-         name, allConstraints, (!global_observables.empty()) ? global_observables : constrained_parameters);
+         name, allConstraints,
+         (global_observables.set.getSize() > 0) ? global_observables.set : constrained_parameters.set);
    }
 
    return subsidiary_likelihood;
+}
+
+bool isSimultaneous(RooAbsPdf *pdf)
+{
+   auto sim_pdf = dynamic_cast<RooSimultaneous *>(pdf);
+   return sim_pdf != nullptr;
 }
 
 /// Get the binned part of a pdf
@@ -183,9 +193,9 @@ RooAbsPdf *getBinnedPdf(RooAbsPdf *pdf)
       binnedPdf = pdf;
    } else if (pdf->IsA()->InheritsFrom(RooProdPdf::Class())) {
       // Default case: top-level pdf is a product of RRSP and other pdfs
-      for (const auto component : (static_cast<RooProdPdf *>(pdf))->pdfList()) {
+      for (const auto component : ((RooProdPdf *)pdf)->pdfList()) {
          if (component->getAttribute("BinnedLikelihood") && component->IsA()->InheritsFrom(RooRealSumPdf::Class())) {
-            binnedPdf = static_cast<RooAbsPdf *>(component);
+            binnedPdf = (RooAbsPdf *)component;
             break;
          }
       }
@@ -193,31 +203,34 @@ RooAbsPdf *getBinnedPdf(RooAbsPdf *pdf)
    return binnedPdf;
 }
 
-} // namespace
-
 /*
- * \brief Build a set of likelihood components to build a likelihood from a simultaneous pdf.
+ * \brief Build a set of likelihood components to build a likelihood from a simultaneous pdf
  *
+ * \param[in] pdf Raw pointer to the pdf
+ * \param[in] data Raw pointer to the dataset
+ * \param[in] extended Set extended term calculation on, off or use Extended::Auto to determine automatically based on
+ * the pdf whether to activate or not.
  * \return A vector to RooAbsL unique_ptrs that contain all component binned and/or
  * unbinned likelihoods. Note: subsidiary components are not included; use getConstraintsSet and/or
  * buildSubsidiaryLikelihood to add those.
  */
-std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
+std::vector<std::unique_ptr<RooAbsL>>
+getSimultaneousComponents(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended extended)
 {
-   auto sim_pdf = dynamic_cast<RooSimultaneous *>(&_pdf);
+   auto sim_pdf = dynamic_cast<RooSimultaneous *>(pdf);
 
    // the rest of this function is an adaptation of RooAbsTestStatistic::initSimMode:
 
-   auto &simCat = const_cast<RooAbsCategoryLValue &>(sim_pdf->indexCat());
+   RooAbsCategoryLValue &simCat = (RooAbsCategoryLValue &)sim_pdf->indexCat();
 
    // note: this is valid for simultaneous likelihoods, not for other test statistic types (e.g. chi2) for which this
    // should return true.
-   bool process_empty_data_sets = RooAbsL::isExtendedHelper(&_pdf, _extended);
+   bool process_empty_data_sets = RooAbsL::isExtendedHelper(pdf, extended);
 
    TString simCatName(simCat.GetName());
    // Note: important not to use cloned dataset here (possible when this code is run in Roo[...]L ctor), use the
    // original one (which is data_ in Roo[...]L ctors, but data here)
-   std::unique_ptr<TList> dsetList{_data.split(*sim_pdf, process_empty_data_sets)};
+   std::unique_ptr<TList> dsetList{data->split(*sim_pdf, process_empty_data_sets)};
    if (!dsetList) {
       throw std::logic_error(
          "getSimultaneousComponents ERROR, index category of simultaneous pdf is missing in dataset, aborting");
@@ -229,7 +242,7 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
    for (const auto &catState : simCat) {
       // Retrieve the PDF for this simCat state
       RooAbsPdf *component_pdf = sim_pdf->getPdf(catState.first.c_str());
-      auto *dset = static_cast<RooAbsData *>(dsetList->FindObject(catState.first.c_str()));
+      auto dset = (RooAbsData *)dsetList->FindObject(catState.first.c_str());
 
       if (component_pdf && dset && (0. != dset->sumEntries() || process_empty_data_sets)) {
          ++N_components;
@@ -247,21 +260,22 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
       const std::string &catName = catState.first;
       // Retrieve the PDF for this simCat state
       RooAbsPdf *component_pdf = sim_pdf->getPdf(catName.c_str());
-      auto *dset = static_cast<RooAbsData *>(dsetList->FindObject(catName.c_str()));
+      auto dset = (RooAbsData *)dsetList->FindObject(catName.c_str());
 
       if (component_pdf && dset && (0. != dset->sumEntries() || process_empty_data_sets)) {
-         ooccoutI(nullptr, Fitting) << "getSimultaneousComponents: creating slave calculator #" << n << " for state "
-                                    << catName << " (" << dset->numEntries() << " dataset entries)" << std::endl;
+         ooccoutI((TObject *)nullptr, Fitting)
+            << "getSimultaneousComponents: creating slave calculator #" << n << " for state " << catName << " ("
+            << dset->numEntries() << " dataset entries)" << std::endl;
 
          RooAbsPdf *binnedPdf = getBinnedPdf(component_pdf);
-         bool binnedL = (binnedPdf != nullptr);
+         Bool_t binnedL = (binnedPdf != nullptr);
          if (binnedPdf == nullptr && component_pdf->IsA()->InheritsFrom(RooProdPdf::Class())) {
             // Default case: top-level pdf is a product of RRSP and other pdfs
-            for (const auto component : (static_cast<RooProdPdf *>(component_pdf))->pdfList()) {
+            for (const auto component : ((RooProdPdf *)component_pdf)->pdfList()) {
                if (component->getAttribute("MAIN_MEASUREMENT")) {
                   // not really a binned pdf, but this prevents a (potentially) long list of subsidiary measurements to
                   // be passed to the slave calculator
-                  binnedPdf = static_cast<RooAbsPdf *>(component);
+                  binnedPdf = (RooAbsPdf *)component;
                   break;
                }
             }
@@ -271,8 +285,7 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
          if (binnedL) {
             components.push_back(std::make_unique<RooBinnedL>((binnedPdf ? binnedPdf : component_pdf), dset));
          } else {
-            components.push_back(
-               std::make_unique<RooUnbinnedL>((binnedPdf ? binnedPdf : component_pdf), dset, _extended, _evalBackend));
+            components.push_back(std::make_unique<RooUnbinnedL>((binnedPdf ? binnedPdf : component_pdf), dset));
          }
          //         }
          components.back()->setSimCount(N_components);
@@ -281,33 +294,30 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
 
          std::unique_ptr<RooArgSet> actualParams{binnedPdf ? binnedPdf->getParameters(dset)
                                                            : component_pdf->getParameters(dset)};
-         RooArgSet params;
-         _pdf.getParameters(_data.get(), params);
-         RooArgSet selTargetParams;
-         params.selectCommon(*actualParams, selTargetParams);
+         std::unique_ptr<RooArgSet> selTargetParams{
+            (RooArgSet *)pdf->getParameters(*data)->selectCommon(*actualParams)};
 
-         assert(selTargetParams.equals(*components.back()->getParameters()));
+         assert(selTargetParams->equals(*components.back()->getParameters()));
 
          ++n;
       } else {
          if ((!dset || (0. != dset->sumEntries() && !process_empty_data_sets)) && component_pdf) {
-            ooccoutD(nullptr, Fitting) << "getSimultaneousComponents: state " << catName
-                                       << " has no data entries, no slave calculator created" << std::endl;
+            ooccoutD((TObject *)nullptr, Fitting) << "getSimultaneousComponents: state " << catName
+                                                  << " has no data entries, no slave calculator created" << std::endl;
          }
       }
    }
-   oocoutI(nullptr, Fitting) << "getSimultaneousComponents: created " << n << " slave calculators." << std::endl;
+   oocoutI((TObject *)nullptr, Fitting) << "getSimultaneousComponents: created " << n << " slave calculators."
+                                        << std::endl;
 
    return components;
 }
 
-/// Create a likelihood builder for a given pdf and dataset.
-/// \param[in] pdf Raw pointer to the pdf
-/// \param[in] data Raw pointer to the dataset
-NLLFactory::NLLFactory(RooAbsPdf &pdf, RooAbsData &data) : _pdf{pdf}, _data{data} {}
+} // anonymous namespace with private implementation details
+
 
 /*
- * \brief Build a likelihood from a pdf + dataset, optionally with a subsidiary likelihood component.
+ * \brief Build a likelihood from a pdf + dataset, optionally with a subsidiary likelihood component
  *
  * This function analyzes the pdf and automatically constructs the proper likelihood, built up from the available
  * RooAbsL subclasses. In essence, this can give 8 conceptually different combinations, based on three questions:
@@ -318,89 +328,80 @@ NLLFactory::NLLFactory(RooAbsPdf &pdf, RooAbsData &data) : _pdf{pdf}, _data{data
  * other cases it returns a RooSumL, which will contain RooBinnedL and/or RooUnbinnedL component(s) and possibly a
  * RooSubsidiaryL component with constraint terms.
  *
+ * \param[in] pdf Raw pointer to the pdf
+ * \param[in] data Raw pointer to the dataset
+ * \param[in] extended Set extended term calculation on, off or use Extended::Auto to determine automatically based on
+ * the pdf whether to activate or not.
+ * \param[in] constrained_parameters Set of parameters that are constrained. Pdf components dependent on these alone are
+ * added to the subsidiary likelihood.
+ * \param[in] external_constraints Set of external constraint pdfs, i.e. constraints
+ * not necessarily in the pdf itself. These are always added to the subsidiary likelihood.
+ * \param[in] global_observables
+ * Observables that have a constant value, independent of the dataset events. Pdf components dependent on these alone
+ * are added to the subsidiary likelihood. \note Overrides all other likelihood parameters (like those in \p
+ * constrained_parameters) if present.
+ * \param[in] global_observables_tag String that can be set as attribute in pdf
+ * components to indicate that it is a global observable. Can be used instead of or in addition to \p
+ * global_observables.
  * \return A unique pointer to a RooSubsidiaryL that contains all terms in
  * the pdf that can be calculated separately from the other components in the full likelihood.
  */
-std::unique_ptr<RooAbsL> NLLFactory::build()
+std::unique_ptr<RooAbsL> buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended extended,
+                                         ConstrainedParameters constrained_parameters,
+                                         ExternalConstraints external_constraints, GlobalObservables global_observables,
+                                         std::string global_observables_tag)
 {
    std::unique_ptr<RooAbsL> likelihood;
    std::vector<std::unique_ptr<RooAbsL>> components;
 
-   if (dynamic_cast<RooSimultaneous const *>(&_pdf)) {
-      components = getSimultaneousComponents();
-   } else if (auto binnedPdf = getBinnedPdf(&_pdf)) {
-      likelihood = std::make_unique<RooBinnedL>(binnedPdf, &_data);
+   if (isSimultaneous(pdf)) {
+      components = getSimultaneousComponents(pdf, data, extended);
+   } else if (auto binnedPdf = getBinnedPdf(pdf)) {
+      likelihood = std::make_unique<RooBinnedL>(binnedPdf, data);
    } else { // unbinned
-      likelihood = std::make_unique<RooUnbinnedL>(&_pdf, &_data, _extended, _evalBackend);
+      likelihood = std::make_unique<RooUnbinnedL>(pdf, data, extended);
    }
 
-   auto subsidiary = buildSubsidiaryL(&_pdf, &_data, _constrainedParameters, _externalConstraints, _globalObservables,
-                                      _globalObservablesTag);
+   auto subsidiary = buildSubsidiaryL(pdf, data, constrained_parameters, external_constraints, global_observables, global_observables_tag);
    if (subsidiary) {
       if (likelihood) {
          components.push_back(std::move(likelihood));
       }
       components.push_back(std::move(subsidiary));
    }
-   if (!components.empty()) {
-      likelihood = std::make_unique<RooSumL>(&_pdf, &_data, std::move(components), _extended);
+   if (components.size() > 0) {
+      likelihood = std::make_unique<RooSumL>(pdf, data, std::move(components), extended);
    }
    return likelihood;
 }
 
-/// \param[in] extended Set extended term calculation on, off or use
-///            RooAbsL::Extended::Auto to determine automatically based on the
-///            pdf whether to activate or not.
-NLLFactory &NLLFactory::Extended(RooAbsL::Extended extended)
+// delegating convenience overloads
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, ConstrainedParameters constrained_parameters)
 {
-   _extended = extended;
-   return *this;
+   return buildLikelihood(pdf, data, RooAbsL::Extended::Auto, constrained_parameters);
+}
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, ExternalConstraints external_constraints)
+{
+   return buildLikelihood(pdf, data, RooAbsL::Extended::Auto, {}, external_constraints);
+}
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, GlobalObservables global_observables)
+{
+   return buildLikelihood(pdf, data, RooAbsL::Extended::Auto, {}, {}, global_observables);
+}
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, std::string global_observables_tag)
+{
+   return buildLikelihood(pdf, data, RooAbsL::Extended::Auto, {}, {}, {}, global_observables_tag);
+}
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, ConstrainedParameters constrained_parameters, GlobalObservables global_observables)
+{
+   return buildLikelihood(pdf, data, RooAbsL::Extended::Auto, constrained_parameters, {}, global_observables);
 }
 
-/// \param[in] constrainedParameters Set of parameters that are constrained.
-///            Pdf components dependent on these alone are added to the
-///            subsidiary likelihood.
-NLLFactory &NLLFactory::ConstrainedParameters(const RooArgSet &constrainedParameters)
-{
-   _constrainedParameters.add(constrainedParameters);
-   return *this;
-}
-
-/// \param[in] externalConstraints Set of external constraint pdfs, i.e.
-///            constraints not necessarily in the pdf itself. These are always
-///            added to the subsidiary likelihood.
-NLLFactory &NLLFactory::ExternalConstraints(const RooArgSet &externalConstraints)
-{
-   _externalConstraints.add(externalConstraints);
-   return *this;
-}
-
-/// \param[in] globalObservables Observables that have a constant value,
-///            independent of the dataset events. Pdf components dependent on
-///            these alone are added to the subsidiary likelihood.
-///            \note Overrides all other likelihood parameters (like those in
-///            NLLFactory::ConstrainedParameters()) if present.
-NLLFactory &NLLFactory::GlobalObservables(const RooArgSet &globalObservables)
-{
-   _globalObservables.add(globalObservables);
-   return *this;
-}
-
-/// \param[in] globalObservablesTag String that can be set as attribute in
-///            pdf components to indicate that it is a global observable. Can
-///            be used instead of or in addition to
-///            NLLFactory::GlobalObservables().
-NLLFactory &NLLFactory::GlobalObservablesTag(const char *globalObservablesTag)
-{
-   _globalObservablesTag = globalObservablesTag;
-   return *this;
-}
-
-NLLFactory &NLLFactory::EvalBackend(RooFit::EvalBackend evalBackend)
-{
-   _evalBackend = evalBackend;
-   return *this;
-}
 
 } // namespace TestStatistics
 } // namespace RooFit

@@ -37,20 +37,21 @@ public:
          RooAbsReal& f3, RooAbsReal& dm,
          const RooResolutionModel& model,
          DecayType type);
-  RooBDecay(const RooBDecay& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override
+  RooBDecay(const RooBDecay& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const
   {
     return new RooBDecay(*this,newname);
   }
+  virtual ~RooBDecay();
 
-  double coefficient(Int_t basisIndex) const override;
-  RooFit::OwningPtr<RooArgSet> coefVars(Int_t coefIdx) const override ;
+  virtual Double_t coefficient(Int_t basisIndex) const;
+  RooArgSet* coefVars(Int_t coefIdx) const ;
 
-  Int_t getCoefAnalyticalIntegral(Int_t coef, RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=nullptr) const override ;
-  double coefAnalyticalIntegral(Int_t coef, Int_t code, const char* rangeName=nullptr) const override ;
+  Int_t getCoefAnalyticalIntegral(Int_t coef, RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const ;
+  Double_t coefAnalyticalIntegral(Int_t coef, Int_t code, const char* rangeName=0) const ;
 
-  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK=true) const override;
-  void generateEvent(Int_t code) override;
+  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK=kTRUE) const;
+  void generateEvent(Int_t code);
 
 protected:
 
@@ -69,7 +70,7 @@ protected:
   Int_t _basisB;
   DecayType _type;
 
-  ClassDefOverride(RooBDecay, 1) // P.d.f of general description of B decay time distribution
+  ClassDef(RooBDecay, 1) // P.d.f of general description of B decay time distribution
     };
 
 #endif

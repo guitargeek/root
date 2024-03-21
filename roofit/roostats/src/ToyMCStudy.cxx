@@ -33,19 +33,19 @@ ClassImp(RooStats::ToyMCStudy);
 
 ClassImp(RooStats::ToyMCPayload);
 
-using std::endl;
+using namespace std;
 
 
 namespace RooStats {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool ToyMCStudy::initialize(void) {
+Bool_t ToyMCStudy::initialize(void) {
    coutP(Generation) << "initialize" << endl;
 
    if(!fToyMCSampler) {
       coutE(InputArguments) << "Need an instance of ToyMCSampler to run." << endl;
-      return false;
+      return kFALSE;
    }else{
       coutI(InputArguments) << "Using given ToyMCSampler." << endl;
    }
@@ -70,40 +70,41 @@ bool ToyMCStudy::initialize(void) {
 
    coutI(InputArguments) << "Worker " << iworker << " seed is: " << RooRandom::randomGenerator()->GetSeed() << endl;
 
-   return false;
+   return kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool ToyMCStudy::execute(void) {
+Bool_t ToyMCStudy::execute(void) {
 
    coutP(Generation) << "ToyMCStudy::execute - run with seed " <<   RooRandom::randomGenerator()->Integer(TMath::Limits<unsigned int>::Max() ) << std::endl;
    RooDataSet* sd = fToyMCSampler->GetSamplingDistributionsSingleWorker(fParamPoint);
-   storeDetailedOutput(std::make_unique<ToyMCPayload>(sd));
+   ToyMCPayload *sdw = new ToyMCPayload(sd);
+   storeDetailedOutput(*sdw);
 
-   return false;
+   return kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool ToyMCStudy::finalize(void) {
+Bool_t ToyMCStudy::finalize(void) {
    coutP(Generation) << "ToyMCStudy::finalize" << endl;
 
    if(fToyMCSampler) delete fToyMCSampler;
-   fToyMCSampler = nullptr;
+   fToyMCSampler = NULL;
 
-   return false;
+   return kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 RooDataSet* ToyMCStudy::merge() {
 
-   RooDataSet* samplingOutput = nullptr;
+   RooDataSet* samplingOutput = NULL;
 
    if(!detailedData()) {
       coutE(Generation) << "ToyMCStudy::merge No detailed output present." << endl;
-      return nullptr;
+      return NULL;
    }
 
    int i = 0;
@@ -114,12 +115,9 @@ RooDataSet* ToyMCStudy::merge() {
          continue;
       }
 
-      if (!samplingOutput) {
-         samplingOutput = new RooDataSet(*oneWorker->GetSamplingDistributions());
+      if( !samplingOutput ) samplingOutput = new RooDataSet(*oneWorker->GetSamplingDistributions());
 
-      } else {
-         samplingOutput->append(*oneWorker->GetSamplingDistributions());
-      }
+      else samplingOutput->append( *oneWorker->GetSamplingDistributions() );
 
       i++;
       //delete oneWorker;

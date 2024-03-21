@@ -35,18 +35,18 @@ public:
   static void createSpecial(const char* name, int size) ;
   static void destroySpecial(const char* name) ;
 
-
-  static void active(bool flag) ;
-  static void verbose(bool flag) ;
+  
+  static void active(Bool_t flag) ;
+  static void verbose(Bool_t flag) ;
 
   static void dump() ;
-  static void dump(std::ostream& os, bool sinceMarked=false) ;
+  static void dump(std::ostream& os, Bool_t sinceMarked=kFALSE) ;
   static void mark() ;
-
+  
   static void callgrind_zero() ;
   static void callgrind_dump() ;
 
-
+  
   static RooTrace& instance() ;
 
   static void printObjectCounts() ;
@@ -56,11 +56,11 @@ protected:
 
   static RooTrace* _instance ;
 
-  void dump3(std::ostream&, bool sinceMarked) ;
+  void dump3(std::ostream&, Bool_t sinceMarked) ;
 
   void mark3() ;
   void printObjectCounts3() ;
-
+   
   void create2(const TObject* obj) ;
   void destroy2(const TObject* obj) ;
 
@@ -70,11 +70,11 @@ protected:
   void createSpecial3(const char* name, int size) ;
   void destroySpecial3(const char* name) ;
 
-  void addPad(const TObject* ref, bool doPad) ;
-  bool removePad(const TObject* ref) ;
+  void addPad(const TObject* ref, Bool_t doPad) ;
+  Bool_t removePad(const TObject* ref) ;
 
-  bool _active ;
-  bool _verbose ;
+  Bool_t _active ;
+  Bool_t _verbose ;
   RooLinkedList _list ;
   RooLinkedList _markList ;
   std::map<TClass*,int> _objectCount ;

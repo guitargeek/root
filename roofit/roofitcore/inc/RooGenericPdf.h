@@ -17,47 +17,33 @@
 #define ROO_GENERIC_PDF
 
 #include "RooAbsPdf.h"
+#include "RooFormula.h"
 #include "RooListProxy.h"
 
 class RooArgList ;
-class RooFormula ;
 
 class RooGenericPdf : public RooAbsPdf {
 public:
   // Constructors, assignment etc
-  RooGenericPdf();
-  ~RooGenericPdf() override;
+  inline RooGenericPdf(){}
   RooGenericPdf(const char *name, const char *title, const char* formula, const RooArgList& dependents);
   RooGenericPdf(const char *name, const char *title, const RooArgList& dependents);
-  RooGenericPdf(const RooGenericPdf& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override { return new RooGenericPdf(*this,newname); }
+  RooGenericPdf(const RooGenericPdf& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const { return new RooGenericPdf(*this,newname); }
 
   // I/O streaming interface (machine readable)
-  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override ;
-  void writeToStream(std::ostream& os, bool compact) const override ;
-
-  /// Return pointer to parameter with given name.
-  inline RooAbsArg* getParameter(const char* name) const {
-    return _actualVars.find(name) ;
-  }
-  /// Return pointer to parameter at given index.
-  inline RooAbsArg* getParameter(Int_t index) const {
-    return _actualVars.at(index) ;
-  }
-  /// Return the number of parameters.
-  inline size_t nParameters() const {
-    return _actualVars.size();
-  }
+  virtual Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) ;
+  virtual void writeToStream(std::ostream& os, Bool_t compact) const ;
 
   // Printing interface (human readable)
-  void printMultiline(std::ostream& os, Int_t content, bool verbose=false, TString indent="") const override ;
-  void printMetaArgs(std::ostream& os) const override ;
+  void printMultiline(std::ostream& os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const ;
+  void printMetaArgs(std::ostream& os) const ;
 
   // Debugging
-  void dumpFormula();
+  void dumpFormula() { formula().dump() ; }
 
   const char* expression() const { return _formExpr.Data(); }
-  const RooArgList& dependents() const { return _actualVars; }
+  const RooArgList& dependents() const { return _actualVars; }  
 
 protected:
 
@@ -65,19 +51,21 @@ protected:
 
   // Function evaluation
   RooListProxy _actualVars ;
-  double evaluate() const override ;
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
-  void computeBatch(double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
+  double evaluate() const;
+  RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& inputData, const RooArgSet* normSet) const;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const;
+
+  Bool_t setFormula(const char* formula) ;
 
   // Post-processing of server redirection
-  bool redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool isRecursive) override ;
+  virtual Bool_t redirectServersHook(const RooAbsCollection& newServerList, Bool_t mustReplaceAll, Bool_t nameChange, Bool_t isRecursive) ;
 
-  bool isValidReal(double /*value*/, bool /*printError*/) const override { return true; }
+  virtual Bool_t isValidReal(Double_t value, Bool_t printError) const ;
 
-  mutable RooFormula * _formula = nullptr; ///<! Formula engine
-  TString _formExpr ;            ///< Formula expression string
+  std::unique_ptr<RooFormula> _formula{nullptr}; //! Formula engine
+  TString _formExpr ;            // Formula expression string
 
-  ClassDefOverride(RooGenericPdf,1) // Generic PDF defined by string expression and list of variables
+  ClassDef(RooGenericPdf,1) // Generic PDF defined by string expression and list of variables
 };
 
 #endif

@@ -54,9 +54,9 @@ been used by the Tevatron experiments.
 #include "RooGlobalFunc.h"
 
 
-bool RooStats::RatioOfProfiledLikelihoodsTestStat::fgAlwaysReuseNll = true ;
+Bool_t RooStats::RatioOfProfiledLikelihoodsTestStat::fgAlwaysReuseNll = kTRUE ;
 
-void RooStats::RatioOfProfiledLikelihoodsTestStat::SetAlwaysReuseNLL(bool flag) { fgAlwaysReuseNll = flag ; }
+void RooStats::RatioOfProfiledLikelihoodsTestStat::SetAlwaysReuseNLL(Bool_t flag) { fgAlwaysReuseNll = flag ; }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// returns -logL(poi, conditional MLE of nuisance params)
@@ -65,17 +65,16 @@ void RooStats::RatioOfProfiledLikelihoodsTestStat::SetAlwaysReuseNLL(bool flag) 
 ///
 /// L.M. : not sure why this method is needed now
 
-double RooStats::RatioOfProfiledLikelihoodsTestStat::ProfiledLikelihood(RooAbsData& data, RooArgSet& poi, RooAbsPdf& pdf) {
+Double_t RooStats::RatioOfProfiledLikelihoodsTestStat::ProfiledLikelihood(RooAbsData& data, RooArgSet& poi, RooAbsPdf& pdf) {
    int type = (fSubtractMLE) ? 0 : 2;
 
    // null
-   if (&pdf == fNullProfile.GetPdf()) {
+   if ( &pdf == fNullProfile.GetPdf() )
       return fNullProfile.EvaluateProfileLikelihood(type, data, poi);
-   } else if (&pdf == fAltProfile.GetPdf()) {
+   else if (&pdf == fAltProfile.GetPdf() )
       return fAltProfile.EvaluateProfileLikelihood(type, data, poi);
-   }
 
-   oocoutE(nullptr,InputArguments) << "RatioOfProfiledLikelihoods::ProfileLikelihood - invalid pdf used for computing the profiled likelihood - return NaN"
+   oocoutE((TObject*)NULL,InputArguments) << "RatioOfProfiledLikelihoods::ProfileLikelihood - invalid pdf used for computing the profiled likelihood - return NaN"
                          << std::endl;
 
    return TMath::QuietNaN();
@@ -85,7 +84,7 @@ double RooStats::RatioOfProfiledLikelihoodsTestStat::ProfiledLikelihood(RooAbsDa
 ////////////////////////////////////////////////////////////////////////////////
 /// evaluate the ratio of profile likelihood
 
-double  RooStats::RatioOfProfiledLikelihoodsTestStat::Evaluate(RooAbsData& data, RooArgSet& nullParamsOfInterest) {
+Double_t  RooStats::RatioOfProfiledLikelihoodsTestStat::Evaluate(RooAbsData& data, RooArgSet& nullParamsOfInterest) {
 
    int type = (fSubtractMLE) ? 0 : 2;
 
@@ -97,21 +96,24 @@ double  RooStats::RatioOfProfiledLikelihoodsTestStat::Evaluate(RooAbsData& data,
    double altNLL = fAltProfile.EvaluateProfileLikelihood(type, data, *fAltPOI);
    const RooArgSet *altset = fAltProfile.GetDetailedOutput();
 
-   if (fDetailedOutput != nullptr) {
+   if (fDetailedOutput != NULL) {
       delete fDetailedOutput;
-      fDetailedOutput = nullptr;
+      fDetailedOutput = NULL;
    }
    if (fDetailedOutputEnabled) {
       fDetailedOutput = new RooArgSet();
-      for (auto const *var : static_range_cast<RooRealVar *>(*nullset)) {
-         auto cloneVar = std::make_unique<RooRealVar>(TString::Format("nullprof_%s", var->GetName()),
+      RooRealVar* var = nullptr;
+      TIter it1 = nullset->createIterator();
+      while((var = dynamic_cast<RooRealVar*>(it1.Next()))) {
+         RooRealVar* cloneVar = new RooRealVar(TString::Format("nullprof_%s", var->GetName()),
                                                TString::Format("%s for null", var->GetTitle()), var->getVal());
-         fDetailedOutput->addOwned(std::move(cloneVar));
+         fDetailedOutput->addOwned(*cloneVar);
       }
-      for (auto const *var : static_range_cast<RooRealVar *>(*altset)) {
-         auto cloneVar = std::make_unique<RooRealVar>(TString::Format("altprof_%s", var->GetName()),
+      TIter it2 = altset->createIterator();
+      while((var = dynamic_cast<RooRealVar*>(it2.Next()))) {
+         RooRealVar* cloneVar = new RooRealVar(TString::Format("altprof_%s", var->GetName()),
                                                TString::Format("%s for null", var->GetTitle()), var->getVal());
-         fDetailedOutput->addOwned(std::move(cloneVar));
+         fDetailedOutput->addOwned(*cloneVar);
       }
    }
 

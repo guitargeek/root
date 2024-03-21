@@ -17,10 +17,9 @@
 #ifndef ROOSTATS_ProfileInspector
 #define ROOSTATS_ProfileInspector
 
+#include "TList.h"
 #include "RooStats/ModelConfig.h"
 #include "RooAbsData.h"
-
-class TList;
 
 namespace RooStats {
 

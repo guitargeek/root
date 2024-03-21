@@ -22,32 +22,26 @@
 #include <unordered_map>
 #include <string>
 
-// String name registry
 class RooNameReg : public TNamed {
 public:
 
-  RooNameReg(const RooNameReg& other) = delete;
-
   static RooNameReg& instance() ;
+  virtual ~RooNameReg();
   const TNamed* constPtr(const char* stringPtr) ;
-  /// Return C++ string corresponding to given TNamed pointer.
-  inline static const char* constStr(const TNamed* ptr) {
-    return ptr ? ptr->GetName() : nullptr;
-  }
+  const char* constStr(const TNamed* namePtr) ; 
   static const TNamed* ptr(const char* stringPtr) ;
-  /// Return C++ string corresponding to given TNamed pointer.
-  inline static const char* str(const TNamed* ptr) {
-    return ptr ? ptr->GetName() : nullptr;
-  }
+  static const char* str(const TNamed* ptr) ;
   static const TNamed* known(const char* stringPtr) ;
   static const std::size_t& renameCounter() ;
 
   enum {
-    kRenamedArg = BIT(19)    ///< TNamed flag to indicate that some RooAbsArg has been renamed (flag set in new name)
+    kRenamedArg = BIT(19)    // TNamed flag to indicate that some RooAbsArg has been renamed (flag set in new name)
   };
 
 protected:
   RooNameReg();
+//  RooNameReg(Int_t hashSize = 31) ;
+  RooNameReg(const RooNameReg& other) = delete;
 
   friend class RooAbsArg;
   friend class RooAbsData;
@@ -55,6 +49,8 @@ protected:
 
   std::unordered_map<std::string,std::unique_ptr<TNamed>> _map;
   std::size_t _renameCounter = 0;
+
+//  ClassDef(RooNameReg,1) // String name registry
 };
 
 #endif

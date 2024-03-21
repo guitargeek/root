@@ -26,39 +26,40 @@ class RooAbsCategoryLValue ;
 
 class RooSimSplitGenContext : public RooAbsGenContext {
 public:
-  RooSimSplitGenContext(const RooSimultaneous &model, const RooArgSet &vars, bool _verbose= false, bool autoBinned=true, const char* binnedTag="");
-  ~RooSimSplitGenContext() override;
-  void setProtoDataOrder(Int_t* lut) override ;
+  RooSimSplitGenContext(const RooSimultaneous &model, const RooArgSet &vars, Bool_t _verbose= kFALSE, Bool_t autoBinned=kTRUE, const char* binnedTag="");
+  virtual ~RooSimSplitGenContext();
+  virtual void setProtoDataOrder(Int_t* lut) ;
 
-  void attach(const RooArgSet& params) override ;
+  virtual void attach(const RooArgSet& params) ;
 
-  void printMultiline(std::ostream &os, Int_t content, bool verbose=false, TString indent="") const override ;
+  virtual void printMultiline(std::ostream &os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const ;
 
-  RooDataSet *generate(double nEvents= 0, bool skipInit=false, bool extendedMode=false) override;
+  virtual RooDataSet *generate(Double_t nEvents= 0, Bool_t skipInit=kFALSE, Bool_t extendedMode=kFALSE);
 
-  void setExpectedData(bool) override ;
+  virtual void setExpectedData(Bool_t) ;
 
 protected:
 
-  void initGenerator(const RooArgSet &theEvent) override;
-  void generateEvent(RooArgSet &theEvent, Int_t remaining) override;
+  virtual void initGenerator(const RooArgSet &theEvent);
+  virtual void generateEvent(RooArgSet &theEvent, Int_t remaining);
 
-  RooDataSet* createDataSet(const char* name, const char* title, const RooArgSet& obs) override ;
+  RooDataSet* createDataSet(const char* name, const char* title, const RooArgSet& obs) ;
 
   RooSimSplitGenContext(const RooSimSplitGenContext& other) ;
 
-  RooAbsCategoryLValue* _idxCat ;           ///< Clone of index category
-  RooArgSet             _idxCatSet ;        ///< Owner of index category components
-  const RooSimultaneous *_pdf ;             ///< Original PDF
-  std::vector<RooAbsGenContext*> _gcList ;  ///< List of component generator contexts
-  std::vector<int>               _gcIndex ; ///< Index value corresponding to component
-  TString _idxCatName ;                     ///< Name of index category
-  Int_t _numPdf ;                           ///< Number of generated PDFs
-  double* _fracThresh ;                   ///< fraction thresholds
+  RooAbsCategoryLValue* _idxCat ; // Clone of index category
+  RooArgSet*            _idxCatSet ; // Owner of index category components
+  const RooSimultaneous *_pdf ;   // Original PDF
+  std::vector<RooAbsGenContext*> _gcList ; // List of component generator contexts
+  std::vector<int>               _gcIndex ; // Index value corresponding to component
+  TString _idxCatName ;           // Name of index category
+  Int_t _numPdf ;                 // Number of generated PDFs
+  Double_t* _fracThresh ; // fraction thresholds
 
-  RooArgSet _allVarsPdf ; ///< All pdf variables
+  RooArgSet _allVarsPdf ; // All pdf variables
+  TIterator* _proxyIter ; // Iterator over pdf proxies
 
-  ClassDefOverride(RooSimSplitGenContext,0) // Context for efficiently generating a dataset from a RooSimultaneous PDF
+  ClassDef(RooSimSplitGenContext,0) // Context for efficiently generating a dataset from a RooSimultaneous PDF
 };
 
 #endif

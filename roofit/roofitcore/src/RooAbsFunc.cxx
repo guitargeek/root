@@ -28,6 +28,25 @@ the getMinLimit() and getMaxLimit() methods.
 **/
 
 
+#include "RooFit.h"
+
 #include "RooAbsFunc.h"
 
+using namespace std;
+
 ClassImp(RooAbsFunc);
+;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

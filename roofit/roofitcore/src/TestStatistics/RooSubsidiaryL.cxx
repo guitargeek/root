@@ -15,7 +15,7 @@
 \class RooSubsidiaryL
 \ingroup Roofitcore
 
-\brief Calculates the sum of the -(log) likelihoods of a set of RooAbsPdf objects that represent
+\brief RooSubsidiaryL calculates the sum of the -(log) likelihoods of a set of RooAbsPdf objects that represent
 subsidiary or constraint functions.
 
 This class is used to gather all subsidiary PDF terms from the component PDFs of RooSumL likelihoods and calculate the
@@ -44,24 +44,31 @@ RooSubsidiaryL::RooSubsidiaryL(const std::string &parent_pdf_name, const RooArgS
                                const RooArgSet &parameter_set)
    : RooAbsL(nullptr, nullptr, 0, 0, RooAbsL::Extended::No), parent_pdf_name_(parent_pdf_name)
 {
-   subsidiary_pdfs_.addTyped<RooAbsPdf>(pdfs);
+   for (const auto comp : pdfs) {
+      if (!dynamic_cast<RooAbsPdf *>(comp)) {
+         oocoutE((TObject *)0, InputArguments) << "RooSubsidiaryL::ctor(" << GetName() << ") ERROR: component "
+                                               << comp->GetName() << " is not of type RooAbsPdf" << std::endl;
+         RooErrorHandler::softAbort();
+      }
+      subsidiary_pdfs_.add(*comp);
+   }
    parameter_set_.add(parameter_set);
 }
 
-/// \note The subsidiary term is only calculated together with the last event.
-///       While this is meaningless for the subsidiary term itself (it has no
-///       events), it is useful when calculating RooSumLs by parts. The Section
-///       from each part is forwarded here if the component is a RooSubsidiaryL.
 ROOT::Math::KahanSum<double> RooSubsidiaryL::evaluatePartition(RooAbsL::Section events,
                                                                std::size_t /*components_begin*/,
                                                                std::size_t /*components_end*/)
 {
+   if (events.begin_fraction != 0 || events.end_fraction != 1) {
+      oocoutW((TObject *)0, InputArguments) << "RooSubsidiaryL::evaluatePartition can only calculate everything, so "
+                                               "section should be {0,1}, but it's not!"
+                                            << std::endl;
+   }
+
    ROOT::Math::KahanSum<double> sum;
 
-   if (events.end_fraction == 1) {
-      for (const auto comp : subsidiary_pdfs_) {
-         sum += -static_cast<RooAbsPdf*>(comp)->getLogVal(&parameter_set_);
-      }
+   for (const auto comp : subsidiary_pdfs_) {
+      sum += -((RooAbsPdf *)comp)->getLogVal(&parameter_set_);
    }
 
    return sum;

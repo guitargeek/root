@@ -28,7 +28,7 @@ class RooAbsL;
 class RooRealL : public RooAbsReal {
 public:
    RooRealL(const char *name, const char *title, std::shared_ptr<RooAbsL> likelihood);
-   RooRealL(const RooRealL &other, const char *name = nullptr);
+   RooRealL(const RooRealL &other, const char *name = 0);
 
    inline TObject *clone(const char *newname) const override { return new RooRealL(*this, newname); }
 
@@ -39,18 +39,16 @@ public:
    }
 
    inline double getCarry() const { return eval_carry; }
-   inline double defaultErrorLevel() const override { return 0.5; }
-
-   std::shared_ptr<RooAbsL> const &getRooAbsL() { return likelihood_; };
+   inline Double_t defaultErrorLevel() const override { return 0.5; }
 
 protected:
-   double evaluate() const override;
+   Double_t evaluate() const override;
 
 private:
    std::shared_ptr<RooAbsL> likelihood_;
    mutable double eval_carry = 0;
-   RooSetProxy vars_proxy_; ///< sets up client-server connections
-   RooArgSet vars_obs_;     ///< list of observables
+   RooSetProxy vars_proxy_; // sets up client-server connections
+   RooArgSet vars_obs_; // list of observables
 
    ClassDefOverride(RooRealL, 0);
 };

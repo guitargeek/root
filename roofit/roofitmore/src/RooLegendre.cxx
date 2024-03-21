@@ -22,13 +22,17 @@
 **/
 
 #include "RooLegendre.h"
+#include "RunContext.h"
 #include "RooAbsReal.h"
 
 #include "Math/SpecFunc.h"
 #include "TMath.h"
 
 #include <cmath>
+#include <string>
 #include <algorithm>
+
+using namespace std;
 
 ClassImp(RooLegendre);
 
@@ -39,6 +43,12 @@ namespace {
         double r = TMath::Factorial(l+m)/TMath::Factorial(m+p)/TMath::Factorial(p)/TMath::Factorial(l-m-2*p);
         r /= pow(2.,m+2*p);
         return p%2==0 ? r : -r ;
+    }
+
+    void throwIfNoMathMore() {
+#ifndef R__HAS_MATHMORE
+      throw std::runtime_error("RooLegendre needs functions from MathMore. It is not available in this root build.");
+#endif
     }
 
     void checkCoeffs(int m1, int l1, int m2, int l2) {
@@ -56,6 +66,7 @@ namespace {
 RooLegendre::RooLegendre() :
   _l1(1),_m1(1),_l2(0),_m2(0)
 {
+  throwIfNoMathMore();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +79,8 @@ RooLegendre::RooLegendre(const char* name, const char* title, RooAbsReal& ctheta
  , _l1(l),_m1(m),_l2(0),_m2(0)
 {
   checkCoeffs(_m1, _l1, _m2, _l2);
+
+  throwIfNoMathMore();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -78,6 +91,8 @@ RooLegendre::RooLegendre(const char* name, const char* title, RooAbsReal& ctheta
  , _l1(l1),_m1(m1),_l2(l2),_m2(m2)
 {
   checkCoeffs(_m1, _l1, _m2, _l2);
+
+  throwIfNoMathMore();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,14 +108,19 @@ RooLegendre::RooLegendre(const RooLegendre& other, const char* name)
 ////////////////////////////////////////////////////////////////////////////////
 /// Note: P_0^0 = 1, so P_l^m = P_l^m P_0^0
 
-double RooLegendre::evaluate() const
+Double_t RooLegendre::evaluate() const
 {
+#ifdef R__HAS_MATHMORE
   double r = 1;
   double ctheta = std::max(-1., std::min((double)_ctheta, +1.));
   if (_l1!=0||_m1!=0) r *= ROOT::Math::assoc_legendre(_l1,_m1,ctheta);
   if (_l2!=0||_m2!=0) r *= ROOT::Math::assoc_legendre(_l2,_m2,ctheta);
   if ((_m1+_m2)%2==1) r = -r;
   return r;
+#else
+  throwIfNoMathMore();
+  return 0.;
+#endif
 }
 
 
@@ -109,21 +129,21 @@ double RooLegendre::evaluate() const
 namespace {
 //Author: Emmanouil Michalainas, CERN 26 August 2019
 
-void compute(  size_t batchSize, const int l1, const int m1, const int l2, const int m2,
+void compute(	size_t batchSize, const int l1, const int m1, const int l2, const int m2,
               double * __restrict output,
               double const * __restrict TH)
 {
-  double legendre1 = 1.0;
-  double legendreMinus1 = 1.0;
+#ifdef R__HAS_MATHMORE
+  double legendre1=1.0, legendreMinus1=1.0;
   if (l1+m1 > 0) {
     legendre1      = ROOT::Math::internal::legendre(l1,m1,1.0);
-    legendreMinus1 = ROOT::Math::internal::legendre(l1,m1,-1.0);
+    legendreMinus1 = ROOT::Math::internal::legendre(l1,m1,-1.0); 
   }
   if (l2+m2 > 0) {
-    legendre1      *= ROOT::Math::internal::legendre(l2,m2,1.0);
-    legendreMinus1 *= ROOT::Math::internal::legendre(l2,m2,-1.0);
+    legendre1      *= ROOT::Math::internal::legendre(l2,m2,1.0); 
+    legendreMinus1 *= ROOT::Math::internal::legendre(l2,m2,-1.0); 
   }
-
+  
   for (size_t i=0; i<batchSize; i++) {
     if (TH[i] <= -1.0) {
       output[i] = legendreMinus1;
@@ -140,23 +160,31 @@ void compute(  size_t batchSize, const int l1, const int m1, const int l2, const
       }
     }
   }
+
+#else
+  (void) batchSize, (void) l1, (void)m1, (void)l2, (void)m2, (void)output, (void)TH;
+  throwIfNoMathMore();
+#endif
 }
 };
 
-void RooLegendre::computeBatch(double* output, size_t size, RooFit::Detail::DataMap const& dataMap) const
-{
-  compute(size, _l1, _m1, _l2, _m2, output, dataMap.at(_ctheta).data());
+RooSpan<double> RooLegendre::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
+  RooSpan<const double> cthetaData = _ctheta->getValues(evalData, normSet);
+  size_t batchSize = cthetaData.size();
+  auto output = evalData.makeBatch(this, batchSize);
+  compute(batchSize, _l1, _m1, _l2, _m2, output.data(), cthetaData.data());
+  return output;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace {
-  bool fullRange(const RooRealProxy& x ,const char* range)
+  Bool_t fullRange(const RooRealProxy& x ,const char* range)
   {
-    return range == nullptr || strlen(range) == 0
-        ? std::abs(x.min() + 1.) < 1.e-8 && std::abs(x.max() - 1.) < 1.e-8
-        : std::abs(x.min(range) + 1.) < 1.e-8 && std::abs(x.max(range) - 1.) < 1.e-8;
+    return range == 0 || strlen(range) == 0
+        ? std::fabs(x.min() + 1.) < 1.e-8 && std::fabs(x.max() - 1.) < 1.e-8
+        : std::fabs(x.min(range) + 1.) < 1.e-8 && std::fabs(x.max(range) - 1.) < 1.e-8;
   }
 }
 
@@ -173,7 +201,7 @@ Int_t RooLegendre::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars
 /// this was verified to match mathematica for
 /// l1 in [0,2], m1 in [0,l1], l2 in [l1,4], m2 in [0,l2]
 
-double RooLegendre::analyticalIntegral(Int_t code, const char* ) const
+Double_t RooLegendre::analyticalIntegral(Int_t code, const char* ) const
 {
   R__ASSERT(code==1) ;
   if ( _m1==_m2 )                 return ( _l1 == _l2) ?  TMath::Factorial(_l1+_m2)/TMath::Factorial(_l1-_m1)*double(2)/(2*_l1+1) : 0.;
@@ -222,6 +250,6 @@ namespace {
         return m2[j-1];
     }
 }
-double RooLegendre::maxVal( Int_t /*code*/) const {
+Double_t RooLegendre::maxVal( Int_t /*code*/) const {
     return maxSingle(_l1,_m1)*maxSingle(_l2,_m2);
 }

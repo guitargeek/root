@@ -13,8 +13,8 @@
 #ifndef ROOT_ROOFIT_TESTSTATISTICS_likelihood_builders
 #define ROOT_ROOFIT_TESTSTATISTICS_likelihood_builders
 
-#include <RooGlobalFunc.h>
 #include <RooFit/TestStatistics/RooAbsL.h>
+#include <RooFit/TestStatistics/optional_parameter_types.h>
 
 #include <memory>
 
@@ -25,39 +25,21 @@ class RooAbsData;
 namespace RooFit {
 namespace TestStatistics {
 
-class NLLFactory {
-public:
-   NLLFactory(RooAbsPdf &pdf, RooAbsData &data);
-   std::unique_ptr<RooAbsL> build();
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended extended = RooAbsL::Extended::Auto,
+                ConstrainedParameters constrained_parameters = {}, ExternalConstraints external_constraints = {},
+                GlobalObservables global_observables = {}, std::string global_observables_tag = {});
 
-   NLLFactory &Extended(RooAbsL::Extended extended);
-   NLLFactory &ConstrainedParameters(const RooArgSet &constrainedParameters);
-   NLLFactory &ExternalConstraints(const RooArgSet &externalconstraints);
-   NLLFactory &GlobalObservables(const RooArgSet &globalObservables);
-   NLLFactory &GlobalObservablesTag(const char *globalObservablesTag);
-   NLLFactory &EvalBackend(RooFit::EvalBackend evalBackend);
+// delegating builder calls, for more convenient "optional" parameter passing
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf* pdf, RooAbsData* data, ConstrainedParameters constrained_parameters);
+std::unique_ptr<RooAbsL> buildLikelihood(RooAbsPdf* pdf, RooAbsData* data, ExternalConstraints external_constraints);
+std::unique_ptr<RooAbsL> buildLikelihood(RooAbsPdf* pdf, RooAbsData* data, GlobalObservables global_observables);
+std::unique_ptr<RooAbsL> buildLikelihood(RooAbsPdf* pdf, RooAbsData* data, std::string global_observables_tag);
+std::unique_ptr<RooAbsL>
+buildLikelihood(RooAbsPdf *pdf, RooAbsData *data, ConstrainedParameters constrained_parameters, GlobalObservables global_observables);
 
-private:
-   std::vector<std::unique_ptr<RooAbsL>> getSimultaneousComponents();
-
-   RooAbsPdf &_pdf;
-   RooAbsData &_data;
-
-   RooAbsL::Extended _extended = RooAbsL::Extended::Auto;
-   RooArgSet _constrainedParameters;
-   RooArgSet _externalConstraints;
-   RooArgSet _globalObservables;
-   std::string _globalObservablesTag;
-   RooFit::EvalBackend _evalBackend = RooFit::EvalBackend::Legacy();
-};
-
-/// Delegating function to build a likelihood without additional arguments.
-inline std::unique_ptr<RooAbsL> buildLikelihood(RooAbsPdf *pdf, RooAbsData *data)
-{
-   return NLLFactory{*pdf, *data}.build();
 }
-
-} // namespace TestStatistics
-} // namespace RooFit
+}
 
 #endif // ROOT_ROOFIT_TESTSTATISTICS_likelihood_builders

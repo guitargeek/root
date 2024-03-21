@@ -24,30 +24,32 @@ New contributions to this class have been written by Matthias Wolf (error estima
 The objects of this class store and access with lightweight methods the
 information calculated by LimitResults through a Lent calculation using
 MC toy experiments.
-In some ways can be considered an extended and extensible implementation of
-TConfidenceLevel.
+In some ways can be considered an extended and extensible implementation of the
+TConfidenceLevel class (http://root.cern.ch/root/html/TConfidenceLevel.html).
+
 */
 
 
 #include "RooDataHist.h"
 #include "RooDataSet.h"
 #include "RooGlobalFunc.h" // for RooFit::Extended()
+#include "RooNLLVar.h"
 #include "RooRealVar.h"
 #include "RooAbsData.h"
 
 #include "RooStats/HybridResult.h"
 #include "RooStats/HybridPlot.h"
 
-#include <TMath.h>
 
 /// ClassImp for building the THtml documentation of the class
+using namespace std;
 
 ClassImp(RooStats::HybridResult);
 
 using namespace RooStats;
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructor
+/// Construtor
 
 HybridResult::HybridResult( const char *name) :
    HypoTestResult(name),
@@ -60,7 +62,7 @@ HybridResult::HybridResult( const char *name) :
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructor
+/// Construtor
 
 HybridResult::HybridResult( const char *name,
                             const std::vector<double>& testStat_sb_vals,
@@ -178,7 +180,7 @@ double HybridResult::AlternatePValue() const
 /// \sigma_{CL_{b}} = \sqrt{CL_{b} \left( 1 - CL_{b} \right) / n_{toys}}
 /// \f]
 
-double HybridResult::CLbError() const
+Double_t HybridResult::CLbError() const
 {
   unsigned const int n = fTestStat_b.size();
   return TMath::Sqrt(CLb() * (1. - CLb()) / n);
@@ -191,7 +193,7 @@ double HybridResult::CLbError() const
 /// \sigma_{CL_{s+b}} = \sqrt{CL_{s+b} \left( 1 - CL_{s+b} \right) / n_{toys}}
 /// \f]
 
-double HybridResult::CLsplusbError() const
+Double_t HybridResult::CLsplusbError() const
 {
   unsigned const int n = fTestStat_sb.size();
   return TMath::Sqrt(CLsplusb() * (1. - CLsplusb()) / n);
@@ -204,7 +206,7 @@ double HybridResult::CLsplusbError() const
 /// \sigma_{CL_s} = CL_s \sqrt{\left( \frac{\sigma_{CL_{s+b}}}{CL_{s+b}} \right)^2 + \left( \frac{\sigma_{CL_{b}}}{CL_{b}} \right)^2}
 /// \f]
 
-double HybridResult::CLsError() const
+Double_t HybridResult::CLsError() const
 {
   unsigned const int n_b = fTestStat_b.size();
   unsigned const int n_sb = fTestStat_sb.size();

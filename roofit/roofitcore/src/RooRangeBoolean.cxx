@@ -19,11 +19,13 @@
 \class RooRangeBoolean
 \ingroup Roofitcore
 
-Returns `1.0` if variable is within given a range and `0.0` otherwise.
+RooRangeBoolean
 **/
 
+#include "RooFit.h"
+
 #include "Riostream.h"
-#include <cmath>
+#include <math.h>
 
 #include "RooRangeBoolean.h"
 #include "RooAbsReal.h"
@@ -31,7 +33,18 @@ Returns `1.0` if variable is within given a range and `0.0` otherwise.
 #include "RooArgList.h"
 #include "RooMsgService.h"
 
+using namespace std;
+
 ClassImp(RooRangeBoolean);
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Default constructor
+
+RooRangeBoolean::RooRangeBoolean()
+{
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -48,22 +61,34 @@ RooRangeBoolean::RooRangeBoolean(const char* name, const char* title, RooAbsReal
 /// Copy constructor
 
 RooRangeBoolean::RooRangeBoolean(const RooRangeBoolean& other, const char* name) :
-  RooAbsReal(other, name),
+  RooAbsReal(other, name), 
   _x("x", this, other._x),
   _rangeName(other._rangeName)
 {
 }
 
 
+
+
 ////////////////////////////////////////////////////////////////////////////////
-/// Return 1 if x is in range, zero otherwise.
+/// Destructor
 
-double RooRangeBoolean::evaluate() const
+RooRangeBoolean::~RooRangeBoolean() 
 {
-  double xmin = (static_cast<RooAbsRealLValue const&>(_x.arg())).getMin(_rangeName.Data()) ;
-  double xmax = (static_cast<RooAbsRealLValue const&>(_x.arg())).getMax(_rangeName.Data()) ;
+}
 
-  double ret = (_x >= xmin && _x < xmax) ? 1.0 : 0.0 ;
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return 1 if x is in range, zero otherwis
+
+Double_t RooRangeBoolean::evaluate() const 
+{
+  Double_t xmin = ((RooAbsRealLValue&)_x.arg()).getMin(_rangeName.Data()) ;
+  Double_t xmax = ((RooAbsRealLValue&)_x.arg()).getMax(_rangeName.Data()) ;
+  
+  Double_t ret = (_x >= xmin && _x < xmax) ? 1.0 : 0.0 ;
   return ret ;
 }
 
@@ -71,17 +96,17 @@ double RooRangeBoolean::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<double>* RooRangeBoolean::plotSamplingHint(RooAbsRealLValue& obs, double /*xlo*/, double /*xhi*/) const
+std::list<Double_t>* RooRangeBoolean::plotSamplingHint(RooAbsRealLValue& obs, Double_t /*xlo*/, Double_t /*xhi*/) const 
 {
-  if (std::string(obs.GetName())!=_x.arg().GetName()) {
-    return nullptr ;
+  if (string(obs.GetName())!=_x.arg().GetName()) {
+    return 0 ;
   }
 
-  std::list<double>* hint = new std::list<double> ;
-  hint->push_back((static_cast<RooAbsRealLValue const&>(_x.arg())).getMin(_rangeName.Data())-1e-6) ;
-  hint->push_back((static_cast<RooAbsRealLValue const&>(_x.arg())).getMin(_rangeName.Data())+1e-6) ;
-  hint->push_back((static_cast<RooAbsRealLValue const&>(_x.arg())).getMax(_rangeName.Data())-1e-6) ;
-  hint->push_back((static_cast<RooAbsRealLValue const&>(_x.arg())).getMax(_rangeName.Data())+1e-6) ;
+  list<Double_t>* hint = new list<Double_t> ;
+  hint->push_back(((RooAbsRealLValue&)_x.arg()).getMin(_rangeName.Data())-1e-6) ;
+  hint->push_back(((RooAbsRealLValue&)_x.arg()).getMin(_rangeName.Data())+1e-6) ;
+  hint->push_back(((RooAbsRealLValue&)_x.arg()).getMax(_rangeName.Data())-1e-6) ;  
+  hint->push_back(((RooAbsRealLValue&)_x.arg()).getMax(_rangeName.Data())+1e-6) ;  
   return hint ;
 }
 

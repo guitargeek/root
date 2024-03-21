@@ -24,22 +24,25 @@ class Roo1DTable ;
 
 class RooDataProjBinding : public RooRealBinding {
 public:
-  RooDataProjBinding(const RooAbsReal &real, const RooAbsData& data, const RooArgSet &vars, const RooArgSet* normSet=nullptr) ;
-  ~RooDataProjBinding() override ;
+  RooDataProjBinding(const RooAbsReal &real, const RooAbsData& data, const RooArgSet &vars, const RooArgSet* normSet=0) ;
+  virtual ~RooDataProjBinding() ;
 
-  double operator()(const double xvector[]) const override;
+  virtual Double_t operator()(const Double_t xvector[]) const;
+
+  RooSpan<const double> getValues(std::vector<RooSpan<const double>> coordinates) const;
 
 protected:
 
-  mutable bool _first   ;  ///< Bit indicating if operator() has been called yet
-  const RooAbsReal* _real ;  ///< Real function to be projected
-  const RooAbsData* _data ;  ///< Dataset used for projection
-  const RooArgSet*  _nset ;  ///< Normalization set for real function
+  mutable Bool_t _first   ;  // Bit indicating if operator() has been called yet
+  const RooAbsReal* _real ;  // Real function to be projected
+  const RooAbsData* _data ;  // Dataset used for projection
+  const RooArgSet*  _nset ;  // Normalization set for real function
 
-  std::unique_ptr<RooSuperCategory> _superCat; ///< Supercategory constructed from _data's category variables
-  std::unique_ptr<Roo1DTable> _catTable;       ///< Supercategory table generated from _data
+  RooSuperCategory* _superCat ;  // Supercategory constructed from _data's category variables
+  Roo1DTable* _catTable ;        // Supercategory table generated from _data
+  mutable std::unique_ptr<std::vector<double>> _batchBuffer; //! Storage for handing out spans.
 
-  ClassDefOverride(RooDataProjBinding,0) // RealFunc/Dataset binding for data projection of a real function
+  ClassDef(RooDataProjBinding,0) // RealFunc/Dataset binding for data projection of a real function
 };
 
 #endif

@@ -11,10 +11,13 @@
 #ifndef ROOSTATS_FLEXIBLEINTERPVAR
 #define ROOSTATS_FLEXIBLEINTERPVAR
 
-#include <RooAbsReal.h>
-#include <RooListProxy.h>
-
+#include "RooAbsPdf.h"
+#include "RooRealProxy.h"
+#include "RooListProxy.h"
 #include <vector>
+
+class RooRealVar;
+class RooArgList ;
 
 namespace RooStats{
 namespace HistFactory{
@@ -22,15 +25,18 @@ namespace HistFactory{
   class FlexibleInterpVar : public RooAbsReal {
   public:
 
-    FlexibleInterpVar();
+    FlexibleInterpVar() ;
+    FlexibleInterpVar(const char *name, const char *title,
+            const RooArgList& _paramList,
+            Double_t nominal, const RooArgList& low, const RooArgList& high);
 
     FlexibleInterpVar(const char *name, const char *title,
             const RooArgList& _paramList,
-            double nominal, std::vector<double> const& low, std::vector<double> const& high);
+            double nominal, std::vector<double> low, std::vector<double> high);
 
     FlexibleInterpVar(const char *name, const char *title,
-            const RooArgList& _paramList, double nominal, std::vector<double> const& low,
-            std::vector<double> const& high,std::vector<int> const& code);
+            const RooArgList& _paramList, double nominal, std::vector<double> low,
+            std::vector<double> high,std::vector<int> code);
 
     FlexibleInterpVar(const char *name, const char *title);
     FlexibleInterpVar(const FlexibleInterpVar&, const char*);
@@ -38,40 +44,42 @@ namespace HistFactory{
     void setInterpCode(RooAbsReal& param, int code);
     void setAllInterpCodes(int code);
     void setGlobalBoundary(double boundary) {_interpBoundary = boundary;}
-    void setNominal(double newNominal);
-    void setLow(RooAbsReal& param, double newLow);
-    void setHigh(RooAbsReal& param, double newHigh);
+    void setNominal(Double_t newNominal);
+    void setLow(RooAbsReal& param, Double_t newLow);
+    void setHigh(RooAbsReal& param, Double_t newHigh);
 
     void printAllInterpCodes();
-    const std::vector<int>&  interpolationCodes() const { return _interpCode; }
 
-    TObject* clone(const char* newname) const override { return new FlexibleInterpVar(*this, newname); }
-    ~FlexibleInterpVar() override ;
+    virtual TObject* clone(const char* newname) const { return new FlexibleInterpVar(*this, newname); }
+    virtual ~FlexibleInterpVar() ;
 
-    void printMultiline(std::ostream& os, Int_t contents, bool verbose = false, TString indent = "") const override;
+    virtual void printMultiline(std::ostream& os, Int_t contents, Bool_t verbose = kFALSE, TString indent = "") const;
     virtual void printFlexibleInterpVars(std::ostream& os) const;
 
-    const RooListProxy& variables() const { return _paramList; }
-    double nominal() const { return _nominal; }
-    const std::vector<double>& low() const { return _low; }
-    const std::vector<double>& high() const { return _high; }
+    const RooListProxy& variables() const;
+    double nominal() const;
+    const std::vector<double>& low() const;
+    const std::vector<double>& high() const;
 
-    void computeBatch(double* output, size_t size, RooFit::Detail::DataMap const&) const override;
+  private:
 
-    void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+    double PolyInterpValue(int i, double x) const;
 
   protected:
 
     RooListProxy _paramList ;
-    double _nominal = 0.0;
+    Double_t _nominal;
     std::vector<double> _low;
     std::vector<double> _high;
     std::vector<int> _interpCode;
-    double _interpBoundary = 1.0;
+    Double_t _interpBoundary;
 
-    double evaluate() const override;
+    mutable Bool_t         _logInit ;            ///<! flag used for caching polynomial coefficients
+    mutable std::vector< double>  _polCoeff;     ///<! cached polynomial coefficients
 
-    ClassDefOverride(RooStats::HistFactory::FlexibleInterpVar,2); // flexible interpolation
+    Double_t evaluate() const;
+
+    ClassDef(RooStats::HistFactory::FlexibleInterpVar,2) // flexible interpolation
   };
 }
 }

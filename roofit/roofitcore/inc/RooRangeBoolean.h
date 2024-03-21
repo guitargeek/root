@@ -16,31 +16,34 @@
 #ifndef ROO_RANGE_BOOLEAN
 #define ROO_RANGE_BOOLEAN
 
-#include <RooAbsReal.h>
-#include <RooRealProxy.h>
+#include "RooAbsReal.h"
+#include "RooRealProxy.h"
+#include "TString.h"
 
-#include <TString.h>
-
+class RooRealVar;
+class RooArgList ;
 #include <list>
 
 class RooRangeBoolean : public RooAbsReal {
 public:
 
-  RooRangeBoolean() = default;
+  RooRangeBoolean() ;
   RooRangeBoolean(const char* name, const char* title, RooAbsRealLValue& x, const char* rangeName) ;
-  RooRangeBoolean(const RooRangeBoolean& other, const char *name = nullptr);
-  TObject* clone(const char* newname) const override { return new RooRangeBoolean(*this, newname); }
+  RooRangeBoolean(const RooRangeBoolean& other, const char* name = 0);
+  virtual TObject* clone(const char* newname) const { return new RooRangeBoolean(*this, newname); }
+  virtual ~RooRangeBoolean() ;
 
-  std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
+
+  virtual std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const ; 
 
 protected:
 
   RooRealProxy _x;
   TString _rangeName ;
 
-  double evaluate() const override;
+  Double_t evaluate() const;
 
-  ClassDefOverride(RooRangeBoolean,1)
+  ClassDef(RooRangeBoolean,1) // Polynomial function
 };
 
 #endif

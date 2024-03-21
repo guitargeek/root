@@ -21,8 +21,11 @@
 #include "RooStats/SamplingDistribution.h"
 #include "RooStats/TestStatistic.h"
 
+#include "RooStats/RooStatsUtils.h"
+
 #include "RooRealVar.h"
 #include "RooProfileLL.h"
+#include "RooNLLVar.h"
 #include "RooMsgService.h"
 
 #include "RooMinimizer.h"
@@ -45,11 +48,15 @@ Internally it operates by delegating to a MinNLLTestStat object.
   class MinNLLTestStat : public TestStatistic{
 
    public:
-     // Proof constructor. Do not use.
-     MinNLLTestStat() {}
-     MinNLLTestStat(RooAbsPdf& pdf) : fProflts{new ProfileLikelihoodTestStat(pdf)} {}
+     MinNLLTestStat() {
+        // Proof constructor. Do not use.
+   fProflts = 0;
+     }
+     MinNLLTestStat(RooAbsPdf& pdf) {
+   fProflts = new ProfileLikelihoodTestStat(pdf);
+     }
 
-     MinNLLTestStat(const MinNLLTestStat& rhs) : TestStatistic(rhs) {
+     MinNLLTestStat(const MinNLLTestStat& rhs) : TestStatistic(rhs), fProflts(0) {
         RooAbsPdf * pdf = rhs.fProflts->GetPdf();
         if (pdf)  fProflts = new ProfileLikelihoodTestStat(*pdf);
      }
@@ -58,32 +65,32 @@ Internally it operates by delegating to a MinNLLTestStat object.
         if (this == &rhs) return *this;
         RooAbsPdf * pdf = rhs.fProflts->GetPdf();
         if (fProflts) delete fProflts;
-        fProflts = nullptr;
+        fProflts = NULL;
         if (pdf)  fProflts = new ProfileLikelihoodTestStat(*pdf);
         return *this;
      }
 
-     ~MinNLLTestStat() override {
+     virtual ~MinNLLTestStat() {
    delete fProflts;
      }
 
-     void SetOneSided(bool flag=true) {fProflts->SetOneSided(flag);}
-     void SetOneSidedDiscovery(bool flag=true) {fProflts->SetOneSidedDiscovery(flag);}
-     void SetReuseNLL(bool flag) { fProflts->SetReuseNLL(flag); }
+     void SetOneSided(Bool_t flag=true) {fProflts->SetOneSided(flag);}
+     void SetOneSidedDiscovery(Bool_t flag=true) {fProflts->SetOneSidedDiscovery(flag);}
+     void SetReuseNLL(Bool_t flag) { fProflts->SetReuseNLL(flag); }
      void SetMinimizer(const char* minimizer){ fProflts->SetMinimizer(minimizer); }
      void SetStrategy(Int_t strategy){ fProflts->SetStrategy(strategy); }
      void SetTolerance(double tol){ fProflts->SetTolerance(tol); }
      void SetPrintLevel(Int_t printlevel){ fProflts->SetPrintLevel(printlevel); }
-     void SetLOffset(bool flag=true) { fProflts->SetLOffset(flag) ; }
+     void SetLOffset(Bool_t flag=kTRUE) { fProflts->SetLOffset(flag) ; }
 
      // Main interface to evaluate the test statistic on a dataset
-     double Evaluate(RooAbsData& data, RooArgSet& paramsOfInterest) override {
+     virtual Double_t Evaluate(RooAbsData& data, RooArgSet& paramsOfInterest) {
        return fProflts->EvaluateProfileLikelihood(1, data, paramsOfInterest); //find unconditional NLL minimum
      }
 
      virtual void EnableDetailedOutput( bool e=true ) { fProflts->EnableDetailedOutput(e); }
 
-     const RooArgSet* GetDetailedOutput(void) const override {
+     virtual const RooArgSet* GetDetailedOutput(void) const {
         // Returns detailed output. The value returned by this function is updated after each call to Evaluate().
         // The returned RooArgSet contains the following:
         //
@@ -94,13 +101,13 @@ Internally it operates by delegating to a MinNLLTestStat object.
 
      virtual void SetVarName(const char* name) { fProflts->SetVarName(name); }
 
-     const TString GetVarName() const override { return fProflts->GetVarName(); }
+     virtual const TString GetVarName() const { return fProflts->GetVarName(); }
 
    private:
-     ProfileLikelihoodTestStat* fProflts = nullptr;
+     ProfileLikelihoodTestStat* fProflts;
 
    protected:
-      ClassDefOverride(MinNLLTestStat,1)   // implements the minimum NLL as a test statistic to be used with several tools
+      ClassDef(MinNLLTestStat,1)   // implements the minimum NLL as a test statistic to be used with several tools
    };
 }
 

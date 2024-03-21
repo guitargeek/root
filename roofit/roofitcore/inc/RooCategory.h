@@ -17,7 +17,6 @@
 #define ROO_CATEGORY
 
 #include "RooAbsCategoryLValue.h"
-#include "RooSharedProperties.h"
 
 #include <vector>
 #include <map>
@@ -31,24 +30,24 @@ public:
   RooCategory() ;
   RooCategory(const char *name, const char *title);
   RooCategory(const char* name, const char* title, const std::map<std::string, int>& allowedStates);
-  RooCategory(const RooCategory& other, const char* name=nullptr) ;
+  RooCategory(const RooCategory& other, const char* name=0) ;
   RooCategory& operator=(const RooCategory&) = delete;
-  ~RooCategory() override;
-  TObject* clone(const char* newname) const override { return new RooCategory(*this,newname); }
+  virtual ~RooCategory();
+  virtual TObject* clone(const char* newname) const override { return new RooCategory(*this,newname); }
 
   /// Return current index.
-  value_type getCurrentIndex() const final {
+  virtual value_type getCurrentIndex() const override final {
     return RooCategory::evaluate();
   }
 
-  bool setIndex(Int_t index, bool printError = true) override;
+  virtual Bool_t setIndex(Int_t index, bool printError = true) override;
   using RooAbsCategoryLValue::setIndex;
-  bool setLabel(const char* label, bool printError = true) override;
+  virtual Bool_t setLabel(const char* label, bool printError = true) override;
   using RooAbsCategoryLValue::setLabel;
-
+  
   // I/O streaming interface (machine readable)
-  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override;
-  void writeToStream(std::ostream& os, bool compact) const override ;
+  virtual Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) override;
+  virtual void writeToStream(std::ostream& os, Bool_t compact) const override ;
 
   bool defineType(const std::string& label);
   bool defineType(const std::string& label, Int_t index);
@@ -70,7 +69,7 @@ public:
     clearTypes();
   }
 
-  void clearRange(const char* name, bool silent) ;
+  void clearRange(const char* name, Bool_t silent) ;
   void setRange(const char* rangeName, const char* stateNameList) ;
   void addToRange(const char* rangeName, RooAbsCategory::value_type stateIndex);
   void addToRange(const char* rangeName, const char* stateNameList) ;
@@ -80,24 +79,24 @@ public:
   /// @{
 
   /// Tell whether we can be stored in a dataset. Always true for RooCategory.
-  inline bool isFundamental() const override {
+  inline virtual Bool_t isFundamental() const override {
     return true;
   }
 
   /// Does our value or shape depend on any other arg? Always false for RooCategory.
-  bool isDerived() const override {
+  virtual Bool_t isDerived() const override {
     return false;
   }
 
-  bool isStateInRange(const char* rangeName, RooAbsCategory::value_type stateIndex) const ;
-  bool isStateInRange(const char* rangeName, const char* stateName) const ;
+  Bool_t isStateInRange(const char* rangeName, RooAbsCategory::value_type stateIndex) const ;
+  Bool_t isStateInRange(const char* rangeName, const char* stateName) const ;
   /// Check if the currently defined category state is in the range with the given name.
   /// If no ranges are defined, the state counts as being in range.
-  bool inRange(const char* rangeName) const override {
+  virtual Bool_t inRange(const char* rangeName) const override {
     return isStateInRange(rangeName, RooCategory::evaluate());
   }
   /// Returns true if category has a range with given name defined.
-  bool hasRange(const char* rangeName) const override {
+  virtual bool hasRange(const char* rangeName) const override {
     return _ranges->find(rangeName) != _ranges->end();
   }
 
@@ -107,7 +106,7 @@ protected:
   /// \copydoc RooAbsCategory::evaluate() const
   /// Returns the currently set state index. If this is invalid,
   /// returns the first-set index.
-  value_type evaluate() const override {
+  virtual value_type evaluate() const override {
     if (hasIndex(_currentIndex))
       return _currentIndex;
 
@@ -129,13 +128,13 @@ private:
   /// Map range names to allowed category states. Note that this must be shared between copies,
   /// so categories in datasets have the same ranges as their counterparts outside of the dataset.
   std::shared_ptr<RangeMap_t> _ranges{new RangeMap_t()}; //!
-  RangeMap_t* _rangesPointerForIO{nullptr}; ///< Pointer to the same object as _ranges, but not shared for I/O.
+  RangeMap_t* _rangesPointerForIO{nullptr}; // Pointer to the same object as _ranges, but not shared for I/O.
 
   void installLegacySharedProp(const RooCategorySharedProperties* sp);
   void installSharedRange(std::unique_ptr<RangeMap_t>&& rangeMap);
-  /// Helper for restoring shared ranges from old versions of this class read from files. Maps TUUID names to shared ranges.
-  static std::map<RooSharedProperties::UUID, std::weak_ptr<RangeMap_t>> _uuidToSharedRangeIOHelper;
-  /// Helper for restoring shared ranges from current versions of this class read from files. Maps category names to shared ranges.
+  // Helper for restoring shared ranges from old versions of this class read from files. Maps TUUID names to shared ranges.
+  static std::map<std::string, std::weak_ptr<RangeMap_t>> _uuidToSharedRangeIOHelper;
+  // Helper for restoring shared ranges from current versions of this class read from files. Maps category names to shared ranges.
   static std::map<std::string, std::weak_ptr<RangeMap_t>> _sharedRangeIOHelper;
 
   ClassDefOverride(RooCategory, 3) // Discrete valued variable type

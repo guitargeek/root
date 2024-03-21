@@ -28,77 +28,77 @@ class RooVectorDataStore;
 class RooErrorVar : public RooAbsRealLValue {
 public:
   // Constructors, assignment etc.
-  /// Default constructor
   inline RooErrorVar() {
+    // Default constructor
   }
   RooErrorVar(const char *name, const char *title, const RooRealVar& input) ;
-  RooErrorVar(const RooErrorVar& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override { return new RooErrorVar(*this,newname); }
-  ~RooErrorVar() override ;
+  RooErrorVar(const RooErrorVar& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const { return new RooErrorVar(*this,newname); }
+  virtual ~RooErrorVar() ;
 
-  double getValV(const RooArgSet* set=nullptr) const override ;
+  virtual Double_t getValV(const RooArgSet* set=0) const ; 
 
-  double evaluate() const override {
+  virtual Double_t evaluate() const { 
     // return error of input RooRealVar
-    return ((RooRealVar&)_realVar.arg()).getError() ;
-  }
+    return ((RooRealVar&)_realVar.arg()).getError() ; 
+  } 
 
-  void setVal(double value) override {
+  virtual void setVal(Double_t value) {
     // Set error of input RooRealVar to value
-    ((RooRealVar&)_realVar.arg()).setVal(value) ;
+    ((RooRealVar&)_realVar.arg()).setVal(value) ; 
   }
 
-  inline bool isFundamental() const override {
-    // Return true as we implement a fundamental type of AbsArg that can be stored in a dataset
-    return true ;
+  inline virtual Bool_t isFundamental() const { 
+    // Return kTRUE as we implement a fundamental type of AbsArg that can be stored in a dataset    
+    return kTRUE ; 
   }
 
   // I/O streaming interface (machine readable)
-  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override ;
-  void writeToStream(std::ostream& os, bool compact) const override ;
+  virtual Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) ;
+  virtual void writeToStream(std::ostream& os, Bool_t compact) const ;
 
   // Set/get finite fit range limits
-  /// Set lower bound of default range to value
-  inline void setMin(double value) {
-    setMin(nullptr,value) ;
+  inline void setMin(Double_t value) { 
+    // Set lower bound of default range to value
+    setMin(0,value) ; 
   }
-  /// Set upper bound of default range to value
-  inline void setMax(double value) {
-    setMax(nullptr,value) ;
+  inline void setMax(Double_t value) { 
+    // Set upper bound of default range to value
+    setMax(0,value) ; 
   }
-  /// Set default ranges to [min,max]
-  inline void setRange(double min, double max) {
-    setRange(nullptr,min,max) ;
+  inline void setRange(Double_t min, Double_t max) { 
+    // Set default ranges to [min,max]
+    setRange(0,min,max) ; 
   }
-  void setMin(const char* name, double value) ;
-  void setMax(const char* name, double value) ;
-  void setRange(const char* name, double min, double max) ;
+  void setMin(const char* name, Double_t value) ;
+  void setMax(const char* name, Double_t value) ;
+  void setRange(const char* name, Double_t min, Double_t max) ;
 
   void setBins(Int_t nBins);
-  void setBinning(const RooAbsBinning& binning, const char* name=nullptr) ;
-  const RooAbsBinning& getBinning(const char* name=nullptr, bool verbose=true, bool createOnTheFly=false) const override ;
-  RooAbsBinning& getBinning(const char* name=nullptr, bool verbose=true, bool createOnTheFly=false) override ;
-  bool hasBinning(const char* name) const override ;
-  std::list<std::string> getBinningNames() const override ;
+  void setBinning(const RooAbsBinning& binning, const char* name=0) ;
+  const RooAbsBinning& getBinning(const char* name=0, Bool_t verbose=kTRUE, Bool_t createOnTheFly=kFALSE) const ;
+  RooAbsBinning& getBinning(const char* name=0, Bool_t verbose=kTRUE, Bool_t createOnTheFly=kFALSE) ;
+  Bool_t hasBinning(const char* name) const ;
+  std::list<std::string> getBinningNames() const ;
 
   // Set infinite fit range limits
-  void removeMin(const char* name=nullptr);
-  void removeMax(const char* name=nullptr);
-  void removeRange(const char* name=nullptr);
+  void removeMin(const char* name=0);
+  void removeMax(const char* name=0);
+  void removeRange(const char* name=0);
 
   using RooAbsRealLValue::operator= ;
   using RooAbsRealLValue::setVal ;
 
 protected:
 
-  RooLinkedList _altBinning ;  ///<! Optional alternative ranges and binnings
+  RooLinkedList _altBinning ;  //! Optional alternative ranges and binnings
 
-  void syncCache(const RooArgSet* set=nullptr) override ;
+  void syncCache(const RooArgSet* set=0) ;
 
-  RooRealProxy _realVar ;   ///< RealVar with the original error
-  std::unique_ptr<RooAbsBinning> _binning ; ///<! Pointer to default binning definition
+  RooRealProxy _realVar ; // RealVar with the original error
+  RooAbsBinning* _binning ; //! Pointer to default binning definition
 
-  ClassDefOverride(RooErrorVar,1) // RooAbsRealLValue representation of an error of a RooRealVar
+  ClassDef(RooErrorVar,1) // RooAbsRealLValue representation of an error of a RooRealVar
 };
 
 #endif

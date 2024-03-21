@@ -18,7 +18,6 @@
 
 #include <string>
 #include <exception>
-#include <stdexcept>
 
 // First initialisation of the pointers. When implementations of the batch compute library
 // are loaded, they will overwrite the pointers.
@@ -51,11 +50,11 @@ void init()
 
    const std::string userChoice = gEnv->GetValue("RooFit.BatchCompute", "auto");
 #ifdef R__RF_ARCHITECTURE_SPECIFIC_LIBS
-#ifdef ROOFIT_CUDA
+#ifdef R__HAS_CUDA
    if(gSystem->Load("libRooBatchCompute_CUDA") != 0) {
       RooBatchCompute::dispatchCUDA = nullptr;
    }
-#endif // ROOFIT_CUDA
+#endif // R__HAS_CUDA
 
    __builtin_cpu_init();
 #if __GNUC__ > 5 || defined(__clang__)
@@ -66,27 +65,25 @@ void init()
 #endif
 
    if (userChoice == "auto") {
-      if (supported_avx512) {
+      if (supported_avx512)
          loadWithErrorChecking("libRooBatchCompute_AVX512");
-      } else if (__builtin_cpu_supports("avx2")) {
+      else if (__builtin_cpu_supports("avx2"))
          loadWithErrorChecking("libRooBatchCompute_AVX2");
-      } else if (__builtin_cpu_supports("avx")) {
+      else if (__builtin_cpu_supports("avx"))
          loadWithErrorChecking("libRooBatchCompute_AVX");
-      } else if (__builtin_cpu_supports("sse4.1")) {
+      else if (__builtin_cpu_supports("sse4.1"))
          loadWithErrorChecking("libRooBatchCompute_SSE4.1");
-      }
-   } else if (userChoice == "avx512") {
+   } else if (userChoice == "avx512")
       loadWithErrorChecking("libRooBatchCompute_AVX512");
-   } else if (userChoice == "avx2") {
+   else if (userChoice == "avx2")
       loadWithErrorChecking("libRooBatchCompute_AVX2");
-   } else if (userChoice == "avx") {
+   else if (userChoice == "avx")
       loadWithErrorChecking("libRooBatchCompute_AVX");
-   } else if (userChoice == "sse") {
+   else if (userChoice == "sse")
       loadWithErrorChecking("libRooBatchCompute_SSE4.1");
-   } else if (userChoice != "generic") {
+   else if (userChoice != "generic")
       throw std::invalid_argument(
          "Supported options for `RooFit.BatchCompute` are `auto`, `avx512`, `avx2`, `avx`, `sse`, `generic`.");
-   }
 #endif // R__RF_ARCHITECTURE_SPECIFIC_LIBS
 
    if (RooBatchCompute::dispatchCPU == nullptr)

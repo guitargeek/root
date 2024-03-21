@@ -35,7 +35,7 @@ class RooAbsCategoryLegacyIterator : public TIterator {
       populate();
     }
 
-    const TCollection *GetCollection() const override { return nullptr; }
+    virtual const TCollection *GetCollection() const override { return nullptr; }
 
     TObject* Next() override {
       ++index;

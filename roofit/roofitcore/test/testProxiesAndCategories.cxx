@@ -14,7 +14,8 @@
 #include "TFile.h"
 #include "TMemFile.h"
 
-#include "gtest_wrapper.h"
+#include "gtest/gtest.h"
+
 
 TEST(RooCategory, CategoryDefineMultiState) {
   RooCategory myCat("myCat", "A category", { {"0Lep", 0}, {"1Lep", 1}, {"2Lep", 2}, {"3Lep", 3} });
@@ -170,7 +171,7 @@ struct DummyClass : public RooAbsPdf {
       }
     }
 
-    double evaluate() const override {
+    double evaluate() const {
       return 1.;
     }
 
@@ -178,7 +179,7 @@ struct DummyClass : public RooAbsPdf {
       clearValueAndShapeDirty();
     }
 
-    TObject* clone(const char*) const override {
+    TObject* clone(const char*) const {
       return new TObject();
     }
 
@@ -207,7 +208,7 @@ TEST(RooTemplateProxy, CategoryProxy) {
   EXPECT_TRUE(dummy.cat == 2);
   EXPECT_STREQ(dummy.cat.label(), "B");
 
-  dummy.cat = longStr;
+  dummy.cat = longStr.c_str();
   EXPECT_TRUE(dummy.isValueDirty());
   dummy.clear();
   EXPECT_TRUE(dummy.cat == 500);

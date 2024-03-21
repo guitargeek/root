@@ -24,7 +24,7 @@ namespace RooStats{
     public:
       hf_exc(std::string message = "") : _message("HistFactory - Exception " + message) { }
 
-      const char* what() const noexcept override
+      virtual const char* what() const noexcept
       {
         return _message.c_str();
       }

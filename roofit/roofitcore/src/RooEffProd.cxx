@@ -21,16 +21,16 @@
 /// generator that is smarter than accept reject.
 ///
 
+#include "RooFit.h"
 #include "RooEffProd.h"
 #include "RooEffGenContext.h"
 
-#include "RooFit/Detail/EvaluateFuncs.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructs the product of the PDF `inPdf` with the efficiency function
-/// `inEff`.
+/// Constructor of a a production of p.d.f inPdf with efficiency
+/// function inEff.
 
-RooEffProd::RooEffProd(const char *name, const char *title,
+RooEffProd::RooEffProd(const char *name, const char *title, 
                              RooAbsPdf& inPdf, RooAbsReal& inEff) :
   RooAbsPdf(name,title),
   _pdf("pdf","pre-efficiency pdf", this,inPdf),
@@ -42,7 +42,7 @@ RooEffProd::RooEffProd(const char *name, const char *title,
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-RooEffProd::RooEffProd(const RooEffProd& other, const char* name) :
+RooEffProd::RooEffProd(const RooEffProd& other, const char* name) : 
   RooAbsPdf(other, name),
   _pdf("pdf",this,other._pdf),
   _eff("acc",this,other._eff)
@@ -53,9 +53,9 @@ RooEffProd::RooEffProd(const RooEffProd& other, const char* name) :
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return 'raw' unnormalized value of p.d.f
 
-double RooEffProd::evaluate() const
+Double_t RooEffProd::evaluate() const
 {
-  return RooFit::Detail::EvaluateFuncs::effProdEvaluate(_eff, _pdf);
+  return _eff * _pdf;
 }
 
 
@@ -64,15 +64,10 @@ double RooEffProd::evaluate() const
 /// in a more efficient way than can be done for generic correlated products
 
 RooAbsGenContext* RooEffProd::genContext(const RooArgSet &vars, const RooDataSet *prototype,
-                                            const RooArgSet* auxProto, bool verbose) const
+                                            const RooArgSet* auxProto, Bool_t verbose) const
 {
   return new RooEffGenContext(*this,
                               static_cast<RooAbsPdf const&>(_pdf.arg()),
                               static_cast<RooAbsReal const&>(_eff.arg()),
                               vars,prototype,auxProto,verbose) ;
-}
-
-void RooEffProd::translate(RooFit::Detail::CodeSquashContext &ctx) const
-{
-  ctx.addResult(this, ctx.buildCall("RooFit::Detail::EvaluateFuncs::effProdEvaluate", _eff, _pdf));
 }

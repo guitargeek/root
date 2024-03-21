@@ -16,26 +16,28 @@
 #ifndef ROO_VOIGTIAN
 #define ROO_VOIGTIAN
 
-#include <RooAbsPdf.h>
-#include <RooRealProxy.h>
+#include "RooAbsPdf.h"
+#include "RooRealProxy.h"
+
+class RooRealVar;
 
 class RooVoigtian : public RooAbsPdf {
 public:
-  RooVoigtian() {}
+  RooVoigtian() {} ;
   RooVoigtian(const char *name, const char *title,
          RooAbsReal& _x, RooAbsReal& _mean,
               RooAbsReal& _width, RooAbsReal& _sigma,
-              bool doFast = false);
-  RooVoigtian(const RooVoigtian& other, const char* name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooVoigtian(*this,newname); }
+              Bool_t doFast = kFALSE);
+  RooVoigtian(const RooVoigtian& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooVoigtian(*this,newname); }
+  inline virtual ~RooVoigtian() { }
 
-  /// Enable the fast evaluation of the complex error function using look-up
-  /// tables (default is the "slow" CERNlib algorithm).
-  inline void selectFastAlgorithm()    { _doFast = true;  }
+// These methods allow the user to select the fast evaluation
+// of the complex error function using look-up tables
+// (default is the "slow" CERNlib algorithm)
 
-  /// Disable the fast evaluation of the complex error function using look-up
-  /// tables (default is the "slow" CERNlib algorithm).
-  inline void selectDefaultAlgorithm() { _doFast = false; }
+  inline void selectFastAlgorithm()    { _doFast = kTRUE;  }
+  inline void selectDefaultAlgorithm() { _doFast = kFALSE; }
 
 protected:
 
@@ -44,14 +46,14 @@ protected:
   RooRealProxy width ;
   RooRealProxy sigma ;
 
-  double evaluate() const override ;
-  void computeBatch(double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
-  inline bool canComputeBatchWithCuda() const override { return true; }
+  double evaluate() const;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const;
+  inline bool canComputeBatchWithCuda() const { return true; }
 
 private:
 
-  bool _doFast = false;
-  ClassDefOverride(RooVoigtian,2) // Voigtian PDF (Gauss (x) BreitWigner)
+  Bool_t _doFast;
+  ClassDef(RooVoigtian,2) // Voigtian PDF (Gauss (x) BreitWigner)
 };
 
 #endif

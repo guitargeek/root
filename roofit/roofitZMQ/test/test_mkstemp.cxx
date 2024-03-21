@@ -12,7 +12,7 @@
 
 #include "RooFit_ZMQ/ZeroMQSvc.h"
 
-#include <TSystem.h>
+#include <RooFit/Common.h>
 
 #include "gtest/gtest.h"
 
@@ -21,12 +21,10 @@
 
 TEST(BindToTmpFile, mkstemp)
 {
-   std::string tmpPath = gSystem->TempDirectory();
-
-   std::string filename = tmpPath + "/roofit_MP_XXXXXX";
-   while (mkstemp(const_cast<char *>(filename.c_str())) < 0) {
+   std::string filename = RooFit::tmpPath() + "roofitMP_XXXXXX";
+   while (mkstemp(const_cast<char*>(filename.c_str())) < 0) {
    }
-   EXPECT_NE(filename, tmpPath + "/roofit_MP_XXXXXX");
+   EXPECT_NE(filename, RooFit::tmpPath() + "roofitMP_XXXXXX");
    auto socket = zmqSvc().socket(zmq::socket_type::push);
    std::string address = "ipc://" + filename;
    try {

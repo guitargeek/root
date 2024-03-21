@@ -91,8 +91,9 @@
 
 #include "RooBinSamplingPdf.h"
 
-#include "RooFitImplHelpers.h"
+#include "RooHelpers.h"
 #include "RooRealBinding.h"
+#include "RunContext.h"
 #include "RooRealVar.h"
 #include "RooGlobalFunc.h"
 #include "RooDataHist.h"
@@ -146,7 +147,7 @@ double RooBinSamplingPdf::evaluate() const {
   double result;
   {
     // Important: When the integrator samples x, caching of sub-tree values needs to be off.
-    DisableCachingRAII disableCaching(inhibitDirty());
+    RooHelpers::DisableCachingRAII disableCaching(inhibitDirty());
     result = integrate(_normSet, low, high) / (high-low);
   }
 
@@ -160,14 +161,14 @@ double RooBinSamplingPdf::evaluate() const {
 /// Integrate the PDF over all its bins, and return a batch with those values.
 /// \param[in,out] evalData Struct with evaluation data.
 /// \param[in] normSet Normalisation set that's used to evaluate the PDF.
-void RooBinSamplingPdf::computeBatch(double* output, size_t /*size*/, RooFit::Detail::DataMap const& dataMap) const
-{
+RooSpan<double> RooBinSamplingPdf::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
   // Retrieve binning, which we need to compute the probabilities
   auto boundaries = binBoundaries();
-  auto xValues = dataMap.at(_observable);
+  auto xValues = _observable->getValues(evalData, normSet);
+  auto results = evalData.makeBatch(this, xValues.size());
 
   // Important: When the integrator samples x, caching of sub-tree values needs to be off.
-  DisableCachingRAII disableCaching(inhibitDirty());
+  RooHelpers::DisableCachingRAII disableCaching(inhibitDirty());
 
   // Now integrate PDF in each bin:
   for (unsigned int i=0; i < xValues.size(); ++i) {
@@ -176,15 +177,17 @@ void RooBinSamplingPdf::computeBatch(double* output, size_t /*size*/, RooFit::De
     const unsigned int bin = std::distance(boundaries.begin(), upperIt) - 1;
     assert(bin < boundaries.size());
 
-    output[i] = integrate(nullptr, boundaries[bin], boundaries[bin+1]) / (boundaries[bin+1]-boundaries[bin]);
+    results[i] = integrate(normSet, boundaries[bin], boundaries[bin+1]) / (boundaries[bin+1]-boundaries[bin]);
   }
+
+  return results;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Get the bin boundaries for the observable.
 /// These will be recomputed whenever the shape of this object is dirty.
-std::span<const double> RooBinSamplingPdf::binBoundaries() const {
+RooSpan<const double> RooBinSamplingPdf::binBoundaries() const {
   if (isShapeDirty() || _binBoundaries.empty()) {
     _binBoundaries.clear();
     const RooAbsBinning& binning = _observable->getBinning(nullptr);
@@ -209,7 +212,7 @@ std::span<const double> RooBinSamplingPdf::binBoundaries() const {
 /// \param[in] xlo Beginning of range to create list of boundaries for.
 /// \param[in] xhi End of range to create to create list of boundaries for.
 /// \return Pointer to a list to be deleted by caller.
-std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const {
+std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const {
   if (obs.namePtr() != _observable->namePtr()) {
     coutE(Plotting) << "RooBinSamplingPdf::binBoundaries(" << GetName() << "): observable '" << obs.GetName()
         << "' is not the observable of this PDF ('" << _observable->GetName() << "')." << std::endl;
@@ -232,7 +235,7 @@ std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, doubl
 /// \param[in] xlo Beginning of range to create sampling hint for.
 /// \param[in] xhi End of range to create sampling hint for.
 /// \return Pointer to a list to be deleted by caller.
-std::list<double>* RooBinSamplingPdf::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const {
+std::list<double>* RooBinSamplingPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const {
   if (obs.namePtr() != _observable->namePtr()) {
     coutE(Plotting) << "RooBinSamplingPdf::plotSamplingHint(" << GetName() << "): observable '" << obs.GetName()
         << "' is not the observable of this PDF ('" << _observable->GetName() << "')." << std::endl;
@@ -275,12 +278,12 @@ std::list<double>* RooBinSamplingPdf::plotSamplingHint(RooAbsRealLValue& obs, do
 /// \note When RooBinSamplingPdf is loaded from files, integrator options will fall back to the default values.
 std::unique_ptr<ROOT::Math::IntegratorOneDim>& RooBinSamplingPdf::integrator() const {
   if (!_integrator) {
-    _integrator = std::make_unique<ROOT::Math::IntegratorOneDim>(*this,
+    _integrator.reset(new ROOT::Math::IntegratorOneDim(*this,
         ROOT::Math::IntegrationOneDim::kADAPTIVE, // GSL Integrator. Will really get it only if MathMore enabled.
         -1., _relEpsilon, // Abs epsilon = default, rel epsilon set by us.
         0, // We don't limit the sub-intervals. Steer run time via _relEpsilon.
         2 // This should read ROOT::Math::Integration::kGAUSS21, but this is in MathMore, so we cannot include it here.
-        );
+        ));
   }
 
   return _integrator;

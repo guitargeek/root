@@ -22,6 +22,7 @@
 #include <list>
 #include "RooAbsRealLValue.h"
 #include "RooRealProxy.h"
+#include "RooFormula.h"
 #include "RooLinTransBinning.h"
 
 class RooArgSet ;
@@ -31,25 +32,25 @@ public:
   // Constructors, assignment etc.
   RooLinearVar() {} ;
   RooLinearVar(const char *name, const char *title, RooAbsRealLValue& variable, const RooAbsReal& slope, const RooAbsReal& offset, const char *unit= "") ;
-  RooLinearVar(const RooLinearVar& other, const char* name=nullptr);
-  TObject* clone(const char* newname) const override { return new RooLinearVar(*this,newname); }
-  ~RooLinearVar() override ;
-
+  RooLinearVar(const RooLinearVar& other, const char* name=0);
+  virtual TObject* clone(const char* newname) const { return new RooLinearVar(*this,newname); }
+  virtual ~RooLinearVar() ;
+  
   // Parameter value and error accessors
-  void setVal(double value) override ;
+  virtual void setVal(Double_t value) ;
 
   // Jacobian and limits
-  bool hasBinning(const char* name) const override ;
-  const RooAbsBinning& getBinning(const char* name=nullptr, bool verbose=true, bool createOnTheFly=false) const override ;
-  RooAbsBinning& getBinning(const char* name=nullptr, bool verbose=true, bool createOnTheFly=false) override  ;
-  std::list<std::string> getBinningNames() const override;
+  virtual Bool_t hasBinning(const char* name) const ;
+  virtual const RooAbsBinning& getBinning(const char* name=0, Bool_t verbose=kTRUE, Bool_t createOnTheFly=kFALSE) const ;
+  virtual RooAbsBinning& getBinning(const char* name=0, Bool_t verbose=kTRUE, Bool_t createOnTheFly=kFALSE)  ;
+  virtual std::list<std::string> getBinningNames() const;
 
-  double jacobian() const override ;
-  bool isJacobianOK(const RooArgSet& depList) const override ;
+  virtual Double_t jacobian() const ;
+  virtual Bool_t isJacobianOK(const RooArgSet& depList) const ;
 
   // I/O streaming interface (machine readable)
-  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override ;
-  void writeToStream(std::ostream& os, bool compact) const override ;
+  virtual Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) ;
+  virtual void writeToStream(std::ostream& os, Bool_t compact) const ;
 
   // Printing interface (human readable)
 
@@ -58,15 +59,15 @@ public:
 
 protected:
 
-  double evaluate() const override ;
+  virtual Double_t evaluate() const ;
 
   mutable RooLinTransBinning _binning ;
-  RooLinkedList _altBinning ;              ///<!
-  RooTemplateProxy<RooAbsRealLValue> _var; ///< Input observable
-  RooRealProxy _slope ;                    ///< Slope of transformation
-  RooRealProxy _offset ;                   ///< Offset of transformation
+  RooLinkedList _altBinning ; //!
+  RooRealProxy _var ;         // Input observable
+  RooRealProxy _slope ;       // Slope of transformation
+  RooRealProxy _offset ;      // Offset of transformation
 
-  ClassDefOverride(RooLinearVar,2) // Lvalue linear transformation function
+  ClassDef(RooLinearVar,1) // Lvalue linear transformation function 
 };
 
 #endif

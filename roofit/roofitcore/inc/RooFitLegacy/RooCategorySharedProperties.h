@@ -1,5 +1,3 @@
-/// \cond ROOFIT_INTERNAL
-
 /*****************************************************************************
  * Project: RooFit                                                           *
  * Package: RooFitCore                                                       *
@@ -21,7 +19,7 @@
 \class RooCategorySharedProperties
 \ingroup Roofitcore
 
-Container for all properties
+RooCategorySharedProperties is the container for all properties
 that are shared between instance of RooCategory objects that
 are clones of each other. At present the only property that is
 shared in this way is the list of alternate named range definitions
@@ -41,7 +39,7 @@ public:
   /// Constructor with unique-id string.
   RooCategorySharedProperties(const char* uuidstr) : RooSharedProperties(uuidstr) {}
   /// Destructor.
-  ~RooCategorySharedProperties() override {
+  virtual ~RooCategorySharedProperties() {
     _altRanges.Delete() ;
   }
 
@@ -49,12 +47,10 @@ protected:
 
   friend class RooCategory ;
 
-  RooLinkedList _altRanges ;  ///< Optional alternative ranges
+  RooLinkedList _altRanges ;  // Optional alternative ranges 
 
-  ClassDefOverride(RooCategorySharedProperties,1) // Shared properties of a RooCategory clone set
+  ClassDef(RooCategorySharedProperties,1) // Shared properties of a RooCategory clone set
 };
 
 
 #endif
-
-/// \endcond

@@ -14,8 +14,7 @@
 #define RooFit_Detail_DataMap_h
 
 #include <RooAbsArg.h>
-
-#include <ROOT/RSpan.hxx>
+#include <RooSpan.h>
 
 #include <TNamed.h>
 #include <TObject.h>
@@ -26,10 +25,6 @@
 
 template <class T>
 class RooTemplateProxy;
-
-namespace RooBatchCompute {
-class Config;
-}
 
 /// \class RooFit::DataKey
 /// To use as a key type for RooFit data maps and containers. A RooFit::DataKey
@@ -82,49 +77,39 @@ namespace Detail {
 
 class DataMap {
 public:
+   auto empty() const { return _dataMap.empty(); }
+   auto begin() { return _dataMap.begin(); }
+   auto end() { return _dataMap.end(); }
+   auto begin() const { return _dataMap.begin(); }
+   auto end() const { return _dataMap.end(); }
    auto size() const { return _dataMap.size(); }
-   void resize(std::size_t n);
+   auto resize(std::size_t n) { return _dataMap.resize(n); }
 
-   inline void set(RooAbsArg const *arg, std::span<const double> const &span)
+   inline auto &at(RooAbsArg const *arg, RooAbsArg const * /*caller*/ = nullptr)
    {
-      if (!arg->hasDataToken())
-         return;
       std::size_t idx = arg->dataToken();
-      _dataMap[idx] = span;
+      return _dataMap[idx];
    }
 
-   void setConfig(RooAbsArg const *arg, RooBatchCompute::Config const &config);
-
-   std::span<const double> at(RooAbsArg const *arg, RooAbsArg const *caller = nullptr);
-
-   inline std::span<const double> at(RooAbsArg const *arg, RooAbsArg const *caller = nullptr) const
+   inline auto &at(RooAbsArg const *arg, RooAbsArg const *caller = nullptr) const
    {
       return const_cast<DataMap *>(this)->at(arg, caller);
    }
 
    template <class T>
-   inline std::span<const double> at(RooTemplateProxy<T> const &proxy)
+   inline auto &at(RooTemplateProxy<T> const &proxy)
    {
       return at(&proxy.arg(), proxy.owner());
    }
 
    template <class T>
-   inline std::span<const double> at(RooTemplateProxy<T> const &proxy) const
+   inline auto &at(RooTemplateProxy<T> const &proxy) const
    {
       return at(&proxy.arg(), proxy.owner());
    }
 
-   RooBatchCompute::Config config(RooAbsArg const *arg) const;
-
-   void enableVectorBuffers(bool enable) { _enableVectorBuffers = enable; }
-   void resetVectorBuffers() { _bufferIdx = 0; }
-
 private:
-   std::vector<std::span<const double>> _dataMap;
-   bool _enableVectorBuffers = false;
-   std::vector<std::vector<double>> _buffers;
-   std::size_t _bufferIdx = 0;
-   std::vector<RooBatchCompute::Config> _cfgs;
+   std::vector<RooSpan<const double>> _dataMap;
 };
 
 } // namespace Detail

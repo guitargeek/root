@@ -27,11 +27,11 @@
 
 namespace RooFit {
 
-typedef double (*CFUNCD2DD)(double,double) ;
-typedef double (*CFUNCD2ID)(Int_t,double) ;
-typedef double (*CFUNCD2UD)(UInt_t,double) ;
-typedef double (*CFUNCD2DI)(double,Int_t) ;
-typedef double (*CFUNCD2II)(Int_t,Int_t) ;
+typedef Double_t (*CFUNCD2DD)(Double_t,Double_t) ;
+typedef Double_t (*CFUNCD2ID)(Int_t,Double_t) ;
+typedef Double_t (*CFUNCD2UD)(UInt_t,Double_t) ;
+typedef Double_t (*CFUNCD2DI)(Double_t,Int_t) ;
+typedef Double_t (*CFUNCD2II)(Int_t,Int_t) ;
 
 
 RooAbsReal* bindFunction(const char* name,CFUNCD2DD func,RooAbsReal& x, RooAbsReal& y) ;
@@ -87,9 +87,11 @@ class RooCFunction2Map {
 
  private:
 
+#ifndef __CINT__
   std::map<std::string,VO (*)(VI1,VI2)> _ptrmap ; // Pointer-to-name map
   std::map<VO (*)(VI1,VI2),std::string> _namemap ; // Name-to-pointer map
   std::map<VO (*)(VI1,VI2),std::vector<std::string> > _argnamemap ; // Pointer-to-argnamelist map
+#endif
 } ;
 
 
@@ -97,9 +99,10 @@ class RooCFunction2Map {
 template<class VO, class VI1, class VI2>
 class RooCFunction2Ref : public TObject {
  public:
-  RooCFunction2Ref(VO (*ptr)(VI1,VI2)=nullptr) : _ptr(ptr) {
+  RooCFunction2Ref(VO (*ptr)(VI1,VI2)=0) : _ptr(ptr) {
     // Constructor of persistable function reference
   } ;
+  ~RooCFunction2Ref() {} ;
 
   VO operator()(VI1 x,VI2 y) const {
     // Evaluate embedded function
@@ -149,19 +152,19 @@ class RooCFunction2Ref : public TObject {
 
   static RooCFunction2Map<VO,VI1,VI2>* _fmap ; // Pointer to mapping service object
 
-  ClassDefOverride(RooCFunction2Ref,1) // Persistable reference to C function pointer
+  ClassDef(RooCFunction2Ref,1) // Persistable reference to C function pointer
 } ;
 
 // Define static member
 template<class VO, class VI1, class VI2>
-RooCFunction2Map<VO,VI1,VI2>* RooCFunction2Ref<VO,VI1,VI2>::_fmap = nullptr;
+RooCFunction2Map<VO,VI1,VI2>* RooCFunction2Ref<VO,VI1,VI2>::_fmap = 0;
 
 
 template<class VO, class VI1, class VI2>
 void RooCFunction2Ref<VO,VI1,VI2>::Streamer(TBuffer &R__b)
 {
   // Custom streamer for function pointer reference object. When writing,
-  // the function pointer is substituted by its registered name. When function
+  // the function pointer is substituted by its registerd name. When function
   // is unregistered name 'UNKNOWN' is written and a warning is issues. When
   // reading back, the embedded name is converted back to a function pointer
   // using the mapping service. When name UNKNOWN is encountered a warning is
@@ -174,8 +177,7 @@ void RooCFunction2Ref<VO,VI1,VI2>::Streamer(TBuffer &R__b)
    // Stream an object of class RooCFunction2Ref
    if (R__b.IsReading()) {
 
-     UInt_t R__s;
-     UInt_t R__c;
+     UInt_t R__s, R__c;
      Version_t R__v = R__b.ReadVersion(&R__s, &R__c);
 
      // Read name from file
@@ -192,7 +194,7 @@ void RooCFunction2Ref<VO,VI1,VI2>::Streamer(TBuffer &R__b)
        // Lookup pointer to C function with given name
        _ptr = fmap().lookupPtr(tmpName.Data()) ;
 
-       if (_ptr==nullptr) {
+       if (_ptr==0) {
     coutW(ObjectHandling) << "ERROR: Objected embeds pointer to function named " << tmpName
                 << " but no such function is registered, object will not be functional" << std::endl ;
        }
@@ -204,7 +206,7 @@ void RooCFunction2Ref<VO,VI1,VI2>::Streamer(TBuffer &R__b)
    } else {
 
      UInt_t R__c;
-     R__c = R__b.WriteVersion(thisClass::IsA(), true);
+     R__c = R__b.WriteVersion(thisClass::IsA(), kTRUE);
 
      // Lookup name of reference C function
      TString tmpName = fmap().lookupName(_ptr) ;
@@ -217,7 +219,7 @@ void RooCFunction2Ref<VO,VI1,VI2>::Streamer(TBuffer &R__b)
      // Persist the name
      tmpName.Streamer(R__b) ;
 
-     R__b.SetByteCount(R__c, true);
+     R__b.SetByteCount(R__c, kTRUE);
 
    }
 }
@@ -231,10 +233,11 @@ public:
     // Default constructor
   } ;
   RooCFunction2Binding(const char *name, const char *title, VO (*_func)(VI1,VI2), RooAbsReal& _x, RooAbsReal& _y);
-  RooCFunction2Binding(const RooCFunction2Binding& other, const char* name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooCFunction2Binding(*this,newname); }
+  RooCFunction2Binding(const RooCFunction2Binding& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooCFunction2Binding(*this,newname); }
+  inline virtual ~RooCFunction2Binding() { }
 
-  void printArgs(std::ostream& os) const override {
+  void printArgs(std::ostream& os) const {
     // Print object arguments and name/address of function pointer
     os << "[ function=" << func.name() << " " ;
     for (Int_t i=0 ; i<numProxies() ; i++) {
@@ -253,14 +256,14 @@ protected:
   RooRealProxy x ;              // Argument reference
   RooRealProxy y ;              // Argument reference
 
-  double evaluate() const override {
+  Double_t evaluate() const {
     // Return value of embedded function using value of referenced variable x
     return func(x,y) ;
   }
 
 private:
 
-  ClassDefOverride(RooCFunction2Binding,1) // RooAbsReal binding to external C functions
+  ClassDef(RooCFunction2Binding,1) // RooAbsReal binding to external C functions
 };
 
 template<class VO,class VI1, class VI2>
@@ -298,10 +301,11 @@ public:
     // Default constructor
   } ;
   RooCFunction2PdfBinding(const char *name, const char *title, VO (*_func)(VI1,VI2), RooAbsReal& _x, RooAbsReal& _y);
-  RooCFunction2PdfBinding(const RooCFunction2PdfBinding& other, const char* name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooCFunction2PdfBinding(*this,newname); }
+  RooCFunction2PdfBinding(const RooCFunction2PdfBinding& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooCFunction2PdfBinding(*this,newname); }
+  inline virtual ~RooCFunction2PdfBinding() { }
 
-  void printArgs(std::ostream& os) const override {
+  void printArgs(std::ostream& os) const {
     // Print object arguments and name/address of function pointer
     os << "[ function=" << func.name() << " " ;
     for (Int_t i=0 ; i<numProxies() ; i++) {
@@ -320,14 +324,14 @@ protected:
   RooRealProxy x ;              // Argument reference
   RooRealProxy y ;              // Argument reference
 
-  double evaluate() const override {
+  Double_t evaluate() const {
     // Return value of embedded function using value of referenced variable x
     return func(x,y) ;
   }
 
 private:
 
-  ClassDefOverride(RooCFunction2PdfBinding,1) // RooAbsReal binding to external C functions
+  ClassDef(RooCFunction2PdfBinding,1) // RooAbsReal binding to external C functions
 };
 
 template<class VO,class VI1, class VI2>

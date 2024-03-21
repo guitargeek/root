@@ -39,6 +39,7 @@ Access to TProof::Mgr for configuration is still possible as usual
    TProof::Mgr("my.server.url")->SetROOTVersion("v5-27-06_dbg")
 ~~~
 
+See doc: http://root.cern.ch/drupal/content/changing-default-root-version
 */
 
 
@@ -46,9 +47,10 @@ class ProofConfig {
 
    public:
 
-      /// configure proof with number of experiments and host session
-      ///  in case of Prooflite, it is better to define the number of workers as "worker=n" in the host string
-      ProofConfig(RooWorkspace &w, Int_t nExperiments = 0, const char *host = "", bool showGui = false) :
+      // configure proof with number of experiments and host session
+      //  in case of Prooflite, it is better to define the number of workers as "worker=n" in the host string
+
+      ProofConfig(RooWorkspace &w, Int_t nExperiments = 0, const char *host = "", Bool_t showGui = kFALSE) :
          fWorkspace(w),
          fNExperiments(nExperiments),
          fHost(host),
@@ -67,10 +69,9 @@ class ProofConfig {
                fNExperiments = nMaxWorkers;
             }
 
-            if (nExperiments > nMaxWorkers) {
-               std::cout << "ProofConfig - Warning: using a number of workers = " << nExperiments
-                         << " which is larger than the number of cores in the machine " << nMaxWorkers << std::endl;
-            }
+            if (nExperiments > nMaxWorkers)
+               std::cout << "ProofConfig - Warning: using a number of workers = " << nExperiments << " which is larger than the number of cores in the machine "
+                         << nMaxWorkers << std::endl;
 
             // set the number of workers in the Host string
             fHost = TString::Format("workers=%d",fNExperiments);
@@ -90,23 +91,23 @@ class ProofConfig {
       /// close all proof connections
       static void CloseProof(Option_t *option = "s") { RooStudyManager::closeProof(option); }
 
-      /// returns fWorkspace
+      // returns fWorkspace
       RooWorkspace& GetWorkspace(void) const { return fWorkspace; }
-      /// returns fHost
+      // returns fHost
       const char* GetHost(void) const { return fHost; }
-      /// return fNExperiments
+      // return fNExperiments
       Int_t GetNExperiments(void) const { return fNExperiments; }
-      /// return fShowGui
-      bool GetShowGui(void) const { return fShowGui; }
-      /// return true if it is a Lite session (ProofLite)
-      bool IsLite() const { return fLite; }
+      // return fShowGui
+      Bool_t GetShowGui(void) const { return fShowGui; }
+      // return true if it is a Lite session (ProofLite)
+      Bool_t IsLite() const { return fLite; }
 
    protected:
-      RooWorkspace& fWorkspace;   ///< workspace that is to be used with the RooStudyManager
-      Int_t fNExperiments;        ///< number of experiments. This is sometimes called "events" in proof; "experiments" in RooStudyManager.
-      TString fHost;              ///< Proof hostname. Use empty string (ie "") for proof-lite. Can also handle options like "workers=2" to run on two nodes.
-      bool fShowGui;            ///< Whether to show the Proof Progress window.
-      bool fLite;               ///< Whether we have a Proof Lite session
+      RooWorkspace& fWorkspace;   // workspace that is to be used with the RooStudyManager
+      Int_t fNExperiments;        // number of experiments. This is sometimes called "events" in proof; "experiments" in RooStudyManager.
+      TString fHost;              // Proof hostname. Use empty string (ie "") for proof-lite. Can also handle options like "workers=2" to run on two nodes.
+      Bool_t fShowGui;            // Whether to show the Proof Progress window.
+      Bool_t fLite;               // Whether we have a Proof Lite session
 
    protected:
    ClassDef(ProofConfig,1) // Configuration options for proof.

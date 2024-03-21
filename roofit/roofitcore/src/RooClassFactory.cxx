@@ -19,17 +19,16 @@
 \class RooClassFactory
 \ingroup Roofitcore
 
-Similar to TTree::MakeClass(), generates
+RooClassFactory is a clase like TTree::MakeClass() that generates
 skeleton code for RooAbsPdf and RooAbsReal functions given
 a list of input parameter names. The factory can also compile
 the generated code on the fly, and on request also immediate
 instantiate objects.
 **/
 
-#include "RooClassFactory.h"
-
+#include "RooFit.h"
 #include "TClass.h"
-#include "RooFactoryWSTool.h"
+#include "RooClassFactory.h"
 #include "RooErrorHandler.h"
 #include "RooAbsReal.h"
 #include "RooAbsCategory.h"
@@ -39,168 +38,81 @@ instantiate objects.
 #include "RooWorkspace.h"
 #include "RooGlobalFunc.h"
 #include "RooAbsPdf.h"
-
-#include <ROOT/StringUtils.hxx>
-
-#include <strlcpy.h>
-#include <cctype>
+#include "strlcpy.h"
 #include <fstream>
-#include <mutex>
 
-using std::endl, std::vector, std::string;
+using namespace std;
+
+ClassImp(RooClassFactory);
 
 namespace {
 
-class ClassFacIFace : public RooFactoryWSTool::IFace {
-public:
-   std::string
-   create(RooFactoryWSTool &ft, const char *typeName, const char *instanceName, std::vector<std::string> args) override;
-};
+static Int_t init();
 
-static int init();
+Int_t dummy = init();
 
-int dummy = init();
-
-int init()
+static Int_t init()
 {
-   RooFactoryWSTool::IFace *iface = new ClassFacIFace;
-   RooFactoryWSTool::registerSpecial("CEXPR", iface);
-   RooFactoryWSTool::registerSpecial("cexpr", iface);
-   (void)dummy;
-   return 0;
+  RooFactoryWSTool::IFace* iface = new RooClassFactory::ClassFacIFace ;
+  RooFactoryWSTool::registerSpecial("CEXPR",iface) ;
+  RooFactoryWSTool::registerSpecial("cexpr",iface) ;
+  (void)dummy;
+  return 0 ;
 }
 
-bool makeAndCompileClass(std::string const &baseClassName, std::string const &name, std::string const &expression,
-                         const RooArgList &vars, std::string const &intExpression)
-{
-   // A structure to store the inputs to this function, to check if has been
-   // called already with the same arguments.
-   class ClassInfo {
-   public:
-      ClassInfo(std::string const &baseClassName, std::string const &name, std::string const &expression,
-                const RooArgList &vars, std::string const &intExpression)
-         : _baseClassName{baseClassName}, _name{name}, _expression{expression}, _intExpression{intExpression}
-      {
-         _argNames.reserve(vars.size());
-         _argsAreCategories.reserve(vars.size());
-         for (RooAbsArg *arg : vars) {
-            _argNames.emplace_back(arg->GetName());
-            _argsAreCategories.emplace_back(arg->isCategory());
-         }
-      }
-      bool operator==(const ClassInfo &other) const
-      {
-         return other._baseClassName == _baseClassName && other._name == _name && other._expression == _expression &&
-                other._argNames == _argNames && other._argsAreCategories == _argsAreCategories &&
-                other._intExpression == _intExpression;
-      }
-
-      std::string _baseClassName;
-      std::string _name;
-      std::string _expression;
-      std::vector<std::string> _argNames;
-      std::vector<bool> _argsAreCategories;
-      std::string _intExpression;
-   };
-
-   static std::vector<ClassInfo> infosVec;
-   static std::mutex infosVecMutex; // protects infosVec
-
-   ClassInfo info{baseClassName, name, expression, vars, intExpression};
-
-   // Check if this class was already compiled
-   auto found = std::find_if(infosVec.begin(), infosVec.end(), [&](auto const &elem) { return elem._name == name; });
-   if (found != infosVec.end()) {
-      if (*found == info) {
-         return false;
-      }
-      std::stringstream ss;
-      ss << "RooClassFactory ERROR The type, expressions, or variables for the class \"" << name
-         << "\" are not identical to what you passed last time this class was compiled! This is not allowed.";
-      oocoutE(nullptr, InputArguments) << ss.str() << std::endl;
-      throw std::runtime_error(ss.str());
-   }
-
-   // Making a new compiled class is not thread safe
-   const std::lock_guard<std::mutex> lock(infosVecMutex);
-
-   infosVec.emplace_back(info);
-
-   std::string realArgNames;
-   std::string catArgNames;
-   for (RooAbsArg *arg : vars) {
-      if (dynamic_cast<RooAbsReal *>(arg)) {
-         if (!realArgNames.empty())
-            realArgNames += ",";
-         realArgNames += arg->GetName();
-      } else if (arg->isCategory()) {
-         if (!catArgNames.empty())
-            catArgNames += ",";
-         catArgNames += arg->GetName();
-      } else {
-         oocoutE(nullptr, InputArguments) << "RooClassFactory ERROR input argument " << arg->GetName()
-                                          << " is neither RooAbsReal nor RooAbsCategory and is ignored" << endl;
-      }
-   }
-
-   bool ret = RooClassFactory::makeClass(baseClassName, name, realArgNames, catArgNames, expression,
-                                         !intExpression.empty(), false, intExpression);
-   if (ret) {
-      return ret;
-   }
-
-   TInterpreter::EErrorCode ecode;
-   gInterpreter->ProcessLineSynch((".L " + name + ".cxx+").c_str(), &ecode);
-   return (ecode != TInterpreter::kNoError);
 }
 
-RooAbsReal *makeClassInstance(std::string const &baseClassName, std::string const &className, std::string const &name,
-                              std::string const &expression, const RooArgList &vars, std::string const &intExpression)
+
+////////////////////////////////////////////////////////////////////////////////
+/// Default constructor
+
+RooClassFactory::RooClassFactory()
 {
-   // Use class factory to compile and link specialized function
-   bool error = makeAndCompileClass(baseClassName, className, expression, vars, intExpression);
-
-   // Check that class was created OK
-   if (error) {
-      RooErrorHandler::softAbort();
-   }
-
-   // Create interpreter line that instantiates specialized object
-   std::string line = std::string("new ") + className + "(\"" + name + "\",\"" + name + "\"";
-
-   // Make list of pointer values (represented in hex ascii) to be passed to cint
-   // Note that the order of passing arguments must match the convention in which
-   // the class code is generated: first all reals, then all categories
-
-   std::string argList;
-   // First pass the RooAbsReal arguments in the list order
-   for (RooAbsArg *var : vars) {
-      if (dynamic_cast<RooAbsReal *>(var)) {
-         argList += Form(",*reinterpret_cast<RooAbsReal*>(0x%zx)", reinterpret_cast<std::size_t>(var));
-      }
-   }
-   // Next pass the RooAbsCategory arguments in the list order
-   for (RooAbsArg *var : vars) {
-      if (var->isCategory()) {
-         argList += Form(",*reinterpret_cast<RooAbsCategory*>(0x%zx)", reinterpret_cast<std::size_t>(var));
-      }
-   }
-
-   line += argList + ") ;";
-
-   // Let interpreter instantiate specialized formula
-   return reinterpret_cast<RooAbsReal *>(gInterpreter->ProcessLineSynch(line.c_str()));
 }
 
-} // namespace
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooClassFactory::~RooClassFactory()
+{
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool RooClassFactory::makeAndCompilePdf(std::string const &name, std::string const &expression, const RooArgList &vars,
-                                        std::string const &intExpression)
+Bool_t RooClassFactory::makeAndCompilePdf(const char* name, const char* expression, const RooArgList& vars, const char* intExpression)
 {
-   return makeAndCompileClass("RooAbsPdf", name, expression, vars, intExpression);
+  string realArgNames,catArgNames ;
+  TIterator* iter = vars.createIterator() ;
+  RooAbsArg* arg ;
+  while((arg=(RooAbsArg*)iter->Next())) {
+    if (dynamic_cast<RooAbsReal*>(arg)) {
+      if (realArgNames.size()>0) realArgNames += "," ;
+      realArgNames += arg->GetName() ;
+    } else if (dynamic_cast<RooAbsCategory*>(arg)) {
+      if (catArgNames.size()>0) catArgNames += "," ;
+      catArgNames += arg->GetName() ;
+    } else {
+      oocoutE((RooAbsArg*)0,InputArguments) << "RooClassFactory::makeAndCompilePdf ERROR input argument " << arg->GetName()
+					      << " is neither RooAbsReal nor RooAbsCategory and is ignored" << endl ;
+    }
+  }
+  delete iter ;
+
+  Bool_t ret = makePdf(name,realArgNames.c_str(),catArgNames.c_str(),expression,intExpression?kTRUE:kFALSE,kFALSE,intExpression) ;
+  if (ret) {
+    return ret ;
+  }
+
+  TInterpreter::EErrorCode ecode;
+  gInterpreter->ProcessLineSynch(Form(".L %s.cxx+",name),&ecode) ;
+  return (ecode!=TInterpreter::kNoError) ;
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Write, compile and load code for a RooAbsReal implementation with
@@ -211,14 +123,68 @@ bool RooClassFactory::makeAndCompilePdf(std::string const &name, std::string con
 /// for analytical integrals to be advertised by your class in the
 /// syntax
 /// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
-/// where "<intObsName>" a name of the observable integrated over and
-/// "<CPPAnaIntExpression>" is the C++ expression that calculates that
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
 /// integral.
 
-bool RooClassFactory::makeAndCompileFunction(std::string const &name, std::string const &expression,
-                                             const RooArgList &vars, std::string const &intExpression)
+Bool_t RooClassFactory::makeAndCompileFunction(const char* name, const char* expression, const RooArgList& vars, const char* intExpression)
 {
-   return makeAndCompileClass("RooAbsReal", name, expression, vars, intExpression);
+  string realArgNames,catArgNames ;
+  TIterator* iter = vars.createIterator() ;
+  RooAbsArg* arg ;
+  while((arg=(RooAbsArg*)iter->Next())) {
+    if (dynamic_cast<RooAbsReal*>(arg)) {
+      if (realArgNames.size()>0) realArgNames += "," ;
+      realArgNames += arg->GetName() ;
+    } else if (dynamic_cast<RooAbsCategory*>(arg)) {
+      if (catArgNames.size()>0) catArgNames += "," ;
+      catArgNames += arg->GetName() ;
+    } else {
+      oocoutE((RooAbsArg*)0,InputArguments) << "RooClassFactory::makeAndCompileFunction ERROR input argument " << arg->GetName()
+					    << " is neither RooAbsReal nor RooAbsCategory and is ignored" << endl ;
+    }
+  }
+  delete iter ;
+
+  Bool_t ret = makeFunction(name,realArgNames.c_str(),catArgNames.c_str(),expression,intExpression?kTRUE:kFALSE,intExpression) ;
+  if (ret) {
+    return ret ;
+  }
+
+  TInterpreter::EErrorCode ecode;
+  gInterpreter->ProcessLineSynch(Form(".L %s.cxx+",name),&ecode) ;
+  return (ecode!=TInterpreter::kNoError) ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Write, compile and load code and instantiate object for a
+/// RooAbsReal implementation with class name 'name', taking all
+/// elements of 'vars' as constructor arguments. The initial value
+/// expression is taken to be 'expression' which can be any one-line
+/// C++ expression in terms of variables that occur in 'vars'.
+///
+/// The returned object is an instance of the object you just defined
+/// connected to the variables listed in 'vars'. The name of the
+/// object is 'name', its class name Roo<name>Class.
+///
+/// This function is an effective compiled replacement of RooFormulaVar
+///
+/// You can add optional expressions for analytical integrals to be
+/// advertised by your class in the syntax
+/// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
+/// integral.
+
+RooAbsReal* RooClassFactory::makeFunctionInstance(const char* name, const char* expression, const RooArgList& vars, const char* intExpression)
+{
+  // Construct unique class name for this function expression
+  string tmpName(name) ;
+  tmpName[0] = toupper(tmpName[0]) ;
+  string className = Form("Roo%sFunc",tmpName.c_str()) ;
+
+  return makeFunctionInstance(className.c_str(),name,expression,vars,intExpression) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -237,24 +203,57 @@ bool RooClassFactory::makeAndCompileFunction(std::string const &name, std::strin
 /// You can add optional expressions for analytical integrals to be
 /// advertised by your class in the syntax
 /// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
-/// where "<intObsName>" a name of the observable integrated over and
-/// "<CPPAnaIntExpression>" is the C++ expression that calculates that
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
 /// integral.
 
-RooAbsReal *RooClassFactory::makeFunctionInstance(std::string const &name, std::string const &expression,
-                                                  const RooArgList &vars, std::string const &intExpression)
+RooAbsReal* RooClassFactory::makeFunctionInstance(const char* className, const char* name, const char* expression, const RooArgList& vars, const char* intExpression)
 {
-   // Construct unique class name for this function expression
-   std::string tmpName(name);
-   tmpName[0] = toupper(tmpName[0]);
-   string className = "Roo" + tmpName + "Func";
+  // Use class factory to compile and link specialized function
+  Bool_t error = makeAndCompileFunction(className,expression,vars,intExpression) ;
 
-   return makeFunctionInstance(className, name, expression, vars, intExpression);
+  // Check that class was created OK
+  if (error) {
+    RooErrorHandler::softAbort() ;
+  }
+
+  // Create CINT line that instantiates specialized object
+  string line = Form("new %s(\"%s\",\"%s\"",className,name,name) ;
+
+  // Make list of pointer values (represented in hex ascii) to be passed to cint
+  // Note that the order of passing arguments must match the convention in which
+  // the class code is generated: first all reals, then all categories
+
+  TIterator* iter = vars.createIterator() ;
+  string argList ;
+  // First pass the RooAbsReal arguments in the list order
+  RooAbsArg* var ;
+  while((var=(RooAbsArg*)iter->Next())) {
+    if (dynamic_cast<RooAbsReal*>(var)) {
+      argList += Form(",*((RooAbsReal*)0x%zx)",(size_t)var) ;
+    }
+  }
+  iter->Reset() ;
+  // Next pass the RooAbsCategory arguments in the list order
+  while((var=(RooAbsArg*)iter->Next())) {
+    if (dynamic_cast<RooAbsCategory*>(var)) {
+      argList += Form(",*((RooAbsCategory*)0x%zx)",(size_t)var) ;
+    }
+  }
+  delete iter ;
+
+  line += argList + ") ;" ;
+
+  // Let CINT instantiate specialized formula
+  return (RooAbsReal*) gInterpreter->ProcessLineSynch(line.c_str()) ;
 }
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Write, compile and load code and instantiate object for a
-/// RooAbsReal implementation with class name 'name', taking all
+/// RooAbsPdf implementation with class name 'name', taking all
 /// elements of 'vars' as constructor arguments. The initial value
 /// expression is taken to be 'expression' which can be any one-line
 /// C++ expression in terms of variables that occur in 'vars'.
@@ -263,38 +262,24 @@ RooAbsReal *RooClassFactory::makeFunctionInstance(std::string const &name, std::
 /// connected to the variables listed in 'vars'. The name of the
 /// object is 'name', its class name Roo<name>Class.
 ///
-/// This function is an effective compiled replacement of RooFormulaVar
+/// This function is an effective compiled replacement of RooGenericPdf
 ///
 /// You can add optional expressions for analytical integrals to be
 /// advertised by your class in the syntax
 /// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
-/// where "<intObsName>" a name of the observable integrated over and
-/// "<CPPAnaIntExpression>" is the C++ expression that calculates that
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
 /// integral.
 
-RooAbsReal *RooClassFactory::makeFunctionInstance(std::string const &className, std::string const &name,
-                                                  std::string const &expression, const RooArgList &vars,
-                                                  std::string const &intExpression)
+RooAbsPdf* RooClassFactory::makePdfInstance(const char* name, const char* expression,
+					    const RooArgList& vars, const char* intExpression)
 {
-   return static_cast<RooAbsReal *>(makeClassInstance("RooAbsRal", className, name, expression, vars, intExpression));
-}
+  // Construct unique class name for this function expression
+  string tmpName(name) ;
+  tmpName[0] = toupper(tmpName[0]) ;
+  string className = Form("Roo%sPdf",tmpName.c_str()) ;
 
-////////////////////////////////////////////////////////////////////////////////
-/// Write, compile and load code and instantiate object for a RooAbsPdf
-/// implementation. The difference to makeFunctionInstance() is the base
-/// class of the written class (RooAbsPdf instead of RooAbsReal).
-///
-/// \see RooClassFactory::makeFunctionInstance(const char*, const char*, RooArgList const&, const char*)
-
-RooAbsPdf *RooClassFactory::makePdfInstance(std::string const &name, std::string const &expression,
-                                            const RooArgList &vars, std::string const &intExpression)
-{
-   // Construct unique class name for this function expression
-   std::string tmpName(name);
-   tmpName[0] = toupper(tmpName[0]);
-   string className = "Roo" + tmpName + "Pdf";
-
-   return makePdfInstance(className, name, expression, vars, intExpression);
+  return makePdfInstance(className.c_str(),name,expression,vars,intExpression) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -313,31 +298,78 @@ RooAbsPdf *RooClassFactory::makePdfInstance(std::string const &name, std::string
 /// You can add optional expressions for analytical integrals to be
 /// advertised by your class in the syntax
 /// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
-/// where "<intObsName>" a name of the observable integrated over and
-/// "<CPPAnaIntExpression>" is the C++ expression that calculates that
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
 /// integral.
 
-RooAbsPdf *RooClassFactory::makePdfInstance(std::string const &className, std::string const &name,
-                                            std::string const &expression, const RooArgList &vars,
-                                            std::string const &intExpression)
+RooAbsPdf* RooClassFactory::makePdfInstance(const char* className, const char* name, const char* expression,
+					    const RooArgList& vars, const char* intExpression)
 {
-   return static_cast<RooAbsPdf *>(makeClassInstance("RooAbsPdf", className, name, expression, vars, intExpression));
+  // Use class factory to compile and link specialized function
+  Bool_t error = makeAndCompilePdf(className,expression,vars,intExpression) ;
+
+  // Check that class was created OK
+  if (error) {
+    RooErrorHandler::softAbort() ;
+  }
+
+  // Create CINT line that instantiates specialized object
+  string line = Form("new %s(\"%s\",\"%s\"",className,name,name) ;
+
+  // Make list of pointer values (represented in hex ascii) to be passed to cint
+  // Note that the order of passing arguments must match the convention in which
+  // the class code is generated: first all reals, then all categories
+
+  TIterator* iter = vars.createIterator() ;
+  string argList ;
+  // First pass the RooAbsReal arguments in the list order
+  RooAbsArg* var ;
+  while((var=(RooAbsArg*)iter->Next())) {
+    if (dynamic_cast<RooAbsReal*>(var)) {
+      argList += Form(",*((RooAbsReal*)0x%zx)",(size_t)var) ;
+    }
+  }
+  iter->Reset() ;
+  // Next pass the RooAbsCategory arguments in the list order
+  while((var=(RooAbsArg*)iter->Next())) {
+    if (dynamic_cast<RooAbsCategory*>(var)) {
+      argList += Form(",*((RooAbsCategory*)0x%zx)",(size_t)var) ;
+    }
+  }
+  delete iter ;
+
+  line += argList + ") ;" ;
+
+  // Let CINT instantiate specialized formula
+  return (RooAbsPdf*) gInterpreter->ProcessLineSynch(line.c_str()) ;
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Write code for a RooAbsPdf implementation with class name 'name'.
-/// The difference to makePdf() is the base
-/// class of the written class (RooAbsPdf instead of RooAbsReal).
+/// Write code for a RooAbsPdf implementation with class name 'name',
+/// taking RooAbsReal arguments with names listed in argNames and
+/// RooAbsCategory arguments with names listed in catArgNames as
+/// constructor arguments (use a comma separated list for multiple
+/// arguments). The initial value expression is taken to be
+/// 'expression' which can be any one-line C++ expression in terms of
+/// variables that occur in 'vars'. Skeleton code for handling of
+/// analytical integrals is added if hasAnaInt is true. You can add
+/// optional expressions for analytical integrals to be advertised by
+/// your class in the syntax
+/// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
+/// integral. Skeleton code for internal event generation is added
+/// if hasIntGen is true
 ///
-/// \see RooClassFactory::makePdf(const char*, const char*, std::string const &, const char*, RooArgList const&, bool,
-/// bool, const char*)
 
-bool RooClassFactory::makePdf(std::string const &name, std::string const &argNames, std::string const &catArgNames,
-                              std::string const &expression, bool hasAnaInt, bool hasIntGen,
-                              std::string const &intExpression)
+Bool_t RooClassFactory::makePdf(const char* name, const char* argNames, const char* catArgNames, const char* expression,
+				Bool_t hasAnaInt, Bool_t hasIntGen, const char* intExpression)
 {
-   return makeClass("RooAbsPdf", name, argNames, catArgNames, expression, hasAnaInt, hasIntGen, intExpression);
+  return makeClass("RooAbsPdf",name,argNames,catArgNames,expression,hasAnaInt,hasIntGen,intExpression) ;
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Write code for a RooAbsReal implementation with class name 'name',
@@ -351,84 +383,15 @@ bool RooClassFactory::makePdf(std::string const &name, std::string const &argNam
 /// optional expressions for analytical integrals to be advertised by
 /// your class in the syntax
 /// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
-/// where "<intObsName>" a name of the observable integrated over and
-/// "<CPPAnaIntExpression>" is the C++ expression that calculates that
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
 /// integral.
 
-bool RooClassFactory::makeFunction(std::string const &name, std::string const &argNames, std::string const &catArgNames,
-                                   std::string const &expression, bool hasAnaInt, std::string const &intExpression)
+Bool_t RooClassFactory::makeFunction(const char* name, const char* argNames, const char* catArgNames, const char* expression, Bool_t hasAnaInt, const char* intExpression)
 {
-   return makeClass("RooAbsReal", name, argNames, catArgNames, expression, hasAnaInt, false, intExpression);
+  return makeClass("RooAbsReal",name,argNames,catArgNames,expression,hasAnaInt,kFALSE,intExpression) ;
 }
 
-namespace {
-
-std::string listVars(std::vector<std::string> const &alist, std::vector<bool> const &isCat = {})
-{
-   std::stringstream ss;
-   for (std::size_t i = 0; i < alist.size(); ++i) {
-      if (!isCat.empty()) {
-         ss << (isCat[i] ? "int" : "double") << " ";
-      }
-      ss << alist[i];
-      if (i < alist.size() - 1) {
-         ss << ", ";
-      }
-   }
-   return ss.str();
-}
-
-std::string declareVarSpans(std::vector<std::string> const &alist)
-{
-   std::stringstream ss;
-   for (std::size_t i = 0; i < alist.size(); ++i) {
-      ss << "   "
-         << "std::span<const double> " << alist[i] << "Span = dataMap.at(" << alist[i] << ");\n";
-   }
-   return ss.str();
-}
-
-std::string getFromVarSpans(std::vector<std::string> const &alist)
-{
-   std::stringstream ss;
-   for (std::size_t i = 0; i < alist.size(); ++i) {
-      std::string name = alist[i] + "Span";
-      ss << name << ".size() > 1 ? " << name << "[i] : " << name << "[0]";
-      if (i < alist.size() - 1) {
-         ss << ",\n                               ";
-      }
-   }
-   return ss.str();
-}
-
-/// Replace all occurrences of `what` with `with` inside of `inOut`.
-void replaceAll(std::string &inOut, std::string_view what, std::string_view with)
-{
-   for (std::string::size_type pos{}; inOut.npos != (pos = inOut.find(what.data(), pos, what.length()));
-        pos += with.length()) {
-      inOut.replace(pos, what.length(), with.data(), with.length());
-   }
-}
-
-inline bool isSpecial(char c)
-{
-   return c != '_' && !std::isalnum(c);
-}
-
-bool isComplex(std::string const &expression)
-{
-   // Let's figure out if the expression contains the imaginary unit
-
-   for (std::size_t i = 0; i < expression.size(); ++i) {
-      bool leftOkay = (i == 0) || isSpecial(expression[i - 1]);
-      bool rightOkay = (i == expression.size() - 1) || isSpecial(expression[i + 1]);
-      if (expression[i] == 'I' && leftOkay && rightOkay)
-         return true;
-   }
-   return false;
-}
-
-} // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Write code for a 'baseName' implementation with class name 'className',
@@ -442,76 +405,100 @@ bool isComplex(std::string const &expression)
 /// optional expressions for analytical integrals to be advertised by
 /// your class in the syntax
 /// "<intObsName>:<CPPAnaIntExpression>;<intObsName,intObsName>:<CPPAnaIntExpression>"
-/// where "<intObsName>" a name of the observable integrated over and
-/// "<CPPAnaIntExpression>" is the C++ expression that calculates that
+/// where <intObsName> a name of the observable integrated over and
+/// <CPPAnaIntExpression> is the C++ expression that calculates that
 /// integral. Skeleton code for internal event generation is added
 /// if hasIntGen is true
 ///
 
-bool RooClassFactory::makeClass(std::string const &baseName, std::string const &className,
-                                std::string const &realArgNames, std::string const &catArgNames,
-                                std::string const &expression, bool hasAnaInt, bool hasIntGen,
-                                std::string const &intExpression)
+Bool_t RooClassFactory::makeClass(const char* baseName, const char* className, const char* realArgNames, const char* catArgNames,
+				  const char* expression,  Bool_t hasAnaInt, Bool_t hasIntGen, const char* intExpression)
 {
-   // Check that arguments were given
+  // Check that arguments were given
+  if (!baseName) {
+    oocoutE((TObject*)0,InputArguments) << "RooClassFactory::makeClass: ERROR: a base class name must be given" << endl ;
+    return kTRUE ;
+  }
 
-   if (realArgNames.empty() && catArgNames.empty()) {
-      oocoutE(nullptr, InputArguments)
-         << "RooClassFactory::makeClass: ERROR: A list of input argument names must be given" << endl;
-      return true;
-   }
+  if (!className) {
+    oocoutE((TObject*)0,InputArguments) << "RooClassFactory::makeClass: ERROR: a class name must be given" << endl ;
+    return kTRUE ;
+  }
 
-   if (!intExpression.empty() && !hasAnaInt) {
-      oocoutE(nullptr, InputArguments) << "RooClassFactory::makeClass: ERROR no analytical integration code "
-                                          "requestion, but expression for analytical integral provided"
-                                       << endl;
-      return true;
-   }
+  if ((!realArgNames || !*realArgNames) && (!catArgNames || !*catArgNames)) {
+    oocoutE((TObject*)0,InputArguments) << "RooClassFactory::makeClass: ERROR: A list of input argument names must be given" << endl ;
+    return kTRUE ;
+  }
 
-   // Parse comma separated list of argument names into list of strings
-   vector<string> alist;
-   vector<bool> isCat;
+  if (intExpression && !hasAnaInt) {
+    oocoutE((TObject*)0,InputArguments) << "RooClassFactory::makeClass: ERROR no analytical integration code requestion, but expression for analytical integral provided" << endl ;
+    return kTRUE ;
+  }
 
-   for (auto const &token : ROOT::Split(realArgNames, ",", /*skipEmpyt=*/true)) {
-      alist.push_back(token);
-      isCat.push_back(false);
-   }
-   for (auto const &token : ROOT::Split(catArgNames, ",", /*skipEmpyt=*/true)) {
-      alist.push_back(token);
-      isCat.push_back(true);
-   }
+  // Parse comma separated list of argument names into list of strings
+  vector<string> alist ;
+  vector<bool> isCat ;
 
-   // clang-format off
-  std::stringstream hf;
-  hf << R"(/*****************************************************************************
- * Project: RooFit                                                           *
- *                                                                           *
- * This code was autogenerated by RooClassFactory                            *
- *****************************************************************************/
+  if (realArgNames && *realArgNames) {
+    const size_t bufSize = strlen(realArgNames)+1;
+    char* buf = new char[bufSize] ;
+    strlcpy(buf,realArgNames,bufSize) ;
+    char* token = strtok(buf,",") ;
+    while(token) {
+      alist.push_back(token) ;
+      isCat.push_back(false) ;
+      token = strtok(0,",") ;
+    }
+    delete[] buf ;
+  }
+  if (catArgNames && *catArgNames) {
+    const size_t bufSize = strlen(catArgNames)+1;
+    char* buf = new char[bufSize] ;
+    strlcpy(buf,catArgNames,bufSize) ;
+    char* token = strtok(buf,",") ;
+    while(token) {
+      alist.push_back(token) ;
+      isCat.push_back(true) ;
+      token = strtok(0,",") ;
+    }
+    delete[] buf ;
+  }
 
-#ifndef CLASS_NAME_h
-#define CLASS_NAME_h
+  TString impFileName(className), hdrFileName(className) ;
+  impFileName += ".cxx" ;
+  hdrFileName += ".h" ;
 
-#include <BASE_NAME.h>
-#include <RooRealProxy.h>
-#include <RooCategoryProxy.h>
-#include <RooAbsReal.h>
-#include <RooAbsCategory.h>
+  TString ifdefName(className) ;
+  ifdefName.ToUpper() ;
 
-#include <complex>
-
-class CLASS_NAME : public BASE_NAME {
-public:
-   CLASS_NAME() {}
-   CLASS_NAME(const char *name, const char *title,)";
+  ofstream hf(hdrFileName) ;
+  hf << "/*****************************************************************************" << endl
+     << " * Project: RooFit                                                           *" << endl
+     << " *                                                                           *" << endl
+     << "  * This code was autogenerated by RooClassFactory                            * " << endl
+     << " *****************************************************************************/" << endl
+     << endl
+     << "#ifndef " << ifdefName << endl
+     << "#define " << ifdefName << endl
+     << "" << endl
+     << "#include \"" << baseName << ".h\"" << endl
+     << "#include \"RooRealProxy.h\"" << endl
+     << "#include \"RooCategoryProxy.h\"" << endl
+     << "#include \"RooAbsReal.h\"" << endl
+     << "#include \"RooAbsCategory.h\"" << endl
+     << " " << endl
+     << "class " << className << " : public " << baseName << " {" << endl
+     << "public:" << endl
+     << "  " << className << "() {} ; " << endl
+     << "  " << className << "(const char *name, const char *title," << endl ;
 
   // Insert list of input arguments
   unsigned int i ;
   for (i=0 ; i<alist.size() ; i++) {
     if (!isCat[i]) {
-      hf << "        RooAbsReal& _" ;
+      hf << "	      RooAbsReal& _" ;
     } else {
-      hf << "        RooAbsCategory& _" ;
+      hf << "	      RooAbsCategory& _" ;
     }
     hf << alist[i] ;
     if (i==alist.size()-1) {
@@ -521,23 +508,22 @@ public:
     }
   }
 
-  hf << R"(  CLASS_NAME(CLASS_NAME const &other, const char *name=nullptr);
-  TObject* clone(const char *newname) const override { return new CLASS_NAME(*this, newname); }
-)";
+  hf << "  " << className << "(const " << className << "& other, const char* name=0) ;" << endl
+     << "  virtual TObject* clone(const char* newname) const { return new " << className << "(*this,newname); }" << endl
+     << "  inline virtual ~" << className << "() { }" << endl
+     << endl ;
 
   if (hasAnaInt) {
-    hf << R"(
-   int getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char *rangeName=nullptr) const override;
-   double analyticalIntegral(int code, const char *rangeName=nullptr) const override;
-)";
+    hf << "  Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const ;" << endl
+       << "  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const ;" << endl
+       << "" << endl ;
   }
 
   if (hasIntGen) {
-     hf << R"(
-   int getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK=true) const override;
-   void initGenerator(int code) override {} // optional pre-generation initialization
-   void generateEvent(int code) override;
-)";
+     hf << "  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK=kTRUE) const;" << endl
+	<< "  void initGenerator(Int_t code) {} ; // optional pre-generation initialization" << endl
+	<< "  void generateEvent(Int_t code);" << endl
+	<< endl ;
   }
 
   hf << "protected:" << endl
@@ -552,66 +538,42 @@ public:
     }
   }
 
-  hf << R"(
-  double evaluate() const override;
-  void computeBatch(double* output, std::size_t size, RooFit::Detail::DataMap const&) const override;
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  hf << "  " << endl
+     << "  Double_t evaluate() const ;" << endl
+     << "" << endl
+     << "private:" << endl
+     << "" << endl
+     << "  ClassDef(" << className << ",1) // Your description goes here..." << endl
+     << "};" << endl
+     << " " << endl
+     << "#endif" << endl ;
 
-private:
 
-  ClassDefOverride(CLASS_NAME, 1) // Your description goes here...
-};)";
+  ofstream cf(impFileName) ;
 
+  cf << "/***************************************************************************** " << endl
+     << " * Project: RooFit                                                           * " << endl
+     << " *                                                                           * " << endl
+     << " * This code was autogenerated by RooClassFactory                            * " << endl
+     << " *****************************************************************************/ " << endl
+     << endl
+     << "// Your description goes here... " << endl
+     << endl
 
-  hf << endl
-     << "inline double CLASS_NAME_evaluate(" << listVars(alist, isCat) << ") ";
-  hf << R"(
-{)";
+     << "#include \"Riostream.h\" " << endl
+     << endl
 
-  // When Clad is supporting std::complex, we might drop this check and always write the definition of I.
-  if (isComplex(expression)) {
-    hf << R"(
-   // Support also using the imaginary unit
-   using namespace std::complex_literals;
-   // To be able to also comile C code, we define a variable that behaves like the "I" macro from C.
-   constexpr auto I = 1i;
-)";
-  }
+     << "#include \"" << className << ".h\" " << endl
+     << "#include \"RooAbsReal.h\" " << endl
+     << "#include \"RooAbsCategory.h\" " << endl
+     << "#include <math.h> " << endl
+     << "#include \"TMath.h\" " << endl
+     << endl
 
-  hf << R"(
-   // ENTER EXPRESSION IN TERMS OF VARIABLE ARGUMENTS HERE
+     << "ClassImp(" << className << "); " << endl
+     << endl
 
-)"
-     << "   return " << expression << "; " << endl
-     << "}\n"
-     << endl;
-
-  hf << "\n#endif // CLASS_NAME_h";
-
-  std::stringstream cf;
-
-  cf << R"(/*****************************************************************************
- * Project: RooFit                                                           *
- *                                                                           *
- * This code was autogenerated by RooClassFactory                            *
- *****************************************************************************/
-
-// Your description goes here...
-
-#include "CLASS_NAME.h"
-
-#include <RooAbsReal.h>
-#include <RooAbsCategory.h>
-
-#include <Riostream.h>
-#include <TMath.h>
-
-#include <cmath>
-
-ClassImp(CLASS_NAME);
-
-CLASS_NAME::CLASS_NAME(const char *name, const char *title,
-)";
+     << " " << className << "::" << className << "(const char *name, const char *title, " << endl ;
 
   // Insert list of proxy constructors
   for (i=0 ; i<alist.size() ; i++) {
@@ -623,13 +585,13 @@ CLASS_NAME::CLASS_NAME(const char *name, const char *title,
     if (i<alist.size()-1) {
       cf << "," ;
     } else {
-      cf << ")" ;
+      cf << ") :" ;
     }
     cf << endl ;
   }
 
   // Insert base class constructor
-  cf << "   : BASE_NAME(name,title)," << endl ;
+  cf << "   " << baseName << "(name,title), " << endl ;
 
   // Insert list of proxy constructors
   for (i=0 ; i<alist.size() ; i++) {
@@ -640,12 +602,13 @@ CLASS_NAME::CLASS_NAME(const char *name, const char *title,
     cf << endl ;
   }
 
-  cf << "{" << endl
-     << "}" << endl
+  cf << " { " << endl
+     << " } " << endl
+     << endl
      << endl
 
-     << "CLASS_NAME::CLASS_NAME(CLASS_NAME const &other, const char *name)" << endl
-     << "   : BASE_NAME(other,name)," << endl ;
+     << " " << className << "::" << className << "(const " << className << "& other, const char* name) :  " << endl
+     << "   " << baseName << "(other,name), " << endl ;
 
   for (i=0 ; i<alist.size() ; i++) {
     cf << "   " << alist[i] << "(\"" << alist[i] << "\",this,other." << alist[i] << ")" ;
@@ -655,28 +618,20 @@ CLASS_NAME::CLASS_NAME(const char *name, const char *title,
     cf << endl ;
   }
 
-  cf << "{\n"
-     << "}\n"
+  cf << " { " << endl
+     << " } " << endl
      << endl
-     << "\n"
-     << "double CLASS_NAME::evaluate() const " << endl
-     << "{\n"
-     << "   return CLASS_NAME_evaluate(" << listVars(alist) << "); " << endl
-     << "}\n"
-     << "\n"
-     << "void CLASS_NAME::computeBatch(double *output, std::size_t size, RooFit::Detail::DataMap const &dataMap) const " << endl
-     << "{ \n"
-     << declareVarSpans(alist)
-     << "\n"
-     << "   for (std::size_t i = 0; i < size; ++i) {\n"
-     << "      output[i] = CLASS_NAME_evaluate(" << getFromVarSpans(alist) << ");\n"
-     << "   }\n"
-     << "} \n";
+     << endl
+     << endl
 
-cf << "void CLASS_NAME::translate(RooFit::Detail::CodeSquashContext &ctx) const\n"
-<< "{\n"
-<< "   ctx.addResult(this, ctx.buildCall(\"CLASS_NAME_evaluate\", " << listVars(alist) << "));\n"
-<<"}\n";
+     << " Double_t " << className << "::evaluate() const " << endl
+     << " { " << endl
+     << "   // ENTER EXPRESSION IN TERMS OF VARIABLE ARGUMENTS HERE " << endl
+     << "   return " << expression << " ; " << endl
+     << " } " << endl
+     << endl
+     << endl
+     << endl ;
 
   if (hasAnaInt) {
 
@@ -684,175 +639,168 @@ cf << "void CLASS_NAME::translate(RooFit::Detail::CodeSquashContext &ctx) const\
     vector<string> intExpr ;
     // Parse analytical integration expression if provided
     // Expected form is observable:expression,observable,observable:expression;[...]
-    if (!intExpression.empty()) {
-      const std::size_t bufSize = intExpression.size()+1;
-      std::vector<char> buf(bufSize);
-      strlcpy(buf.data(),intExpression.c_str(),bufSize) ;
-      char* ptr = strtok(buf.data(),":") ;
+    if (intExpression && *intExpression) {
+      const size_t bufSize = strlen(intExpression)+1;
+      char* buf = new char[bufSize] ;
+      strlcpy(buf,intExpression,bufSize) ;
+      char* ptr = strtok(buf,":") ;
       while(ptr) {
-   intObs.push_back(ptr) ;
-   intExpr.push_back(strtok(nullptr,";")) ;
-   ptr = strtok(nullptr,":") ;
+	intObs.push_back(ptr) ;
+	intExpr.push_back(strtok(0,";")) ;
+	ptr = strtok(0,":") ;
       }
+      delete[] buf ;
     }
 
-    cf << R"(
-int CLASS_NAME::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char */*rangeName*/) const
-{
-   // Support also using the imaginary unit
-   using namespace std::complex_literals;
-   // To be able to also comile C code, we define a variable that behaves like the "I" macro from C.
-   constexpr auto I = 1i;
+    cf << " Int_t " << className << "::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* /*rangeName*/) const  " << endl
+       << " { " << endl
+       << "   // LIST HERE OVER WHICH VARIABLES ANALYTICAL INTEGRATION IS SUPPORTED, " << endl
+       << "   // ASSIGN A NUMERIC CODE FOR EACH SUPPORTED (SET OF) PARAMETERS " << endl
+       << "   // THE EXAMPLE BELOW ASSIGNS CODE 1 TO INTEGRATION OVER VARIABLE X" << endl
+       << "   // YOU CAN ALSO IMPLEMENT MORE THAN ONE ANALYTICAL INTEGRAL BY REPEATING THE matchArgs " << endl
+       << "   // EXPRESSION MULTIPLE TIMES" << endl
+       << endl  ;
 
-   // LIST HERE OVER WHICH VARIABLES ANALYTICAL INTEGRATION IS SUPPORTED,
-   // ASSIGN A NUMERIC CODE FOR EACH SUPPORTED (SET OF) PARAMETERS. THE EXAMPLE
-   // BELOW ASSIGNS CODE 1 TO INTEGRATION OVER VARIABLE X YOU CAN ALSO
-   // IMPLEMENT MORE THAN ONE ANALYTICAL INTEGRAL BY REPEATING THE matchArgs
-   // EXPRESSION MULTIPLE TIMES.
-)";
-
-    if (!intObs.empty()) {
-      for (std::size_t ii=0 ; ii<intObs.size() ; ii++) {
-   cf << "   if (matchArgs(allVars,analVars," << intObs[ii] << ")) return " << ii+1 << " ; " << endl ;
+    if (intObs.size()>0) {
+      for (UInt_t ii=0 ; ii<intObs.size() ; ii++) {
+	cf << "   if (matchArgs(allVars,analVars," << intObs[ii] << ")) return " << ii+1 << " ; " << endl ;
       }
     } else {
       cf << "   // if (matchArgs(allVars,analVars,x)) return 1 ; " << endl ;
     }
 
     cf << "   return 0 ; " << endl
-       << "} " << endl
+       << " } " << endl
+       << endl
        << endl
        << endl
 
-       << R"(double CLASS_NAME::analyticalIntegral(int code, const char *rangeName) const
-{
-  // RETURN ANALYTICAL INTEGRAL DEFINED BY RETURN CODE ASSIGNED BY
-  // getAnalyticalIntegral(). THE MEMBER FUNCTION x.min(rangeName) AND
-  // x.max(rangeName) WILL RETURN THE INTEGRATION BOUNDARIES FOR EACH
-  // OBSERVABLE x.
-)";
+       << " Double_t " << className << "::analyticalIntegral(Int_t code, const char* rangeName) const  " << endl
+       << " { " << endl
+       << "   // RETURN ANALYTICAL INTEGRAL DEFINED BY RETURN CODE ASSIGNED BY getAnalyticalIntegral" << endl
+       << "   // THE MEMBER FUNCTION x.min(rangeName) AND x.max(rangeName) WILL RETURN THE INTEGRATION" << endl
+       << "   // BOUNDARIES FOR EACH OBSERVABLE x" << endl
+       << endl ;
 
-    if (!intObs.empty()) {
-      for (std::size_t ii=0 ; ii<intObs.size() ; ii++) {
-   cf << "   if (code==" << ii+1 << ") { return (" << intExpr[ii] << ") ; } " << endl ;
+    if (intObs.size()>0) {
+      for (UInt_t ii=0 ; ii<intObs.size() ; ii++) {
+	cf << "   if (code==" << ii+1 << ") { return (" << intExpr[ii] << ") ; } " << endl ;
       }
     } else {
       cf << "   // assert(code==1) ; " << endl
-    << "   // return (x.max(rangeName)-x.min(rangeName)) ; " << endl ;
+	 << "   // return (x.max(rangeName)-x.min(rangeName)) ; " << endl ;
     }
 
     cf << "   return 0 ; " << endl
-       << "} " << endl;
+       << " } " << endl
+       << endl
+       << endl
+       << endl ;
   }
 
   if (hasIntGen) {
-    cf << R"(
-int CLASS_NAME::getGenerator(const RooArgSet &directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
-{
-   // LIST HERE OVER WHICH VARIABLES INTERNAL GENERATION IS SUPPORTED, ASSIGN A
-   // NUMERIC CODE FOR EACH SUPPORTED (SET OF) PARAMETERS. THE EXAMPLE BELOW
-   // ASSIGNS CODE 1 TO INTEGRATION OVER VARIABLE X. YOU CAN ALSO IMPLEMENT
-   // MORE THAN ONE GENERATOR CONFIGURATION BY REPEATING THE matchArgs
-   // EXPRESSION MULTIPLE TIMES. IF THE FLAG staticInitOK IS TRUE, THEN IT IS
-   // SAFE TO PRECALCULATE INTERMEDIATE QUANTITIES IN initGenerator(), IF IT IS
-   // NOT SET THEN YOU SHOULD NOT ADVERTISE ANY GENERATOR METHOD THAT RELIES ON
-   // PRECALCULATIONS IN initGenerator().
+    cf << " Int_t " << className << "::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t /*staticInitOK*/) const " << endl
+       << " { " << endl
+       << "   // LIST HERE OVER WHICH VARIABLES INTERNAL GENERATION IS SUPPORTED, " << endl
+       << "   // ASSIGN A NUMERIC CODE FOR EACH SUPPORTED (SET OF) PARAMETERS " << endl
+       << "   // THE EXAMPLE BELOW ASSIGNS CODE 1 TO INTEGRATION OVER VARIABLE X" << endl
+       << "   // YOU CAN ALSO IMPLEMENT MORE THAN ONE GENERATOR CONFIGURATION BY REPEATING THE matchArgs " << endl
+       << "   // EXPRESSION MULTIPLE TIMES. IF THE FLAG staticInitOK IS TRUE THEN IT IS SAFE TO PRECALCULATE " << endl
+       << "   // INTERMEDIATE QUANTITIES IN initGenerator(), IF IT IS NOT SET THEN YOU SHOULD NOT ADVERTISE" << endl
+       << "   // ANY GENERATOR METHOD THAT RELIES ON PRECALCULATIONS IN initGenerator()" << endl
+       << endl
+       << "   // if (matchArgs(directVars,generateVars,x)) return 1 ;   " << endl
+       << "   return 0 ; " << endl
+       << " } " << endl
+       << endl
+       << endl
+       << endl
 
-   // if (matchArgs(directVars,generateVars,x)) return 1;
-   return 0;
-}
-
-void CLASS_NAME::generateEvent(int code)
-{
-   // GENERATE SET OF OBSERVABLES DEFINED BY RETURN CODE ASSIGNED BY
-   // getGenerator(). RETURN THE GENERATED VALUES BY ASSIGNING THEM TO THE
-   // PROXY DATA MEMBERS THAT REPRESENT THE CHOSEN OBSERVABLES.
-
-   // assert(code==1);
-   // x = 0;
-   return;
-}
-)";
-
+       << " void " << className << "::generateEvent(Int_t code) " << endl
+       << " { " << endl
+       << "   // GENERATE SET OF OBSERVABLES DEFINED BY RETURN CODE ASSIGNED BY getGenerator()" << endl
+       << "   // RETURN THE GENERATED VALUES BY ASSIGNING THEM TO THE PROXY DATA MEMBERS THAT" << endl
+       << "   // REPRESENT THE CHOSEN OBSERVABLES" << endl
+       << endl
+       << "   // assert(code==1) ; " << endl
+       << "   // x = 0 ; " << endl
+       << "   return; " << endl
+       << " } " << endl
+       << endl
+       << endl
+       << endl ;
   }
-   // clang-format on
 
-   std::ofstream ohf(className + ".h");
-   std::ofstream ocf(className + ".cxx");
-   std::string headerCode = hf.str();
-   std::string sourceCode = cf.str();
-   replaceAll(headerCode, "CLASS_NAME", className);
-   replaceAll(sourceCode, "CLASS_NAME", className);
-   replaceAll(headerCode, "BASE_NAME", baseName);
-   replaceAll(sourceCode, "BASE_NAME", baseName);
-   ohf << headerCode;
-   ocf << sourceCode;
 
-   return false;
+  return kFALSE ;
 }
-
-namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::string ClassFacIFace::create(RooFactoryWSTool &ft, const char *typeName, const char *instanceName,
-                                  std::vector<std::string> args)
+std::string RooClassFactory::ClassFacIFace::create(RooFactoryWSTool& ft, const char* typeName, const char* instanceName, std::vector<std::string> args)
 {
-   static int classCounter = 0;
+  static int classCounter = 0 ;
 
-   string tn(typeName);
+  string tn(typeName) ;
+  if (tn=="CEXPR" || tn=="cexpr") {
 
-   if (args.size() < 2) {
-      throw std::runtime_error(Form("RooClassFactory::ClassFacIFace::create() ERROR: CEXPR requires at least 2 "
-                                    "arguments (expr,var,...), but only %u args found",
-                                    (UInt_t)args.size()));
-   }
+    if (args.size()<2) {
+      throw string(Form("RooClassFactory::ClassFacIFace::create() ERROR: CEXPR requires at least 2 arguments (expr,var,...), but only %u args found",
+			(UInt_t)args.size())) ;
+    }
 
-   RooAbsArg *ret;
-   // Strip quotation marks from expression string
-   char expr[1024];
-   strncpy(expr, args[0].c_str() + 1, args[0].size() - 2);
-   expr[args[0].size() - 2] = 0;
+    RooAbsArg* ret ;
+    // Strip quotation marks from expression string
+    char expr[1024] ;
+    strncpy(expr,args[0].c_str()+1,args[0].size()-2) ;
+    expr[args[0].size()-2]=0 ;
 
-   RooArgList varList;
 
-   if (args.size() == 2) {
-      // Interpret 2nd arg as list
-      varList.add(ft.asLIST(args[1].c_str()));
-   } else {
-      for (unsigned int i = 1; i < args.size(); i++) {
-         varList.add(ft.asARG(args[i].c_str()));
+    RooArgList varList ;
+
+    try {
+      if (args.size()==2) {
+	// Interpret 2nd arg as list
+	varList.add(ft.asLIST(args[1].c_str())) ;
+      } else {
+	for (unsigned int i=1 ; i<args.size() ; i++) {
+	  varList.add(ft.asARG(args[i].c_str())) ;
+	}
       }
-   }
+    } catch (const string &err) {
+      throw string(Form("RooClassFactory::ClassFacIFace::create() ERROR: %s",err.c_str())) ;
+    }
 
-   string className;
-   while (true) {
-      className = Form("RooCFAuto%03d%s%s", classCounter, (tn == "CEXPR") ? "Pdf" : "Func", ft.autoClassNamePostFix());
-      TClass *tc = TClass::GetClass(className.c_str(), true, true);
-      classCounter++;
+    string className ;
+    while(true) {
+      className = Form("RooCFAuto%03d%s%s",classCounter,(tn=="CEXPR")?"Pdf":"Func",ft.autoClassNamePostFix()) ;
+      TClass* tc =  TClass::GetClass(className.c_str(),kTRUE,kTRUE) ;
+      classCounter++ ;
       if (!tc) {
-         break;
+	break ;
       }
-   }
+    }
 
-   if (tn == "CEXPR") {
-      ret = RooClassFactory::makePdfInstance(className, instanceName, expr, varList);
-   } else {
-      ret = RooClassFactory::makeFunctionInstance(className, instanceName, expr, varList);
-   }
-   if (!ret) {
-      throw std::runtime_error(
-         Form("RooClassFactory::ClassFacIFace::create() ERROR creating %s %s with RooClassFactory",
-              ((tn == "CEXPR") ? "pdf" : "function"), instanceName));
-   }
+    if (tn=="CEXPR") {
+      ret = makePdfInstance(className.c_str(),instanceName,expr,varList) ;
+    } else {
+      ret = makeFunctionInstance(className.c_str(),instanceName,expr,varList) ;
+    }
+    if (!ret) {
+      throw string(Form("RooClassFactory::ClassFacIFace::create() ERROR creating %s %s with RooClassFactory",((tn=="CEXPR")?"pdf":"function"),instanceName)) ;
+    }
 
-   // Import object
-   ft.ws().import(*ret, RooFit::Silence());
+    // Import object
+    ft.ws().import(*ret,RooFit::Silence()) ;
 
-   // Import class code as well
-   ft.ws().importClassCode(ret->IsA());
+    // Import class code as well
+    ft.ws().importClassCode(ret->IsA()) ;
 
-   return string(instanceName);
+
+  } else {
+
+    throw string(Form("RooClassFactory::ClassFacIFace::create() ERROR: Unknown meta-type %s requested",typeName)) ;
+
+  }
+  return string(instanceName) ;
 }
-
-} // namespace

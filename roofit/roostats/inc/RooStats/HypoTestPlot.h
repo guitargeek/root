@@ -22,9 +22,10 @@ namespace RooStats {
 class HypoTestPlot: public SamplingDistPlot {
    public:
       /// Constructor
-      HypoTestPlot() = default; // needed for IO
+   HypoTestPlot() : SamplingDistPlot() , fHypoTestResult(0) {}   // needed for IO
       HypoTestPlot(HypoTestResult& result, Int_t bins=100, Option_t* opt = "NORMALIZE HIST");
-      HypoTestPlot(HypoTestResult& result, Int_t bins, double min, double max, Option_t* opt = "NORMALIZE HIST");
+      HypoTestPlot(HypoTestResult& result, Int_t bins, Double_t min, Double_t max, Option_t* opt = "NORMALIZE HIST");
+      ~HypoTestPlot(void) {}
 
       /// Applies a HypoTestResult.
       void ApplyResult(HypoTestResult& result, Option_t* opt = "NORMALIZE HIST");
@@ -32,10 +33,10 @@ class HypoTestPlot: public SamplingDistPlot {
       void ApplyDefaultStyle(void);
 
    private:
-      HypoTestResult *fHypoTestResult = nullptr;
+      HypoTestResult *fHypoTestResult;
 
    protected:
-   ClassDefOverride(HypoTestPlot,1)
+   ClassDef(HypoTestPlot,1)
 };
 }
 

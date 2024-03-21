@@ -36,42 +36,45 @@
 #include "RooGlobalFunc.h"
 
 using namespace RooFit;
-using std::cout, std::endl;
+using namespace std;
 
-void RooProofDriverSelector::SlaveBegin(TTree * /*tree*/)
-{
-  // Retrieve study pack
-  _pkg=nullptr ;
-  if (fInput) {
-    for (auto * tmp : dynamic_range_cast<RooStudyPackage*>(*fInput)) {
+void RooProofDriverSelector::SlaveBegin(TTree * /*tree*/) 
+{  
+  // Retrieve study pack 
+  _pkg=0 ;
+  if (fInput) { 
+    TIter iter = fInput->MakeIterator() ;
+    TObject* obj ;
+    while((obj=iter.Next())) {
+      RooStudyPackage* tmp = dynamic_cast<RooStudyPackage*>(obj) ;
       if (tmp) {
-        _pkg = tmp ;
+	_pkg = tmp ;
       }
-    }
+     }
   }
-  if (_pkg==nullptr) {
+  if (_pkg==0) {
     cout << "RooProofDriverSelector::SlaveBegin() no RooStudyPackage found, aborting process" << endl ;
     fStatus = kAbortProcess ;
   } else {
     cout << "workspace contents = " << endl ;
     _pkg->wspace().Print() ;
-
+    
     // Initialize study pack
     seed = _pkg->initRandom() ;
     _pkg->initialize() ;
   }
-
+    
 }
 
-bool RooProofDriverSelector::Process(Long64_t entry)
+Bool_t RooProofDriverSelector::Process(Long64_t entry)
 {
   cout << "RooProofDriverSelector::Process(" << entry << ")" << endl ;
   _pkg->runOne() ;
-  return true;
+  return kTRUE;
 }
 
 
-void RooProofDriverSelector::SlaveTerminate()
+void RooProofDriverSelector::SlaveTerminate() 
 {
   _pkg->finalize() ;
   _pkg->exportData(fOutput,seed) ;
@@ -88,8 +91,8 @@ void RooProofDriverSelector::Init(TTree *tree)
    fChain->SetBranchAddress("i", &i, &b_i);
 }
 
-bool RooProofDriverSelector::Notify()
+Bool_t RooProofDriverSelector::Notify()
 {
-   return true;
+   return kTRUE;
 }
 

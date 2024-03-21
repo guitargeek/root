@@ -35,9 +35,10 @@ public:
          RooAbsReal& _sigp, RooAbsReal& _xi,
               RooAbsReal& _rho1, RooAbsReal& _rho2);
 
-  RooBukinPdf(const RooBukinPdf& other,const char* name=nullptr) ;
+  RooBukinPdf(const RooBukinPdf& other,const char* name=0) ;
 
-  TObject* clone(const char* newname) const override { return new RooBukinPdf(*this,newname);   }
+  virtual TObject* clone(const char* newname) const { return new RooBukinPdf(*this,newname);   }
+  inline virtual ~RooBukinPdf() { }
 
 protected:
   RooRealProxy x;
@@ -46,13 +47,13 @@ protected:
   RooRealProxy xi;
   RooRealProxy rho1;
   RooRealProxy rho2;
-  double evaluate() const override;
-  void computeBatch(double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
-  inline bool canComputeBatchWithCuda() const override { return true; }
+  double evaluate() const;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const;
+  inline bool canComputeBatchWithCuda() const { return true; }
 
 private:
 
-  ClassDefOverride(RooBukinPdf,2) // Variation of Novosibirsk PDF
+  ClassDef(RooBukinPdf,2) // Variation of Novosibirsk PDF
 };
 
 #endif

@@ -27,7 +27,7 @@ namespace RooStats {
 
    public:
 
-      /// constructor
+      // constructor
       HypoTestInverterPlot(HypoTestInverterResult* results ) ;
 
       HypoTestInverterPlot( const char* name,
@@ -62,10 +62,10 @@ namespace RooStats {
       ///   EXP  :  draw only the expected plot
       ///   CLB  : draw also  CLb
       ///   2CL  : drow both  CLs+b and CLs
-      void Draw(Option_t *opt="") override;
+      void Draw(Option_t *opt="");
 
       /// destructor
-      ~HypoTestInverterPlot() override ;
+      ~HypoTestInverterPlot() ;
 
    private:
 
@@ -73,7 +73,7 @@ namespace RooStats {
 
    protected:
 
-      ClassDefOverride(HypoTestInverterPlot,1)  // HypoTestInverterPlot class
+      ClassDef(HypoTestInverterPlot,1)  // HypoTestInverterPlot class
 
    };
 }

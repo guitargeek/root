@@ -111,11 +111,11 @@ TEST(RooAbsDataHelper, SkipEventsOutOfRange) {
   RooRealVar x{"x", "x", 0.0, -2.0, 2.0};
 
   // Create a RooDataset from the TTree, and one from the RDataFrame
-  RooDataSet dataSetTree{"dataSetTree", "dataSetTree", x, RooFit::Import(*tree)};
+  RooDataSet dataSetTree{"dataSetTree", "dataSetTree", tree, x};
   auto dataSetRDF = rdf.Book<double>(RooDataSetHelper("dataSetRDF", "dataSetRDF", RooArgSet(x)), {"x"});
 
   // Check if in the creation of the datasets, the entries outside the
-  // variable range were successfully discarded.
+  // variable range were sucessfully discarded.
   double nPassing = *rdf.Filter("x >= -2 && x <= 2.0").Count();
 
   EXPECT_EQ(dataSetRDF->numEntries(), nPassing);

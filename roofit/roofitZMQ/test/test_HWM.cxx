@@ -12,7 +12,7 @@
 
 #include "RooFit_ZMQ/ZeroMQSvc.h"
 
-#include <TSystem.h>
+#include <RooFit/Common.h>
 
 #include "gtest/gtest.h"
 
@@ -27,8 +27,7 @@ protected:
          child_pid = fork();
       } while (child_pid == -1); // retry if fork fails
 
-      std::string tmpPath = gSystem->TempDirectory();
-      const std::string ipc = "ipc://" + std::string{tmpPath} + "/roofit_ZMQ_test_fork_polling_P2C.ipc";
+      const std::string ipc = "ipc://" + RooFit::tmpPath() + "ZMQ_test_fork_polling_P2C.ipc";
 
       if (child_pid > 0) { // parent
          pusher.reset(zmqSvc().socket_ptr(zmq::socket_type::push));
@@ -68,10 +67,10 @@ protected:
          if (-1 == pid) {
             throw std::runtime_error(std::string("waitpid, errno ") + std::to_string(errno));
          }
-         pusher.reset();
+         pusher.reset(nullptr);
          zmqSvc().close_context();
       } else { // child
-         puller.reset();
+         puller.reset(nullptr);
          zmqSvc().close_context();
          _Exit(0);
       }

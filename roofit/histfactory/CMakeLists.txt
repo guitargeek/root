@@ -13,13 +13,8 @@
 # so we won't build it if the xml build option is OFF.
 if (xml)
     set(HISTFACTORY_XML_HEADERS RooStats/HistFactory/ConfigParser.h)
-    set(HISTFACTORY_XML_SOURCES src/ConfigParser.cxx)
+    set(HISTFACTORY_XML_SOURCES src/ConfigParser.cxx src/MakeModelAndMeasurements.cxx)
     set(HISTFACTORY_XML_LIBRARIES XMLParser)
-endif()
-
-set (EXTRA_DICT_OPTS)
-if (runtime_cxxmodules AND WIN32)
-  set (EXTRA_DICT_OPTS NO_CXXMODULE)
 endif()
 
 ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
@@ -27,12 +22,14 @@ ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
     RooStats/HistFactory/Asimov.h
     RooStats/HistFactory/Channel.h
     RooStats/HistFactory/Data.h
-    RooStats/HistFactory/Detail/HistFactoryImpl.h
+    RooStats/HistFactory/EstimateSummary.h
     RooStats/HistFactory/FlexibleInterpVar.h
     RooStats/HistFactory/HistFactoryException.h
     RooStats/HistFactory/HistFactoryModelUtils.h
     RooStats/HistFactory/HistFactoryNavigation.h
+    RooStats/HistFactory/HistFactorySimultaneous.h
     RooStats/HistFactory/HistoToWorkspaceFactoryFast.h
+    RooStats/HistFactory/HistoToWorkspaceFactory.h
     RooStats/HistFactory/HistRef.h
     RooStats/HistFactory/LinInterpVar.h
     RooStats/HistFactory/MakeModelAndMeasurementsFast.h
@@ -48,13 +45,16 @@ ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
     src/Asimov.cxx
     src/Channel.cxx
     src/Data.cxx
+    src/EstimateSummary.cxx
     src/FlexibleInterpVar.cxx
-    src/HistFactoryImpl.cxx
+    src/Helper.cxx
+    src/Helper.h
     src/HistFactoryModelUtils.cxx
     src/HistFactoryNavigation.cxx
-    src/HistRef.cxx
+    src/HistFactorySimultaneous.cxx
+    src/HistoToWorkspaceFactory.cxx
     src/HistoToWorkspaceFactoryFast.cxx
-    src/JSONTool.cxx
+    src/HistRef.cxx
     src/LinInterpVar.cxx
     src/MakeModelAndMeasurementsFast.cxx
     src/Measurement.cxx
@@ -81,13 +81,11 @@ ROOT_STANDARD_LIBRARY_PACKAGE(HistFactory
     Graf
     Gpad
     RooStats
-    RooFitJSONInterface
-  ${EXTRA_DICT_OPTS}
 )
 
 # For recent clang, this can facilitate auto-vectorisation.
 # In RooFit, the errno side effect is not needed, anyway:
-if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+if(NOT MSVC)
   target_compile_options(HistFactory PUBLIC -fno-math-errno)
 endif()
 
@@ -104,13 +102,8 @@ if(xml)
   )
 endif()
 
-if(MSVC)
-  set(prepareHistFactory_script prepareHistFactory.bat)
-else()
-  set(prepareHistFactory_script prepareHistFactory)
-endif()
-file(COPY config/${prepareHistFactory_script} DESTINATION  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${prepareHistFactory_script}
+file(COPY config/prepareHistFactory DESTINATION  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/prepareHistFactory
                 PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
                             GROUP_EXECUTE GROUP_READ
                             WORLD_EXECUTE WORLD_READ

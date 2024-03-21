@@ -18,14 +18,21 @@
 
 #include <TROOT.h>
 
+//void topDriver(string input); // in MakeModelAndMeasurements
+//void fastDriver(string input); // in MakeModelAndMeasurementsFast
+
+//#include "RooStats/HistFactory/MakeModelAndMeasurements.h"
 #include "RooStats/HistFactory/ConfigParser.h"
 #include "RooStats/HistFactory/MakeModelAndMeasurementsFast.h"
 #include "HFMsgService.h"
 #include "hist2workspaceCommandLineOptionsHelp.h"
 
+//_____________________________batch only_____________________
+#ifndef __CINT__
+
 namespace RooStats {
   namespace HistFactory {
-    void fastDriver(std::string const& input, HistoToWorkspaceFactoryFast::Configuration const& cfg) {
+    void fastDriver(std::string input) {
 
       // Create the initial list of measurements and channels
       std::vector< HistFactory::Measurement > measurement_list;
@@ -40,9 +47,9 @@ namespace RooStats {
 
       // We will make the measurements 1-by-1
       for(unsigned int i = 0; i < measurement_list.size(); ++i) {
-   HistFactory::Measurement measurement = measurement_list.at(i);
-   measurement.CollectHistograms();
-   MakeModelAndMeasurementFast(measurement, cfg);
+	HistFactory::Measurement measurement = measurement_list.at(i);
+	measurement.CollectHistograms();
+	MakeModelAndMeasurementFast( measurement );
       }
 
       return;
@@ -56,13 +63,11 @@ namespace RooStats {
  * main function of the hist2workspace executable.
  * It creates RooFit models from an xml config and files with histograms.
  * See MakeModelAndMeasurementFast(), for further instructions.
- * \param[in] argc number of CLI arguments
- * \param[in] argv pointer to arguments
- *
- * -h Help
- * -v Switch HistFactory message stream to INFO level.
- * -vv Switch HistFactory message stream to DEBUG level.
- * -disable_binned_fit_optimization Disable the binned fit optimization used in HistFactory since ROOT 6.28.
+ * \param[in] -h Help
+ * \param[in] -standard_form Standard xml model definitions. See MakeModelAndMeasurementFast()
+ * \param[in] -number_counting_form Deprecated
+ * \param[in] -v Switch HistFactory message stream to INFO level.
+ * \param[in] -vv Switch HistFactory message stream to DEBUG level.
  */
 int main(int argc, char** argv) {
 
@@ -80,7 +85,6 @@ int main(int argc, char** argv) {
   RooMsgService::instance().getStream(2).addTopic(RooFit::HistFactory);
 
   std::string driverArg;
-  RooStats::HistFactory::HistoToWorkspaceFactoryFast::Configuration cfg{};
 
   for (int i=1; i < argc; ++i) {
     std::string input = argv[i];
@@ -102,15 +106,37 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    if(input == "-disable_binned_fit_optimization") {
-      cfg.binnedFitOptimization = false;
+    if (input == "-number_counting_form") {
+      std::cout << "ERROR: 'number_counting_form' is now deprecated." << std::endl;
+      return 255;
+    }
+
+    if(input == "-standard_form") {
+      driverArg = argv[++i];
       continue;
     }
 
     driverArg = argv[i];
   }
 
-  RooStats::HistFactory::fastDriver(driverArg, cfg);
+  try {
+    RooStats::HistFactory::fastDriver(driverArg);
+  }
+  catch(const std::string &str) {
+    std::cerr << "hist2workspace - Caught exception: " << str << std::endl ;
+    return 1;
+  }
+  catch( const std::exception& e ) {
+    std::cerr << "hist2workspace - Caught Exception: " << e.what() << std::endl;
+    return 1;
+  }
+  catch(...) {
+    std::cerr << "hist2workspace - Caught Exception" << std::endl;
+    return 1;
+  }
+
 
   return 0;
 }
+
+#endif

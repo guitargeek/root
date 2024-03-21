@@ -23,38 +23,38 @@ public:
   // Constructors, assignment etc.
   RooStreamParser(std::istream& is) ;
   RooStreamParser(std::istream& is, const TString& errPrefix) ;
-  virtual ~RooStreamParser() = default;
+  virtual ~RooStreamParser();
 
   TString readToken() ;
   TString readLine() ;
-  bool expectToken(const TString& expected, bool zapOnError=false) ;
+  Bool_t expectToken(const TString& expected, Bool_t zapOnError=kFALSE) ;
   void setPunctuation(const TString& punct) ;
   TString getPunctuation() const { return _punct ; }
 
-  bool readDouble(double& value, bool zapOnError=false) ;
-  bool convertToDouble(const TString& token, double& value) ;
+  Bool_t readDouble(Double_t& value, Bool_t zapOnError=kFALSE) ;
+  Bool_t convertToDouble(const TString& token, Double_t& value) ;
 
-  bool readInteger(Int_t& value, bool zapOnError=false) ;
-  bool convertToInteger(const TString& token, Int_t& value) ;
+  Bool_t readInteger(Int_t& value, Bool_t zapOnError=kFALSE) ;
+  Bool_t convertToInteger(const TString& token, Int_t& value) ;
 
-  bool readString(TString& value, bool zapOnError=false) ;
-  bool convertToString(const TString& token, TString& string) ;
+  Bool_t readString(TString& value, Bool_t zapOnError=kFALSE) ;
+  Bool_t convertToString(const TString& token, TString& string) ;
 
-  bool atEOL() ;
-  inline bool atEOF() { return _atEOF ; }
-  void zapToEnd(bool inclContLines=false) ;
+  Bool_t atEOL() ;
+  inline Bool_t atEOF() { return _atEOF ; }
+  void zapToEnd(Bool_t inclContLines=kFALSE) ;
 
-  bool isPunctChar(char c) const ;
-
+  Bool_t isPunctChar(char c) const ;
+  
 protected:
 
   std::istream* _is ;
-  bool _atEOL ;
-  bool _atEOF ;
+  Bool_t _atEOL ;
+  Bool_t _atEOF ;
   TString _prefix ;
   TString _punct ;
 
-
+  
   ClassDef(RooStreamParser,0) // Utility class that parses std::iostream data into tokens
 };
 

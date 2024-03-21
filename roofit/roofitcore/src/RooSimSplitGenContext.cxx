@@ -19,10 +19,12 @@
 \class RooSimSplitGenContext
 \ingroup Roofitcore
 
-Efficient implementation of the generator context
+RooSimSplitGenContext is an efficient implementation of the generator context
 specific for RooSimultaneous PDFs when generating more than one of the
 component pdfs.
 **/
+
+#include "RooFit.h"
 
 #include "RooSimSplitGenContext.h"
 #include "RooSimultaneous.h"
@@ -34,8 +36,12 @@ component pdfs.
 #include "RooRandom.h"
 #include "RooGlobalFunc.h"
 
+using namespace RooFit;
+
 #include <iostream>
 #include <string>
+
+using namespace std;
 
 ClassImp(RooSimSplitGenContext);
 
@@ -45,33 +51,57 @@ ClassImp(RooSimSplitGenContext);
 /// context creates a dedicated context for each component p.d.f.s and delegates
 /// generation of events to the appropriate component generator context
 
-RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const RooArgSet &vars, bool verbose, bool autoBinned, const char* binnedTag) :
-  RooAbsGenContext(model,vars,nullptr,nullptr,verbose), _pdf(&model)
+RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const RooArgSet &vars, Bool_t verbose, Bool_t autoBinned, const char* binnedTag) :
+  RooAbsGenContext(model,vars,0,0,verbose), _pdf(&model)
 {
   // Determine if we are requested to generate the index category
-  RooAbsCategoryLValue const& idxCat = model.indexCat();
+  RooAbsCategory *idxCat = (RooAbsCategory*) model._indexCat.absArg() ;
   RooArgSet pdfVars(vars) ;
 
   RooArgSet allPdfVars(pdfVars) ;
 
-  RooArgSet catsAmongAllVars;
-  allPdfVars.selectCommon(model.flattenedCatList(), catsAmongAllVars);
+  if (!idxCat->isDerived()) {
+    pdfVars.remove(*idxCat,kTRUE,kTRUE) ;
+    Bool_t doGenIdx = allPdfVars.find(idxCat->GetName())?kTRUE:kFALSE ;
 
-  if(catsAmongAllVars.size() != model.flattenedCatList().size()) {
+    if (!doGenIdx) {
       oocoutE(_pdf,Generation) << "RooSimSplitGenContext::ctor(" << GetName() << ") ERROR: This context must"
-                << " generate all components of the index category" << std::endl ;
-      _isValid = false ;
+			       << " generate the index category" << endl ;
+      _isValid = kFALSE ;
       _numPdf = 0 ;
       // coverity[UNINIT_CTOR]
       return ;
+    }
+  } else {
+    TIterator* sIter = idxCat->serverIterator() ;
+    RooAbsArg* server ;
+    Bool_t anyServer(kFALSE), allServers(kTRUE) ;
+    while((server=(RooAbsArg*)sIter->Next())) {
+      if (vars.find(server->GetName())) {
+	anyServer=kTRUE ;
+	pdfVars.remove(*server,kTRUE,kTRUE) ;
+      } else {
+	allServers=kFALSE ;
+      }
+    }
+    delete sIter ;    
+
+    if (anyServer && !allServers) {
+      oocoutE(_pdf,Generation) << "RooSimSplitGenContext::ctor(" << GetName() << ") ERROR: This context must"
+			       << " generate all components of a derived index category" << endl ;
+      _isValid = kFALSE ;
+      _numPdf = 0 ;
+      // coverity[UNINIT_CTOR]
+      return ;
+    }
   }
 
   // We must extended likelihood to determine the relative fractions of the components
-  _idxCatName = idxCat.GetName() ;
+  _idxCatName = idxCat->GetName() ;
   if (!model.canBeExtended()) {
     oocoutE(_pdf,Generation) << "RooSimSplitGenContext::RooSimSplitGenContext(" << GetName() << "): All components of the simultaneous PDF "
-              << "must be extended PDFs. Otherwise, it is impossible to calculate the number of events to be generated per component." << std::endl ;
-    _isValid = false ;
+			     << "must be extended PDFs. Otherwise, it is impossible to calculate the number of events to be generated per component." << endl ;
+    _isValid = kFALSE ;
     _numPdf = 0 ;
     // coverity[UNINIT_CTOR]
     return ;
@@ -79,40 +109,46 @@ RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const
 
   // Initialize fraction threshold array (used only in extended mode)
   _numPdf = model._pdfProxyList.GetSize() ;
-  _fracThresh = new double[_numPdf+1] ;
+  _fracThresh = new Double_t[_numPdf+1] ;
   _fracThresh[0] = 0 ;
-
+  
   // Generate index category and all registered PDFS
+  _proxyIter = model._pdfProxyList.MakeIterator() ;
   _allVarsPdf.add(allPdfVars) ;
+  RooRealProxy* proxy ;
+  RooAbsPdf* pdf ;
   Int_t i(1) ;
-  for(auto * proxy : static_range_cast<RooRealProxy*>(model._pdfProxyList)) {
-    auto pdf = static_cast<RooAbsPdf*>(proxy->absArg());
+  while((proxy=(RooRealProxy*)_proxyIter->Next())) {
+    pdf=(RooAbsPdf*)proxy->absArg() ;
 
     // Create generator context for this PDF
-    std::unique_ptr<RooArgSet> compVars{pdf->getObservables(pdfVars)};
-    RooAbsGenContext* cx = pdf->autoGenContext(*compVars,nullptr,nullptr,verbose,autoBinned,binnedTag) ;
+    RooArgSet* compVars = pdf->getObservables(pdfVars) ;
+    RooAbsGenContext* cx = pdf->autoGenContext(*compVars,0,0,verbose,autoBinned,binnedTag) ;
+    delete compVars ;
 
-    const auto state = idxCat.lookupIndex(proxy->name());
+    const auto state = idxCat->lookupIndex(proxy->name());
 
     cx->SetName(proxy->name()) ;
     _gcList.push_back(cx) ;
     _gcIndex.push_back(state);
-
+    
     // Fill fraction threshold array
     _fracThresh[i] = _fracThresh[i-1] + pdf->expectedEvents(&allPdfVars) ;
     i++ ;
-  }
+  }   
 
   for(i=0 ; i<_numPdf ; i++) {
     _fracThresh[i] /= _fracThresh[_numPdf] ;
   }
-
+    
   // Clone the index category
-  if(RooArgSet(model.indexCat()).snapshot(_idxCatSet, true)) {
-    oocoutE(_pdf,Generation) << "RooSimSplitGenContext::RooSimSplitGenContext(" << GetName() << ") Couldn't deep-clone index category, abort," << std::endl ;
+  _idxCatSet = (RooArgSet*) RooArgSet(model._indexCat.arg()).snapshot(kTRUE) ;
+  if (!_idxCatSet) {
+    oocoutE(_pdf,Generation) << "RooSimSplitGenContext::RooSimSplitGenContext(" << GetName() << ") Couldn't deep-clone index category, abort," << endl ;
     throw std::string("RooSimSplitGenContext::RooSimSplitGenContext() Couldn't deep-clone index category, abort") ;
   }
-  _idxCat = static_cast<RooAbsCategoryLValue*>(_idxCatSet.find(model.indexCat().GetName()));
+  
+  _idxCat = (RooAbsCategoryLValue*) _idxCatSet->find(model._indexCat.arg().GetName()) ;
 }
 
 
@@ -123,9 +159,11 @@ RooSimSplitGenContext::RooSimSplitGenContext(const RooSimultaneous &model, const
 RooSimSplitGenContext::~RooSimSplitGenContext()
 {
   delete[] _fracThresh ;
-  for (RooAbsGenContext *item : _gcList) {
-    delete item;
+  delete _idxCatSet ;
+  for (vector<RooAbsGenContext*>::iterator iter = _gcList.begin() ; iter!=_gcList.end() ; ++iter) {
+    delete (*iter) ;
   }
+  delete _proxyIter ;
 }
 
 
@@ -133,17 +171,17 @@ RooSimSplitGenContext::~RooSimSplitGenContext()
 ////////////////////////////////////////////////////////////////////////////////
 /// Attach the index category clone to the given event buffer
 
-void RooSimSplitGenContext::attach(const RooArgSet& args)
+void RooSimSplitGenContext::attach(const RooArgSet& args) 
 {
   if (_idxCat->isDerived()) {
-    _idxCat->recursiveRedirectServers(args) ;
+    _idxCat->recursiveRedirectServers(args,kTRUE) ;
   }
 
   // Forward initGenerator call to all components
-  for (RooAbsGenContext *item : _gcList) {
-    item->attach(args) ;
+  for (vector<RooAbsGenContext*>::iterator iter = _gcList.begin() ; iter!=_gcList.end() ; ++iter) {
+    (*iter)->attach(args) ;
   }
-
+  
 }
 
 
@@ -154,14 +192,14 @@ void RooSimSplitGenContext::initGenerator(const RooArgSet &theEvent)
 {
   // Attach the index category clone to the event
   if (_idxCat->isDerived()) {
-    _idxCat->recursiveRedirectServers(theEvent) ;
+    _idxCat->recursiveRedirectServers(theEvent,kTRUE) ;
   } else {
-    _idxCat = static_cast<RooAbsCategoryLValue*>(theEvent.find(_idxCat->GetName())) ;
+    _idxCat = (RooAbsCategoryLValue*) theEvent.find(_idxCat->GetName()) ;
   }
-
+  
   // Forward initGenerator call to all components
-  for (RooAbsGenContext *item : _gcList) {
-    item->initGenerator(theEvent) ;
+  for (vector<RooAbsGenContext*>::iterator iter = _gcList.begin() ; iter!=_gcList.end() ; ++iter) {
+    (*iter)->initGenerator(theEvent) ;
   }
 
 }
@@ -170,11 +208,11 @@ void RooSimSplitGenContext::initGenerator(const RooArgSet &theEvent)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooDataSet* RooSimSplitGenContext::generate(double nEvents, bool skipInit, bool extendedMode)
+RooDataSet* RooSimSplitGenContext::generate(Double_t nEvents, Bool_t skipInit, Bool_t extendedMode)
 {
   if(!isValid()) {
-    coutE(Generation) << ClassName() << "::" << GetName() << ": context is not valid" << std::endl;
-    return nullptr;
+    coutE(Generation) << ClassName() << "::" << GetName() << ": context is not valid" << endl;
+    return 0;
   }
 
 
@@ -183,8 +221,8 @@ RooDataSet* RooSimSplitGenContext::generate(double nEvents, bool skipInit, bool 
     nEvents= _expectedEvents;
   }
   coutI(Generation) << ClassName() << "::" << GetName() << ":generate: will generate "
-          << nEvents << " events" << std::endl;
-
+		    << nEvents << " events" << endl;
+    
   if (_verbose) Print("v") ;
 
   // Perform any subclass implementation-specific initialization
@@ -194,60 +232,66 @@ RooDataSet* RooSimSplitGenContext::generate(double nEvents, bool skipInit, bool 
   }
 
   // Generate lookup table from expected event counts
-  std::vector<double> nGen(_numPdf) ;
+  vector<Double_t> nGen(_numPdf) ;
   if (extendedMode ) {
+    _proxyIter->Reset() ;
+    RooRealProxy* proxy ;
     Int_t i(0) ;
-    for(auto * proxy : static_range_cast<RooRealProxy*>(_pdf->_pdfProxyList)) {
-      RooAbsPdf* pdf=static_cast<RooAbsPdf*>(proxy->absArg()) ;
+    while((proxy=(RooRealProxy*)_proxyIter->Next())) {
+      RooAbsPdf* pdf=(RooAbsPdf*)proxy->absArg() ;
       //nGen[i] = Int_t(pdf->expectedEvents(&_allVarsPdf)+0.5) ;
       nGen[i] = pdf->expectedEvents(&_allVarsPdf) ;
       i++ ;
-    }
-
+    }     
+    
   } else {
+    _proxyIter->Reset() ;
+    RooRealProxy* proxy ;
     Int_t i(1) ;
     _fracThresh[0] = 0 ;
-    for(auto * proxy : static_range_cast<RooRealProxy*>(_pdf->_pdfProxyList)) {
-      RooAbsPdf* pdf=static_cast<RooAbsPdf*>(proxy->absArg()) ;
+    while((proxy=(RooRealProxy*)_proxyIter->Next())) {
+      RooAbsPdf* pdf=(RooAbsPdf*)proxy->absArg() ;
       _fracThresh[i] = _fracThresh[i-1] + pdf->expectedEvents(&_allVarsPdf) ;
       i++ ;
-    }
+    }     
     for(i=0 ; i<_numPdf ; i++) {
       _fracThresh[i] /= _fracThresh[_numPdf] ;
     }
-
+    
     // Determine from that total number of events to be generated for each component
-    double nGenSoFar(0) ;
+    Double_t nGenSoFar(0) ;
     while (nGenSoFar<nEvents) {
-      double rand = RooRandom::uniform() ;
+      Double_t rand = RooRandom::uniform() ;
       i=0 ;
       for (i=0 ; i<_numPdf ; i++) {
-   if (rand>_fracThresh[i] && rand<_fracThresh[i+1]) {
-     nGen[i]++ ;
-     nGenSoFar++ ;
-     break ;
-   }
+	if (rand>_fracThresh[i] && rand<_fracThresh[i+1]) {
+	  nGen[i]++ ;
+	  nGenSoFar++ ;
+	  break ;
+	}
       }
     }
   }
 
-
+    
 
   // Now loop over states
-  std::map<std::string,RooAbsData*> dataMap ;
+  _proxyIter->Reset() ;
+  map<string,RooAbsData*> dataMap ;
   Int_t icomp(0) ;
-  for(auto * proxy : static_range_cast<RooRealProxy*>(_pdf->_pdfProxyList)) {
+  RooRealProxy* proxy ;
+  while((proxy=(RooRealProxy*)_proxyIter->Next())) {            
 
-    // Calculate number of events to generate for this state
+    // Calculate number of events to generate for this state    
     if (_gcList[icomp]) {
       dataMap[proxy->GetName()] = _gcList[icomp]->generate(nGen[icomp],skipInit,extendedMode) ;
     }
-
+    
     icomp++ ;
   }
-
+  
   // Put all datasets together in a composite-store RooDataSet that links and owns the component datasets
-  RooDataSet* hmaster = new RooDataSet("hmaster","hmaster",_allVarsPdf,RooFit::Index(static_cast<RooCategory&>(*_idxCat)),RooFit::Link(dataMap),RooFit::OwnLinked()) ;
+  RooDataSet* hmaster = new RooDataSet("hmaster","hmaster",_allVarsPdf,RooFit::Index((RooCategory&)*_idxCat),RooFit::Link(dataMap),RooFit::OwnLinked()) ;    
   return hmaster ;
 }
 
@@ -256,10 +300,10 @@ RooDataSet* RooSimSplitGenContext::generate(double nEvents, bool skipInit, bool 
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward to components
 
-void RooSimSplitGenContext::setExpectedData(bool flag)
+void RooSimSplitGenContext::setExpectedData(Bool_t flag) 
 {
-  for(RooAbsGenContext *elem : _gcList) {
-    elem->setExpectedData(flag) ;
+  for (vector<RooAbsGenContext*>::iterator iter=_gcList.begin() ; iter!=_gcList.end() ; ++iter) {
+    (*iter)->setExpectedData(flag) ;
   }
 }
 
@@ -270,7 +314,7 @@ void RooSimSplitGenContext::setExpectedData(bool flag)
 
 RooDataSet* RooSimSplitGenContext::createDataSet(const char* , const char* , const RooArgSet& )
 {
-  return nullptr;
+  return 0 ;
 }
 
 
@@ -298,10 +342,10 @@ void RooSimSplitGenContext::setProtoDataOrder(Int_t* )
 ////////////////////////////////////////////////////////////////////////////////
 /// Detailed printing interface
 
-void RooSimSplitGenContext::printMultiline(std::ostream &os, Int_t content, bool verbose, TString indent) const
+void RooSimSplitGenContext::printMultiline(ostream &os, Int_t content, Bool_t verbose, TString indent) const 
 {
   RooAbsGenContext::printMultiline(os,content,verbose,indent) ;
-  os << indent << "--- RooSimSplitGenContext ---" << std::endl ;
+  os << indent << "--- RooSimSplitGenContext ---" << endl ;
   os << indent << "Using PDF ";
   _pdf->printStream(os,kName|kArgs|kClassName,kSingleLine,indent);
 }

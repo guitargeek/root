@@ -19,7 +19,7 @@
 \class RooRealConstant
 \ingroup Roofitcore
 
-Provides static functions to create and keep track
+RooRealConstant provides static functions to create and keep track
 of RooRealVar constants. Instead of creating such constants by
 hand (e.g. RooRealVar one("one","one",1)), simply use
 ~~~{.cpp}
@@ -30,11 +30,15 @@ RooRealConstant keeps an internal database of previously created
 RooRealVar objects and will recycle them as appropriate.
 **/
 
-#include <cmath>
+#include "RooFit.h"
+
+#include <math.h>
 #include <sstream>
 #include "RooRealConstant.h"
 #include "RooConstVar.h"
 #include "RooArgList.h"
+
+using namespace std;
 
 ClassImp(RooRealConstant);
 
@@ -45,7 +49,7 @@ ClassImp(RooRealConstant);
 /// Return previously created object if available,
 /// otherwise create a new one on the fly.
 
-RooConstVar& RooRealConstant::value(double value)
+RooConstVar& RooRealConstant::value(Double_t value)
 {
   // Lookup existing constant
   for (auto varArg : constDB()) {
@@ -57,12 +61,11 @@ RooConstVar& RooRealConstant::value(double value)
   std::ostringstream s ;
   s << value ;
 
-  auto var = std::make_unique<RooConstVar>(s.str().c_str(),s.str().c_str(),value);
-  var->setAttribute("RooRealConstant_Factory_Object",true) ;
-  RooConstVar &varRef = *var;
-  constDB().addOwned(std::move(var));
+  auto var = new RooConstVar(s.str().c_str(),s.str().c_str(),value) ;
+  var->setAttribute("RooRealConstant_Factory_Object",kTRUE) ;
+  constDB().addOwned(*var) ;
 
-  return varRef;
+  return *var ;
 }
 
 
@@ -71,13 +74,12 @@ RooConstVar& RooRealConstant::value(double value)
 
 RooConstVar& RooRealConstant::removalDummy()
 {
-  auto var = std::make_unique<RooConstVar>("REMOVAL_DUMMY","REMOVAL_DUMMY",1) ;
-  var->setAttribute("RooRealConstant_Factory_Object",true) ;
+  RooConstVar* var = new RooConstVar("REMOVAL_DUMMY","REMOVAL_DUMMY",1) ;
+  var->setAttribute("RooRealConstant_Factory_Object",kTRUE) ;
   var->setAttribute("REMOVAL_DUMMY") ;
-  RooConstVar &varRef = *var;
-  constDB().addOwned(std::move(var));
+  constDB().addOwned(*var) ;
 
-  return varRef;
+  return *var ;
 }
 
 

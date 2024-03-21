@@ -19,18 +19,24 @@
 \class RooDouble
 \ingroup Roofitcore
 
-Minimal implementation of a TObject holding a double value.
+RooDouble is a minimal implementation of a TObject holding a Double_t
+value.
 **/
 
+#include "RooFit.h"
 #include "RooDouble.h"
 #include <string>
 
+using namespace std;
+
 ClassImp(RooDouble);
+;
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooDouble::RooDouble(double value) : _value(value)
+RooDouble::RooDouble(Double_t value) : TNamed(), _value(value) 
 {
   SetName(Form("%f",value)) ;
 }
@@ -38,9 +44,9 @@ RooDouble::RooDouble(double value) : _value(value)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Implement comparison to other TObjects that are also RooDouble
-/// to facilitate sorting of RooDoubles in a ROOT container.
+/// to faciliate sorting of RooDoubles in a ROOT container
 
-Int_t RooDouble::Compare(const TObject* other) const
+Int_t RooDouble::Compare(const TObject* other) const 
 {
   const RooDouble* otherD = dynamic_cast<const RooDouble*>(other) ;
   if (!otherD) return 0 ;

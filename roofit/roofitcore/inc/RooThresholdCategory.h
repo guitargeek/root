@@ -21,6 +21,8 @@
 #include <vector>
 #include <utility>
 
+#include "RooFitLegacy/RooCatTypeLegacy.h"
+
 class RooThresholdCategory : public RooAbsCategory {
 
 public:
@@ -28,28 +30,28 @@ public:
   RooThresholdCategory() {};
   RooThresholdCategory(const char *name, const char *title, RooAbsReal& inputVar,
       const char* defCatName="Default", Int_t defCatIdx=0);
-  RooThresholdCategory(const RooThresholdCategory& other, const char *name=nullptr) ;
-  TObject* clone(const char* newname) const override { return new RooThresholdCategory(*this, newname); }
+  RooThresholdCategory(const RooThresholdCategory& other, const char *name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooThresholdCategory(*this, newname); }
 
   // Mapping function
-  bool addThreshold(double upperLimit, const char* catName, Int_t catIdx=-99999) ;
+  Bool_t addThreshold(Double_t upperLimit, const char* catName, Int_t catIdx=-99999) ;
 
   // Printing interface (human readable)
-  void printMultiline(std::ostream& os, Int_t content, bool verbose=false, TString indent="") const override ;
+  virtual void printMultiline(std::ostream& os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const ;
 
-  void writeToStream(std::ostream& os, bool compact) const override ;
+  void writeToStream(std::ostream& os, Bool_t compact) const ;
 
 protected:
-
+  
   RooRealProxy _inputVar ;
   const value_type _defIndex{std::numeric_limits<value_type>::min()};
   std::vector<std::pair<double,value_type>> _threshList;
 
-  value_type evaluate() const override ;
+  virtual value_type evaluate() const ;
   /// No shape recomputation is necessary. This category does not depend on other categories.
-  void recomputeShape() override { }
+  void recomputeShape() { }
 
-  ClassDefOverride(RooThresholdCategory, 3) // Real-to-Category function defined by series of thresholds
+  ClassDef(RooThresholdCategory, 3) // Real-to-Category function defined by series of thresholds
 };
 
 #endif

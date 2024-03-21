@@ -73,31 +73,25 @@ RooGamma::RooGamma(const char *name, const char *title,
 ////////////////////////////////////////////////////////////////////////////////
 
 RooGamma::RooGamma(const RooGamma& other, const char* name) :
-  RooAbsPdf(other,name), x("x",this,other.x), gamma("gamma",this,other.gamma),
+  RooAbsPdf(other,name), x("x",this,other.x), gamma("mean",this,other.gamma),
   beta("beta",this,other.beta), mu("mu",this,other.mu)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooGamma::evaluate() const
+Double_t RooGamma::evaluate() const
 {
   return TMath::GammaDist(x, gamma, mu, beta) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-void RooGamma::translate(RooFit::Detail::CodeSquashContext &ctx) const
-{
-   ctx.addResult(this, ctx.buildCall("TMath::GammaDist", x, gamma, mu, beta));
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Gamma PDF.
-void RooGamma::computeBatch(double *output, size_t nEvents, RooFit::Detail::DataMap const &dataMap) const
+void RooGamma::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
-   RooBatchCompute::compute(dataMap.config(this), RooBatchCompute::Gamma, output, nEvents,
-                            {dataMap.at(x), dataMap.at(gamma), dataMap.at(beta), dataMap.at(mu)});
+  auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
+  dispatch->compute(stream, RooBatchCompute::Gamma, output, nEvents,
+          {dataMap.at(x), dataMap.at(gamma), dataMap.at(beta), dataMap.at(mu)});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -110,64 +104,21 @@ Int_t RooGamma::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, c
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooGamma::analyticalIntegral(Int_t /*code*/, const char *rangeName) const
+Double_t RooGamma::analyticalIntegral(Int_t code, const char* rangeName) const
 {
-   // integral of the Gamma distribution via ROOT::Math
-   return ROOT::Math::gamma_cdf(x.max(rangeName), gamma, beta, mu) -
-          ROOT::Math::gamma_cdf(x.min(rangeName), gamma, beta, mu);
+  R__ASSERT(code==1) ;
+
+ //integral of the Gamma distribution via ROOT::Math
+  Double_t integral = ROOT::Math::gamma_cdf(x.max(rangeName), gamma, beta, mu) - ROOT::Math::gamma_cdf(x.min(rangeName), gamma, beta, mu);
+  return integral ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::string RooGamma::buildCallToAnalyticIntegral(Int_t /*code*/, const char *rangeName,
-                                                  RooFit::Detail::CodeSquashContext &ctx) const
+Int_t RooGamma::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t /*staticInitOK*/) const
 {
-   const std::string a = ctx.buildCall("ROOT::Math::gamma_cdf", x.max(rangeName), gamma, beta, mu);
-   const std::string b = ctx.buildCall("ROOT::Math::gamma_cdf", x.min(rangeName), gamma, beta, mu);
-   return a + " - " + b;
-}
-
-namespace {
-
-inline double randomGamma(double gamma, double beta, double mu, double xmin, double xmax)
-{
-   while (true) {
-
-      double d = gamma - 1. / 3.;
-      double c = 1. / TMath::Sqrt(9. * d);
-      double xgen = 0;
-      double v = 0;
-
-      while (v <= 0.) {
-         xgen = RooRandom::randomGenerator()->Gaus();
-         v = 1. + c * xgen;
-      }
-      v = v * v * v;
-      double u = RooRandom::randomGenerator()->Uniform();
-      if (u < 1. - .0331 * (xgen * xgen) * (xgen * xgen)) {
-         double x = ((d * v) * beta + mu);
-         if ((x < xmax) && (x > xmin)) {
-            return x;
-         }
-      }
-      if (TMath::Log(u) < 0.5 * xgen * xgen + d * (1. - v + TMath::Log(v))) {
-         double x = ((d * v) * beta + mu);
-         if ((x < xmax) && (x > xmin)) {
-            return x;
-         }
-      }
-   }
-}
-
-} // namespace
-
-////////////////////////////////////////////////////////////////////////////////
-
-Int_t RooGamma::getGenerator(const RooArgSet &directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
-{
-   if (matchArgs(directVars, generateVars, x))
-      return 1;
-   return 0;
+  if (matchArgs(directVars,generateVars,x)) return 1 ;
+  return 0 ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -179,22 +130,41 @@ Int_t RooGamma::getGenerator(const RooArgSet &directVars, RooArgSet &generateVar
 /// The speed of this algorithm depends on the speed of generating normal variates.
 /// The algorithm is limited to \f$ \gamma \geq 0 \f$ !
 
-void RooGamma::generateEvent(Int_t /*code*/)
+void RooGamma::generateEvent(Int_t code)
 {
-   if (gamma >= 1) {
-      x = randomGamma(gamma, beta, mu, x.min(), x.max());
-      return;
-   }
+  R__ASSERT(code==1) ;
 
-   double xVal = 0.0;
-   bool accepted = false;
 
-   while (!accepted) {
-      double u = RooRandom::randomGenerator()->Uniform();
-      double tmp = randomGamma(1 + gamma, beta, mu, 0, std::numeric_limits<double>::infinity());
-      xVal = tmp * std::pow(u, 1.0 / gamma);
-      accepted = xVal < x.max() && xVal > x.min();
-   }
+  while(1) {
 
-   x = xVal;
+  double d = 0;
+  double c = 0;
+  double xgen = 0;
+  double v = 0;
+  double u = 0;
+  d = gamma -1./3.; c = 1./TMath::Sqrt(9.*d);
+
+  while(v <= 0.){
+    xgen = RooRandom::randomGenerator()->Gaus(); v = 1. + c*xgen;
+  }
+  v = v*v*v; u = RooRandom::randomGenerator()->Uniform();
+  if( u < 1.-.0331*(xgen*xgen)*(xgen*xgen) ) {
+    if ( (((d*v)* beta + mu ) < x.max()) && (((d*v)* beta + mu) > x.min()) ) {
+      x = ((d*v)* beta + mu) ;
+      break;
+    }
+  }
+  if( TMath::Log(u) < 0.5*xgen*xgen + d*(1.-v + TMath::Log(v)) ) {
+    if ( (((d*v)* beta + mu ) < x.max()) && (((d*v)* beta + mu) > x.min()) ) {
+      x = ((d*v)* beta + mu) ;
+      break;
+    }
+  }
+
+  }
+
+
+  return;
 }
+
+

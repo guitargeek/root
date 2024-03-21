@@ -14,6 +14,7 @@
 #define ROOT_ROOFIT_TESTSTATISTICS_RooSumL
 
 #include <RooFit/TestStatistics/RooAbsL.h>
+#include <RooFit/TestStatistics/optional_parameter_types.h>
 
 #include "Math/Util.h" // KahanSum
 
@@ -36,10 +37,6 @@ public:
    ROOT::Math::KahanSum<double> getSubsidiaryValue();
 
    void constOptimizeTestStatistic(RooAbsArg::ConstOpCode opcode, bool doAlsoTrackingOpt) override;
-
-   std::string GetClassName() const override { return "RooSumL"; }
-
-   const std::vector<std::unique_ptr<RooAbsL>> &GetComponents() const { return components_; };
 
 private:
    std::vector<std::unique_ptr<RooAbsL>> components_;

@@ -30,23 +30,25 @@ namespace RooStats {
 class ToyMCStudy: public RooAbsStudy {
 
    public:
-      /// need to have constructor without arguments for proof
+      // need to have constructor without arguments for proof
       ToyMCStudy(const char *name = "ToyMCStudy", const char *title = "ToyMCStudy") :
          RooAbsStudy(name, title),
          fRandomSeed(0),
-         fToyMCSampler(nullptr)
+         fToyMCSampler(NULL)
       {
          // In this case, this is the normal output. The SamplingDistribution
          // instances are stored as detailed output.
-         storeDetailedOutput(true);
+         storeDetailedOutput(kTRUE);
       }
 
-      RooAbsStudy* clone(const char* /*newname*/="") const override { return new ToyMCStudy(*this) ; }
+      RooAbsStudy* clone(const char* /*newname*/="") const { return new ToyMCStudy(*this) ; }
+
+      virtual ~ToyMCStudy() {}
 
       // RooAbsStudy interfaces
-      bool initialize(void) override;
-      bool execute(void) override;
-      bool finalize(void) override;
+      virtual Bool_t initialize(void);
+      virtual Bool_t execute(void);
+      virtual Bool_t finalize(void);
 
       RooDataSet* merge();
 
@@ -62,7 +64,7 @@ class ToyMCStudy: public RooAbsStudy {
       RooArgSet fParamPoint;
 
    protected:
-   ClassDefOverride(ToyMCStudy,2); // toy MC study for parallel processing
+   ClassDef(ToyMCStudy,2); // toy MC study for parallel processing
 
 };
 
@@ -70,12 +72,20 @@ class ToyMCStudy: public RooAbsStudy {
 class ToyMCPayload : public TNamed {
 
    public:
-      ToyMCPayload() : fDataSet(nullptr)
-      {
+
+      ToyMCPayload() {
          // proof constructor, do not use
+    fDataSet = NULL;
       }
 
-      ToyMCPayload(RooDataSet *sd) : fDataSet(sd) {}
+      ToyMCPayload(RooDataSet* sd)
+      {
+         fDataSet = sd;
+      }
+
+      virtual ~ToyMCPayload() {
+      }
+
 
       RooDataSet* GetSamplingDistributions()
       {
@@ -86,7 +96,7 @@ class ToyMCPayload : public TNamed {
       RooDataSet* fDataSet;
 
    protected:
-   ClassDefOverride(ToyMCPayload,1);
+   ClassDef(ToyMCPayload,1);
 };
 
 

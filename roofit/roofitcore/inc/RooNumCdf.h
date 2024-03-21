@@ -17,17 +17,18 @@
 class RooNumCdf : public RooNumRunningInt {
 public:
   RooNumCdf(const char *name, const char *title, RooAbsPdf& _pdf, RooRealVar& _x, const char* binningName="cache");
-  RooNumCdf(const RooNumCdf& other, const char* name=nullptr) : RooNumRunningInt{other, name} {}
-  TObject* clone(const char* newname) const override { return new RooNumCdf(*this,newname); }
+  RooNumCdf(const RooNumCdf& other, const char* name=0) ;
+  virtual TObject* clone(const char* newname) const { return new RooNumCdf(*this,newname); }
+  virtual ~RooNumCdf() ;
 
 protected:
 
-  void fillCacheObject(FuncCacheElem& cacheFunc) const override ;
+  virtual void fillCacheObject(FuncCacheElem& cacheFunc) const ;
 
 private:
 
-  ClassDefOverride(RooNumCdf,1) // Numeric calculator for CDF for a given PDF
+  ClassDef(RooNumCdf,1) // Numeric calculator for CDF for a given PDF
 
 };
-
+ 
 #endif

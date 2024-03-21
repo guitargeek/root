@@ -21,9 +21,7 @@ TEST(HypoTestInvResult, ReadFromFile)
 
   // This just reads members
   EXPECT_NEAR(result->UpperLimit(), 2.4613465, 1.E-7);
-
-  // Here, we need to loosen the tolerance because the estimated error is determined on-the-fly with a fit
-  EXPECT_NEAR(result->UpperLimitEstimatedError(), 0.059684301, 1.E-5);
+  EXPECT_NEAR(result->UpperLimitEstimatedError(), 0.059684301, 2.E-7);
 
   // This accesses the sampling distribution
   EXPECT_DOUBLE_EQ(result->GetExpectedUpperLimit(0), 1.60988427028569);

@@ -34,39 +34,55 @@ namespace RooStats {
 
    public:
 
+     //     FeldmanCousins();
+
      /// Common constructor
      FeldmanCousins(RooAbsData& data, ModelConfig& model);
 
-     ~FeldmanCousins() override;
+     virtual ~FeldmanCousins();
 
       /// Main interface to get a ConfInterval (will be a PointSetInterval)
-      PointSetInterval* GetInterval() const override;
+      virtual PointSetInterval* GetInterval() const;
 
       /// Get the size of the test (eg. rate of Type I error)
-      double Size() const override {return fSize;}
+      virtual Double_t Size() const {return fSize;}
       /// Get the Confidence level for the test
-      double ConfidenceLevel()  const override {return 1.-fSize;}
+      virtual Double_t ConfidenceLevel()  const {return 1.-fSize;}
       /// Set the DataSet
-      void SetData(RooAbsData& /*data*/) override {
-         std::cout << "DEPRECATED, set data in constructor" << std::endl;
+      virtual void SetData(RooAbsData& /*data*/) {
+   std::cout << "DEPRECATED, set data in constructor" << std::endl;
+      }
+      /// Set the Pdf
+      virtual void SetPdf(RooAbsPdf& /*pdf*/) {
+   std::cout << "DEPRECATED, use ModelConfig" << std::endl;
+      }
+
+      /// specify the parameters of interest in the interval
+      virtual void SetParameters(const RooArgSet& /*set*/) {
+   std::cout << "DEPRECATED, use ModelConfig" << std::endl;
+      }
+
+      /// specify the nuisance parameters (eg. the rest of the parameters)
+      virtual void SetNuisanceParameters(const RooArgSet& /*set*/) {
+   std::cout << "DEPRECATED, use ModelConfig" << std::endl;
       }
 
       /// User-defined set of points to test
       void SetParameterPointsToTest(RooAbsData& pointsToTest) {
-         fPointsToTest = &pointsToTest;
+   fPointsToTest = &pointsToTest;
       }
 
       /// User-defined set of points to test
       void SetPOIPointsToTest(RooAbsData& poiToTest) {
-         fPOIToTest = &poiToTest;
+   fPOIToTest = &poiToTest;
       }
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
-      void SetTestSize(double size) override {fSize = size;}
+      virtual void SetTestSize(Double_t size) {fSize = size;}
       /// set the confidence level for the interval (eg. 0.95 for a 95% Confidence Interval)
-      void SetConfidenceLevel(double cl) override {fSize = 1.-cl;}
+      virtual void SetConfidenceLevel(Double_t cl) {fSize = 1.-cl;}
 
-      void SetModel(const ModelConfig &) override;
+      virtual void SetModel(const ModelConfig &);
 
       RooAbsData* GetPointsToScan() {
    if(!fPointsToTest) CreateParameterPoints();
@@ -91,7 +107,7 @@ namespace RooStats {
       void CreateConfBelt(bool flag=true){fCreateBelt = flag;}
 
       /// Returns instance of TestStatSampler. Use to change properties of
-      /// TestStatSampler, e.g. GetTestStatSampler.SetTestSize(double size);
+      /// TestStatSampler, e.g. GetTestStatSampler.SetTestSize(Double_t size);
       TestStatSampler* GetTestStatSampler() const;
 
 
@@ -103,24 +119,31 @@ namespace RooStats {
       /// initializes fTestStatSampler data member (mutable)
       void CreateTestStatSampler() const;
 
-      double fSize;     ///< size of the test (eg. specified rate of Type I error)
+      Double_t fSize; // size of the test (eg. specified rate of Type I error)
       ModelConfig &fModel;
-      RooAbsData & fData; ///< data set
+      RooAbsData & fData; // data set
 
-      mutable ToyMCSampler* fTestStatSampler; ///< the test statistic sampler
-      mutable RooAbsData* fPointsToTest;      ///< points to perform the construction
-      mutable RooAbsData* fPOIToTest;         ///< value of POI points to perform the construction
+      /*
+      RooAbsPdf * fPdf; // common PDF
+      RooArgSet fPOI; // RooArgSet specifying  parameters of interest for interval
+      RooArgSet fNuisParams;// RooArgSet specifying  nuisance parameters for interval
+      RooArgSet fObservables;// RooArgSet specifying  nuisance parameters for interval
+      */
+
+      mutable ToyMCSampler* fTestStatSampler; // the test statistic sampler
+      mutable RooAbsData* fPointsToTest; // points to perform the construction
+      mutable RooAbsData* fPOIToTest; // value of POI points to perform the construction
       mutable ConfidenceBelt* fConfBelt;
-      bool fAdaptiveSampling;               ///< controls use of adaptive sampling algorithm
-      double fAdditionalNToysFactor;        ///< give user ability to ask for more toys
-      Int_t fNbins;                           ///< number of samples per variable
-      bool fFluctuateData;                  ///< tell ToyMCSampler to fluctuate number of entries in dataset
-      bool fDoProfileConstruction;          ///< instead of full construction over nuisance parameters, do profile
-      bool fSaveBeltToFile;                 ///< controls use if ConfidenceBelt should be saved to a TFile
-      bool fCreateBelt;                     ///< controls use if ConfidenceBelt should be saved to a TFile
+      Bool_t fAdaptiveSampling; // controls use of adaptive sampling algorithm
+      Double_t fAdditionalNToysFactor; // give user ability to ask for more toys
+      Int_t fNbins; // number of samples per variable
+      Bool_t fFluctuateData;  // tell ToyMCSampler to fluctuate number of entries in dataset
+      Bool_t fDoProfileConstruction; // instead of full construction over nuisance parameters, do profile
+      Bool_t fSaveBeltToFile; // controls use if ConfidenceBelt should be saved to a TFile
+      Bool_t fCreateBelt; // controls use if ConfidenceBelt should be saved to a TFile
 
    protected:
-      ClassDefOverride(FeldmanCousins,2)   // Interface for tools setting limits (producing confidence intervals)
+      ClassDef(FeldmanCousins,2)   // Interface for tools setting limits (producing confidence intervals)
    };
 }
 

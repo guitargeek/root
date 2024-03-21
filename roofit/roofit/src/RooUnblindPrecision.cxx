@@ -29,18 +29,30 @@ the error on the blind parameters is identical to that
 of the unblind parameter
 **/
 
+#include "RooFit.h"
+
 #include "RooArgSet.h"
 #include "RooUnblindPrecision.h"
 
+
+using namespace std;
+
 ClassImp(RooUnblindPrecision);
+
+////////////////////////////////////////////////////////////////////////////////
+/// Default constructor
+
+RooUnblindPrecision::RooUnblindPrecision()
+{
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor from a given RooAbsReal (to hold the blind value) and a set of blinding parameters
 
 RooUnblindPrecision::RooUnblindPrecision(const char *name, const char *title,
-                const char *blindString, double centralValue,
-                double scale, RooAbsReal& value,
-                bool sin2betaMode)
+                const char *blindString, Double_t centralValue,
+                Double_t scale, RooAbsReal& value,
+                Bool_t sin2betaMode)
   : RooAbsHiddenReal(name,title),
   _value("value","Precision blinded value",this,value),
   _blindEngine(blindString,RooBlindTools::full,centralValue,scale,sin2betaMode)
@@ -51,9 +63,9 @@ RooUnblindPrecision::RooUnblindPrecision(const char *name, const char *title,
 /// Constructor from a given RooAbsReal (to hold the blind value) and a set of blinding parameters
 
 RooUnblindPrecision::RooUnblindPrecision(const char *name, const char *title,
-                const char *blindString, double centralValue,
-                double scale, RooAbsReal& value, RooAbsCategory& blindState,
-                bool sin2betaMode)
+                const char *blindString, Double_t centralValue,
+                Double_t scale, RooAbsReal& value, RooAbsCategory& blindState,
+                Bool_t sin2betaMode)
   : RooAbsHiddenReal(name,title,blindState),
   _value("value","Precision blinded value",this,value),
   _blindEngine(blindString,RooBlindTools::full,centralValue,scale,sin2betaMode)
@@ -71,9 +83,16 @@ RooUnblindPrecision::RooUnblindPrecision(const RooUnblindPrecision& other, const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Destructor
+
+RooUnblindPrecision::~RooUnblindPrecision()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Evaluate RooBlindTools unhide-precision method on blind value
 
-double RooUnblindPrecision::evaluate() const
+Double_t RooUnblindPrecision::evaluate() const
 {
   if (isHidden()) {
     // Blinding active for this event

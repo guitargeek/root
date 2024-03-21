@@ -20,11 +20,8 @@ class RooNormalizedPdf : public RooAbsPdf {
 public:
    RooNormalizedPdf(RooAbsPdf &pdf, RooArgSet const &normSet)
       : _pdf("numerator", "numerator", this, pdf),
-        _normIntegral(
-           "denominator", "denominator", this,
-           *std::unique_ptr<RooAbsReal>{pdf.createIntegral(normSet, *pdf.getIntegratorConfig(), pdf.normRange())}
-               .release(),
-           true, false, true),
+        _normIntegral("denominator", "denominator", this,
+                      *pdf.createIntegral(normSet, *pdf.getIntegratorConfig(), nullptr), true, false, true),
         _normSet{normSet}
    {
       auto name = std::string(pdf.GetName()) + "_over_" + _normIntegral->GetName();
@@ -33,10 +30,8 @@ public:
    }
 
    RooNormalizedPdf(const RooNormalizedPdf &other, const char *name)
-      : RooAbsPdf(other, name),
-        _pdf("numerator", this, other._pdf),
-        _normIntegral("denominator", this, other._normIntegral),
-        _normSet{other._normSet}
+      : RooAbsPdf(other, name), _pdf("numerator", this, other._pdf),
+        _normIntegral("denominator", this, other._normIntegral), _normSet{other._normSet}
    {
    }
 
@@ -44,7 +39,7 @@ public:
 
    bool selfNormalized() const override { return true; }
 
-   bool forceAnalyticalInt(const RooAbsArg & /*dep*/) const override { return true; }
+   Bool_t forceAnalyticalInt(const RooAbsArg & /*dep*/) const override { return true; }
    /// Forward determination of analytical integration capabilities to input p.d.f
    Int_t getAnalyticalIntegralWN(RooArgSet &allVars, RooArgSet &analVars, const RooArgSet * /*normSet*/,
                                  const char *rangeName = nullptr) const override
@@ -52,25 +47,19 @@ public:
       return _pdf->getAnalyticalIntegralWN(allVars, analVars, &_normSet, rangeName);
    }
    /// Forward calculation of analytical integrals to input p.d.f
-   double analyticalIntegralWN(Int_t code, const RooArgSet * /*normSet*/, const char *rangeName = nullptr) const override
+   Double_t analyticalIntegralWN(Int_t code, const RooArgSet * /*normSet*/, const char *rangeName = 0) const override
    {
       return _pdf->analyticalIntegralWN(code, &_normSet, rangeName);
    }
 
    ExtendMode extendMode() const override { return static_cast<RooAbsPdf &>(*_pdf).extendMode(); }
-   double expectedEvents(const RooArgSet * /*nset*/) const override { return _pdf->expectedEvents(&_normSet); }
-
-   std::unique_ptr<RooAbsReal> createExpectedEventsFunc(const RooArgSet * /*nset*/) const override
+   Double_t expectedEvents(const RooArgSet *nset) const override
    {
-      return _pdf->createExpectedEventsFunc(&_normSet);
+      return static_cast<RooAbsPdf &>(*_pdf).expectedEvents(nset);
    }
 
-   void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
-
-   bool canComputeBatchWithCuda() const override { return true; }
-
 protected:
-   void computeBatch(double *output, size_t size, RooFit::Detail::DataMap const &) const override;
+   void computeBatch(cudaStream_t *, double *output, size_t size, RooFit::Detail::DataMap const&) const override;
    double evaluate() const override
    {
       // Evaluate() should not be called in the BatchMode, but we still need it
@@ -83,9 +72,9 @@ protected:
    };
 
 private:
-   RooTemplateProxy<RooAbsPdf> _pdf;
+   RooRealProxy _pdf;
    RooRealProxy _normIntegral;
-   RooArgSet _normSet;
+   RooArgSet const &_normSet;
 };
 
 #endif
