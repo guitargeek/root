@@ -46,7 +46,7 @@ private:
    mutable bool _first = true;                                     //!
    bool useBatchedEvaluations_ = false;
    std::unique_ptr<RooChangeTracker> paramTracker_;
-   mutable ROOT::Math::KahanSum<double> cachedResult_ = 0;
+   mutable ROOT::Math::KahanSum<double> cachedResult_{0};
 };
 
 } // namespace TestStatistics

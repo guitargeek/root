@@ -39,7 +39,7 @@ private:
    mutable bool _first = true;        ///<!
    mutable std::vector<double> _binw; ///<!
    std::unique_ptr<RooChangeTracker> paramTracker_;
-   mutable ROOT::Math::KahanSum<double> cachedResult_ = 0;
+   mutable ROOT::Math::KahanSum<double> cachedResult_{0};
 };
 
 } // namespace TestStatistics

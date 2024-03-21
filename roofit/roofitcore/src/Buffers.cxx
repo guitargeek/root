@@ -15,8 +15,9 @@
 #include <RooBatchCompute.h>
 
 #include <functional>
-#include <queue>
 #include <map>
+#include <queue>
+#include <stdexcept>
 
 namespace ROOT {
 namespace Experimental {

@@ -71,7 +71,7 @@ private:
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _fractionInRange;
    mutable std::vector<double> _binw;                  ///<!
    mutable std::vector<double> _logProbasBuffer;       ///<!
-   mutable ROOT::Math::KahanSum<double> _offset = 0.0; ///<! Offset as KahanSum to avoid loss of precision
+   mutable ROOT::Math::KahanSum<double> _offset{0.0}; ///<! Offset as KahanSum to avoid loss of precision
 
 }; // end class RooNLLVar
 

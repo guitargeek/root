@@ -953,7 +953,7 @@ Double_t RooAbsData::moment(const RooRealVar& var, Double_t order, Double_t offs
     sum += weight() * TMath::Power(varPtr->getVal() - offset,order);
   }
 
-  return sum/sumEntries(cutSpec, cutRange);
+  return sum.Sum()/sumEntries(cutSpec, cutRange);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

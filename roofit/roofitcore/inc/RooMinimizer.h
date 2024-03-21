@@ -74,8 +74,7 @@ public:
   void setMaxIterations(Int_t n) ;
   void setMaxFunctionCalls(Int_t n) ;
 
-  RooFitResult* fit(const char* options) R__DEPRECATED(6,28,
-  "using RooMinimizer::fit() with string-based options is deprecated. Please use RooAbsPdf::fitTo() instead.");
+  RooFitResult* fit(const char* options) ;
 
   Int_t migrad() ;
   Int_t hesse() ;

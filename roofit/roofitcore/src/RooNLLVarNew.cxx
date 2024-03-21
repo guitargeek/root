@@ -288,7 +288,7 @@ void RooNLLVarNew::computeBatch(cudaStream_t * /*stream*/, double *output, size_
    if (_doOffset) {
 
       // If no offset is stored enable this feature now
-      if (_offset == 0 && kahanProb != 0) {
+      if (_offset == 0 && kahanProb.Sum() != 0) {
          _offset = kahanProb;
       }
 

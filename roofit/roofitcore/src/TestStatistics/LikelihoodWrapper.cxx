@@ -119,7 +119,7 @@ ROOT::Math::KahanSum<double> LikelihoodWrapper::applyOffsetting(ROOT::Math::Kaha
             }
          }
          oocoutI(static_cast<RooAbsArg *>(nullptr), Minimization)
-            << "LikelihoodWrapper::applyOffsetting(" << GetName() << "): Likelihood offset now set to " << offset_
+            << "LikelihoodWrapper::applyOffsetting(" << GetName() << "): Likelihood offset now set to " << offset_.Sum()
             << std::endl;
       }
 

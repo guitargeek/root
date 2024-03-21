@@ -228,10 +228,7 @@ RooCmdArg IntegrateBins(double precision);
 
 // RooAbsPdf::fitTo arguments
 RooCmdArg PrefitDataFraction(Double_t data_ratio = 0.0) ;
-RooCmdArg FitOptions(const char* opts)
-  R__DEPRECATED(6,28,"Please migrate to the RooCmdArg-based fit configuration"
-                     " (or use RooFitLegacy::FitOptions(const char*) to silence this warning,"
-                     " but be warned that the RooFitLegacy function also gets removed in ROOT v6.28).") ;
+RooCmdArg FitOptions(const char* opts) ;
 RooCmdArg Optimize(Int_t flag=2) ;
 
 ////////////////////////////////////////////////////////////////////////////////

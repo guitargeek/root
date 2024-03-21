@@ -1566,9 +1566,9 @@ Double_t RooDataHist::sum(bool correctForBinSize, bool inverseBinCor) const
 
   // Store result in cache
   _cache_sum_valid = cache_code;
-  _cache_sum = kahanSum;
+  _cache_sum = kahanSum.Sum();
 
-  return kahanSum;
+  return kahanSum.Sum();
 }
 
 
@@ -1642,7 +1642,7 @@ Double_t RooDataHist::sum(const RooArgSet& sumSet, const RooArgSet& sliceSet, bo
 
   _vars.assign(varSave) ;
 
-  return total;
+  return total.Sum();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1751,7 +1751,7 @@ Double_t RooDataHist::sum(const RooArgSet& sumSet, const RooArgSet& sliceSet,
 
   _vars.assign(varSave);
 
-  return total;
+  return total.Sum();
 }
 
 
@@ -1822,9 +1822,9 @@ Int_t RooDataHist::numEntries() const
 Double_t RooDataHist::sumEntries() const {
 
   if (_maskedWeights.empty()) {
-    return ROOT::Math::KahanSum<double>::Accumulate(_wgt, _wgt + _arrSize);
+    return ROOT::Math::KahanSum<double>::Accumulate(_wgt, _wgt + _arrSize).Sum();
   } else {
-    return ROOT::Math::KahanSum<double>::Accumulate(_maskedWeights.begin(), _maskedWeights.end());
+    return ROOT::Math::KahanSum<double>::Accumulate(_maskedWeights.begin(), _maskedWeights.end()).Sum();
   }
 }
 

@@ -284,7 +284,7 @@ Double_t RooBinIntegrator::integral(const Double_t *)
     }
   }
 
-  return sum;
+  return sum.Sum();
 }
 
 
