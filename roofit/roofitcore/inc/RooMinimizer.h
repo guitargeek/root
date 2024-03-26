@@ -100,7 +100,7 @@ public:
    void setVerbose(bool flag = true) { _cfg.verbose = flag; }
    bool setLogFile(const char *logf = nullptr);
 
-   int migrad();
+   int migrad(bool seedingOnly=false);
    int hesse();
    int minos();
    int minos(const RooArgSet &minosParamList);
@@ -173,7 +173,7 @@ private:
    std::ofstream *logfile();
    double &maxFCN();
 
-   bool fitFcn() const;
+   bool fitFcn(bool seedingOnly=false) const;
 
    // constructor helper functions
    void initMinimizerFirstPart();

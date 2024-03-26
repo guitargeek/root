@@ -287,7 +287,7 @@ public:
       Note that passing a params != 0 will set the parameter settings to the new value AND also the
       step sizes to some pre-defined value (stepsize = 0.3 * abs(parameter_value) )
     */
-   bool FitFCN(const ROOT::Math::IMultiGenFunction &fcn, const double *params = nullptr, unsigned int dataSize = 0, int fitType = 0);
+   bool FitFCN(const ROOT::Math::IMultiGenFunction &fcn, const double *params = nullptr, unsigned int dataSize = 0, int fitType = 0, bool seedingOnly = false);
 
    /**
        Fit using a FitMethodFunction interface. Same as method above, but now extra information

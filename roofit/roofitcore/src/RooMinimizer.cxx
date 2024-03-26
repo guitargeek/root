@@ -295,9 +295,9 @@ ROOT::Fit::Fitter const *RooMinimizer::fitter() const
    return _theFitter.get();
 }
 
-bool RooMinimizer::fitFcn() const
+bool RooMinimizer::fitFcn(bool seedingOnly) const
 {
-   return _theFitter->FitFCN(*_fcn->getMultiGenFcn());
+   return _theFitter->FitFCN(*_fcn->getMultiGenFcn(), nullptr, 0, 0, seedingOnly);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -345,7 +345,7 @@ int RooMinimizer::minimize(const char *type, const char *alg)
 /// propagated back the RooRealVars representing
 /// the floating parameters in the MINUIT operation.
 
-int RooMinimizer::migrad()
+int RooMinimizer::migrad(bool seedingOnly)
 {
    _fcn->Synchronize(_theFitter->Config().ParamsSettings());
    profileStart();
@@ -353,7 +353,7 @@ int RooMinimizer::migrad()
       auto ctx = makeEvalErrorContext();
 
       _theFitter->Config().SetMinimizer(_cfg.minimizerType.c_str(), "migrad");
-      bool ret = fitFcn();
+      bool ret = fitFcn(seedingOnly);
       _status = ((ret) ? _theFitter->Result().Status() : -1);
    }
    profileStop();

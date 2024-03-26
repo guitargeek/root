@@ -214,7 +214,7 @@ bool Fitter::SetFCN(const ROOT::Math::FitMethodGradFunction &fcn, const double *
    return true;
 }
 
-bool Fitter::FitFCN(const BaseFunc &fcn, const double *params, unsigned int dataSize, int fitType)
+bool Fitter::FitFCN(const BaseFunc &fcn, const double *params, unsigned int dataSize, int fitType, bool seedingOnly)
 {
    // fit a user provided FCN function
    // create fit parameter settings
