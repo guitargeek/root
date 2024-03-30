@@ -558,7 +558,7 @@ TFitResultPtr TFractionFitter::Fit() {
    }
 
    // Make sure the correct likelihood computation is used
-   ROOT::Math::Functor fcnFunction(this, &TFractionFitter::EvaluateFCN, fNpar);
+   ROOT::Math::Functor fcnFunction([this](const double* x ){ return this->EvaluateFCN(x); }, fNpar);
    fFractionFitter->SetFCN(static_cast<ROOT::Math::IMultiGenFunction&>(fcnFunction));
 
    // fit

@@ -52,7 +52,7 @@ void StatFunction::TestDerivative()
    // scan all values from fXMin to fXMax
    double dx = (fXMax - fXMin) / fNFuncTest;
    // create CDF function
-   Functor1D func(this, &StatFunction::Cdf);
+   Functor1D func([this](double x){ return this->Cdf(x); });
    Derivator d(func);
    for (int i = 0; i < fNFuncTest; ++i) {
       double v1 = fXMin + dx * i; // value used  for testing

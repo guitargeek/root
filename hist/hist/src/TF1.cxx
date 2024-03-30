@@ -3719,7 +3719,7 @@ Double_t TF1::Moment(Double_t n, Double_t a, Double_t b, const Double_t *params,
 
    // calculate now integral of x^n f(x)
    // wrapped the member function EvalNum in  interface required by integrator using the functor class
-   ROOT::Math::Functor1D xnfunc(&func, &TF1_EvalWrapper::EvalNMom);
+   ROOT::Math::Functor1D xnfunc([&func](double x){ return func.EvalNMom(x); });
    giod.SetFunction(xnfunc);
 
    Double_t res = giod.Integral(a, b) / norm;
@@ -3753,7 +3753,7 @@ Double_t TF1::CentralMoment(Double_t n, Double_t a, Double_t b, const Double_t *
 
    // calculate now integral of xf(x)
    // wrapped the member function EvalFirstMom in  interface required by integrator using the functor class
-   ROOT::Math::Functor1D xfunc(&func, &TF1_EvalWrapper::EvalFirstMom);
+   ROOT::Math::Functor1D xfunc([&func](double x){ return func.EvalFirstMom(x); });
    giod.SetFunction(xfunc);
 
    // estimate of mean value
@@ -3761,7 +3761,7 @@ Double_t TF1::CentralMoment(Double_t n, Double_t a, Double_t b, const Double_t *
 
    // use different mean value in function wrapper
    func.fX0 = xbar;
-   ROOT::Math::Functor1D xnfunc(&func, &TF1_EvalWrapper::EvalNMom);
+   ROOT::Math::Functor1D xnfunc([&func](double x){ return func.EvalNMom(x); });
    giod.SetFunction(xnfunc);
 
    Double_t res = giod.Integral(a, b) / norm;

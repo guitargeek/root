@@ -283,7 +283,7 @@ int StatFunction::TestDerivative() {
    // scan all values from xmin to xmax
    double dx = (xmax-xmin)/NFuncTest;
    // create CDF function
-   Functor1D func(this, &StatFunction::Cdf);
+   Functor1D func([this](double x){ return this->Cdf(x); });
    Derivator d(func);
 
    for (int i = 0; i < NFuncTest; ++i) {

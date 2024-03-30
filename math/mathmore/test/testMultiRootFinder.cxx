@@ -64,8 +64,12 @@ int testMultiRootFinder() {
 
 
   MultiRootFinder rf(MultiRootFinder::kHybridSJ);
-  GradFunctor g1(&f, &FuncSystem::F1, &FuncSystem::DerivF1,2);
-  GradFunctor g2(&f, &FuncSystem::F2, &FuncSystem::DerivF2,2);
+  GradFunctor g1([&f](double const* x){ return f.F1(x); },
+                 [&f](double const* x, unsigned int i){ return f.DerivF1(x, i); },
+                 2);
+  GradFunctor g2([&f](double const* x){ return f.F2(x); },
+                 [&f](double const* x, unsigned int i){ return f.DerivF2(x, i); },
+                 2);
   rf.AddFunction(g1);
   rf.AddFunction(g2);
   rf.SetPrintLevel(printlevel);
@@ -86,8 +90,8 @@ int testMultiRootFinder() {
 
 
   MultiRootFinder rf2(MultiRootFinder::kHybridS);
-  Functor f1(&f, &FuncSystem::F1, 2);
-  Functor f2(&f, &FuncSystem::F2, 2);
+  Functor f1([&f](double const* x){ return f.F1(x); }, 2);
+  Functor f2([&f](double const* x){ return f.F2(x); }, 2);
   std::vector<ROOT::Math::IMultiGenFunction*> funlist;
   funlist.push_back(&f1);
   funlist.push_back(&f2);

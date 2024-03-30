@@ -262,7 +262,7 @@ TFitResultPtr TBinomialEfficiencyFitter::Fit(TF1 *f1, Option_t* option)
    }
 
    // fcn must be set after setting the parameters
-   ROOT::Math::Functor fcnFunction(this, &TBinomialEfficiencyFitter::EvaluateFCN, npar);
+   ROOT::Math::Functor fcnFunction([this](double const* x){ return this->EvaluateFCN(x); }, npar);
 
    // set also model function in fitter to have it in FitResult
    // in this way one can compute for example the confidence intervals

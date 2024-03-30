@@ -55,8 +55,9 @@ RooMinimizerFcn::RooMinimizerFcn(RooAbsReal *funct, RooMinimizer *context)
    : RooAbsMinimizerFcn(getParameters(*funct), context), _funct(funct)
 {
    if (context->_cfg.useGradient && funct->hasGradient()) {
-      _multiGenFcn = std::make_unique<ROOT::Math::GradFunctor>(this, &RooMinimizerFcn::operator(),
-                                                               &RooMinimizerFcn::evaluateGradient, getNDim());
+      _multiGenFcn = std::make_unique<ROOT::Math::GradFunctor>(
+         [this](double const *x) { return (*this)(x); }, getNDim(),
+         [this](double const *x, double *grad) { this->evaluateGradient(x, grad); });
    } else {
       _multiGenFcn = std::make_unique<ROOT::Math::Functor>(std::cref(*this), getNDim());
    }
