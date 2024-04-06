@@ -68,9 +68,7 @@ namespace TMVA {
    //Variable Importance type
    enum VIType {kShort=0,kAll=1,kRandom=2};
 
-   class Types {
-
-   public:
+   namespace Types {
 
       // available MVA methods
       enum EMVA {
@@ -155,33 +153,11 @@ namespace TMVA {
          kBoostProcEnd
       };
 
-   public:
-
-      static Types& Instance();
-      static void   DestroyInstance();
-      ~Types();
-
-      Types::EMVA   GetMethodType( const TString& method ) const;
-      TString       GetMethodName( Types::EMVA    method ) const;
+      Types::EMVA   GetMethodType( const TString& method );
+      TString       GetMethodName( Types::EMVA    method );
 
       Bool_t        AddTypeMapping(Types::EMVA method, const TString& methodname);
-
-   private:
-
-      Types();
-#if !defined _MSC_VER
-      static std::atomic<Types*> fgTypesPtr;
-#else
-      static Types* fgTypesPtr;
-#endif
-
-   private:
-
-      std::map<TString, TMVA::Types::EMVA> fStr2type; ///< types-to-text map
-      mutable MsgLogger* fLogger;   ///< message logger
-      MsgLogger& Log() const { return *fLogger; }
-
-   };
+   }
 }
 
 #endif

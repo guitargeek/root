@@ -329,7 +329,7 @@ namespace TMVA {
       // classifier naming (a lot of names ... aren't they ;-)
       const TString&   GetJobName       () const { return fJobName; }
       const TString&   GetMethodName    () const { return fMethodName; }
-      TString          GetMethodTypeName() const { return Types::Instance().GetMethodName(fMethodType); }
+      TString          GetMethodTypeName() const { return Types::GetMethodName(fMethodType); }
       Types::EMVA      GetMethodType    () const { return fMethodType; }
       const char*      GetName          () const { return fMethodName.Data(); }
       const TString&   GetTestvarName   () const { return fTestvar; }

@@ -135,7 +135,7 @@ namespace TMVA {
          }                                                              \
          RegisterTMVAMethod() {                                         \
             TMVA::ClassifierFactory::Instance(). Register(#CLASS, CreateMethod##CLASS); \
-            TMVA::Types::Instance().AddTypeMapping(TMVA::Types::k##CLASS, #CLASS); \
+            TMVA::Types::AddTypeMapping(TMVA::Types::k##CLASS, #CLASS); \
          }                                                              \
       };                                                                \
       static RegisterTMVAMethod RegisterTMVAMethod_instance;            \

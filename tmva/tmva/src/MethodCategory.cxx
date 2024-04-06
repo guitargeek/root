@@ -141,7 +141,7 @@ TMVA::IMethod* TMVA::MethodCategory::AddMethod( const TCut& theCut,
                                                 const TString& theTitle,
                                                 const TString& theOptions )
 {
-   std::string addedMethodName(Types::Instance().GetMethodName(theMethod).Data());
+   std::string addedMethodName(Types::GetMethodName(theMethod).Data());
 
    Log() << kINFO << "Adding sub-classifier: " << addedMethodName << "::" << theTitle << Endl;
 

@@ -150,7 +150,7 @@ Method to book the machine learning method to perform the algorithm.
 \param options String with the options for the method.
 */
 void TMVA::Envelope::BookMethod(Types::EMVA method, TString methodTitle, TString options){
-   BookMethod(Types::Instance().GetMethodName(method), methodTitle, options);
+   BookMethod(Types::GetMethodName(method), methodTitle, options);
 }
 
 //_______________________________________________________________________

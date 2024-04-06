@@ -188,7 +188,7 @@ void TMVA::MethodCompositeBase::ReadWeightsFromXML( void* wghtnode )
 
       if (i==0){
          // the cast on MethodBoost is ugly, but a similar line is also in ReadWeightsFromFile --> needs to be fixed later
-         ((TMVA::MethodBoost*)this)->BookMethod( Types::Instance().GetMethodType( methodTypeName), methodName,  optionString );
+         ((TMVA::MethodBoost*)this)->BookMethod( Types::GetMethodType( methodTypeName), methodName,  optionString );
       }
       fMethods.push_back(
          ClassifierFactory::Instance().Create(methodTypeName.Data(), jobName, methodName, DataInfo(), optionString));
@@ -253,7 +253,7 @@ void  TMVA::MethodCompositeBase::ReadWeightsFromStream( std::istream& istr )
          istr >> dummy >> methodTitle;
          istr >> dummy >> optionString;
          if (GetMethodType() == Types::kBoost)
-            ((TMVA::MethodBoost*)this)->BookMethod( Types::Instance().GetMethodType( methodName), methodTitle,  optionString );
+            ((TMVA::MethodBoost*)this)->BookMethod( Types::GetMethodType( methodName), methodTitle,  optionString );
       } else {
          methodTitle = TString::Format("%s (%04i)",GetMethodName().Data(),fCurrentMethodIdx);
       }

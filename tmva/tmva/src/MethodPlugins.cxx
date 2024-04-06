@@ -100,7 +100,7 @@ namespace
    struct registration {
       registration() {
          TMVA::ClassifierFactory::Instance().Register("Plugins", CreateMethodPlugins);
-         TMVA::Types::Instance().AddTypeMapping(TMVA::Types::kPlugins, "Plugins");
+         TMVA::Types::AddTypeMapping(TMVA::Types::kPlugins, "Plugins");
       }
    } instance;
 }

@@ -2179,7 +2179,7 @@ void MethodUnitTestWithROCLimits::run()
       // create generic macro
       TString macroName = Form("testmakeclass_%s", _methodTitle.Data());
       TString macroFileName = TString("weights/") + macroName + TString(".C");
-      TString methodTypeName = Types::Instance().GetMethodName(_methodType);
+      TString methodTypeName = Types::GetMethodName(_methodType);
       FileStat_t stat2;
       if (!gSystem->GetPathInfo(macroFileName.Data(), stat2)) {
          gSystem->Unlink(macroFileName.Data());

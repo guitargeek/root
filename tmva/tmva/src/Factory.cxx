@@ -486,7 +486,7 @@ TMVA::Factory::BookMethod(TMVA::DataLoader *loader, TString theMethodName, TStri
 TMVA::MethodBase *
 TMVA::Factory::BookMethod(TMVA::DataLoader *loader, Types::EMVA theMethod, TString methodTitle, TString theOption)
 {
-   return BookMethod(loader, Types::Instance().GetMethodName(theMethod), methodTitle, theOption);
+   return BookMethod(loader, Types::GetMethodName(theMethod), methodTitle, theOption);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -501,7 +501,7 @@ TMVA::MethodBase *
 TMVA::Factory::BookMethodWeightfile(DataLoader *loader, TMVA::Types::EMVA methodType, const TString &weightfile)
 {
    TString datasetname = loader->GetName();
-   std::string methodTypeName = std::string(Types::Instance().GetMethodName(methodType).Data());
+   std::string methodTypeName = std::string(Types::GetMethodName(methodType).Data());
    DataSetInfo &dsi = loader->GetDataSetInfo();
 
    IMethod *im = ClassifierFactory::Instance().Create(methodTypeName, dsi, weightfile);
@@ -1236,7 +1236,7 @@ void TMVA::Factory::TrainAllMethods()
 
             // recreate
             m = dynamic_cast<MethodBase *>(ClassifierFactory::Instance().Create(
-               Types::Instance().GetMethodName(methodType).Data(), dataSetInfo, weightfile));
+               Types::GetMethodName(methodType).Data(), dataSetInfo, weightfile));
             if (m->GetMethodType() == Types::kCategory) {
                MethodCategory *methCat = (dynamic_cast<MethodCategory *>(m));
                if (!methCat)

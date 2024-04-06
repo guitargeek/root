@@ -36,95 +36,53 @@ Singleton class for Global types used by TMVA
 
 #include "RtypesCore.h"
 #include "TString.h"
+#include "TROOT.h"
 
 #include <map>
-#if !defined _MSC_VER
 #include <atomic>
-#include <mutex>
-#endif
 
-#if !defined _MSC_VER
-std::atomic<TMVA::Types*> TMVA::Types::fgTypesPtr{0};
-static std::mutex gTypesMutex;
-#else
-TMVA::Types* TMVA::Types::fgTypesPtr = 0;
-#endif
+namespace {
 
-////////////////////////////////////////////////////////////////////////////////
-/// constructor
-
-TMVA::Types::Types()
-   : fLogger( new MsgLogger("Types") )
+auto &Log()
 {
+   static TMVA::MsgLogger logger{"Types"};
+   return logger;
 }
 
-TMVA::Types::~Types()
+auto &str2type()
 {
-   // destructor
-   delete fLogger;
+   static std::map<TString, TMVA::Types::EMVA> map; // types-to-text map
+   return map;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// The single instance of "Types" if existing already, or create it  (Singleton)
-
-TMVA::Types& TMVA::Types::Instance()
-{
-#if !defined _MSC_VER
-   if(!fgTypesPtr) {
-      Types* tmp = new Types();
-      Types* expected = 0;
-      if(!fgTypesPtr.compare_exchange_strong(expected,tmp)) {
-         //Another thread already did it
-         delete tmp;
-      }
-   }
-   return *fgTypesPtr;
-#else
-   return fgTypesPtr ? *fgTypesPtr : *(fgTypesPtr = new Types());
-#endif
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// "destructor" of the single instance
-
-void   TMVA::Types::DestroyInstance()
-{
-#if !defined _MSC_VER
-   if (fgTypesPtr != 0) { delete fgTypesPtr.load(); fgTypesPtr = 0; }
-#else
-   if (fgTypesPtr != 0) { delete fgTypesPtr; fgTypesPtr = 0; }
-#endif
-}
+} // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 
 Bool_t TMVA::Types::AddTypeMapping( Types::EMVA method, const TString& methodname )
 {
-#if !defined _MSC_VER
-   std::lock_guard<std::mutex> guard(gTypesMutex);
-#endif
-   std::map<TString, EMVA>::const_iterator it = fStr2type.find( methodname );
-   if (it != fStr2type.end()) {
+   R__WRITE_LOCKGUARD(ROOT::gCoreMutex);
+
+   auto it = str2type().find( methodname );
+   if (it != str2type().end()) {
       Log() << kFATAL
             << "Cannot add method " << methodname
             << " to the name->type map because it exists already" << Endl;
       return kFALSE;
    }
 
-   fStr2type[methodname] = method;
+   str2type()[methodname] = method;
    return kTRUE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// returns the method type (enum) for a given method (string)
 
-TMVA::Types::EMVA TMVA::Types::GetMethodType( const TString& method ) const
+TMVA::Types::EMVA TMVA::Types::GetMethodType( const TString& method )
 {
-#if !defined _MSC_VER
-   std::lock_guard<std::mutex> guard(gTypesMutex);
-#endif
-   std::map<TString, EMVA>::const_iterator it = fStr2type.find( method );
-   if (it == fStr2type.end()) {
+   auto it = str2type().find( method );
+   if (it == str2type().end()) {
+      R__WRITE_LOCKGUARD(ROOT::gCoreMutex);
       Log() << kFATAL << "Unknown method in map: " << method << Endl;
       return kVariable; // Inserted to get rid of GCC warning...
    }
@@ -133,13 +91,11 @@ TMVA::Types::EMVA TMVA::Types::GetMethodType( const TString& method ) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TString TMVA::Types::GetMethodName( TMVA::Types::EMVA method ) const
+TString TMVA::Types::GetMethodName( TMVA::Types::EMVA method )
 {
-#if !defined _MSC_VER
-   std::lock_guard<std::mutex> guard(gTypesMutex);
-#endif
-   std::map<TString, EMVA>::const_iterator it = fStr2type.begin();
-   for (; it!=fStr2type.end(); ++it) if (it->second == method) return it->first;
+   auto it = str2type().begin();
+   for (; it!=str2type().end(); ++it) if (it->second == method) return it->first;
+   R__WRITE_LOCKGUARD(ROOT::gCoreMutex);
    Log() << kFATAL << "Unknown method index in map: " << method << Endl;
    return "";
 }

@@ -249,7 +249,7 @@ void TMVA::MethodBoost::DeclareCompatibilityOptions()
 
 Bool_t TMVA::MethodBoost::BookMethod( Types::EMVA theMethod, TString methodTitle, TString theOption )
 {
-   fBoostedMethodName     = Types::Instance().GetMethodName( theMethod );
+   fBoostedMethodName     = Types::GetMethodName( theMethod );
    fBoostedMethodTitle    = methodTitle;
    fBoostedMethodOptions  = theOption;
    TString opts=theOption;

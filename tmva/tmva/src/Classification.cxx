@@ -372,7 +372,7 @@ void TMVA::Experimental::Classification::TrainMethod(TString methodname, TString
  */
 void TMVA::Experimental::Classification::TrainMethod(Types::EMVA method, TString methodtitle)
 {
-   TrainMethod(Types::Instance().GetMethodName(method), methodtitle);
+   TrainMethod(Types::GetMethodName(method), methodtitle);
 }
 
 //_______________________________________________________________________
@@ -934,7 +934,7 @@ void TMVA::Experimental::Classification::TestMethod(TString methodname, TString 
  */
 void TMVA::Experimental::Classification::TestMethod(Types::EMVA method, TString methodtitle)
 {
-   TestMethod(Types::Instance().GetMethodName(method), methodtitle);
+   TestMethod(Types::GetMethodName(method), methodtitle);
 }
 
 //_______________________________________________________________________
