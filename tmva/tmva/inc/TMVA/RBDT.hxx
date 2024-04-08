@@ -1,126 +1,106 @@
-/**********************************************************************************
- * Project: ROOT - a Root-integrated toolkit for multivariate data analysis       *
- * Package: TMVA                                                                  *
- *                                             *
- *                                                                                *
- * Description:                                                                   *
- *                                                                                *
- * Authors:                                                                       *
- *      Stefan Wunsch (stefan.wunsch@cern.ch)                                     *
- *                                                                                *
- * Copyright (c) 2019:                                                            *
- *      CERN, Switzerland                                                         *
- *                                                                                *
- * Redistribution and use in source and binary forms, with or without             *
- * modification, are permitted according to the terms listed in LICENSE           *
- * (see tmva/doc/LICENSE)                                          *
- **********************************************************************************/
-
 #ifndef TMVA_RBDT
 #define TMVA_RBDT
 
-#include "TMVA/RTensor.hxx"
-#include "TMVA/TreeInference/Forest.hxx"
-#include "TFile.h"
+#include <TFile.h>
 
-#include <vector>
+//std::unique_ptr<TFile> file{TFile::Open(filename.c_str(),"READ")};
+//if (!file || file->IsZombie()) {
+   //throw std::runtime_error("Failed to open input file " + filename);
+//}
+//auto numOutputs = Internal::GetObjectSafe<std::vector<int>>(file.get(), filename, key + "/num_outputs");
+//fNumOutputs = numOutputs->at(0);
+//delete numOutputs;
+
+//// Get objective and decide whether to normalize output nodes for example in the multiclass case
+//auto objective = Internal::GetObjectSafe<std::string>(file.get(), filename, key + "/objective");
+//if (objective->compare("softmax") == 0)
+   //fNormalizeOutputs = true;
+//else
+   //fNormalizeOutputs = false;
+//delete objective;
+//file->Close();
+
+#include <Rtypes.h>
+
+#include <array>
+#include <istream>
 #include <string>
-#include <sstream> // std::stringstream
-#include <memory>
+#include <vector>
 
-namespace TMVA {
-namespace Experimental {
+namespace fastforest {
 
-/// Fast boosted decision tree inference
-template <typename Backend = BranchlessJittedForest<float>>
-class RBDT {
+// The floating point number type that will be used to accept features and store cut values
+typedef float FeatureType;
+// Tue floating point number type that the individual trees return their responses in
+typedef float TreeResponseType;
+// The floating point number type that is used to sum the individual tree responses
+typedef float TreeEnsembleResponseType;
+// This integer type stores the indices of the feature employed in each cut.
+// Set to `unsigned char` for most compact fastforest ofjects if you have less than 256 features.
+typedef unsigned int CutIndexType;
+
+// The base response you have to use with older XGBoost versions might be
+// zero, so try to explicitely pass zero to the model evaluation if the
+// results from this library are incorrect.
+const TreeEnsembleResponseType defaultBaseResponse = 0.5;
+
+namespace details {
+
+void softmaxTransformInplace(TreeEnsembleResponseType *out, int nOut);
+
+}
+
+class FastForest {
 public:
-   using Value_t = typename Backend::Value_t;
-   using Backend_t = Backend;
+   inline TreeEnsembleResponseType
+   operator()(const FeatureType *array, TreeEnsembleResponseType baseResponse = defaultBaseResponse) const
+   {
+      return evaluateBinary(array, baseResponse);
+   }
+
+   template <int nClasses>
+   std::array<TreeEnsembleResponseType, nClasses>
+   softmax(const FeatureType *array, TreeEnsembleResponseType baseResponse = defaultBaseResponse) const
+   {
+      // static softmax interface: no manual memory allocation, but requires to know nClasses at compile time
+      static_assert(nClasses >= 3, "nClasses should be >= 3");
+      std::array<TreeEnsembleResponseType, nClasses> out{};
+      evaluate(array, out.data(), nClasses, baseResponse);
+      details::softmaxTransformInplace(out.data(), nClasses);
+      return out;
+   }
+
+   // dynamic softmax interface with manually allocated std::vector: simple but inefficient
+   std::vector<TreeEnsembleResponseType>
+   softmax(const FeatureType *array, TreeEnsembleResponseType baseResponse = defaultBaseResponse) const;
+
+   // softmax interface that is not a pure function, but no manual allocation and no compile-time knowledge needed
+   void softmax(const FeatureType *array, TreeEnsembleResponseType *out,
+                TreeEnsembleResponseType baseResponse = defaultBaseResponse) const;
+
+   int nClasses() const { return baseResponses_.size() > 2 ? baseResponses_.size() : 2; }
+
+   std::vector<int> rootIndices_;
+   std::vector<CutIndexType> cutIndices_;
+   std::vector<FeatureType> cutValues_;
+   std::vector<int> leftIndices_;
+   std::vector<int> rightIndices_;
+   std::vector<TreeResponseType> responses_;
+   std::vector<int> treeNumbers_;
+   std::vector<TreeEnsembleResponseType> baseResponses_;
 
 private:
-   int fNumOutputs;
-   bool fNormalizeOutputs;
-   std::vector<Backend_t> fBackends;
+   void evaluate(const FeatureType *array, TreeEnsembleResponseType *out, int nOut,
+                 TreeEnsembleResponseType baseResponse) const;
 
-public:
-   /// Construct backends from model in ROOT file
-   RBDT(const std::string &key, const std::string &filename)
-   {
-      // Get number of output nodes of the forest
-      std::unique_ptr<TFile> file{TFile::Open(filename.c_str(),"READ")};
-      if (!file || file->IsZombie()) {
-         throw std::runtime_error("Failed to open input file " + filename);
-      }
-      auto numOutputs = Internal::GetObjectSafe<std::vector<int>>(file.get(), filename, key + "/num_outputs");
-      fNumOutputs = numOutputs->at(0);
-      delete numOutputs;
+   TreeEnsembleResponseType evaluateBinary(const FeatureType *array, TreeEnsembleResponseType baseResponse) const;
 
-      // Get objective and decide whether to normalize output nodes for example in the multiclass case
-      auto objective = Internal::GetObjectSafe<std::string>(file.get(), filename, key + "/objective");
-      if (objective->compare("softmax") == 0)
-         fNormalizeOutputs = true;
-      else
-         fNormalizeOutputs = false;
-      delete objective;
-      file->Close();
-
-      // Initialize backends
-      fBackends = std::vector<Backend_t>(fNumOutputs);
-      for (int i = 0; i < fNumOutputs; i++)
-         fBackends[i].Load(key, filename, i);
-   }
-
-   /// Compute model prediction on a single event
-   ///
-   /// The method is intended to be used with std::vectors-like containers,
-   /// for example RVecs.
-   template <typename Vector>
-   Vector Compute(const Vector &x)
-   {
-      Vector y;
-      y.resize(fNumOutputs);
-      for (int i = 0; i < fNumOutputs; i++)
-         fBackends[i].Inference(&x[0], 1, true, &y[i]);
-      if (fNormalizeOutputs) {
-         Value_t s = 0.0;
-         for (int i = 0; i < fNumOutputs; i++)
-            s += y[i];
-         for (int i = 0; i < fNumOutputs; i++)
-            y[i] /= s;
-      }
-      return y;
-   }
-
-   /// Compute model prediction on a single event
-   std::vector<Value_t> Compute(const std::vector<Value_t> &x) { return this->Compute<std::vector<Value_t>>(x); }
-
-   /// Compute model prediction on input RTensor
-   RTensor<Value_t> Compute(const RTensor<Value_t> &x)
-   {
-      const auto rows = x.GetShape()[0];
-      RTensor<Value_t> y({rows, static_cast<std::size_t>(fNumOutputs)}, MemoryLayout::ColumnMajor);
-      const bool layout = x.GetMemoryLayout() == MemoryLayout::ColumnMajor ? false : true;
-      for (int i = 0; i < fNumOutputs; i++)
-         fBackends[i].Inference(x.GetData(), rows, layout, &y(0, i));
-      if (fNormalizeOutputs) {
-         Value_t s;
-         for (int i = 0; i < static_cast<int>(rows); i++) {
-            s = 0.0;
-            for (int j = 0; j < fNumOutputs; j++)
-               s += y(i, j);
-            for (int j = 0; j < fNumOutputs; j++)
-               y(i, j) /= s;
-         }
-      }
-      return y;
-   }
+   ClassDefNV(FastForest, 1);
 };
 
-extern template class TMVA::Experimental::RBDT<TMVA::Experimental::BranchlessForest<float>>;
-extern template class TMVA::Experimental::RBDT<TMVA::Experimental::BranchlessJittedForest<float>>;
+FastForest load_txt(std::string const &txtpath, std::vector<std::string> &features, int nClasses = 2);
+FastForest load_txt(std::istream &is, std::vector<std::string> &features, int nClasses = 2);
 
-} // namespace Experimental
-} // namespace TMVA
+} // namespace fastforest
 
 #endif // TMVA_RBDT
