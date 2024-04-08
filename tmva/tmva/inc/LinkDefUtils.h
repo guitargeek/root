@@ -11,8 +11,7 @@
 
 #ifdef R__HAS_DATAFRAME
 // BDT inference
-//#pragma link C++ class TMVA::Experimental::RBDT+;
-#pragma link C++ class fastforest::FastForest+;
+#pragma link C++ class TMVA::Experimental::RBDT+;
 #endif
 
 // RTensor will have its own streamer function

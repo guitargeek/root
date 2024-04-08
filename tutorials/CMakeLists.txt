@@ -556,6 +556,7 @@ set (tmva-TMVACrossValidationRegression-depends tutorial-tmva-TMVARegressionAppl
 set (tmva-TMVACrossValidationApplication-depends tutorial-tmva-TMVACrossValidation)
 set (tmva-tmva101_Training-depends tutorial-tmva-tmva100_DataPreparation-py)
 set (tmva-tmva102_Testing-depends tutorial-tmva-tmva101_Training-py)
+set (tmva-tmva103_Application-depends tutorial-tmva-tmva101_Training-py)
 set (tmva-tmva003_RReader-depends tutorial-tmva-TMVAClassification)
 set (tmva-tmva004_RStandardScaler-depends tutorial-tmva-tmva003_RReader)
 if (PY_TORCH_FOUND)

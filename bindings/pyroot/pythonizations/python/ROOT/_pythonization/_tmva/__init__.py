@@ -36,11 +36,6 @@ python_batchgenerator_functions = [
     CreatePyTorchGenerators,
 ]
 
-def load_fastforest(key_name, input_path):
-    with cppyy.gbl.TFile.Open(input_path) as tFile:
-        bdt = tFile[key_name]
-    return bdt
-
 def inject_rbatchgenerator(ns):
     for python_func in python_batchgenerator_functions:
         func_name = python_func.__name__

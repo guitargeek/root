@@ -30,9 +30,10 @@ def compute(fast_forest, x, base_score=0.0, do_logistic_transformation=True):
     import numpy as np
 
     out = np.zeros(len(x))
+    fast_forest.baseScore_ = 0.5
     for i in range(len(x)):
         v = ROOT.std.vector["float"](x[i])
-        out[i] = fast_forest(v.data(), base_score)
+        out[i] = fast_forest(v.data())
     if do_logistic_transformation:
         out = 1.0 / (1.0 + np.exp(-out))
     return out
@@ -88,9 +89,8 @@ def _test_XGBMulticlass(label):
     x, y = create_dataset(1000, 10, 3)
     xgb = xgboost.XGBClassifier(n_estimators=100, max_depth=3)
     xgb.fit(x, y)
-    xgb._Booster.dump_model("testXGBMulticlass{}.txt".format(label))
-    features = ROOT.std.vector["std::string"]([f"f{i}" for i in range(x.shape[1])])
-    bdt = ROOT.fastforest.load_txt("testXGBMulticlass{}.txt".format(label), features, 3)
+    ROOT.TMVA.Experimental.SaveXGBoost(xgb, "myModel", "testXGBMulticlass{}.root".format(label), num_inputs=10)
+    bdt = ROOT.TMVA.Experimental.RBDT("myModel", "testXGBMulticlass{}.root".format(label))
 
     y_xgb = xgb.predict_proba(x)
     y_bdt = softmax(bdt, x, 3)

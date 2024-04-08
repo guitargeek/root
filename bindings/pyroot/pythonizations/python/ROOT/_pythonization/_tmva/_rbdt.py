@@ -17,11 +17,11 @@ def Compute(self, x):
     out = np.zeros(len(x))
     for i in range(len(x)):
         v = gbl_namespace.std.vector["float"](x[i])
-        out[i] = self(v.data(), 0.0)
+        out[i] = self(v.data())
     return 1.0 / (1.0 + np.exp(-out))
 
 
-@pythonization("FastForest", ns="fastforest", is_prefix=True)
+@pythonization("RBDT", ns="TMVA::Experimental", is_prefix=True)
 def pythonize_rbdt(klass):
     # Parameters:
     # klass: class to be pythonized

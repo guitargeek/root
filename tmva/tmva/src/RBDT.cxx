@@ -1,5 +1,7 @@
 #include <TMVA/RBDT.hxx>
 
+#include <TFile.h>
+
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -10,13 +12,14 @@
 #include <string>
 #include <vector>
 
-namespace fastforest {
+namespace {
+
 namespace detail {
 
 typedef std::map<int, int> IndexMap;
 
-void correctIndices(std::vector<int>::iterator begin, std::vector<int>::iterator end,
-                    fastforest::detail::IndexMap const &nodeIndices, fastforest::detail::IndexMap const &leafIndices)
+void correctIndices(std::vector<int>::iterator begin, std::vector<int>::iterator end, IndexMap const &nodeIndices,
+                    IndexMap const &leafIndices)
 {
    for (std::vector<int>::iterator it = begin; it != end; ++it) {
       if (nodeIndices.count(*it)) {
@@ -30,98 +33,6 @@ void correctIndices(std::vector<int>::iterator begin, std::vector<int>::iterator
 }
 
 } // namespace detail
-
-} // namespace fastforest
-
-using namespace fastforest;
-
-void fastforest::details::softmaxTransformInplace(TreeEnsembleResponseType *out, int nOut)
-{
-   // Do softmax transformation inplace, mimicing exactly the Softmax function
-   // in the src/common/math.h source file of xgboost.
-   double norm = 0.;
-   TreeEnsembleResponseType wmax = *out;
-   int i = 1;
-   for (; i < nOut; ++i) {
-      wmax = std::max(out[i], wmax);
-   }
-   i = 0;
-   for (; i < nOut; ++i) {
-      TreeEnsembleResponseType &x = out[i];
-      x = std::exp(x - wmax);
-      norm += x;
-   }
-   i = 0;
-   for (; i < nOut; ++i) {
-      out[i] /= static_cast<float>(norm);
-   }
-}
-
-std::vector<TreeEnsembleResponseType>
-fastforest::FastForest::softmax(const FeatureType *array, TreeEnsembleResponseType baseResponse) const
-{
-   std::vector<TreeEnsembleResponseType> out(nClasses());
-   softmax(array, out.data(), baseResponse);
-   return out;
-}
-
-void fastforest::FastForest::softmax(const FeatureType *array, TreeEnsembleResponseType *out,
-                                     TreeEnsembleResponseType baseResponse) const
-{
-   int nClass = nClasses();
-   if (nClass <= 2) {
-      throw std::runtime_error(
-         "Error in FastForest::softmax : binary classification models don't support softmax evaluation. Plase set "
-         "the number of classes in the FastForest-creating function if this is a multiclassification model.");
-   }
-
-   evaluate(array, out, nClass, baseResponse);
-   fastforest::details::softmaxTransformInplace(out, nClass);
-}
-
-void fastforest::FastForest::evaluate(const FeatureType *array, TreeEnsembleResponseType *out, int nOut,
-                                      TreeEnsembleResponseType baseResponse) const
-{
-   for (int i = 0; i < nOut; ++i) {
-      out[i] = baseResponse + baseResponses_[i];
-   }
-
-   int iRootIndex = 0;
-   for (std::vector<int>::const_iterator indexIter = rootIndices_.begin(); indexIter != rootIndices_.end();
-        ++indexIter) {
-      int index = *indexIter;
-      do {
-         int r = rightIndices_[index];
-         int l = leftIndices_[index];
-         index = array[cutIndices_[index]] < cutValues_[index] ? l : r;
-      } while (index > 0);
-      out[treeNumbers_[iRootIndex] % nOut] += responses_[-index];
-      ++iRootIndex;
-   }
-}
-
-TreeEnsembleResponseType
-fastforest::FastForest::evaluateBinary(const FeatureType *array, TreeEnsembleResponseType baseResponse) const
-{
-   TreeEnsembleResponseType out = baseResponse + baseResponses_[0];
-
-   for (std::vector<int>::const_iterator indexIter = rootIndices_.begin(); indexIter != rootIndices_.end();
-        ++indexIter) {
-      int index = *indexIter;
-      do {
-         int r = rightIndices_[index];
-         int l = leftIndices_[index];
-         index = array[cutIndices_[index]] < cutValues_[index] ? l : r;
-      } while (index > 0);
-      out += responses_[-index];
-   }
-
-   return out;
-}
-
-using namespace fastforest;
-
-namespace {
 
 namespace util {
 
@@ -193,11 +104,98 @@ bool exists(std::string const &filename)
 
 } // namespace util
 
-void terminateTree(fastforest::FastForest &ff, int &nPreviousNodes, int &nPreviousLeaves,
-                   fastforest::detail::IndexMap &nodeIndices, fastforest::detail::IndexMap &leafIndices,
-                   int &treesSkipped)
+} // namespace
+
+using namespace TMVA::Experimental;
+
+void TMVA::Experimental::RBDT::softmaxTransformInplace(TreeEnsembleResponseType *out, int nOut)
 {
-   using namespace fastforest::detail;
+   // Do softmax transformation inplace, mimicing exactly the Softmax function
+   // in the src/common/math.h source file of xgboost.
+   double norm = 0.;
+   TreeEnsembleResponseType wmax = *out;
+   int i = 1;
+   for (; i < nOut; ++i) {
+      wmax = std::max(out[i], wmax);
+   }
+   i = 0;
+   for (; i < nOut; ++i) {
+      TreeEnsembleResponseType &x = out[i];
+      x = std::exp(x - wmax);
+      norm += x;
+   }
+   i = 0;
+   for (; i < nOut; ++i) {
+      out[i] /= static_cast<float>(norm);
+   }
+}
+
+std::vector<TMVA::Experimental::RBDT::TreeEnsembleResponseType>
+TMVA::Experimental::RBDT::softmax(const FeatureType *array) const
+{
+   std::vector<TreeEnsembleResponseType> out(nClasses());
+   softmax(array, out.data());
+   return out;
+}
+
+void TMVA::Experimental::RBDT::softmax(const FeatureType *array, TreeEnsembleResponseType *out) const
+{
+   int nClass = nClasses();
+   if (nClass <= 2) {
+      throw std::runtime_error(
+         "Error in RBDT::softmax : binary classification models don't support softmax evaluation. Plase set "
+         "the number of classes in the RBDT-creating function if this is a multiclassification model.");
+   }
+
+   evaluate(array, out, nClass);
+   softmaxTransformInplace(out, nClass);
+}
+
+void TMVA::Experimental::RBDT::evaluate(const FeatureType *array, TreeEnsembleResponseType *out, int nOut) const
+{
+   for (int i = 0; i < nOut; ++i) {
+      out[i] = baseScore_ + baseResponses_[i];
+   }
+
+   int iRootIndex = 0;
+   for (std::vector<int>::const_iterator indexIter = rootIndices_.begin(); indexIter != rootIndices_.end();
+        ++indexIter) {
+      int index = *indexIter;
+      do {
+         int r = rightIndices_[index];
+         int l = leftIndices_[index];
+         index = array[cutIndices_[index]] < cutValues_[index] ? l : r;
+      } while (index > 0);
+      out[treeNumbers_[iRootIndex] % nOut] += responses_[-index];
+      ++iRootIndex;
+   }
+}
+
+TMVA::Experimental::RBDT::TreeEnsembleResponseType
+TMVA::Experimental::RBDT::evaluateBinary(const FeatureType *array) const
+{
+   TreeEnsembleResponseType out = baseScore_ + baseResponses_[0];
+
+   for (std::vector<int>::const_iterator indexIter = rootIndices_.begin(); indexIter != rootIndices_.end();
+        ++indexIter) {
+      int index = *indexIter;
+      do {
+         int r = rightIndices_[index];
+         int l = leftIndices_[index];
+         index = array[cutIndices_[index]] < cutValues_[index] ? l : r;
+      } while (index > 0);
+      out += responses_[-index];
+   }
+
+   return out;
+}
+
+namespace {
+
+void terminateTree(TMVA::Experimental::RBDT &ff, int &nPreviousNodes, int &nPreviousLeaves,
+                   detail::IndexMap &nodeIndices, detail::IndexMap &leafIndices, int &treesSkipped)
+{
+   using detail::correctIndices;
    correctIndices(ff.rightIndices_.begin() + nPreviousNodes, ff.rightIndices_.end(), nodeIndices, leafIndices);
    correctIndices(ff.leftIndices_.begin() + nPreviousNodes, ff.leftIndices_.end(), nodeIndices, leafIndices);
 
@@ -219,9 +217,9 @@ void terminateTree(fastforest::FastForest &ff, int &nPreviousNodes, int &nPrevio
 
 } // namespace
 
-FastForest fastforest::load_txt(std::string const &txtpath, std::vector<std::string> &features, int nClasses)
+RBDT TMVA::Experimental::RBDT::load_txt(std::string const &txtpath, std::vector<std::string> &features, int nClasses)
 {
-   const std::string info = "constructing FastForest from " + txtpath + ": ";
+   const std::string info = "constructing RBDT from " + txtpath + ": ";
 
    if (!util::exists(txtpath)) {
       throw std::runtime_error(info + "file does not exists");
@@ -231,16 +229,12 @@ FastForest fastforest::load_txt(std::string const &txtpath, std::vector<std::str
    return load_txt(file, features, nClasses);
 }
 
-FastForest fastforest::load_txt(std::istream &file, std::vector<std::string> &features, int nClasses)
+RBDT TMVA::Experimental::RBDT::load_txt(std::istream &file, std::vector<std::string> &features, int nClasses)
 {
-   if (nClasses < 2) {
-      throw std::runtime_error("Error in fastforest::load_txt : nClasses has to be at least two");
-   }
+   const std::string info = "constructing RBDT from istream: ";
 
-   const std::string info = "constructing FastForest from istream: ";
-
-   FastForest ff;
-   ff.baseResponses_.resize(nClasses == 2 ? 1 : nClasses);
+   RBDT ff;
+   ff.baseResponses_.resize(nClasses <= 2 ? 1 : nClasses);
 
    int treesSkipped = 0;
 
@@ -258,8 +252,8 @@ FastForest fastforest::load_txt(std::istream &file, std::vector<std::string> &fe
 
    std::string line;
 
-   fastforest::detail::IndexMap nodeIndices;
-   fastforest::detail::IndexMap leafIndices;
+   detail::IndexMap nodeIndices;
+   detail::IndexMap leafIndices;
 
    int nPreviousNodes = 0;
    int nPreviousLeaves = 0;
@@ -334,10 +328,23 @@ FastForest fastforest::load_txt(std::istream &file, std::vector<std::string> &fe
 
    if (nClasses > 2 && (ff.rootIndices_.size() + treesSkipped) % nClasses != 0) {
       std::stringstream ss;
-      ss << "Error in FastForest construction : Forest has " << ff.rootIndices_.size()
+      ss << "Error in RBDT construction : Forest has " << ff.rootIndices_.size()
          << " trees, which is not compatible with " << nClasses << "classes!";
       throw std::runtime_error(ss.str());
    }
 
    return ff;
+}
+
+TMVA::Experimental::RBDT::RBDT(const std::string &key, const std::string &filename)
+{
+   std::unique_ptr<TFile> file{TFile::Open(filename.c_str(), "READ")};
+   if (!file || file->IsZombie()) {
+      throw std::runtime_error("Failed to open input file " + filename);
+   }
+   auto *fromFile = file->Get<TMVA::Experimental::RBDT>(key.c_str());
+   if (!fromFile) {
+      throw std::runtime_error("No RBDT with name " + key);
+   }
+   *this = *fromFile;
 }
