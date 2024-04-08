@@ -27,6 +27,8 @@ SOFTWARE.
 #ifndef ROOT_FastForest_h
 #define ROOT_FastForest_h
 
+#include <Rtypes.h>
+
 #if __cplusplus >= 201103L
 #include <array>
 #endif
@@ -58,7 +60,8 @@ namespace fastforest {
 
     }
 
-    struct FastForest {
+    class FastForest {
+      public:
         inline TreeEnsembleResponseType operator()(const FeatureType* array,
                                                    TreeEnsembleResponseType baseResponse = defaultBaseResponse) const {
             return evaluateBinary(array, baseResponse);
@@ -86,8 +89,6 @@ namespace fastforest {
                      TreeEnsembleResponseType* out,
                      TreeEnsembleResponseType baseResponse = defaultBaseResponse) const;
 
-        void write_bin(std::string const& filename) const;
-
         int nClasses() const { return baseResponses_.size() > 2 ? baseResponses_.size() : 2; }
 
         std::vector<int> rootIndices_;
@@ -106,12 +107,12 @@ namespace fastforest {
                       TreeEnsembleResponseType baseResponse) const;
 
         TreeEnsembleResponseType evaluateBinary(const FeatureType* array, TreeEnsembleResponseType baseResponse) const;
+
+        ClassDefNV(FastForest, 1);
     };
 
     FastForest load_txt(std::string const& txtpath, std::vector<std::string>& features, int nClasses = 2);
     FastForest load_txt(std::istream& is, std::vector<std::string>& features, int nClasses = 2);
-    FastForest load_bin(std::string const& txtpath);
-    FastForest load_bin(std::istream& is);
 
 }  // namespace fastforest
 

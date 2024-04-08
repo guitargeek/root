@@ -36,6 +36,11 @@ python_batchgenerator_functions = [
     CreatePyTorchGenerators,
 ]
 
+def load_fastforest(key_name, input_path):
+    with cppyy.gbl.TFile.Open(input_path) as tFile:
+        bdt = tFile[key_name]
+    return bdt
+
 def inject_rbatchgenerator(ns):
     for python_func in python_batchgenerator_functions:
         func_name = python_func.__name__
@@ -51,7 +56,7 @@ if hasRDF:
 
 #this should be available only when xgboost is there ?
 # We probably don't need a protection here since the code is run only when there is xgboost
-from ._tree_inference import SaveXGBoost, pythonize_tree_inference
+from ._tree_inference import SaveXGBoost
 
 
 # list of python classes that are used to pythonize TMVA classes

@@ -1,6 +1,7 @@
 import unittest
 import ROOT
 import numpy as np
+
 np.random.seed(1234)
 import xgboost
 
@@ -10,52 +11,89 @@ def create_dataset(num_events, num_features, num_outputs, dtype=np.float32):
     if num_outputs == 1:
         y = np.random.normal(0.0, 1.0, (num_events)).astype(dtype=dtype)
     else:
-        y = np.random.choice(a=range(num_outputs), size=(num_events), p=[1.0 / float(num_outputs)] * num_outputs).astype(dtype=dtype)
+        y = np.random.choice(
+            a=range(num_outputs), size=(num_events), p=[1.0 / float(num_outputs)] * num_outputs
+        ).astype(dtype=dtype)
     return x, y
 
 
-def _test_XGBBinary(backend, label):
+def get_basescore(model):
+    import json
+
+    """Get base score from an XGBoost sklearn estimator."""
+    base_score = float(json.loads(model.get_booster().save_config())["learner"]["learner_model_param"]["base_score"])
+    return base_score
+
+
+def compute(fast_forest, x, base_score=0.0, do_logistic_transformation=True):
+
+    import numpy as np
+
+    out = np.zeros(len(x))
+    for i in range(len(x)):
+        v = ROOT.std.vector["float"](x[i])
+        out[i] = fast_forest(v.data(), base_score)
+    if do_logistic_transformation:
+        out = 1.0 / (1.0 + np.exp(-out))
+    return out
+
+
+def softmax(fast_forest, x, n_classes):
+
+    import numpy as np
+
+    out = np.zeros((len(x), n_classes))
+    for i in range(len(x)):
+        v = ROOT.std.vector["float"](x[i])
+        out[i] = fast_forest.softmax(v.data())
+    return out
+
+
+def _test_XGBBinary(label):
     """
-    Compare response of XGB classifier and TMVA tree inference system for a given backend
+    Compare response of XGB classifier and TMVA tree inference system.
     """
     x, y = create_dataset(1000, 10, 2)
     xgb = xgboost.XGBClassifier(n_estimators=100, max_depth=3)
     xgb.fit(x, y)
-    ROOT.TMVA.Experimental.SaveXGBoost(xgb, "myModel", "testXGBBinary{}.root".format(label))
-    bdt = ROOT.TMVA.Experimental.RBDT[backend]("myModel", "testXGBBinary{}.root".format(label))
+    ROOT.TMVA.Experimental.SaveXGBoost(xgb, "myModel", "testXGBBinary{}.root".format(label), num_inputs=10)
+    bdt = ROOT.TMVA.Experimental.RBDT("myModel", "testXGBBinary{}.root".format(label))
 
     y_xgb = xgb.predict_proba(x)[:, 1].squeeze()
     y_bdt = bdt.Compute(x).squeeze()
     np.testing.assert_array_almost_equal(y_xgb, y_bdt)
 
 
-def _test_XGBRegression(backend, label):
+def _test_XGBRegression(label):
     """
-    Compare response of XGB regressor and TMVA tree inference system for a given backend
+    Compare response of XGB regressor and TMVA tree inference system.
     """
     x, y = create_dataset(1000, 10, 1)
     xgb = xgboost.XGBRegressor(n_estimators=1, max_depth=3)
     xgb.fit(x, y)
     ROOT.TMVA.Experimental.SaveXGBoost(xgb, "myModel", "testXGBRegression{}.root".format(label), num_inputs=10)
-    bdt = ROOT.TMVA.Experimental.RBDT[backend]("myModel", "testXGBRegression{}.root".format(label))
+    bdt = ROOT.TMVA.Experimental.RBDT("myModel", "testXGBRegression{}.root".format(label))
+
+    base_score = get_basescore(xgb)
 
     y_xgb = xgb.predict(x).squeeze()
-    y_bdt = bdt.Compute(x).squeeze()
+    y_bdt = compute(bdt, x, base_score, False).squeeze()
     np.testing.assert_array_almost_equal(y_xgb, y_bdt)
 
 
-def _test_XGBMulticlass(backend, label):
+def _test_XGBMulticlass(label):
     """
-    Compare response of XGB multiclass and TMVA tree inference system for a given backend
+    Compare response of XGB multiclass and TMVA tree inference system.
     """
     x, y = create_dataset(1000, 10, 3)
     xgb = xgboost.XGBClassifier(n_estimators=100, max_depth=3)
     xgb.fit(x, y)
-    ROOT.TMVA.Experimental.SaveXGBoost(xgb, "myModel", "testXGBMulticlass{}.root".format(label))
-    bdt = ROOT.TMVA.Experimental.RBDT[backend]("myModel", "testXGBMulticlass{}.root".format(label))
+    xgb._Booster.dump_model("testXGBMulticlass{}.txt".format(label))
+    features = ROOT.std.vector["std::string"]([f"f{i}" for i in range(x.shape[1])])
+    bdt = ROOT.fastforest.load_txt("testXGBMulticlass{}.txt".format(label), features, 3)
 
     y_xgb = xgb.predict_proba(x)
-    y_bdt = bdt.Compute(x)
+    y_bdt = softmax(bdt, x, 3)
     np.testing.assert_array_almost_equal(y_xgb, y_bdt)
 
 
@@ -66,58 +104,22 @@ class RBDT(unittest.TestCase):
 
     def test_XGBBinary_default(self):
         """
-        Test default backend for model trained with binary XGBClassifier
+        Test model trained with binary XGBClassifier.
         """
-        _test_XGBBinary("", "default")
-
-    def test_XGBBinary_branchless(self):
-        """
-        Test BranchlessForest backend for model trained with binary XGBClassifier
-        """
-        _test_XGBBinary("TMVA::Experimental::BranchlessForest<float>", "branchlessForest")
-
-    def test_XGBBinary_branchlessjitted(self):
-        """
-        Test BranchlessJittedForest backend for model trained with binary XGBClassifier
-        """
-        _test_XGBBinary("TMVA::Experimental::BranchlessJittedForest<float>", "branchlessJittedForest")
+        _test_XGBBinary("default")
 
     def test_XGBMulticlass_default(self):
         """
-        Test default backend for model trained with multiclass XGBClassifier
+        Test model trained with multiclass XGBClassifier.
         """
-        _test_XGBMulticlass("", "default")
-
-    def test_XGBMulticlass_branchless(self):
-        """
-        Test BranchlessForest backend for model trained with multiclass XGBClassifier
-        """
-        _test_XGBMulticlass("TMVA::Experimental::BranchlessForest<float>", "branchlessForest")
-
-    def test_XGBMulticlass_branchlessjitted(self):
-        """
-        Test BranchlessJittedForest backend for model trained with multiclass XGBClassifier
-        """
-        _test_XGBMulticlass("TMVA::Experimental::BranchlessJittedForest<float>", "branchlessJittedForest")
+        _test_XGBMulticlass("default")
 
     def test_XGBRegression_default(self):
         """
-        Test default backend for model trained with XGBRegressor
+        Test model trained with XGBRegressor.
         """
-        _test_XGBRegression("", "default")
-
-    def test_XGBRegression_branchless(self):
-        """
-        Test BranchlessForest backend for model trained with XGBRegressor
-        """
-        _test_XGBRegression("TMVA::Experimental::BranchlessForest<float>", "branchlessForest")
-
-    def test_XGBRegression_branchlessjitted(self):
-        """
-        Test BranchlessJittedForest backend for model trained with XGBRegressor
-        """
-        _test_XGBRegression("TMVA::Experimental::BranchlessJittedForest<float>", "branchlessJittedForest")
+        _test_XGBRegression("default")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

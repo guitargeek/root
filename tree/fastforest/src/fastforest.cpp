@@ -27,9 +27,6 @@ SOFTWARE.
 #include <fastforest.h>
 
 #include <cmath>
-#include <fstream>
-#include <string>
-#include <sstream>
 #include <stdexcept>
 
 using namespace fastforest;
@@ -114,69 +111,4 @@ TreeEnsembleResponseType fastforest::FastForest::evaluateBinary(const FeatureTyp
     }
 
     return out;
-}
-
-FastForest fastforest::load_bin(std::string const& txtpath) {
-    std::ifstream ifs(txtpath.c_str(), std::ios::binary);
-    return load_bin(ifs);
-}
-
-FastForest fastforest::load_bin(std::istream& is) {
-    FastForest ff;
-
-    int nRootNodes;
-    int nNodes;
-    int nLeaves;
-
-    is.read((char*)&nRootNodes, sizeof(int));
-    is.read((char*)&nNodes, sizeof(int));
-    is.read((char*)&nLeaves, sizeof(int));
-
-    ff.rootIndices_.resize(nRootNodes);
-    ff.cutIndices_.resize(nNodes);
-    ff.cutValues_.resize(nNodes);
-    ff.leftIndices_.resize(nNodes);
-    ff.rightIndices_.resize(nNodes);
-    ff.responses_.resize(nLeaves);
-    ff.treeNumbers_.resize(nRootNodes);
-
-    is.read((char*)ff.rootIndices_.data(), nRootNodes * sizeof(int));
-    is.read((char*)ff.cutIndices_.data(), nNodes * sizeof(CutIndexType));
-    is.read((char*)ff.cutValues_.data(), nNodes * sizeof(FeatureType));
-    is.read((char*)ff.leftIndices_.data(), nNodes * sizeof(int));
-    is.read((char*)ff.rightIndices_.data(), nNodes * sizeof(int));
-    is.read((char*)ff.responses_.data(), nLeaves * sizeof(TreeResponseType));
-    is.read((char*)ff.treeNumbers_.data(), nRootNodes * sizeof(int));
-
-    int nBaseResponses;
-    is.read((char*)&nBaseResponses, sizeof(int));
-    ff.baseResponses_.resize(nBaseResponses);
-    is.read((char*)ff.baseResponses_.data(), nBaseResponses * sizeof(TreeEnsembleResponseType));
-
-    return ff;
-}
-
-void fastforest::FastForest::write_bin(std::string const& filename) const {
-    std::ofstream os(filename.c_str(), std::ios::binary);
-
-    int nRootNodes = rootIndices_.size();
-    int nNodes = cutValues_.size();
-    int nLeaves = responses_.size();
-    int nBaseResponses = baseResponses_.size();
-
-    os.write((const char*)&nRootNodes, sizeof(int));
-    os.write((const char*)&nNodes, sizeof(int));
-    os.write((const char*)&nLeaves, sizeof(int));
-
-    os.write((const char*)rootIndices_.data(), nRootNodes * sizeof(int));
-    os.write((const char*)cutIndices_.data(), nNodes * sizeof(CutIndexType));
-    os.write((const char*)cutValues_.data(), nNodes * sizeof(FeatureType));
-    os.write((const char*)leftIndices_.data(), nNodes * sizeof(int));
-    os.write((const char*)rightIndices_.data(), nNodes * sizeof(int));
-    os.write((const char*)responses_.data(), nLeaves * sizeof(TreeResponseType));
-    os.write((const char*)treeNumbers_.data(), nRootNodes * sizeof(int));
-
-    os.write((const char*)&nBaseResponses, sizeof(int));
-    os.write((const char*)baseResponses_.data(), nBaseResponses * sizeof(TreeEnsembleResponseType));
-    os.close();
 }
