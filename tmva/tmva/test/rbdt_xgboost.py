@@ -17,39 +17,6 @@ def create_dataset(num_events, num_features, num_outputs, dtype=np.float32):
     return x, y
 
 
-def get_basescore(model):
-    import json
-
-    """Get base score from an XGBoost sklearn estimator."""
-    base_score = float(json.loads(model.get_booster().save_config())["learner"]["learner_model_param"]["base_score"])
-    return base_score
-
-
-def compute(fast_forest, x, base_score=0.0, do_logistic_transformation=True):
-
-    import numpy as np
-
-    out = np.zeros(len(x))
-    fast_forest.baseScore_ = 0.5
-    for i in range(len(x)):
-        v = ROOT.std.vector["float"](x[i])
-        out[i] = fast_forest(v.data())
-    if do_logistic_transformation:
-        out = 1.0 / (1.0 + np.exp(-out))
-    return out
-
-
-def softmax(fast_forest, x, n_classes):
-
-    import numpy as np
-
-    out = np.zeros((len(x), n_classes))
-    for i in range(len(x)):
-        v = ROOT.std.vector["float"](x[i])
-        out[i] = fast_forest.softmax(v.data())
-    return out
-
-
 def _test_XGBBinary(label):
     """
     Compare response of XGB classifier and TMVA tree inference system.
@@ -75,10 +42,8 @@ def _test_XGBRegression(label):
     ROOT.TMVA.Experimental.SaveXGBoost(xgb, "myModel", "testXGBRegression{}.root".format(label), num_inputs=10)
     bdt = ROOT.TMVA.Experimental.RBDT("myModel", "testXGBRegression{}.root".format(label))
 
-    base_score = get_basescore(xgb)
-
     y_xgb = xgb.predict(x).squeeze()
-    y_bdt = compute(bdt, x, base_score, False).squeeze()
+    y_bdt = bdt.Compute(x).squeeze()
     np.testing.assert_array_almost_equal(y_xgb, y_bdt)
 
 
@@ -93,7 +58,7 @@ def _test_XGBMulticlass(label):
     bdt = ROOT.TMVA.Experimental.RBDT("myModel", "testXGBMulticlass{}.root".format(label))
 
     y_xgb = xgb.predict_proba(x)
-    y_bdt = softmax(bdt, x, 3)
+    y_bdt = bdt.Compute(x)
     np.testing.assert_array_almost_equal(y_xgb, y_bdt)
 
 

@@ -755,6 +755,7 @@ if(ROOT_pyroot_FOUND)
   find_python_module(xgboost QUIET)
   if(NOT PY_XGBOOST_FOUND OR NOT dataframe)
     file(GLOB tmva_veto_py RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} tmva/tmva10*.py)
+    file(APPEND tmva_veto tmva/tmva103_Application.C) # since we are using the xgboost-trained model
     list(APPEND pyveto ${tmva_veto_py})
   endif()
 

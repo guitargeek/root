@@ -11,14 +11,29 @@
 from .. import pythonization
 from cppyy import gbl as gbl_namespace
 
-def Compute(self, x):
-    import numpy as np
 
-    out = np.zeros(len(x))
-    for i in range(len(x)):
-        v = gbl_namespace.std.vector["float"](x[i])
-        out[i] = self(v.data())
-    return 1.0 / (1.0 + np.exp(-out))
+def Compute(self, x):
+    # Import numpy lazily
+    try:
+        import numpy as np
+    except:
+        raise ImportError("Failed to import numpy during call of RBDT::Compute.")
+
+    # numpy.array is a factory and the actual type of a numpy array is numpy.ndarray
+    if isinstance(x, np.ndarray):
+        if len(x.shape) == 1:
+            x_ = gbl_namespace.VecOps.AsRVec(x)
+            y = self._OriginalCompute(x_)
+            return np.asarray(y)
+        elif len(x.shape) == 2:
+            x_ = gbl_namespace.TMVA.Experimental.AsRTensor(x)
+            y = self._OriginalCompute(x_)
+            return np.asarray(y)
+        else:
+            raise Exception("Call to Compute can process only numpy arrays of rank 1 or 2.")
+
+    # As fall-through we go to the original compute function and use the error-handling from cppyy
+    return self._OriginalCompute(x)
 
 
 @pythonization("RBDT", ns="TMVA::Experimental", is_prefix=True)
@@ -26,4 +41,5 @@ def pythonize_rbdt(klass):
     # Parameters:
     # klass: class to be pythonized
 
+    klass._OriginalCompute = klass.Compute
     klass.Compute = Compute

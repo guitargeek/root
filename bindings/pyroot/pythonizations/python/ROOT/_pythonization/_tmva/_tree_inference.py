@@ -12,7 +12,21 @@ from .. import pythonization
 import cppyy
 
 
-def SaveXGBoost(xgb_model, key_name, output_path, num_inputs=None, tmp_path="/tmp"):
+def get_basescore(model):
+    import json
+
+    """Get base score from an XGBoost sklearn estimator.
+
+    Copy-pasted from XGBoost unit test code.
+    """
+    base_score = float(json.loads(model.get_booster().save_config())["learner"]["learner_model_param"]["base_score"])
+    return base_score
+
+
+def SaveXGBoost(xgb_model, key_name, output_path, num_inputs=None):
+
+    import json
+
     # Extract objective
     objective_map = {
         "multi:softprob": "softmax",  # Naming the objective softmax is more common today
@@ -33,40 +47,18 @@ def SaveXGBoost(xgb_model, key_name, output_path, num_inputs=None, tmp_path="/tm
     max_depth = xgb_model.max_depth
 
     # Determine number of outputs
-    if "reg:" in model_objective:
-        num_outputs = 1
-    elif "binary:" in model_objective:
-        num_outputs = 1
-    else:
+    num_outputs = 1
+    if "multi:" in model_objective:
         num_outputs = xgb_model.n_classes_
 
-    # Dump XGB model to the tmp folder as json file
-    import os
-    import uuid
+    # Dump XGB model as json file
+    xgb_model.get_booster().dump_model(output_path, dump_format="json")
 
-    tmp_path = os.path.join(tmp_path, str(uuid.uuid4()) + ".json")
-    xgb_model.get_booster().dump_model(tmp_path, dump_format="json")
-
-    import json
-
-    with open(tmp_path, "r") as json_file:
+    with open(output_path, "r") as json_file:
         forest = json.load(json_file)
 
-    bias = 0.0
-
-    # Determine whether the model has a bias paramter and write bias trees
-    if hasattr(xgb_model, "base_score") and "reg:" in model_objective:
-        bias = xgb_model.base_score
-        if not bias == 0.0:
-            forest += [{"leaf": bias}] * num_outputs
-    # print(str(forest).replace("u'", "'").replace("'", '"'))
-
     # Determine number of input variables
-    if not num_inputs is None:
-        pass
-    elif hasattr(xgb_model, "_features_count"):
-        num_inputs = xgb_model._features_count
-    else:
+    if num_inputs is None:
         raise Exception(
             "Failed to get number of input variables from XGBoost model. Please provide the additional keyword argument 'num_inputs' to this function."
         )
@@ -76,7 +68,9 @@ def SaveXGBoost(xgb_model, key_name, output_path, num_inputs=None, tmp_path="/tm
     features = cppyy.gbl.std.vector["std::string"]([f"f{i}" for i in range(num_inputs)])
     bdt = cppyy.gbl.TMVA.Experimental.RBDT.load_txt(output_path, features, num_outputs)
 
-    bdt.baseResponse_ = bias
+    bdt.logistic_ = objective == "logistic"
+    if not bdt.logistic_:
+        bdt.baseScore_ = get_basescore(xgb_model)
 
     with cppyy.gbl.TFile.Open(output_path, "RECREATE") as tFile:
         tFile.WriteObject(bdt, key_name)

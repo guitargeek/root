@@ -1,3 +1,21 @@
+/**********************************************************************************
+ * Project: ROOT - a Root-integrated toolkit for multivariate data analysis       *
+ * Package: TMVA                                                                  *
+ *                                                                                *
+ *                                                                                *
+ * Description:                                                                   *
+ *                                                                                *
+ * Authors:                                                                       *
+ *      Jonas Rembser (stefan.wunsch@cern.ch)                                     *
+ *                                                                                *
+ * Copyright (c) 2024:                                                            *
+ *      CERN, Switzerland                                                         *
+ *                                                                                *
+ * Redistribution and use in source and binary forms, with or without             *
+ * modification, are permitted according to the terms listed in LICENSE           *
+ * (see tmva/doc/LICENSE)                                          *
+ **********************************************************************************/
+
 #include <TMVA/RBDT.hxx>
 
 #include <TFile.h>
@@ -29,6 +47,29 @@ void correctIndices(std::vector<int>::iterator begin, std::vector<int>::iterator
       } else {
          throw std::runtime_error("something is wrong in the node structure");
       }
+   }
+}
+
+template<class Value_t>
+void softmaxTransformInplace(Value_t *out, int nOut)
+{
+   // Do softmax transformation inplace, mimicing exactly the Softmax function
+   // in the src/common/math.h source file of xgboost.
+   double norm = 0.;
+   Value_t wmax = *out;
+   int i = 1;
+   for (; i < nOut; ++i) {
+      wmax = std::max(out[i], wmax);
+   }
+   i = 0;
+   for (; i < nOut; ++i) {
+      Value_t &x = out[i];
+      x = std::exp(x - wmax);
+      norm += x;
+   }
+   i = 0;
+   for (; i < nOut; ++i) {
+      out[i] /= static_cast<float>(norm);
    }
 }
 
@@ -108,52 +149,37 @@ bool exists(std::string const &filename)
 
 using namespace TMVA::Experimental;
 
-void TMVA::Experimental::RBDT::softmaxTransformInplace(TreeEnsembleResponseType *out, int nOut)
+/// Compute model prediction on input RTensor
+RTensor<TMVA::Experimental::RBDT::Value_t> TMVA::Experimental::RBDT::Compute(RTensor<Value_t> const &x)
 {
-   // Do softmax transformation inplace, mimicing exactly the Softmax function
-   // in the src/common/math.h source file of xgboost.
-   double norm = 0.;
-   TreeEnsembleResponseType wmax = *out;
-   int i = 1;
-   for (; i < nOut; ++i) {
-      wmax = std::max(out[i], wmax);
+   std::size_t nOut = baseResponses_.size() > 2 ? baseResponses_.size() : 1;
+   const std::size_t rows = x.GetShape()[0];
+   const std::size_t cols = x.GetShape()[1];
+   RTensor<Value_t> y({rows, nOut}, MemoryLayout::ColumnMajor);
+   std::vector<Value_t> xRow(cols);
+   std::vector<Value_t> yRow(nOut);
+   for (std::size_t iRow = 0; iRow < rows; ++iRow) {
+      for (std::size_t iCol = 0; iCol < cols; ++iCol) {
+         xRow[iCol] = x({iRow, iCol});
+      }
+      compute(xRow.data(), yRow.data());
+      for (std::size_t iOut = 0; iOut < nOut; ++iOut) {
+         y({iRow, iOut}) = yRow[iOut];
+      }
    }
-   i = 0;
-   for (; i < nOut; ++i) {
-      TreeEnsembleResponseType &x = out[i];
-      x = std::exp(x - wmax);
-      norm += x;
-   }
-   i = 0;
-   for (; i < nOut; ++i) {
-      out[i] /= static_cast<float>(norm);
-   }
+   return y;
 }
 
-std::vector<TMVA::Experimental::RBDT::TreeEnsembleResponseType>
-TMVA::Experimental::RBDT::softmax(const FeatureType *array) const
+void TMVA::Experimental::RBDT::softmax(const Value_t *array, Value_t *out) const
 {
-   std::vector<TreeEnsembleResponseType> out(nClasses());
-   softmax(array, out.data());
-   return out;
-}
-
-void TMVA::Experimental::RBDT::softmax(const FeatureType *array, TreeEnsembleResponseType *out) const
-{
-   int nClass = nClasses();
-   if (nClass <= 2) {
+   std::size_t nOut = baseResponses_.size() > 2 ? baseResponses_.size() : 1;
+   if (nOut == 1) {
       throw std::runtime_error(
          "Error in RBDT::softmax : binary classification models don't support softmax evaluation. Plase set "
          "the number of classes in the RBDT-creating function if this is a multiclassification model.");
    }
 
-   evaluate(array, out, nClass);
-   softmaxTransformInplace(out, nClass);
-}
-
-void TMVA::Experimental::RBDT::evaluate(const FeatureType *array, TreeEnsembleResponseType *out, int nOut) const
-{
-   for (int i = 0; i < nOut; ++i) {
+   for (std::size_t i = 0; i < nOut; ++i) {
       out[i] = baseScore_ + baseResponses_[i];
    }
 
@@ -169,12 +195,26 @@ void TMVA::Experimental::RBDT::evaluate(const FeatureType *array, TreeEnsembleRe
       out[treeNumbers_[iRootIndex] % nOut] += responses_[-index];
       ++iRootIndex;
    }
+
+   detail::softmaxTransformInplace(out, nOut);
 }
 
-TMVA::Experimental::RBDT::TreeEnsembleResponseType
-TMVA::Experimental::RBDT::evaluateBinary(const FeatureType *array) const
+void TMVA::Experimental::RBDT::compute(const Value_t *array, Value_t *out) const
 {
-   TreeEnsembleResponseType out = baseScore_ + baseResponses_[0];
+   std::size_t nOut = baseResponses_.size() > 2 ? baseResponses_.size() : 1;
+   if (nOut > 1) {
+      softmax(array, out);
+   } else {
+      out[0] = evaluateBinary(array);
+      if (logistic_) {
+         out[0] = 1.0 / (1.0 + std::exp(-out[0]));
+      }
+   }
+}
+
+TMVA::Experimental::RBDT::Value_t TMVA::Experimental::RBDT::evaluateBinary(const Value_t *array) const
+{
+   Value_t out = baseScore_ + baseResponses_[0];
 
    for (std::vector<int>::const_iterator indexIter = rootIndices_.begin(); indexIter != rootIndices_.end();
         ++indexIter) {
@@ -273,7 +313,7 @@ RBDT TMVA::Experimental::RBDT::load_txt(std::istream &file, std::vector<std::str
 
             std::vector<std::string> splitstring = util::split(subline, '<');
             std::string const &varName = splitstring[0];
-            FeatureType cutValue;
+            Value_t cutValue;
             {
                std::stringstream ss1(splitstring[1]);
                ss1 >> cutValue;
@@ -310,8 +350,7 @@ RBDT TMVA::Experimental::RBDT::load_txt(std::istream &file, std::vector<std::str
          }
 
       } else {
-         util::NumericAfterSubstrOutput<TreeResponseType> output =
-            util::numericAfterSubstr<TreeResponseType>(line, "leaf=");
+         util::NumericAfterSubstrOutput<Value_t> output = util::numericAfterSubstr<Value_t>(line, "leaf=");
          if (output.found) {
             std::stringstream ss(line);
             int index;
