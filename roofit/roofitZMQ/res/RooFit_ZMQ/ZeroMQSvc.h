@@ -14,9 +14,9 @@
 #ifndef ZEROMQ_IZEROMQSVC_H
 #define ZEROMQ_IZEROMQSVC_H 1
 
-#include <zmq.hpp>
-#include "RooFit_ZMQ/Utility.h"
-#include "RooFit_ZMQ/functions.h"
+#include "Utility.h"
+#include "functions.h"
+#include "zmq_wrapper.h"
 
 #include <type_traits>
 #include <string>

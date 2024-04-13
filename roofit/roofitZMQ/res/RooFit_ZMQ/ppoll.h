@@ -13,7 +13,7 @@
 #ifndef ROOT_ROOFIT_ZMQ_ppoll
 #define ROOT_ROOFIT_ZMQ_ppoll
 
-#include <zmq.hpp>
+#include "zmq_wrapper.h"
 #include <vector>
 
 namespace ZMQ {

@@ -13,8 +13,9 @@
 #ifndef ROOT_ROOFIT_MultiProcess_Job_decl
 #define ROOT_ROOFIT_MultiProcess_Job_decl
 
+#include "RooFit_ZMQ/zmq_wrapper.h"
+
 #include <string>
-#include <zmq.hpp>
 
 namespace RooFit {
 namespace MultiProcess {

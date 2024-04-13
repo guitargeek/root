@@ -14,9 +14,9 @@
 #ifndef ZEROMQPOLLER_H
 #define ZEROMQPOLLER_H 1
 
-#include "RooFit_ZMQ/ZeroMQSvc.h"
-#include "RooFit_ZMQ/functions.h"
-#include <zmq.hpp>
+#include "ZeroMQSvc.h"
+#include "functions.h"
+#include "zmq_wrapper.h"
 
 #include <vector>
 #include <deque>
