@@ -121,7 +121,7 @@ FunctionMinimum ModularFunctionMinimizer::Minimize(const FCNGradientBase &fcn, c
 }
 
 FunctionMinimum ModularFunctionMinimizer::Minimize(const FCNBase &fcn, const MnUserParameterState &st,
-                                                   const MnStrategy &strategy, unsigned int maxfcn, double toler) const
+                                                   const MnStrategy &strategy, unsigned int maxfcn, double toler, bool seedingOnly) const
 {
    // minimize from a FCNBase and a MnUserparameterState - interface used by all the previous ones
    // based on FCNBase. Create in this case a NumericalGradient calculator
@@ -135,6 +135,8 @@ FunctionMinimum ModularFunctionMinimizer::Minimize(const FCNBase &fcn, const MnU
    if (maxfcn == 0)
       maxfcn = 200 + 100 * npar + 5 * npar * npar;
    MinimumSeed mnseeds = SeedGenerator()(mfcn, gc, st, strategy);
+
+   if(seedingOnly) return FunctionMinimum{mnseeds, mfcn.Up()};
 
    return Minimize(mfcn, gc, mnseeds, strategy, maxfcn, toler);
 }
