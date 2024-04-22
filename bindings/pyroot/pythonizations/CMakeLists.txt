@@ -169,6 +169,15 @@ set(libname ROOTPythonizations)
 
 add_library(${libname} SHARED ${cpp_sources})
 
+# To make sure that the library also ends up in the right subdirectory in the
+# build directory tree. Doesn't work on Windows out of the box, but it's also
+# not relevant for Windows: it's the Linux packagers that care about Python
+# modules being fully contained in a directory named after the module.
+if(NOT MSVC)
+  set(root_module_subdir ROOT)
+  set_target_properties(${libname} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/${root_module_subdir})
+endif()
+
 # Insert the ROOTPythonizationsPySources in the dependency graph
 add_dependencies(${libname} ROOTPythonizationsPySources)
 
@@ -212,16 +221,9 @@ target_link_libraries(PyROOT INTERFACE cppyy_backend cppyy ROOTPythonizations)
 
 # Install library
 install(TARGETS ${libname} EXPORT ${CMAKE_PROJECT_NAME}Exports
-                            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT libraries
-                            LIBRARY DESTINATION ${CMAKE_INSTALL_PYTHONDIR} COMPONENT libraries
-                            ARCHIVE DESTINATION ${CMAKE_INSTALL_PYTHONDIR} COMPONENT libraries)
-
-# Install meta-target PyROOT3 (INTERFACE library)
-# Install library
-install(TARGETS PyROOT EXPORT ${CMAKE_PROJECT_NAME}Exports
-                            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT libraries
-                            LIBRARY DESTINATION ${CMAKE_INSTALL_PYTHONDIR} COMPONENT libraries
-                            ARCHIVE DESTINATION ${CMAKE_INSTALL_PYTHONDIR} COMPONENT libraries)
+                            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/${root_module_subdir} COMPONENT libraries
+                            LIBRARY DESTINATION ${CMAKE_INSTALL_PYTHONDIR}/${root_module_subdir} COMPONENT libraries
+                            ARCHIVE DESTINATION ${CMAKE_INSTALL_PYTHONDIR}/${root_module_subdir} COMPONENT libraries)
 
 # Install Python sources and bytecode
 install(DIRECTORY ${localruntimedir}/ROOT
