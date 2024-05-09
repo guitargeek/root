@@ -76,38 +76,52 @@ include(cmake/modules/SetROOTVersion.cmake)
 
 message(STATUS "Building ROOT version ${ROOT_FULL_VERSION}")
 
-#---Try to download a file to check internet connection-----------------------------------------
-message(STATUS "Checking internet connectivity")
-file(DOWNLOAD https://root.cern/files/cmake_connectivity_test.txt ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt
-  TIMEOUT 10 STATUS DOWNLOAD_STATUS
-)
-# Get the status code from the download status
-list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
-# Check if download was successful.
-if(${STATUS_CODE} EQUAL 0)
-  # Succcess
-  message(STATUS "Checking internet connectivity - found")
-  # Now let's delete the file
-  file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt)
-  set(NO_CONNECTION FALSE)
-else()
-  # Error
-  message(STATUS "Checking internet connectivity - failed: will not automatically download external dependencies")
-  set(NO_CONNECTION TRUE)
-endif()
-
 #---Where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked-------------
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 #---Enable Folders in IDE like Visual Studio----------------------------------------------------
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-#---Load some basic macros which are needed later for the confiuration and build----------------
+#---Load some basic macros which are needed later for the configuration and build----------------
 include(CheckCompiler)
 include(RootBuildOptions)
 include(RootMacros)
 include(CheckAssembler)
 include(CheckIntrinsics)
+
+
+#---Try to download a file to check internet connection-----------------------------------------
+
+# The connection check only makes sense for fail-on-missing=OFF, where the
+# result is used to decide whether to download a missing dependency as a builtin
+# from the internet, or to disable the feature that has the missing dependency.
+# With fail-on-missing=ON, it doesn't matter because disabling features is not
+# allowed. Therefore, we can skip the connection check to save some
+# configuration overhead and just assume we have internet: if a builtin can't be
+# downloaded there will be a configuration failure either way.
+
+if(fail-on-missing)
+  set(NO_CONNECTION FALSE)
+else()
+  message(STATUS "Checking internet connectivity")
+  file(DOWNLOAD https://root.cern/files/cmake_connectivity_test.txt ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt
+    TIMEOUT 10 STATUS DOWNLOAD_STATUS
+  )
+  # Get the status code from the download status
+  list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+  # Check if download was successful.
+  if(${STATUS_CODE} EQUAL 0)
+    # Success
+    message(STATUS "Checking internet connectivity - found")
+    # Now let's delete the file
+    file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt)
+    set(NO_CONNECTION FALSE)
+  else()
+    # Error
+    message(STATUS "Checking internet connectivity - failed: will not automatically download external dependencies")
+    set(NO_CONNECTION TRUE)
+  endif()
+endif()
 
 if(clad AND NO_CONNECTION)
   if(fail-on-missing)
@@ -117,6 +131,7 @@ if(clad AND NO_CONNECTION)
     set(clad OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
   endif()
 endif()
+
 
 # relatedrepo_GetClosestMatch(REPO_NAME <repo> ORIGIN_PREFIX <originp> UPSTREAM_PREFIX <upstreamp>
 #                             FETCHURL_VARIABLE <output_url> FETCHREF_VARIABLE <output_ref>)
@@ -553,7 +568,7 @@ else()
 endif()
 
 # FIXME: move installation of PCMS in ROOT_GENERATE_DICTIONARY().
-# We are excluding directories, which are accidentaly copied via unxpected behaviour of install(DIRECTORY ..)
+# We are excluding directories, which are accidentally copied via unexpected behaviour of install(DIRECTORY ..)
 install(
    DIRECTORY ${CMAKE_BINARY_DIR}/lib/
    DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -634,7 +649,7 @@ endif()
 add_custom_target(distsrc COMMAND ${CMAKE_SOURCE_DIR}/build/unix/makedistsrc.sh "${ROOT_FULL_VERSION}" "${CMAKE_SOURCE_DIR}")
 add_custom_target(dist COMMAND cpack --config CPackConfig.cmake)
 
-#---Configure and install various files neded later and for clients -----------------------------
+#---Configure and install various files needed later and for clients -----------------------------
 include(RootConfiguration)
 
 #---Installation of project-wise artifacts-------------------------------------------------------
