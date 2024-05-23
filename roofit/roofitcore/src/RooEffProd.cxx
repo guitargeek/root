@@ -55,7 +55,7 @@ RooEffProd::RooEffProd(const RooEffProd& other, const char* name) :
 
 double RooEffProd::evaluate() const
 {
-  return RooFit::Detail::MathFuncs::effProd(_eff, _pdf);
+  return RooFit::Detail::MathFuncs::effProd(static_cast<double>(_eff), static_cast<double>(_pdf));
 }
 
 

@@ -121,6 +121,7 @@ void RooFuncWrapper::loadParamsAndData(RooAbsArg const *head, RooArgSet const &p
       }
    }
    _gradientVarBuffer.resize(_params.size());
+   _gradientOutBuffer.resize(_params.size());
 
    if (head) {
       _nodeOutputSizes = RooFit::Detail::BatchModeDataHelpers::determineOutputSizes(
@@ -138,7 +139,8 @@ std::string RooFuncWrapper::declareFunction(std::string const &funcBody)
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr) {\n"
+   bodyWithSigStrm << realTypeName() << " " << funcName << "(" << realTypeName() << "* params, " << realTypeName() << " const* obs, " << realTypeName() << " const* xlArr) {\n"
+                   << "using RealVal_t = " << realTypeName() << ";\n"
                    << funcBody << "\n}";
 
    _allCode << bodyWithSigStrm.str() << std::endl;
@@ -198,9 +200,12 @@ void RooFuncWrapper::createGradient()
 void RooFuncWrapper::gradient(double *out) const
 {
    updateGradientVarBuffer();
-   std::fill(out, out + _params.size(), 0.0);
+   std::fill(_gradientOutBuffer.begin(), _gradientOutBuffer.end(), 0.0);
 
-   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), out);
+   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _gradientOutBuffer.data());
+   for(std::size_t i = 0; i < _gradientOutBuffer.size(); ++i) {
+      out[i] = _gradientOutBuffer[i];
+   }
 }
 
 void RooFuncWrapper::updateGradientVarBuffer() const
@@ -216,13 +221,6 @@ double RooFuncWrapper::evaluate() const
    updateGradientVarBuffer();
 
    return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data());
-}
-
-void RooFuncWrapper::gradient(const double *x, double *g) const
-{
-   std::fill(g, g + _params.size(), 0.0);
-
-   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), g);
 }
 
 std::string RooFuncWrapper::buildCode(RooAbsReal const &head)
@@ -263,8 +261,8 @@ void RooFuncWrapper::writeDebugMacro(std::string const &filename) const
 
    updateGradientVarBuffer();
 
-   auto writeVector = [&](std::string const &name, std::span<const double> vec) {
-      outFile << "std::vector<double> " << name << " = {";
+   auto writeVector = [&](std::string const &name, auto const& vec) {
+      outFile << "std::vector<" << realTypeName() << "> " << name << " = {";
       for (std::size_t i = 0; i < vec.size(); ++i) {
          if (i % 10 == 0)
             outFile << "\n    ";
@@ -288,7 +286,7 @@ void RooFuncWrapper::writeDebugMacro(std::string const &filename) const
 // To run as a ROOT macro
 void )" << filename << R"(()
 {
-   std::vector<double> gradientVec(parametersVec.size());
+   std::vector<)" << realTypeName() << R"(> gradientVec(parametersVec.size());
 
    )" << _funcName
            << R"((parametersVec.data(), observablesVec.data(), auxConstantsVec.data());

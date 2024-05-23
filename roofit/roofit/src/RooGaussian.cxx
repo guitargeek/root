@@ -56,7 +56,7 @@ RooGaussian::RooGaussian(const RooGaussian& other, const char* name) :
 
 double RooGaussian::evaluate() const
 {
-   return RooFit::Detail::MathFuncs::gaussian(x, mean, sigma);
+   return RooFit::Detail::MathFuncs::gaussian<double>(x, mean, sigma);
 }
 
 
@@ -79,14 +79,13 @@ Int_t RooGaussian::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars
 
 ////////////////////////////////////////////////////////////////////////////////
 
-double RooGaussian::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooGaussian::analyticalIntegral(Int_t code, const char *rangeName) const
 {
-   using namespace RooFit::Detail::MathFuncs;
+   auto &constant = code == 1 ? mean : x;
+   auto &integrand = code == 1 ? x : mean;
 
-   auto& constant  = code == 1 ? mean : x;
-   auto& integrand = code == 1 ? x : mean;
-
-   return gaussianIntegral(integrand.min(rangeName), integrand.max(rangeName), constant, sigma);
+   return RooFit::Detail::MathFuncs::gaussianIntegral<double>(integrand.min(rangeName), integrand.max(rangeName),
+                                                            constant, sigma);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

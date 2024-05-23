@@ -61,7 +61,7 @@ double RooPoisson::evaluate() const
     np.setPayload(-mean);
     return np._payload;
   }
-  return RooFit::Detail::MathFuncs::poisson(k, mean);
+  return RooFit::Detail::MathFuncs::poisson<double>(k, mean);
 }
 
 void RooPoisson::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -98,7 +98,7 @@ double RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
   R__ASSERT(code == 1 || code == 2) ;
 
   RooRealProxy const &integrand = code == 1 ? x : mean;
-  return RooFit::Detail::MathFuncs::poissonIntegral(
+  return RooFit::Detail::MathFuncs::poissonIntegral<double>(
      code, mean, _noRounding ? x : std::floor(x), integrand.min(rangeName), integrand.max(rangeName), _protectNegative);
 }
 
@@ -111,11 +111,16 @@ RooPoisson::buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit:
       xName = "std::floor(" + xName + ")";
 
    RooRealProxy const &integrand = code == 1 ? x : mean;
+
+   double intMin = integrand.min(rangeName);
+   double intMax = integrand.max(rangeName);
+   if (_noRounding && code == 1 && intMin <= 0. && intMax >= 1.e10) return "1";
+
    // Since the integral function is the same for both codes, we need to make sure the indexed observables do not appear
    // in the function if they are not required.
-   xName = code == 1 ? "0" : xName;
-   return ctx.buildCall("RooFit::Detail::MathFuncs::poissonIntegral", code, mean, xName,
-                        integrand.min(rangeName), integrand.max(rangeName), _protectNegative);
+   xName = code == 1 ? "0.f" : xName;
+   return ctx.buildCall("RooFit::Detail::MathFuncs::poissonIntegral", code, mean, xName, intMin, intMax,
+                        _protectNegative);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

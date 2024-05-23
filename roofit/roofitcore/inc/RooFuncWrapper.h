@@ -27,12 +27,14 @@ namespace RooFit {
 
 namespace Experimental {
 
-/// @brief  A wrapper class to store a C++ function of type 'double (*)(double*, double*)'.
+/// @brief  A wrapper class to store a C++ function of type 'RealVal_t (*)(RealVal_t*, RealVal_t*)'.
 /// The parameters can be accessed as params[<relative position of param in paramSet>] in the function body.
 /// The observables can be accessed as obs[i + j], where i represents the observable position and j
 /// represents the data entry.
 class RooFuncWrapper final : public RooAbsReal {
 public:
+   using RealVal_t = RooFit::Detail::CodeSquashContext::RealVal_t;
+
    RooFuncWrapper(const char *name, const char *title, RooAbsReal &obj, const RooAbsData *data = nullptr,
                   RooSimultaneous const *simPdf = nullptr, bool useEvaluator=false);
 
@@ -44,8 +46,6 @@ public:
 
    bool hasGradient() const override { return _hasGradient; }
    void gradient(double *out) const override;
-
-   void gradient(const double *x, double *g) const;
 
    std::size_t getNumParams() const { return _params.size(); }
 
@@ -62,6 +62,8 @@ public:
 
    std::string buildCode(RooAbsReal const &head);
 
+   std::string realTypeName() const { return _realTypeName; }
+
 protected:
    double evaluate() const override;
 
@@ -74,8 +76,8 @@ private:
 
    void buildFuncAndGradFunctors();
 
-   using Func = double (*)(double *, double const *, double const *);
-   using Grad = void (*)(double *, double const *, double const *, double *);
+   using Func = RealVal_t (*)(RealVal_t *, RealVal_t const *, RealVal_t const *);
+   using Grad = void (*)(RealVal_t *, RealVal_t const *, RealVal_t const *, RealVal_t *);
 
    struct ObsInfo {
       ObsInfo(std::size_t i, std::size_t n) : idx{i}, size{n} {}
@@ -89,12 +91,14 @@ private:
    Func _func;
    Grad _grad;
    bool _hasGradient = false;
-   mutable std::vector<double> _gradientVarBuffer;
-   std::vector<double> _observables;
+   mutable std::vector<RealVal_t> _gradientVarBuffer;
+   mutable std::vector<RealVal_t> _gradientOutBuffer;
+   std::vector<RealVal_t> _observables;
    std::map<RooFit::Detail::DataKey, ObsInfo> _obsInfos;
    std::map<RooFit::Detail::DataKey, std::size_t> _nodeOutputSizes;
-   std::vector<double> _xlArr;
+   std::vector<RealVal_t> _xlArr;
    std::stringstream _allCode;
+   std::string _realTypeName = "float";
 };
 
 } // namespace Experimental

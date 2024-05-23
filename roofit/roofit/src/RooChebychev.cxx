@@ -87,7 +87,7 @@ double RooChebychev::evaluate() const
    for (auto it : _coefList) {
       coeffs.push_back(static_cast<const RooAbsReal &>(*it).getVal());
    }
-   return RooFit::Detail::MathFuncs::chebychev(coeffs.data(), _coefList.size(), _x, xmin, xmax);
+   return RooFit::Detail::MathFuncs::chebychev<double>(coeffs.data(), _coefList.size(), _x, xmin, xmax);
 }
 
 void RooChebychev::translate(RooFit::Detail::CodeSquashContext &ctx) const

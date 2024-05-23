@@ -113,7 +113,7 @@ RooRatio::RooRatio(const RooRatio &other, const char *name)
 
 double RooRatio::evaluate() const
 {
-   return RooFit::Detail::MathFuncs::ratio(_numerator, _denominator);
+   return RooFit::Detail::MathFuncs::ratio(static_cast<double>(_numerator), static_cast<double>(_denominator));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

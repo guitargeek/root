@@ -346,8 +346,8 @@ void RooNLLVarNew::translate(RooFit::Detail::CodeSquashContext &ctx) const
    std::string weightSumName = RooFit::Detail::makeValidVarName(GetName()) + "WeightSum";
    std::string resName = RooFit::Detail::makeValidVarName(GetName()) + "Result";
    ctx.addResult(this, resName);
-   ctx.addToGlobalScope("double " + weightSumName + " = 0.0;\n");
-   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
+   ctx.addToGlobalScope("RealVal_t " + weightSumName + " = 0.0;\n");
+   ctx.addToGlobalScope("RealVal_t " + resName + " = 0.0;\n");
 
    const bool needWeightSum = _expectedEvents || _simCount > 1;
 
@@ -357,7 +357,7 @@ void RooNLLVarNew::translate(RooFit::Detail::CodeSquashContext &ctx) const
    }
    if (_simCount > 1) {
       std::string simCountStr = std::to_string(static_cast<double>(_simCount));
-      ctx.addToCodeBody(resName + " += " + weightSumName + " * std::log(" + simCountStr + ");\n");
+      ctx.addToCodeBody(resName + " += " + weightSumName + " * std::log(RealVal_t(" + simCountStr + "));\n");
    }
 
    // Begin loop scope for the observables and weight variable. If the weight
@@ -370,7 +370,7 @@ void RooNLLVarNew::translate(RooFit::Detail::CodeSquashContext &ctx) const
    }
    if (_expectedEvents) {
       std::string expected = ctx.getResult(**_expectedEvents);
-      ctx.addToCodeBody(resName + " += " + expected + " - " + weightSumName + " * std::log(" + expected + ");\n");
+      ctx.addToCodeBody(resName + " += " + expected + " - " + weightSumName + " * std::log(RealVal_t(" + expected + "));\n");
    }
 }
 

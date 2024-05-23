@@ -1034,7 +1034,7 @@ std::string RooDataHist::calculateTreeIndexForCodeSquash(RooAbsArg const * /*kla
          return "";
       }
 
-      std::string const &bin = ctx.buildCall("RooFit::Detail::MathFuncs::getUniformBinning", binning->lowBound(),
+      std::string const &bin = ctx.buildCall("RooFit::Detail::MathFuncs::getUniformBinning<RealVal_t>", binning->lowBound(),
                                              binning->highBound(), *theVar, binning->numBins());
       code += " + " + std::to_string(idxMult) + " * " + bin;
 

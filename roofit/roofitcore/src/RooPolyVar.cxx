@@ -109,7 +109,7 @@ double RooPolyVar::evaluate() const
 
    fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::MathFuncs::polynomial(_wksp.data(), sz, _lowestOrder, _x);
+   return RooFit::Detail::MathFuncs::polynomial<false, double>(_wksp.data(), sz, _lowestOrder, static_cast<double>(_x));
 }
 
 void RooPolyVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -185,7 +185,7 @@ double RooPolyVar::analyticalIntegral(Int_t code, const char *rangeName) const
 
    fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::MathFuncs::polynomialIntegral(_wksp.data(), sz, _lowestOrder, xmin, xmax);
+   return RooFit::Detail::MathFuncs::polynomialIntegral<false, double>(_wksp.data(), sz, _lowestOrder, xmin, xmax);
 }
 
 std::string RooPolyVar::buildCallToAnalyticIntegral(Int_t /* code */, const char *rangeName,

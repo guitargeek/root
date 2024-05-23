@@ -235,13 +235,13 @@ void PiecewiseInterpolation::translate(RooFit::Detail::CodeSquashContext &ctx) c
    std::string highName = ctx.getTmpVarName();
    std::string nominalName = ctx.getTmpVarName();
    code += "unsigned int " + idxName + " = " + nomHist.calculateTreeIndexForCodeSquash(this, ctx, dynamic_cast<RooHistFunc const &>(*_nominal).variables()) + ";\n";
-   code += "double const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
-   code += "double const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
-   code += "double " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
+   code += "RealVal_t const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
+   code += "RealVal_t const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
+   code += "RealVal_t " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
 
-   std::string funcCall = ctx.buildCall("RooFit::Detail::MathFuncs::flexibleInterp", _interpCode[0], _paramSet, n,
+   std::string funcCall = ctx.buildCall("RooFit::Detail::MathFuncs::flexibleInterp<RealVal_t>", _interpCode[0], _paramSet, n,
                                         lowName, highName, 1.0, nominalName, 0.0);
-   code += "double " + resName + " = " + funcCall + ";\n";
+   code += "RealVal_t " + resName + " = " + funcCall + ";\n";
 
    if (_positiveDefinite)
       code += resName + " = " + resName + " < 0 ? 0 : " + resName + ";\n";

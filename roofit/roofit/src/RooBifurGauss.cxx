@@ -57,7 +57,7 @@ RooBifurGauss::RooBifurGauss(const RooBifurGauss &other, const char *name)
 
 double RooBifurGauss::evaluate() const
 {
-   return RooFit::Detail::MathFuncs::bifurGauss(x, mean, sigmaL, sigmaR);
+   return RooFit::Detail::MathFuncs::bifurGauss<double>(x, mean, sigmaL, sigmaR);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,8 +93,8 @@ double RooBifurGauss::analyticalIntegral(Int_t code, const char *rangeName) cons
    auto &constant = code == 1 ? mean : x;
    auto &integrand = code == 1 ? x : mean;
 
-   return RooFit::Detail::MathFuncs::bifurGaussIntegral(integrand.min(rangeName), integrand.max(rangeName),
-                                                                  constant, sigmaL, sigmaR);
+   return RooFit::Detail::MathFuncs::bifurGaussIntegral<double>(integrand.min(rangeName), integrand.max(rangeName),
+                                                                constant, sigmaL, sigmaR);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

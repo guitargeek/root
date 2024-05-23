@@ -58,7 +58,7 @@ RooLandau::RooLandau(const RooLandau& other, const char* name) :
 
 double RooLandau::evaluate() const
 {
-  return RooFit::Detail::MathFuncs::landau(x, mean, sigma);
+  return RooFit::Detail::MathFuncs::landau<double>(x, mean, sigma);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

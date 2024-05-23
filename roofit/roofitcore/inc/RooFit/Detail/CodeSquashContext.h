@@ -41,7 +41,10 @@ namespace Detail {
 /// @brief A class to maintain the context for squashing of RooFit models into code.
 class CodeSquashContext {
 public:
-   CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes, std::vector<double> &xlarr, Experimental::RooFuncWrapper &wrapper);
+   using RealVal_t = float;
+
+   CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes, std::vector<RealVal_t> &xlarr,
+                     Experimental::RooFuncWrapper &wrapper);
 
    void addResult(RooAbsArg const *key, std::string const &value);
    void addResult(const char *key, std::string const &value);
@@ -112,6 +115,8 @@ public:
    std::string buildArg(std::span<const double> arr);
    std::string buildArg(std::span<const int> arr) { return buildArgSpanImpl(arr); }
 
+   std::string realTypeName() const;
+
    Experimental::RooFuncWrapper *_wrapper = nullptr;
 
 private:
@@ -127,7 +132,10 @@ private:
    template <class T, typename std::enable_if<std::is_floating_point<T>{}, bool>::type = true>
    std::string buildArg(T x)
    {
-      return RooNumber::toString(x);
+      std::string out = RooNumber::toString(x);
+      if (realTypeName() == "float")
+         out += "f";
+      return out;
    }
 
    // If input is integer, we want to print it into the code like one (i.e. avoid the unnecessary '.0000').
@@ -187,13 +195,13 @@ private:
    std::string _tempScope;
    /// @brief A map to keep track of list names as assigned by addResult.
    std::unordered_map<RooFit::UniqueId<RooAbsCollection>::Value_t, std::string> listNames;
-   std::vector<double> &_xlArr;
+   std::vector<RealVal_t> &_xlArr;
 };
 
 template <>
 inline std::string CodeSquashContext::typeName<double>() const
 {
-   return "double";
+   return realTypeName();
 }
 template <>
 inline std::string CodeSquashContext::typeName<int>() const

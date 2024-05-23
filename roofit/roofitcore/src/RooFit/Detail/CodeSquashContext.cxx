@@ -12,6 +12,7 @@
  */
 
 #include <RooFit/Detail/CodeSquashContext.h>
+#include <RooFuncWrapper.h>
 
 #include "RooFitImplHelpers.h"
 
@@ -23,7 +24,7 @@ namespace RooFit {
 namespace Detail {
 
 CodeSquashContext::CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes,
-                                     std::vector<double> &xlarr, Experimental::RooFuncWrapper &wrapper)
+                                     std::vector<CodeSquashContext::RealVal_t> &xlarr, Experimental::RooFuncWrapper &wrapper)
    : _wrapper{&wrapper}, _nodeOutputSizes(outputSizes), _xlArr(xlarr)
 {
 }
@@ -88,7 +89,7 @@ std::string CodeSquashContext::assembleCode(std::string const &returnExpr)
 {
    std::string arrDecl;
    if(!_xlArr.empty()) {
-      arrDecl += "double auxArr[" + std::to_string(_xlArr.size()) + "];\n";
+      arrDecl += "RealVal_t auxArr[" + std::to_string(_xlArr.size()) + "];\n";
       arrDecl += "for (int i = 0; i < " + std::to_string(_xlArr.size()) + "; i++) auxArr[i] = xlArr[i];\n";
    }
    return arrDecl + _globalScope + _code + "\n return " + returnExpr + ";\n";
@@ -212,7 +213,7 @@ void CodeSquashContext::addResult(RooAbsArg const *in, std::string const &valueT
    if (hasOperations) {
       // If this is a scalar result, it will go just outside the loop because
       // it doesn't need to be recomputed inside loops.
-      std::string outVarDecl = "const double " + savedName + " = " + valueToSave + ";\n";
+      std::string outVarDecl = "const RealVal_t " + savedName + " = " + valueToSave + ";\n";
       addToCodeBody(in, outVarDecl);
    } else {
       savedName = valueToSave;
@@ -234,7 +235,7 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
    bool canSaveOutside = true;
 
    std::stringstream declStrm;
-   declStrm << "double " << savedName << "[] = {";
+   declStrm << "RealVal_t " << savedName << "[] = {";
    for (const auto arg : in) {
       declStrm << getResult(*arg) << ",";
       canSaveOutside = canSaveOutside && isScopeIndependent(arg);
@@ -263,6 +264,8 @@ bool CodeSquashContext::isScopeIndependent(RooAbsArg const *in) const
 {
    return !in->isReducerNode() && outputSize(in->namePtr()) == 1;
 }
+
+std::string CodeSquashContext::realTypeName() const { return _wrapper->realTypeName(); }
 
 } // namespace Detail
 } // namespace RooFit

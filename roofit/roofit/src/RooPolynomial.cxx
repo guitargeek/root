@@ -108,7 +108,7 @@ double RooPolynomial::evaluate() const
 
    RooPolyVar::fillCoeffValues(_wksp, _coefList);
 
-   return RooFit::Detail::MathFuncs::polynomial<true>(_wksp.data(), sz, _lowestOrder, _x);
+   return RooFit::Detail::MathFuncs::polynomial<true, double>(_wksp.data(), sz, _lowestOrder, _x);
 }
 
 void RooPolynomial::translate(RooFit::Detail::CodeSquashContext &ctx) const

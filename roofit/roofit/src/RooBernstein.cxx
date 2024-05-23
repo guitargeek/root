@@ -78,7 +78,7 @@ void RooBernstein::fillBuffer() const
 double RooBernstein::evaluate() const
 {
    fillBuffer();
-   return RooFit::Detail::MathFuncs::bernstein(_x, xmin(), xmax(), _buffer.data(), _coefList.size());
+   return RooFit::Detail::MathFuncs::bernstein<double>(_x, xmin(), xmax(), _buffer.data(), _coefList.size());
 }
 
 void RooBernstein::translate(RooFit::Detail::CodeSquashContext &ctx) const

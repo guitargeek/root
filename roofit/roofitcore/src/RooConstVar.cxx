@@ -68,5 +68,7 @@ void RooConstVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
    // Just use toString to make sure we do not output 'inf'.
    // This is really ugly for large numbers...
    ss << std::fixed << RooNumber::toString(_value);
+   if (ctx.realTypeName() == "float")
+      ss << "f";
    ctx.addResult(this, ss.str());
 }

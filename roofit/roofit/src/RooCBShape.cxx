@@ -61,7 +61,7 @@ RooCBShape::RooCBShape(const RooCBShape& other, const char* name) :
 
 double RooCBShape::evaluate() const
 {
-   return RooFit::Detail::MathFuncs::cbShape(m, m0, sigma, alpha, n);
+   return RooFit::Detail::MathFuncs::cbShape<double>(m, m0, sigma, alpha, n);
 }
 
 void RooCBShape::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -92,7 +92,7 @@ Int_t RooCBShape::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,
 double RooCBShape::analyticalIntegral(Int_t /*code*/, const char *rangeName) const
 {
    using namespace RooFit::Detail::MathFuncs;
-   return cbShapeIntegral(m.min(rangeName), m.max(rangeName), m0, sigma, alpha, n);
+   return cbShapeIntegral<double>(m.min(rangeName), m.max(rangeName), m0, sigma, alpha, n);
 }
 
 std::string

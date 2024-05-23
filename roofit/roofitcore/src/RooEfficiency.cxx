@@ -74,7 +74,7 @@ RooEfficiency::RooEfficiency(const RooEfficiency& other, const char* name) :
 double RooEfficiency::evaluate() const
 {
    const int sigCatIndex = _cat->lookupIndex(_sigCatName.Data());
-   return RooFit::Detail::MathFuncs::efficiency(_effFunc, _cat, sigCatIndex);
+   return RooFit::Detail::MathFuncs::efficiency(static_cast<double>(_effFunc), _cat, sigCatIndex);
 }
 
 int RooEfficiency::getAnalyticalIntegral(RooArgSet &allVars, RooArgSet &analVars, const char * /*rangeName*/) const

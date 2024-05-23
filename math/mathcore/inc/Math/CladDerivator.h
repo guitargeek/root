@@ -85,7 +85,7 @@ ValueAndPushforward<T, T> CosH_pushforward(T x, T d_x)
 template <typename T>
 ValueAndPushforward<T, T> Erf_pushforward(T x, T d_x)
 {
-   return {::TMath::Erf(x), (2 * ::TMath::Exp(-x * x) / ::TMath::Sqrt(::TMath::Pi())) * d_x};
+   return {::TMath::Erf(x), (2 * ::TMath::Exp(-x * x) * ::TMath::Sqrt(::TMath::InvPi())) * d_x};
 }
 
 template <typename T>
@@ -247,97 +247,98 @@ ValueAndPushforward<Double_t, Double_t> Ln10_pushforward()
 namespace ROOT {
 namespace Math {
 
-inline void landau_pdf_pullback(double x, double xi, double x0, double d_out, double *d_x, double *d_xi, double *d_x0)
+template<typename RealVal_t>
+void landau_pdf_pullback(RealVal_t x, RealVal_t xi, RealVal_t x0, RealVal_t d_out, RealVal_t *d_x, RealVal_t *d_xi, RealVal_t *d_x0)
 {
    if (xi <= 0) {
       return;
    }
    // clang-format off
-   static double p1[5] = {0.4259894875,-0.1249762550, 0.03984243700, -0.006298287635,   0.001511162253};
-   static double q1[5] = {1.0         ,-0.3388260629, 0.09594393323, -0.01608042283,    0.003778942063};
+   static RealVal_t p1[5] = {0.4259894875,-0.1249762550, 0.03984243700, -0.006298287635,   0.001511162253};
+   static RealVal_t q1[5] = {1.0         ,-0.3388260629, 0.09594393323, -0.01608042283,    0.003778942063};
 
-   static double p2[5] = {0.1788541609, 0.1173957403, 0.01488850518, -0.001394989411,   0.0001283617211};
-   static double q2[5] = {1.0         , 0.7428795082, 0.3153932961,   0.06694219548,    0.008790609714};
+   static RealVal_t p2[5] = {0.1788541609, 0.1173957403, 0.01488850518, -0.001394989411,   0.0001283617211};
+   static RealVal_t q2[5] = {1.0         , 0.7428795082, 0.3153932961,   0.06694219548,    0.008790609714};
 
-   static double p3[5] = {0.1788544503, 0.09359161662,0.006325387654, 0.00006611667319,-0.000002031049101};
-   static double q3[5] = {1.0         , 0.6097809921, 0.2560616665,   0.04746722384,    0.006957301675};
+   static RealVal_t p3[5] = {0.1788544503, 0.09359161662,0.006325387654, 0.00006611667319,-0.000002031049101};
+   static RealVal_t q3[5] = {1.0         , 0.6097809921, 0.2560616665,   0.04746722384,    0.006957301675};
 
-   static double p4[5] = {0.9874054407, 118.6723273,  849.2794360,   -743.7792444,      427.0262186};
-   static double q4[5] = {1.0         , 106.8615961,  337.6496214,    2016.712389,      1597.063511};
+   static RealVal_t p4[5] = {0.9874054407, 118.6723273,  849.2794360,   -743.7792444,      427.0262186};
+   static RealVal_t q4[5] = {1.0         , 106.8615961,  337.6496214,    2016.712389,      1597.063511};
 
-   static double p5[5] = {1.003675074,  167.5702434,  4789.711289,    21217.86767,     -22324.94910};
-   static double q5[5] = {1.0         , 156.9424537,  3745.310488,    9834.698876,      66924.28357};
+   static RealVal_t p5[5] = {1.003675074,  167.5702434,  4789.711289,    21217.86767,     -22324.94910};
+   static RealVal_t q5[5] = {1.0         , 156.9424537,  3745.310488,    9834.698876,      66924.28357};
 
-   static double p6[5] = {1.000827619,  664.9143136,  62972.92665,    475554.6998,     -5743609.109};
-   static double q6[5] = {1.0         , 651.4101098,  56974.73333,    165917.4725,     -2815759.939};
+   static RealVal_t p6[5] = {1.000827619,  664.9143136,  62972.92665,    475554.6998,     -5743609.109};
+   static RealVal_t q6[5] = {1.0         , 651.4101098,  56974.73333,    165917.4725,     -2815759.939};
 
-   static double a1[3] = {0.04166666667,-0.01996527778, 0.02709538966};
+   static RealVal_t a1[3] = {0.04166666667,-0.01996527778, 0.02709538966};
 
-   static double a2[2] = {-1.845568670,-4.284640743};
+   static RealVal_t a2[2] = {-1.845568670,-4.284640743};
    // clang-format on
-   const double _const0 = 0.3989422803;
-   double v = (x - x0) / xi;
-   double _d_v = 0;
-   double _d_denlan = 0;
+   const RealVal_t _const0 = 0.3989422803;
+   RealVal_t v = (x - x0) / xi;
+   RealVal_t _d_v = 0;
+   RealVal_t _d_denlan = 0;
    if (v < -5.5) {
-      double _t0;
-      double u = ::std::exp(v + 1.);
-      double _d_u = 0;
+      RealVal_t _t0;
+      RealVal_t u = ::std::exp(v + 1.);
+      RealVal_t _d_u = 0;
       if (u >= 1.e-10) {
-         const double ue = ::std::exp(-1 / u);
-         const double us = ::std::sqrt(u);
-         double _t3;
-         double _d_ue = 0;
-         double _d_us = 0;
-         double denlan = _const0 * (ue / us) * (1 + (a1[0] + (a1[1] + a1[2] * u) * u) * u);
+         const RealVal_t ue = ::std::exp(-1 / u);
+         const RealVal_t us = ::std::sqrt(u);
+         RealVal_t _t3;
+         RealVal_t _d_ue = 0;
+         RealVal_t _d_us = 0;
+         RealVal_t denlan = _const0 * (ue / us) * (1 + (a1[0] + (a1[1] + a1[2] * u) * u) * u);
          _d_denlan += d_out / xi;
          *d_xi += d_out * -(denlan / (xi * xi));
          denlan = _t3;
-         double _r_d3 = _d_denlan;
+         RealVal_t _r_d3 = _d_denlan;
          _d_denlan -= _r_d3;
          _d_ue += _const0 * _r_d3 * (1 + (a1[0] + (a1[1] + a1[2] * u) * u) * u) / us;
-         double _r5 = _const0 * _r_d3 * (1 + (a1[0] + (a1[1] + a1[2] * u) * u) * u) * -(ue / (us * us));
+         RealVal_t _r5 = _const0 * _r_d3 * (1 + (a1[0] + (a1[1] + a1[2] * u) * u) * u) * -(ue / (us * us));
          _d_us += _r5;
          _d_u += a1[2] * _const0 * (ue / us) * _r_d3 * u * u;
          _d_u += (a1[1] + a1[2] * u) * _const0 * (ue / us) * _r_d3 * u;
          _d_u += (a1[0] + (a1[1] + a1[2] * u) * u) * _const0 * (ue / us) * _r_d3;
-         double _r_d2 = _d_us;
+         RealVal_t _r_d2 = _d_us;
          _d_us -= _r_d2;
-         double _r4 = 0;
+         RealVal_t _r4 = 0;
          _r4 += _r_d2 * clad::custom_derivatives::sqrt_pushforward(u, 1.).pushforward;
          _d_u += _r4;
-         double _r_d1 = _d_ue;
+         RealVal_t _r_d1 = _d_ue;
          _d_ue -= _r_d1;
-         double _r2 = 0;
+         RealVal_t _r2 = 0;
          _r2 += _r_d1 * clad::custom_derivatives::exp_pushforward(-1 / u, 1.).pushforward;
-         double _r3 = _r2 * -(-1 / (u * u));
+         RealVal_t _r3 = _r2 * -(-1 / (u * u));
          _d_u += _r3;
       }
       u = _t0;
-      double _r_d0 = _d_u;
+      RealVal_t _r_d0 = _d_u;
       _d_u -= _r_d0;
-      double _r1 = 0;
+      RealVal_t _r1 = 0;
       _r1 += _r_d0 * clad::custom_derivatives::exp_pushforward(v + 1., 1.).pushforward;
       _d_v += _r1;
    } else if (v < -1) {
-      double _t4;
-      double u = ::std::exp(-v - 1);
-      double _d_u = 0;
-      double _t5;
-      double _t8 = ::std::exp(-u);
-      double _t7 = ::std::sqrt(u);
-      double _t6 = (q1[0] + (q1[1] + (q1[2] + (q1[3] + q1[4] * v) * v) * v) * v);
-      double denlan = _t8 * _t7 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / _t6;
+      RealVal_t _t4;
+      RealVal_t u = ::std::exp(-v - 1);
+      RealVal_t _d_u = 0;
+      RealVal_t _t5;
+      RealVal_t _t8 = ::std::exp(-u);
+      RealVal_t _t7 = ::std::sqrt(u);
+      RealVal_t _t6 = (q1[0] + (q1[1] + (q1[2] + (q1[3] + q1[4] * v) * v) * v) * v);
+      RealVal_t denlan = _t8 * _t7 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / _t6;
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t5;
-      double _r_d5 = _d_denlan;
+      RealVal_t _r_d5 = _d_denlan;
       _d_denlan -= _r_d5;
-      double _r7 = 0;
+      RealVal_t _r7 = 0;
       _r7 += _r_d5 / _t6 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) * _t7 *
              clad::custom_derivatives::exp_pushforward(-u, 1.).pushforward;
       _d_u += -_r7;
-      double _r8 = 0;
+      RealVal_t _r8 = 0;
       _r8 += _t8 * _r_d5 / _t6 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) *
              clad::custom_derivatives::sqrt_pushforward(u, 1.).pushforward;
       _d_u += _r8;
@@ -345,63 +346,63 @@ inline void landau_pdf_pullback(double x, double xi, double x0, double d_out, do
       _d_v += (p1[3] + p1[4] * v) * _t8 * _t7 * _r_d5 / _t6 * v * v;
       _d_v += (p1[2] + (p1[3] + p1[4] * v) * v) * _t8 * _t7 * _r_d5 / _t6 * v;
       _d_v += (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * _t8 * _t7 * _r_d5 / _t6;
-      double _r9 = _r_d5 * -(_t8 * _t7 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / (_t6 * _t6));
+      RealVal_t _r9 = _r_d5 * -(_t8 * _t7 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / (_t6 * _t6));
       _d_v += q1[4] * _r9 * v * v * v;
       _d_v += (q1[3] + q1[4] * v) * _r9 * v * v;
       _d_v += (q1[2] + (q1[3] + q1[4] * v) * v) * _r9 * v;
       _d_v += (q1[1] + (q1[2] + (q1[3] + q1[4] * v) * v) * v) * _r9;
       u = _t4;
-      double _r_d4 = _d_u;
+      RealVal_t _r_d4 = _d_u;
       _d_u -= _r_d4;
-      double _r6 = 0;
+      RealVal_t _r6 = 0;
       _r6 += _r_d4 * clad::custom_derivatives::exp_pushforward(-v - 1, 1.).pushforward;
       _d_v += -_r6;
    } else if (v < 1) {
-      double _t9;
-      double _t10 = (q2[0] + (q2[1] + (q2[2] + (q2[3] + q2[4] * v) * v) * v) * v);
-      double denlan = (p2[0] + (p2[1] + (p2[2] + (p2[3] + p2[4] * v) * v) * v) * v) / _t10;
+      RealVal_t _t9;
+      RealVal_t _t10 = (q2[0] + (q2[1] + (q2[2] + (q2[3] + q2[4] * v) * v) * v) * v);
+      RealVal_t denlan = (p2[0] + (p2[1] + (p2[2] + (p2[3] + p2[4] * v) * v) * v) * v) / _t10;
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t9;
-      double _r_d6 = _d_denlan;
+      RealVal_t _r_d6 = _d_denlan;
       _d_denlan -= _r_d6;
       _d_v += p2[4] * _r_d6 / _t10 * v * v * v;
       _d_v += (p2[3] + p2[4] * v) * _r_d6 / _t10 * v * v;
       _d_v += (p2[2] + (p2[3] + p2[4] * v) * v) * _r_d6 / _t10 * v;
       _d_v += (p2[1] + (p2[2] + (p2[3] + p2[4] * v) * v) * v) * _r_d6 / _t10;
-      double _r10 = _r_d6 * -((p2[0] + (p2[1] + (p2[2] + (p2[3] + p2[4] * v) * v) * v) * v) / (_t10 * _t10));
+      RealVal_t _r10 = _r_d6 * -((p2[0] + (p2[1] + (p2[2] + (p2[3] + p2[4] * v) * v) * v) * v) / (_t10 * _t10));
       _d_v += q2[4] * _r10 * v * v * v;
       _d_v += (q2[3] + q2[4] * v) * _r10 * v * v;
       _d_v += (q2[2] + (q2[3] + q2[4] * v) * v) * _r10 * v;
       _d_v += (q2[1] + (q2[2] + (q2[3] + q2[4] * v) * v) * v) * _r10;
    } else if (v < 5) {
-      double _t11;
-      double _t12 = (q3[0] + (q3[1] + (q3[2] + (q3[3] + q3[4] * v) * v) * v) * v);
-      double denlan = (p3[0] + (p3[1] + (p3[2] + (p3[3] + p3[4] * v) * v) * v) * v) / _t12;
+      RealVal_t _t11;
+      RealVal_t _t12 = (q3[0] + (q3[1] + (q3[2] + (q3[3] + q3[4] * v) * v) * v) * v);
+      RealVal_t denlan = (p3[0] + (p3[1] + (p3[2] + (p3[3] + p3[4] * v) * v) * v) * v) / _t12;
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t11;
-      double _r_d7 = _d_denlan;
+      RealVal_t _r_d7 = _d_denlan;
       _d_denlan -= _r_d7;
       _d_v += p3[4] * _r_d7 / _t12 * v * v * v;
       _d_v += (p3[3] + p3[4] * v) * _r_d7 / _t12 * v * v;
       _d_v += (p3[2] + (p3[3] + p3[4] * v) * v) * _r_d7 / _t12 * v;
       _d_v += (p3[1] + (p3[2] + (p3[3] + p3[4] * v) * v) * v) * _r_d7 / _t12;
-      double _r11 = _r_d7 * -((p3[0] + (p3[1] + (p3[2] + (p3[3] + p3[4] * v) * v) * v) * v) / (_t12 * _t12));
+      RealVal_t _r11 = _r_d7 * -((p3[0] + (p3[1] + (p3[2] + (p3[3] + p3[4] * v) * v) * v) * v) / (_t12 * _t12));
       _d_v += q3[4] * _r11 * v * v * v;
       _d_v += (q3[3] + q3[4] * v) * _r11 * v * v;
       _d_v += (q3[2] + (q3[3] + q3[4] * v) * v) * _r11 * v;
       _d_v += (q3[1] + (q3[2] + (q3[3] + q3[4] * v) * v) * v) * _r11;
    } else if (v < 12) {
-      double u = 1 / v;
-      double _d_u = 0;
-      double _t14;
-      double _t15 = (q4[0] + (q4[1] + (q4[2] + (q4[3] + q4[4] * u) * u) * u) * u);
-      double denlan = u * u * (p4[0] + (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u) / _t15;
+      RealVal_t u = 1 / v;
+      RealVal_t _d_u = 0;
+      RealVal_t _t14;
+      RealVal_t _t15 = (q4[0] + (q4[1] + (q4[2] + (q4[3] + q4[4] * u) * u) * u) * u);
+      RealVal_t denlan = u * u * (p4[0] + (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u) / _t15;
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t14;
-      double _r_d9 = _d_denlan;
+      RealVal_t _r_d9 = _d_denlan;
       _d_denlan -= _r_d9;
       _d_u += _r_d9 / _t15 * (p4[0] + (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u) * u;
       _d_u += u * _r_d9 / _t15 * (p4[0] + (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u);
@@ -409,25 +410,25 @@ inline void landau_pdf_pullback(double x, double xi, double x0, double d_out, do
       _d_u += (p4[3] + p4[4] * u) * u * u * _r_d9 / _t15 * u * u;
       _d_u += (p4[2] + (p4[3] + p4[4] * u) * u) * u * u * _r_d9 / _t15 * u;
       _d_u += (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u * u * _r_d9 / _t15;
-      double _r13 = _r_d9 * -(u * u * (p4[0] + (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u) / (_t15 * _t15));
+      RealVal_t _r13 = _r_d9 * -(u * u * (p4[0] + (p4[1] + (p4[2] + (p4[3] + p4[4] * u) * u) * u) * u) / (_t15 * _t15));
       _d_u += q4[4] * _r13 * u * u * u;
       _d_u += (q4[3] + q4[4] * u) * _r13 * u * u;
       _d_u += (q4[2] + (q4[3] + q4[4] * u) * u) * _r13 * u;
       _d_u += (q4[1] + (q4[2] + (q4[3] + q4[4] * u) * u) * u) * _r13;
-      double _r_d8 = _d_u;
+      RealVal_t _r_d8 = _d_u;
       _d_u -= _r_d8;
-      double _r12 = _r_d8 * -(1 / (v * v));
+      RealVal_t _r12 = _r_d8 * -(1 / (v * v));
       _d_v += _r12;
    } else if (v < 50) {
-      double u = 1 / v;
-      double _d_u = 0;
-      double _t17;
-      double _t18 = (q5[0] + (q5[1] + (q5[2] + (q5[3] + q5[4] * u) * u) * u) * u);
-      double denlan = u * u * (p5[0] + (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u) / _t18;
+      RealVal_t u = 1 / v;
+      RealVal_t _d_u = 0;
+      RealVal_t _t17;
+      RealVal_t _t18 = (q5[0] + (q5[1] + (q5[2] + (q5[3] + q5[4] * u) * u) * u) * u);
+      RealVal_t denlan = u * u * (p5[0] + (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u) / _t18;
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t17;
-      double _r_d11 = _d_denlan;
+      RealVal_t _r_d11 = _d_denlan;
       _d_denlan -= _r_d11;
       _d_u += _r_d11 / _t18 * (p5[0] + (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u) * u;
       _d_u += u * _r_d11 / _t18 * (p5[0] + (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u);
@@ -435,26 +436,26 @@ inline void landau_pdf_pullback(double x, double xi, double x0, double d_out, do
       _d_u += (p5[3] + p5[4] * u) * u * u * _r_d11 / _t18 * u * u;
       _d_u += (p5[2] + (p5[3] + p5[4] * u) * u) * u * u * _r_d11 / _t18 * u;
       _d_u += (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u * u * _r_d11 / _t18;
-      double _r15 = _r_d11 * -(u * u * (p5[0] + (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u) / (_t18 * _t18));
+      RealVal_t _r15 = _r_d11 * -(u * u * (p5[0] + (p5[1] + (p5[2] + (p5[3] + p5[4] * u) * u) * u) * u) / (_t18 * _t18));
       _d_u += q5[4] * _r15 * u * u * u;
       _d_u += (q5[3] + q5[4] * u) * _r15 * u * u;
       _d_u += (q5[2] + (q5[3] + q5[4] * u) * u) * _r15 * u;
       _d_u += (q5[1] + (q5[2] + (q5[3] + q5[4] * u) * u) * u) * _r15;
-      double _r_d10 = _d_u;
+      RealVal_t _r_d10 = _d_u;
       _d_u -= _r_d10;
-      double _r14 = _r_d10 * -(1 / (v * v));
+      RealVal_t _r14 = _r_d10 * -(1 / (v * v));
       _d_v += _r14;
    } else if (v < 300) {
-      double _t19;
-      double u = 1 / v;
-      double _d_u = 0;
-      double _t20;
-      double _t21 = (q6[0] + (q6[1] + (q6[2] + (q6[3] + q6[4] * u) * u) * u) * u);
-      double denlan = u * u * (p6[0] + (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u) / _t21;
+      RealVal_t _t19;
+      RealVal_t u = 1 / v;
+      RealVal_t _d_u = 0;
+      RealVal_t _t20;
+      RealVal_t _t21 = (q6[0] + (q6[1] + (q6[2] + (q6[3] + q6[4] * u) * u) * u) * u);
+      RealVal_t denlan = u * u * (p6[0] + (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u) / _t21;
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t20;
-      double _r_d13 = _d_denlan;
+      RealVal_t _r_d13 = _d_denlan;
       _d_denlan -= _r_d13;
       _d_u += _r_d13 / _t21 * (p6[0] + (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u) * u;
       _d_u += u * _r_d13 / _t21 * (p6[0] + (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u);
@@ -462,91 +463,92 @@ inline void landau_pdf_pullback(double x, double xi, double x0, double d_out, do
       _d_u += (p6[3] + p6[4] * u) * u * u * _r_d13 / _t21 * u * u;
       _d_u += (p6[2] + (p6[3] + p6[4] * u) * u) * u * u * _r_d13 / _t21 * u;
       _d_u += (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u * u * _r_d13 / _t21;
-      double _r17 = _r_d13 * -(u * u * (p6[0] + (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u) / (_t21 * _t21));
+      RealVal_t _r17 = _r_d13 * -(u * u * (p6[0] + (p6[1] + (p6[2] + (p6[3] + p6[4] * u) * u) * u) * u) / (_t21 * _t21));
       _d_u += q6[4] * _r17 * u * u * u;
       _d_u += (q6[3] + q6[4] * u) * _r17 * u * u;
       _d_u += (q6[2] + (q6[3] + q6[4] * u) * u) * _r17 * u;
       _d_u += (q6[1] + (q6[2] + (q6[3] + q6[4] * u) * u) * u) * _r17;
       u = _t19;
-      double _r_d12 = _d_u;
+      RealVal_t _r_d12 = _d_u;
       _d_u -= _r_d12;
-      double _r16 = _r_d12 * -(1 / (v * v));
+      RealVal_t _r16 = _r_d12 * -(1 / (v * v));
       _d_v += _r16;
    } else {
-      double _t22;
-      double _t25 = ::std::log(v);
-      double _t24 = (v + 1);
-      double _t23 = (v - v * _t25 / _t24);
-      double u = 1 / _t23;
-      double _d_u = 0;
-      double _t26;
-      double denlan = u * u * (1 + (a2[0] + a2[1] * u) * u);
+      RealVal_t _t22;
+      RealVal_t _t25 = ::std::log(v);
+      RealVal_t _t24 = (v + 1);
+      RealVal_t _t23 = (v - v * _t25 / _t24);
+      RealVal_t u = 1 / _t23;
+      RealVal_t _d_u = 0;
+      RealVal_t _t26;
+      RealVal_t denlan = u * u * (1 + (a2[0] + a2[1] * u) * u);
       _d_denlan += d_out / xi;
       *d_xi += d_out * -(denlan / (xi * xi));
       denlan = _t26;
-      double _r_d15 = _d_denlan;
+      RealVal_t _r_d15 = _d_denlan;
       _d_denlan -= _r_d15;
       _d_u += _r_d15 * (1 + (a2[0] + a2[1] * u) * u) * u;
       _d_u += u * _r_d15 * (1 + (a2[0] + a2[1] * u) * u);
       _d_u += a2[1] * u * u * _r_d15 * u;
       _d_u += (a2[0] + a2[1] * u) * u * u * _r_d15;
       u = _t22;
-      double _r_d14 = _d_u;
+      RealVal_t _r_d14 = _d_u;
       _d_u -= _r_d14;
-      double _r18 = _r_d14 * -(1 / (_t23 * _t23));
+      RealVal_t _r18 = _r_d14 * -(1 / (_t23 * _t23));
       _d_v += _r18;
       _d_v += -_r18 / _t24 * _t25;
-      double _r19 = 0;
+      RealVal_t _r19 = 0;
       _r19 += v * -_r18 / _t24 * clad::custom_derivatives::log_pushforward(v, 1.).pushforward;
       _d_v += _r19;
-      double _r20 = -_r18 * -(v * _t25 / (_t24 * _t24));
+      RealVal_t _r20 = -_r18 * -(v * _t25 / (_t24 * _t24));
       _d_v += _r20;
    }
    *d_x += _d_v / xi;
    *d_x0 += -_d_v / xi;
-   double _r0 = _d_v * -((x - x0) / (xi * xi));
+   RealVal_t _r0 = _d_v * -((x - x0) / (xi * xi));
    *d_xi += _r0;
 }
 
-inline void landau_cdf_pullback(double x, double xi, double x0, double d_out, double *d_x, double *d_xi, double *d_x0)
+template<typename RealVal_t>
+void landau_cdf_pullback(RealVal_t x, RealVal_t xi, RealVal_t x0, RealVal_t d_out, RealVal_t *d_x, RealVal_t *d_xi, RealVal_t *d_x0)
 {
    // clang-format off
-   static double p1[5] = {0.2514091491e+0,-0.6250580444e-1, 0.1458381230e-1,-0.2108817737e-2, 0.7411247290e-3};
-   static double q1[5] = {1.0            ,-0.5571175625e-2, 0.6225310236e-1,-0.3137378427e-2, 0.1931496439e-2};
+   static RealVal_t p1[5] = {0.2514091491e+0,-0.6250580444e-1, 0.1458381230e-1,-0.2108817737e-2, 0.7411247290e-3};
+   static RealVal_t q1[5] = {1.0            ,-0.5571175625e-2, 0.6225310236e-1,-0.3137378427e-2, 0.1931496439e-2};
 
-   static double p2[4] = {0.2868328584e+0, 0.3564363231e+0, 0.1523518695e+0, 0.2251304883e-1};
-   static double q2[4] = {1.0            , 0.6191136137e+0, 0.1720721448e+0, 0.2278594771e-1};
+   static RealVal_t p2[4] = {0.2868328584e+0, 0.3564363231e+0, 0.1523518695e+0, 0.2251304883e-1};
+   static RealVal_t q2[4] = {1.0            , 0.6191136137e+0, 0.1720721448e+0, 0.2278594771e-1};
 
-   static double p3[4] = {0.2868329066e+0, 0.3003828436e+0, 0.9950951941e-1, 0.8733827185e-2};
-   static double q3[4] = {1.0            , 0.4237190502e+0, 0.1095631512e+0, 0.8693851567e-2};
+   static RealVal_t p3[4] = {0.2868329066e+0, 0.3003828436e+0, 0.9950951941e-1, 0.8733827185e-2};
+   static RealVal_t q3[4] = {1.0            , 0.4237190502e+0, 0.1095631512e+0, 0.8693851567e-2};
 
-   static double p4[4] = {0.1000351630e+1, 0.4503592498e+1, 0.1085883880e+2, 0.7536052269e+1};
-   static double q4[4] = {1.0            , 0.5539969678e+1, 0.1933581111e+2, 0.2721321508e+2};
+   static RealVal_t p4[4] = {0.1000351630e+1, 0.4503592498e+1, 0.1085883880e+2, 0.7536052269e+1};
+   static RealVal_t q4[4] = {1.0            , 0.5539969678e+1, 0.1933581111e+2, 0.2721321508e+2};
 
-   static double p5[4] = {0.1000006517e+1, 0.4909414111e+2, 0.8505544753e+2, 0.1532153455e+3};
-   static double q5[4] = {1.0            , 0.5009928881e+2, 0.1399819104e+3, 0.4200002909e+3};
+   static RealVal_t p5[4] = {0.1000006517e+1, 0.4909414111e+2, 0.8505544753e+2, 0.1532153455e+3};
+   static RealVal_t q5[4] = {1.0            , 0.5009928881e+2, 0.1399819104e+3, 0.4200002909e+3};
 
-   static double p6[4] = {0.1000000983e+1, 0.1329868456e+3, 0.9162149244e+3,-0.9605054274e+3};
-   static double q6[4] = {1.0            , 0.1339887843e+3, 0.1055990413e+4, 0.5532224619e+3};
+   static RealVal_t p6[4] = {0.1000000983e+1, 0.1329868456e+3, 0.9162149244e+3,-0.9605054274e+3};
+   static RealVal_t q6[4] = {1.0            , 0.1339887843e+3, 0.1055990413e+4, 0.5532224619e+3};
 
-   static double a1[4] = {0              ,-0.4583333333e+0, 0.6675347222e+0,-0.1641741416e+1};
-   static double a2[4] = {0              , 1.0            ,-0.4227843351e+0,-0.2043403138e+1};
+   static RealVal_t a1[4] = {0              ,-0.4583333333e+0, 0.6675347222e+0,-0.1641741416e+1};
+   static RealVal_t a2[4] = {0              , 1.0            ,-0.4227843351e+0,-0.2043403138e+1};
    // clang-format on
 
-   const double v = (x - x0) / xi;
-   double _d_v = 0;
+   const RealVal_t v = (x - x0) / xi;
+   RealVal_t _d_v = 0;
    if (v < -5.5) {
-      double _d_u = 0;
-      const double _const0 = 0.3989422803;
-      double u = ::std::exp(v + 1);
-      double _t3 = ::std::exp(-1. / u);
-      double _t2 = ::std::sqrt(u);
-      double _r2 = 0;
+      RealVal_t _d_u = 0;
+      const RealVal_t _const0 = 0.3989422803;
+      RealVal_t u = ::std::exp(v + 1);
+      RealVal_t _t3 = ::std::exp(-1. / u);
+      RealVal_t _t2 = ::std::sqrt(u);
+      RealVal_t _r2 = 0;
       _r2 += _const0 * d_out * (1 + (a1[1] + (a1[2] + a1[3] * u) * u) * u) * _t2 *
              clad::custom_derivatives::exp_pushforward(-1. / u, 1.).pushforward;
-      double _r3 = _r2 * -(-1. / (u * u));
+      RealVal_t _r3 = _r2 * -(-1. / (u * u));
       _d_u += _r3;
-      double _r4 = 0;
+      RealVal_t _r4 = 0;
       _r4 += _const0 * _t3 * d_out * (1 + (a1[1] + (a1[2] + a1[3] * u) * u) * u) *
              clad::custom_derivatives::sqrt_pushforward(u, 1.).pushforward;
       _d_u += _r4;
@@ -555,103 +557,103 @@ inline void landau_cdf_pullback(double x, double xi, double x0, double d_out, do
       _d_u += (a1[1] + (a1[2] + a1[3] * u) * u) * _const0 * _t3 * _t2 * d_out;
       _d_v += _d_u * clad::custom_derivatives::exp_pushforward(v + 1, 1.).pushforward;
    } else if (v < -1) {
-      double _d_u = 0;
-      double u = ::std::exp(-v - 1);
-      double _t8 = ::std::exp(-u);
-      double _t7 = ::std::sqrt(u);
-      double _t6 = (q1[0] + (q1[1] + (q1[2] + (q1[3] + q1[4] * v) * v) * v) * v);
-      double _r6 = 0;
+      RealVal_t _d_u = 0;
+      RealVal_t u = ::std::exp(-v - 1);
+      RealVal_t _t8 = ::std::exp(-u);
+      RealVal_t _t7 = ::std::sqrt(u);
+      RealVal_t _t6 = (q1[0] + (q1[1] + (q1[2] + (q1[3] + q1[4] * v) * v) * v) * v);
+      RealVal_t _r6 = 0;
       _r6 += d_out / _t6 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / _t7 *
              clad::custom_derivatives::exp_pushforward(-u, 1.).pushforward;
       _d_u += -_r6;
-      double _r7 = d_out / _t6 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) * -(_t8 / (_t7 * _t7));
-      double _r8 = 0;
+      RealVal_t _r7 = d_out / _t6 * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) * -(_t8 / (_t7 * _t7));
+      RealVal_t _r8 = 0;
       _r8 += _r7 * clad::custom_derivatives::sqrt_pushforward(u, 1.).pushforward;
       _d_u += _r8;
       _d_v += p1[4] * (_t8 / _t7) * d_out / _t6 * v * v * v;
       _d_v += (p1[3] + p1[4] * v) * (_t8 / _t7) * d_out / _t6 * v * v;
       _d_v += (p1[2] + (p1[3] + p1[4] * v) * v) * (_t8 / _t7) * d_out / _t6 * v;
       _d_v += (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * (_t8 / _t7) * d_out / _t6;
-      double _r9 = d_out * -((_t8 / _t7) * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / (_t6 * _t6));
+      RealVal_t _r9 = d_out * -((_t8 / _t7) * (p1[0] + (p1[1] + (p1[2] + (p1[3] + p1[4] * v) * v) * v) * v) / (_t6 * _t6));
       _d_v += q1[4] * _r9 * v * v * v;
       _d_v += (q1[3] + q1[4] * v) * _r9 * v * v;
       _d_v += (q1[2] + (q1[3] + q1[4] * v) * v) * _r9 * v;
       _d_v += (q1[1] + (q1[2] + (q1[3] + q1[4] * v) * v) * v) * _r9;
       _d_v += -_d_u * clad::custom_derivatives::exp_pushforward(-v - 1, 1.).pushforward;
    } else if (v < 1) {
-      double _t10 = (q2[0] + (q2[1] + (q2[2] + q2[3] * v) * v) * v);
+      RealVal_t _t10 = (q2[0] + (q2[1] + (q2[2] + q2[3] * v) * v) * v);
       _d_v += p2[3] * d_out / _t10 * v * v;
       _d_v += (p2[2] + p2[3] * v) * d_out / _t10 * v;
       _d_v += (p2[1] + (p2[2] + p2[3] * v) * v) * d_out / _t10;
-      double _r10 = d_out * -((p2[0] + (p2[1] + (p2[2] + p2[3] * v) * v) * v) / (_t10 * _t10));
+      RealVal_t _r10 = d_out * -((p2[0] + (p2[1] + (p2[2] + p2[3] * v) * v) * v) / (_t10 * _t10));
       _d_v += q2[3] * _r10 * v * v;
       _d_v += (q2[2] + q2[3] * v) * _r10 * v;
       _d_v += (q2[1] + (q2[2] + q2[3] * v) * v) * _r10;
    } else if (v < 4) {
-      double _t12 = (q3[0] + (q3[1] + (q3[2] + q3[3] * v) * v) * v);
+      RealVal_t _t12 = (q3[0] + (q3[1] + (q3[2] + q3[3] * v) * v) * v);
       _d_v += p3[3] * d_out / _t12 * v * v;
       _d_v += (p3[2] + p3[3] * v) * d_out / _t12 * v;
       _d_v += (p3[1] + (p3[2] + p3[3] * v) * v) * d_out / _t12;
-      double _r11 = d_out * -((p3[0] + (p3[1] + (p3[2] + p3[3] * v) * v) * v) / (_t12 * _t12));
+      RealVal_t _r11 = d_out * -((p3[0] + (p3[1] + (p3[2] + p3[3] * v) * v) * v) / (_t12 * _t12));
       _d_v += q3[3] * _r11 * v * v;
       _d_v += (q3[2] + q3[3] * v) * _r11 * v;
       _d_v += (q3[1] + (q3[2] + q3[3] * v) * v) * _r11;
    } else if (v < 12) {
-      double _d_u = 0;
-      double u = 1. / v;
-      double _t15 = (q4[0] + (q4[1] + (q4[2] + q4[3] * u) * u) * u);
+      RealVal_t _d_u = 0;
+      RealVal_t u = 1. / v;
+      RealVal_t _t15 = (q4[0] + (q4[1] + (q4[2] + q4[3] * u) * u) * u);
       _d_u += p4[3] * d_out / _t15 * u * u;
       _d_u += (p4[2] + p4[3] * u) * d_out / _t15 * u;
       _d_u += (p4[1] + (p4[2] + p4[3] * u) * u) * d_out / _t15;
-      double _r13 = d_out * -((p4[0] + (p4[1] + (p4[2] + p4[3] * u) * u) * u) / (_t15 * _t15));
+      RealVal_t _r13 = d_out * -((p4[0] + (p4[1] + (p4[2] + p4[3] * u) * u) * u) / (_t15 * _t15));
       _d_u += q4[3] * _r13 * u * u;
       _d_u += (q4[2] + q4[3] * u) * _r13 * u;
       _d_u += (q4[1] + (q4[2] + q4[3] * u) * u) * _r13;
-      double _r12 = _d_u * -(1. / (v * v));
+      RealVal_t _r12 = _d_u * -(1. / (v * v));
       _d_v += _r12;
    } else if (v < 50) {
-      double _d_u = 0;
-      double u = 1. / v;
-      double _t18 = (q5[0] + (q5[1] + (q5[2] + q5[3] * u) * u) * u);
+      RealVal_t _d_u = 0;
+      RealVal_t u = 1. / v;
+      RealVal_t _t18 = (q5[0] + (q5[1] + (q5[2] + q5[3] * u) * u) * u);
       _d_u += p5[3] * d_out / _t18 * u * u;
       _d_u += (p5[2] + p5[3] * u) * d_out / _t18 * u;
       _d_u += (p5[1] + (p5[2] + p5[3] * u) * u) * d_out / _t18;
-      double _r15 = d_out * -((p5[0] + (p5[1] + (p5[2] + p5[3] * u) * u) * u) / (_t18 * _t18));
+      RealVal_t _r15 = d_out * -((p5[0] + (p5[1] + (p5[2] + p5[3] * u) * u) * u) / (_t18 * _t18));
       _d_u += q5[3] * _r15 * u * u;
       _d_u += (q5[2] + q5[3] * u) * _r15 * u;
       _d_u += (q5[1] + (q5[2] + q5[3] * u) * u) * _r15;
-      double _r14 = _d_u * -(1. / (v * v));
+      RealVal_t _r14 = _d_u * -(1. / (v * v));
       _d_v += _r14;
    } else if (v < 300) {
-      double _d_u = 0;
-      double u = 1. / v;
-      double _t21 = (q6[0] + (q6[1] + (q6[2] + q6[3] * u) * u) * u);
+      RealVal_t _d_u = 0;
+      RealVal_t u = 1. / v;
+      RealVal_t _t21 = (q6[0] + (q6[1] + (q6[2] + q6[3] * u) * u) * u);
       _d_u += p6[3] * d_out / _t21 * u * u;
       _d_u += (p6[2] + p6[3] * u) * d_out / _t21 * u;
       _d_u += (p6[1] + (p6[2] + p6[3] * u) * u) * d_out / _t21;
-      double _r17 = d_out * -((p6[0] + (p6[1] + (p6[2] + p6[3] * u) * u) * u) / (_t21 * _t21));
+      RealVal_t _r17 = d_out * -((p6[0] + (p6[1] + (p6[2] + p6[3] * u) * u) * u) / (_t21 * _t21));
       _d_u += q6[3] * _r17 * u * u;
       _d_u += (q6[2] + q6[3] * u) * _r17 * u;
       _d_u += (q6[1] + (q6[2] + q6[3] * u) * u) * _r17;
-      double _r16 = _d_u * -(1. / (v * v));
+      RealVal_t _r16 = _d_u * -(1. / (v * v));
       _d_v += _r16;
    } else {
-      double _d_u = 0;
-      double _t25 = ::std::log(v);
-      double _t24 = (v + 1);
-      double _t23 = (v - v * _t25 / _t24);
-      double u = 1. / _t23;
-      double _t26;
+      RealVal_t _d_u = 0;
+      RealVal_t _t25 = ::std::log(v);
+      RealVal_t _t24 = (v + 1);
+      RealVal_t _t23 = (v - v * _t25 / _t24);
+      RealVal_t u = 1. / _t23;
+      RealVal_t _t26;
       _d_u += a2[3] * -d_out * u * u;
       _d_u += (a2[2] + a2[3] * u) * -d_out * u;
       _d_u += (a2[1] + (a2[2] + a2[3] * u) * u) * -d_out;
-      double _r18 = _d_u * -(1. / (_t23 * _t23));
+      RealVal_t _r18 = _d_u * -(1. / (_t23 * _t23));
       _d_v += _r18;
       _d_v += -_r18 / _t24 * _t25;
-      double _r19 = 0;
+      RealVal_t _r19 = 0;
       _r19 += v * -_r18 / _t24 * clad::custom_derivatives::log_pushforward(v, 1.).pushforward;
       _d_v += _r19;
-      double _r20 = -_r18 * -(v * _t25 / (_t24 * _t24));
+      RealVal_t _r20 = -_r18 * -(v * _t25 / (_t24 * _t24));
       _d_v += _r20;
    }
 
@@ -660,34 +662,36 @@ inline void landau_cdf_pullback(double x, double xi, double x0, double d_out, do
    *d_xi += _d_v * -((x - x0) / (xi * xi));
 }
 
-inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, double *_d_x);
+template<typename RealVal_t>
+void inc_gamma_c_pullback(RealVal_t a, RealVal_t x, RealVal_t _d_y, RealVal_t *_d_a, RealVal_t *_d_x);
 
-inline void inc_gamma_pullback(double a, double x, double _d_y, double *_d_a, double *_d_x)
+template<typename RealVal_t>
+void inc_gamma_pullback(RealVal_t a, RealVal_t x, RealVal_t _d_y, RealVal_t *_d_a, RealVal_t *_d_x)
 {
-   constexpr double kMACHEP = 1.11022302462515654042363166809e-16;
-   constexpr double kMAXLOG = 709.782712893383973096206318587;
-   constexpr double kMINLOG = -708.396418532264078748994506896;
-   constexpr double kMAXSTIR = 108.116855767857671821730036754;
-   constexpr double kMAXLGM = 2.556348e305;
-   constexpr double kBig = 4.503599627370496e15;
-   constexpr double kBiginv = 2.22044604925031308085e-16;
+   constexpr RealVal_t kMACHEP = 1.11022302462515654042363166809e-16;
+   constexpr RealVal_t kMAXLOG = 709.782712893383973096206318587;
+   constexpr RealVal_t kMINLOG = -708.396418532264078748994506896;
+   constexpr RealVal_t kMAXSTIR = 108.116855767857671821730036754;
+   constexpr RealVal_t kMAXLGM = 2.556348e305;
+   constexpr RealVal_t kBig = 4.503599627370496e15;
+   constexpr RealVal_t kBiginv = 2.22044604925031308085e-16;
 
-   double _d_ans = 0, _d_ax = 0, _d_c = 0, _d_r = 0;
+   RealVal_t _d_ans = 0, _d_ax = 0, _d_c = 0, _d_r = 0;
    bool _cond0;
    bool _cond1;
    bool _cond2;
-   double _t0;
-   double _t1;
+   RealVal_t _t0;
+   RealVal_t _t1;
    bool _cond3;
-   double _t2;
-   double _t3;
-   double _t4;
-   double _t5;
+   RealVal_t _t2;
+   RealVal_t _t3;
+   RealVal_t _t4;
+   RealVal_t _t5;
    unsigned long _t6;
-   clad::tape<double> _t7 = {};
-   clad::tape<double> _t8 = {};
-   clad::tape<double> _t9 = {};
-   double ans, ax, c, r;
+   clad::tape<RealVal_t> _t7 = {};
+   clad::tape<RealVal_t> _t8 = {};
+   clad::tape<RealVal_t> _t9 = {};
+   RealVal_t ans, ax, c, r;
    _cond0 = a <= 0;
    if (_cond0)
       return;
@@ -696,8 +700,8 @@ inline void inc_gamma_pullback(double a, double x, double _d_y, double *_d_a, do
       return;
    _cond2 = (x > 1.) && (x > a);
    if (_cond2) {
-      double _r0 = 0;
-      double _r1 = 0;
+      RealVal_t _r0 = 0;
+      RealVal_t _r1 = 0;
       inc_gamma_c_pullback(a, x, -_d_y, &_r0, &_r1);
       *_d_a += _r0;
       *_d_x += _r1;
@@ -730,53 +734,53 @@ inline void inc_gamma_pullback(double a, double x, double _d_y, double *_d_a, do
    {
       _d_ans += _d_y / a * ax;
       _d_ax += ans * _d_y / a;
-      double _r6 = _d_y * -(ans * ax / (a * a));
+      RealVal_t _r6 = _d_y * -(ans * ax / (a * a));
       *_d_a += _r6;
    }
    do {
       {
          {
             ans = clad::pop(_t9);
-            double _r_d7 = _d_ans;
+            RealVal_t _r_d7 = _d_ans;
             _d_c += _r_d7;
          }
          {
             c = clad::pop(_t8);
-            double _r_d6 = _d_c;
+            RealVal_t _r_d6 = _d_c;
             _d_c -= _r_d6;
             _d_c += _r_d6 * x / r;
             *_d_x += c * _r_d6 / r;
-            double _r5 = c * _r_d6 * -(x / (r * r));
+            RealVal_t _r5 = c * _r_d6 * -(x / (r * r));
             _d_r += _r5;
          }
          {
             r = clad::pop(_t7);
-            double _r_d5 = _d_r;
+            RealVal_t _r_d5 = _d_r;
          }
       }
       _t6--;
    } while (_t6);
    {
       ans = _t5;
-      double _r_d4 = _d_ans;
+      RealVal_t _r_d4 = _d_ans;
       _d_ans -= _r_d4;
    }
    {
       c = _t4;
-      double _r_d3 = _d_c;
+      RealVal_t _r_d3 = _d_c;
       _d_c -= _r_d3;
    }
    {
       r = _t3;
-      double _r_d2 = _d_r;
+      RealVal_t _r_d2 = _d_r;
       _d_r -= _r_d2;
       *_d_a += _r_d2;
    }
    {
       ax = _t2;
-      double _r_d1 = _d_ax;
+      RealVal_t _r_d1 = _d_ax;
       _d_ax -= _r_d1;
-      double _r4 = 0;
+      RealVal_t _r4 = 0;
       _r4 += _r_d1 * clad::custom_derivatives::exp_pushforward(ax, 1.).pushforward;
       _d_ax += _r4;
    }
@@ -784,69 +788,70 @@ inline void inc_gamma_pullback(double a, double x, double _d_y, double *_d_a, do
    _label3:;
    {
       ax = _t0;
-      double _r_d0 = _d_ax;
+      RealVal_t _r_d0 = _d_ax;
       _d_ax -= _r_d0;
       *_d_a += _r_d0 * _t1;
-      double _r2 = 0;
+      RealVal_t _r2 = 0;
       _r2 += a * _r_d0 * clad::custom_derivatives::log_pushforward(x, 1.).pushforward;
       *_d_x += _r2;
       *_d_x += -_r_d0;
-      double _r3 = 0;
+      RealVal_t _r3 = 0;
       _r3 += -_r_d0 * ::ROOT::Math::digamma(a); //numerical_diff::forward_central_difference(::std::lgamma, a, 0, 0, a);
       *_d_a += _r3;
    }
 }
 
-inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, double *_d_x)
+template<typename RealVal_t>
+void inc_gamma_c_pullback(RealVal_t a, RealVal_t x, RealVal_t _d_y, RealVal_t *_d_a, RealVal_t *_d_x)
 {
-   constexpr double kMACHEP = 1.11022302462515654042363166809e-16;
-   constexpr double kMAXLOG = 709.782712893383973096206318587;
-   constexpr double kMINLOG = -708.396418532264078748994506896;
-   constexpr double kMAXSTIR = 108.116855767857671821730036754;
-   constexpr double kMAXLGM = 2.556348e305;
-   constexpr double kBig = 4.503599627370496e15;
-   constexpr double kBiginv = 2.22044604925031308085e-16;
+   constexpr RealVal_t kMACHEP = 1.11022302462515654042363166809e-16;
+   constexpr RealVal_t kMAXLOG = 709.782712893383973096206318587;
+   constexpr RealVal_t kMINLOG = -708.396418532264078748994506896;
+   constexpr RealVal_t kMAXSTIR = 108.116855767857671821730036754;
+   constexpr RealVal_t kMAXLGM = 2.556348e305;
+   constexpr RealVal_t kBig = 4.503599627370496e15;
+   constexpr RealVal_t kBiginv = 2.22044604925031308085e-16;
 
-   double _d_ans = 0, _d_ax = 0, _d_c = 0, _d_yc = 0, _d_r = 0, _d_t = 0, _d_y0 = 0, _d_z = 0;
-   double _d_pk = 0, _d_pkm1 = 0, _d_pkm2 = 0, _d_qk = 0, _d_qkm1 = 0, _d_qkm2 = 0;
+   RealVal_t _d_ans = 0, _d_ax = 0, _d_c = 0, _d_yc = 0, _d_r = 0, _d_t = 0, _d_y0 = 0, _d_z = 0;
+   RealVal_t _d_pk = 0, _d_pkm1 = 0, _d_pkm2 = 0, _d_qk = 0, _d_qkm1 = 0, _d_qkm2 = 0;
    bool _cond0;
    bool _cond1;
    bool _cond2;
-   double _t0;
-   double _t1;
+   RealVal_t _t0;
+   RealVal_t _t1;
    bool _cond3;
-   double _t2;
-   double _t3;
-   double _t4;
-   double _t5;
-   double _t6;
-   double _t7;
-   double _t8;
-   double _t9;
-   double _t10;
+   RealVal_t _t2;
+   RealVal_t _t3;
+   RealVal_t _t4;
+   RealVal_t _t5;
+   RealVal_t _t6;
+   RealVal_t _t7;
+   RealVal_t _t8;
+   RealVal_t _t9;
+   RealVal_t _t10;
    unsigned long _t11;
-   clad::tape<double> _t12 = {};
-   clad::tape<double> _t13 = {};
-   clad::tape<double> _t14 = {};
-   clad::tape<double> _t15 = {};
-   clad::tape<double> _t16 = {};
-   clad::tape<double> _t17 = {};
-   clad::tape<double> _t19 = {};
-   clad::tape<double> _t20 = {};
-   clad::tape<double> _t21 = {};
-   clad::tape<double> _t22 = {};
-   clad::tape<double> _t23 = {};
-   clad::tape<double> _t24 = {};
-   clad::tape<double> _t25 = {};
-   clad::tape<double> _t26 = {};
-   clad::tape<double> _t27 = {};
+   clad::tape<RealVal_t> _t12 = {};
+   clad::tape<RealVal_t> _t13 = {};
+   clad::tape<RealVal_t> _t14 = {};
+   clad::tape<RealVal_t> _t15 = {};
+   clad::tape<RealVal_t> _t16 = {};
+   clad::tape<RealVal_t> _t17 = {};
+   clad::tape<RealVal_t> _t19 = {};
+   clad::tape<RealVal_t> _t20 = {};
+   clad::tape<RealVal_t> _t21 = {};
+   clad::tape<RealVal_t> _t22 = {};
+   clad::tape<RealVal_t> _t23 = {};
+   clad::tape<RealVal_t> _t24 = {};
+   clad::tape<RealVal_t> _t25 = {};
+   clad::tape<RealVal_t> _t26 = {};
+   clad::tape<RealVal_t> _t27 = {};
    clad::tape<bool> _t29 = {};
-   clad::tape<double> _t30 = {};
-   clad::tape<double> _t31 = {};
-   clad::tape<double> _t32 = {};
-   clad::tape<double> _t33 = {};
-   double ans, ax, c, yc, r, t, y, z;
-   double pk, pkm1, pkm2, qk, qkm1, qkm2;
+   clad::tape<RealVal_t> _t30 = {};
+   clad::tape<RealVal_t> _t31 = {};
+   clad::tape<RealVal_t> _t32 = {};
+   clad::tape<RealVal_t> _t33 = {};
+   RealVal_t ans, ax, c, yc, r, t, y, z;
+   RealVal_t pk, pkm1, pkm2, qk, qkm1, qkm2;
    _cond0 = a <= 0;
    if (_cond0)
       return;
@@ -855,8 +860,8 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
       return;
    _cond2 = (x < 1.) || (x < a);
    if (_cond2) {
-      double _r0 = 0;
-      double _r1 = 0;
+      RealVal_t _r0 = 0;
+      RealVal_t _r1 = 0;
       inc_gamma_pullback(a, x, -_d_y, &_r0, &_r1);
       *_d_a += _r0;
       *_d_x += _r1;
@@ -901,7 +906,7 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
       pk = pkm1 * z - pkm2 * yc;
       clad::push(_t17, qk);
       qk = qkm1 * z - qkm2 * yc;
-      double _t18 = qk;
+      RealVal_t _t18 = qk;
       {
          if (_t18) {
             clad::push(_t20, r);
@@ -948,87 +953,87 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
          if (clad::pop(_t29)) {
             {
                qkm1 = clad::pop(_t33);
-               double _r_d27 = _d_qkm1;
+               RealVal_t _r_d27 = _d_qkm1;
                _d_qkm1 -= _r_d27;
                _d_qkm1 += _r_d27 * kBiginv;
             }
             {
                qkm2 = clad::pop(_t32);
-               double _r_d26 = _d_qkm2;
+               RealVal_t _r_d26 = _d_qkm2;
                _d_qkm2 -= _r_d26;
                _d_qkm2 += _r_d26 * kBiginv;
             }
             {
                pkm1 = clad::pop(_t31);
-               double _r_d25 = _d_pkm1;
+               RealVal_t _r_d25 = _d_pkm1;
                _d_pkm1 -= _r_d25;
                _d_pkm1 += _r_d25 * kBiginv;
             }
             {
                pkm2 = clad::pop(_t30);
-               double _r_d24 = _d_pkm2;
+               RealVal_t _r_d24 = _d_pkm2;
                _d_pkm2 -= _r_d24;
                _d_pkm2 += _r_d24 * kBiginv;
             }
          }
          {
             qkm1 = clad::pop(_t27);
-            double _r_d23 = _d_qkm1;
+            RealVal_t _r_d23 = _d_qkm1;
             _d_qkm1 -= _r_d23;
             _d_qk += _r_d23;
          }
          {
             qkm2 = clad::pop(_t26);
-            double _r_d22 = _d_qkm2;
+            RealVal_t _r_d22 = _d_qkm2;
             _d_qkm2 -= _r_d22;
             _d_qkm1 += _r_d22;
          }
          {
             pkm1 = clad::pop(_t25);
-            double _r_d21 = _d_pkm1;
+            RealVal_t _r_d21 = _d_pkm1;
             _d_pkm1 -= _r_d21;
             _d_pk += _r_d21;
          }
          {
             pkm2 = clad::pop(_t24);
-            double _r_d20 = _d_pkm2;
+            RealVal_t _r_d20 = _d_pkm2;
             _d_pkm2 -= _r_d20;
             _d_pkm1 += _r_d20;
          }
          if (clad::pop(_t19)) {
             {
                ans = clad::pop(_t22);
-               double _r_d18 = _d_ans;
+               RealVal_t _r_d18 = _d_ans;
                _d_ans -= _r_d18;
                _d_r += _r_d18;
             }
             {
                t = clad::pop(_t21);
-               double _r_d17 = _d_t;
+               RealVal_t _r_d17 = _d_t;
                _d_t -= _r_d17;
-               double _r7 = 0;
+               RealVal_t _r7 = 0;
                _r7 += _r_d17 * clad::custom_derivatives::std::abs_pushforward((ans - r) / r, 1.).pushforward;
                _d_ans += _r7 / r;
                _d_r += -_r7 / r;
-               double _r8 = _r7 * -((ans - r) / (r * r));
+               RealVal_t _r8 = _r7 * -((ans - r) / (r * r));
                _d_r += _r8;
             }
             {
                r = clad::pop(_t20);
-               double _r_d16 = _d_r;
+               RealVal_t _r_d16 = _d_r;
                _d_r -= _r_d16;
                _d_pk += _r_d16 / qk;
-               double _r6 = _r_d16 * -(pk / (qk * qk));
+               RealVal_t _r6 = _r_d16 * -(pk / (qk * qk));
                _d_qk += _r6;
             }
          } else {
             t = clad::pop(_t23);
-            double _r_d19 = _d_t;
+            RealVal_t _r_d19 = _d_t;
             _d_t -= _r_d19;
          }
          {
             qk = clad::pop(_t17);
-            double _r_d15 = _d_qk;
+            RealVal_t _r_d15 = _d_qk;
             _d_qk -= _r_d15;
             _d_qkm1 += _r_d15 * z;
             _d_z += qkm1 * _r_d15;
@@ -1037,7 +1042,7 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
          }
          {
             pk = clad::pop(_t16);
-            double _r_d14 = _d_pk;
+            RealVal_t _r_d14 = _d_pk;
             _d_pk -= _r_d14;
             _d_pkm1 += _r_d14 * z;
             _d_z += pkm1 * _r_d14;
@@ -1046,81 +1051,81 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
          }
          {
             yc = clad::pop(_t15);
-            double _r_d13 = _d_yc;
+            RealVal_t _r_d13 = _d_yc;
             _d_yc -= _r_d13;
             _d_y0 += _r_d13 * c;
             _d_c += y * _r_d13;
          }
          {
             z = clad::pop(_t14);
-            double _r_d12 = _d_z;
+            RealVal_t _r_d12 = _d_z;
          }
          {
             y = clad::pop(_t13);
-            double _r_d11 = _d_y0;
+            RealVal_t _r_d11 = _d_y0;
          }
          {
             c = clad::pop(_t12);
-            double _r_d10 = _d_c;
+            RealVal_t _r_d10 = _d_c;
          }
       }
       _t11--;
    } while (_t11);
    {
       ans = _t10;
-      double _r_d9 = _d_ans;
+      RealVal_t _r_d9 = _d_ans;
       _d_ans -= _r_d9;
       _d_pkm1 += _r_d9 / qkm1;
-      double _r5 = _r_d9 * -(pkm1 / (qkm1 * qkm1));
+      RealVal_t _r5 = _r_d9 * -(pkm1 / (qkm1 * qkm1));
       _d_qkm1 += _r5;
    }
    {
       qkm1 = _t9;
-      double _r_d8 = _d_qkm1;
+      RealVal_t _r_d8 = _d_qkm1;
       _d_qkm1 -= _r_d8;
       _d_z += _r_d8 * x;
       *_d_x += z * _r_d8;
    }
    {
       pkm1 = _t8;
-      double _r_d7 = _d_pkm1;
+      RealVal_t _r_d7 = _d_pkm1;
       _d_pkm1 -= _r_d7;
       *_d_x += _r_d7;
    }
    {
       qkm2 = _t7;
-      double _r_d6 = _d_qkm2;
+      RealVal_t _r_d6 = _d_qkm2;
       _d_qkm2 -= _r_d6;
       *_d_x += _r_d6;
    }
    {
       pkm2 = _t6;
-      double _r_d5 = _d_pkm2;
+      RealVal_t _r_d5 = _d_pkm2;
       _d_pkm2 -= _r_d5;
    }
    {
       c = _t5;
-      double _r_d4 = _d_c;
+      RealVal_t _r_d4 = _d_c;
       _d_c -= _r_d4;
    }
    {
       z = _t4;
-      double _r_d3 = _d_z;
+      RealVal_t _r_d3 = _d_z;
       _d_z -= _r_d3;
       *_d_x += _r_d3;
       _d_y0 += _r_d3;
    }
    {
       y = _t3;
-      double _r_d2 = _d_y0;
+      RealVal_t _r_d2 = _d_y0;
       _d_y0 -= _r_d2;
       *_d_a += -_r_d2;
    }
    {
       ax = _t2;
-      double _r_d1 = _d_ax;
+      RealVal_t _r_d1 = _d_ax;
       _d_ax -= _r_d1;
-      double _r4 = 0;
+      RealVal_t _r4 = 0;
       _r4 += _r_d1 * clad::custom_derivatives::exp_pushforward(ax, 1.).pushforward;
       _d_ax += _r4;
    }
@@ -1128,14 +1133,14 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
    _label3:;
    {
       ax = _t0;
-      double _r_d0 = _d_ax;
+      RealVal_t _r_d0 = _d_ax;
       _d_ax -= _r_d0;
       *_d_a += _r_d0 * _t1;
-      double _r2 = 0;
+      RealVal_t _r2 = 0;
       _r2 += a * _r_d0 * clad::custom_derivatives::log_pushforward(x, 1.).pushforward;
       *_d_x += _r2;
       *_d_x += -_r_d0;
-      double _r3 = 0;
+      RealVal_t _r3 = 0;
       _r3 += -_r_d0 * ::ROOT::Math::digamma(a); //numerical_diff::forward_central_difference(::std::lgamma, a, 0, 0, a);
       *_d_a += _r3;
    }
@@ -1143,6 +1148,22 @@ inline void inc_gamma_c_pullback(double a, double x, double _d_y, double *_d_a, 
 
 } // namespace Math
 } // namespace ROOT
+
+namespace std {
+
+template <typename T>
+ValueAndPushforward<T, T> erf_pushforward(T x, T d_x)
+{
+   return {::std::erfc(x), (2 * ::std::exp(-x * x) * ::std::sqrt(static_cast<T>(::TMath::InvPi()))) * d_x};
+}
+
+template <typename T>
+ValueAndPushforward<T, T> erfc_pushforward(T x, T d_x)
+{
+   return {::std::erfc(x), -erf_pushforward(x, d_x).pushforward};
+}
+
+} // namespace std
 
 } // namespace custom_derivatives
 } // namespace clad
