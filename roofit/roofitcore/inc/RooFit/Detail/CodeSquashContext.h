@@ -41,7 +41,8 @@ namespace Detail {
 /// @brief A class to maintain the context for squashing of RooFit models into code.
 class CodeSquashContext {
 public:
-   CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes, std::vector<double> &xlarr, Experimental::RooFuncWrapper &wrapper);
+   CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes,
+                     Experimental::RooFuncWrapper &wrapper);
 
    void addResult(RooAbsArg const *key, std::string const &value);
    void addResult(const char *key, std::string const &value);
@@ -110,14 +111,14 @@ public:
    std::string buildArg(RooAbsCollection const &x);
 
    std::string buildArg(std::span<const double> arr);
-   std::string buildArg(std::span<const int> arr) { return buildArgSpanImpl(arr); }
+   std::string buildArg(std::span<const std::size_t> arr);
+
+   void setParamIndex(RooFit::Detail::DataKey key, std::size_t idx) { _paramIndices[key] = idx; }
+   std::size_t paramIndex(RooFit::Detail::DataKey key);
 
    Experimental::RooFuncWrapper *_wrapper = nullptr;
 
 private:
-   template <class T>
-   std::string buildArgSpanImpl(std::span<const T> arr);
-
    bool isScopeIndependent(RooAbsArg const *in) const;
 
    void endLoop(LoopScope const &scope);
@@ -138,9 +139,8 @@ private:
    }
 
    std::string buildArg(std::string const &x) { return x; }
-
+   inline std::string buildArg(const char *x) { return x; }
    std::string buildArg(std::nullptr_t) { return "nullptr"; }
-
    std::string buildArg(RooAbsArg const &arg) { return getResult(arg); }
 
    template <class T>
@@ -166,6 +166,9 @@ private:
    template <class T>
    std::string typeName() const;
 
+   std::vector<double> &xlArr();
+   std::vector<std::size_t> &sxlArr();
+
    /// @brief Map of node names to their result strings.
    std::unordered_map<const TNamed *, std::string> _nodeNames;
    /// @brief Block of code that is placed before the rest of the function body.
@@ -186,8 +189,8 @@ private:
    /// Mainly used for placing decls outside of loops.
    std::string _tempScope;
    /// @brief A map to keep track of list names as assigned by addResult.
-   std::unordered_map<RooFit::UniqueId<RooAbsCollection>::Value_t, std::string> listNames;
-   std::vector<double> &_xlArr;
+   std::unordered_map<RooFit::UniqueId<RooAbsCollection>::Value_t, std::string> _listNames;
+   std::unordered_map<RooFit::Detail::DataKey, std::size_t> _paramIndices;
 };
 
 template <>
@@ -199,22 +202,6 @@ template <>
 inline std::string CodeSquashContext::typeName<int>() const
 {
    return "int";
-}
-
-template <class T>
-std::string CodeSquashContext::buildArgSpanImpl(std::span<const T> arr)
-{
-   unsigned int n = arr.size();
-   std::string arrName = getTmpVarName();
-   std::string arrDecl = typeName<T>() + " " + arrName + "[" + std::to_string(n) + "] = {";
-   for (unsigned int i = 0; i < n; i++) {
-      arrDecl += " " + std::to_string(arr[i]) + ",";
-   }
-   arrDecl.back() = '}';
-   arrDecl += ";\n";
-   addToCodeBody(arrDecl, true);
-
-   return arrName;
 }
 
 } // namespace Detail

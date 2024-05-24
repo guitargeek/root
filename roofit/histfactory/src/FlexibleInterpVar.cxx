@@ -240,8 +240,14 @@ void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
       }
    }
 
+   std::vector<std::size_t> paramIndices;
+   paramIndices.reserve(_paramList.size());
+   for(RooAbsArg * param : _paramList) {
+       paramIndices.push_back(ctx.paramIndex(param));
+   }
+
    std::string const &resName = ctx.buildCall("RooFit::Detail::MathFuncs::flexibleInterp", interpCode,
-                                              _paramList, n, _low, _high, _interpBoundary, _nominal, 1.0);
+                                              "params", paramIndices, n, _low, _high, _interpBoundary, _nominal, 1.0);
    ctx.addResult(this, resName);
 }
 

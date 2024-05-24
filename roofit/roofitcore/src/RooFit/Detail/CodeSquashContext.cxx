@@ -12,6 +12,7 @@
  */
 
 #include <RooFit/Detail/CodeSquashContext.h>
+#include <RooFuncWrapper.h>
 
 #include "RooFitImplHelpers.h"
 
@@ -23,8 +24,8 @@ namespace RooFit {
 namespace Detail {
 
 CodeSquashContext::CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes,
-                                     std::vector<double> &xlarr, Experimental::RooFuncWrapper &wrapper)
-   : _wrapper{&wrapper}, _nodeOutputSizes(outputSizes), _xlArr(xlarr)
+                                     Experimental::RooFuncWrapper &wrapper)
+   : _wrapper{&wrapper}, _nodeOutputSizes(outputSizes)
 {
 }
 
@@ -87,9 +88,13 @@ void CodeSquashContext::addToGlobalScope(std::string const &str)
 std::string CodeSquashContext::assembleCode(std::string const &returnExpr)
 {
    std::string arrDecl;
-   if(!_xlArr.empty()) {
-      arrDecl += "double auxArr[" + std::to_string(_xlArr.size()) + "];\n";
-      arrDecl += "for (int i = 0; i < " + std::to_string(_xlArr.size()) + "; i++) auxArr[i] = xlArr[i];\n";
+   if (!xlArr().empty()) {
+      arrDecl += "double auxArr[" + std::to_string(xlArr().size()) + "];\n";
+      arrDecl += "for (int i = 0; i < " + std::to_string(xlArr().size()) + "; i++) auxArr[i] = xlArr[i];\n";
+   }
+   if (!sxlArr().empty()) {
+      arrDecl += "std::size_t sauxArr[" + std::to_string(sxlArr().size()) + "];\n";
+      arrDecl += "for (int i = 0; i < " + std::to_string(sxlArr().size()) + "; i++) sauxArr[i] = sxlArr[i];\n";
    }
    return arrDecl + _globalScope + _code + "\n return " + returnExpr + ";\n";
 }
@@ -201,7 +206,7 @@ std::string CodeSquashContext::getTmpVarName() const
 /// @param valueToSave The actual string value to save as a temporary.
 void CodeSquashContext::addResult(RooAbsArg const *in, std::string const &valueToSave)
 {
-   //std::string savedName = RooFit::Detail::makeValidVarName(in->GetName());
+   // std::string savedName = RooFit::Detail::makeValidVarName(in->GetName());
    std::string savedName = getTmpVarName();
 
    // Only save values if they contain operations.
@@ -226,8 +231,8 @@ void CodeSquashContext::addResult(RooAbsArg const *in, std::string const &valueT
 /// @return Name of the array that stores the input list in the squashed code.
 std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
 {
-   auto it = listNames.find(in.uniqueId().value());
-   if (it != listNames.end())
+   auto it = _listNames.find(in.uniqueId().value());
+   if (it != _listNames.end())
       return it->second;
 
    std::string savedName = getTmpVarName();
@@ -244,24 +249,53 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
 
    addToCodeBody(declStrm.str(), canSaveOutside);
 
-   listNames.insert({in.uniqueId().value(), savedName});
+   _listNames.insert({in.uniqueId().value(), savedName});
    return savedName;
 }
 
 std::string CodeSquashContext::buildArg(std::span<const double> arr)
 {
    unsigned int n = arr.size();
-   std::string offset = std::to_string(_xlArr.size());
-   _xlArr.reserve(_xlArr.size() + n);
+   std::string offset = std::to_string(xlArr().size());
+   xlArr().reserve(xlArr().size() + n);
    for (unsigned int i = 0; i < n; i++) {
-      _xlArr.push_back(arr[i]);
+      xlArr().push_back(arr[i]);
    }
    return "auxArr + " + offset;
+}
+
+std::string CodeSquashContext::buildArg(std::span<const std::size_t> arr)
+{
+   unsigned int n = arr.size();
+   std::string offset = std::to_string(sxlArr().size());
+   sxlArr().reserve(sxlArr().size() + n);
+   for (unsigned int i = 0; i < n; i++) {
+      sxlArr().push_back(arr[i]);
+   }
+   return "sauxArr + " + offset;
 }
 
 bool CodeSquashContext::isScopeIndependent(RooAbsArg const *in) const
 {
    return !in->isReducerNode() && outputSize(in->namePtr()) == 1;
+}
+
+std::vector<double> &CodeSquashContext::xlArr()
+{
+   return _wrapper->_xlArr;
+}
+std::vector<std::size_t> &CodeSquashContext::sxlArr()
+{
+   return _wrapper->_sxlArr;
+}
+
+std::size_t CodeSquashContext::paramIndex(RooFit::Detail::DataKey key)
+{
+   auto found = _paramIndices.find(key);
+   if (found == _paramIndices.end()) {
+      throw std::runtime_error("key is not a parameter!");
+   }
+   return found->second;
 }
 
 } // namespace Detail

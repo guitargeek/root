@@ -1091,7 +1091,7 @@ void RooRealIntegral::translate(RooFit::Detail::CodeSquashContext &ctx) const
       << "      " << paramsName << "[" << intVarIdx << "] = " << intVar.getMin(intRange()) << " + eps * i;\n"
       // TODO: the second "paramsName" should be nullptr, but until Clad issue
       // 636 is fixed, we have to pass a non-nullptr dummy.
-      << "      " << resName << " += " << " + " << ctx.buildCall(wrapper.funcName(), paramsName, paramsName, paramsName) << ";\n"
+      << "      " << resName << " += " << " + " << ctx.buildCall(wrapper.funcName(), paramsName, "obs", "xlArr", "sxlArr") << ";\n"
       << "   }\n"
       << "   " << resName << " *= " << " d / n;\n"
       << "}\n";

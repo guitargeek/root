@@ -180,7 +180,7 @@ void RooAddition::translate(RooFit::Detail::CodeSquashContext &ctx) const
       }
       auto &wrp = *ctx._wrapper;
       auto funcName = wrp.declareFunction(wrp.buildCode(*component));
-      result += funcName + "(params, obs, xlArr)";
+      result += funcName + "(params, obs, xlArr, sxlArr)";
       ++i;
       if (i < _set.size()) result += '+';
    }

@@ -34,7 +34,7 @@ namespace Experimental {
 class RooFuncWrapper final : public RooAbsReal {
 public:
    RooFuncWrapper(const char *name, const char *title, RooAbsReal &obj, const RooAbsData *data = nullptr,
-                  RooSimultaneous const *simPdf = nullptr, bool useEvaluator=false);
+                  RooSimultaneous const *simPdf = nullptr, bool useEvaluator = false);
 
    RooFuncWrapper(const RooFuncWrapper &other, const char *name = nullptr);
 
@@ -56,17 +56,19 @@ public:
 
    void createGradient();
 
-   void writeDebugMacro(std::string const&) const;
+   void writeDebugMacro(std::string const &) const;
 
    std::string declareFunction(std::string const &funcBody);
 
    std::string buildCode(RooAbsReal const &head);
 
+   std::vector<double> _xlArr;
+   std::vector<size_t> _sxlArr;
+
 protected:
    double evaluate() const override;
 
 private:
-
    void updateGradientVarBuffer() const;
 
    void loadParamsAndData(RooAbsArg const *head, RooArgSet const &paramSet, const RooAbsData *data,
@@ -74,8 +76,8 @@ private:
 
    void buildFuncAndGradFunctors();
 
-   using Func = double (*)(double *, double const *, double const *);
-   using Grad = void (*)(double *, double const *, double const *, double *);
+   using Func = double (*)(double *, double const *, double const *, std::size_t const *);
+   using Grad = void (*)(double *, double const *, double const *, std::size_t const *, double *);
 
    struct ObsInfo {
       ObsInfo(std::size_t i, std::size_t n) : idx{i}, size{n} {}
@@ -93,7 +95,6 @@ private:
    std::vector<double> _observables;
    std::map<RooFit::Detail::DataKey, ObsInfo> _obsInfos;
    std::map<RooFit::Detail::DataKey, std::size_t> _nodeOutputSizes;
-   std::vector<double> _xlArr;
    std::stringstream _allCode;
 };
 

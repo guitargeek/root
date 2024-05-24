@@ -138,7 +138,8 @@ std::string RooFuncWrapper::declareFunction(std::string const &funcBody)
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr) {\n"
+   bodyWithSigStrm << "double " << funcName
+                   << "(double* params, double const* obs, double const* xlArr, std::size_t const* sxlArr) {\n"
                    << funcBody << "\n}";
 
    _allCode << bodyWithSigStrm.str() << std::endl;
@@ -200,7 +201,7 @@ void RooFuncWrapper::gradient(double *out) const
    updateGradientVarBuffer();
    std::fill(out, out + _params.size(), 0.0);
 
-   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), out);
+   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _sxlArr.data(), out);
 }
 
 void RooFuncWrapper::updateGradientVarBuffer() const
@@ -215,24 +216,25 @@ double RooFuncWrapper::evaluate() const
       return _absReal->getVal();
    updateGradientVarBuffer();
 
-   return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data());
+   return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _sxlArr.data());
 }
 
 void RooFuncWrapper::gradient(const double *x, double *g) const
 {
    std::fill(g, g + _params.size(), 0.0);
 
-   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), g);
+   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), _sxlArr.data(), g);
 }
 
 std::string RooFuncWrapper::buildCode(RooAbsReal const &head)
 {
-   RooFit::Detail::CodeSquashContext ctx(_nodeOutputSizes, _xlArr, *this);
+   RooFit::Detail::CodeSquashContext ctx(_nodeOutputSizes, *this);
 
    // First update the result variable of params in the compute graph to in[<position>].
    int idx = 0;
    for (RooAbsArg *param : _params) {
       ctx.addResult(param, "params[" + std::to_string(idx) + "]");
+      ctx.setParamIndex(param, idx);
       idx++;
    }
 
@@ -282,11 +284,14 @@ void RooFuncWrapper::writeDebugMacro(std::string const &filename) const
    outFile << std::endl;
    writeVector("auxConstantsVec", _xlArr);
    outFile << std::endl;
+   writeVector("sizeAuxConstantsVec", _xlArr);
+   outFile << std::endl;
    outFile << "// clang-format on\n" << std::endl;
 
    outFile << R"(
 // To run as a ROOT macro
-void )" << filename << R"(()
+void )" << filename
+           << R"(()
 {
    std::vector<double> gradientVec(parametersVec.size());
 

@@ -285,12 +285,12 @@ inline double flexibleInterpSingle(unsigned int code, double low, double high, d
    return 0.0;
 }
 
-inline double flexibleInterp(unsigned int code, double const *params, unsigned int n, double const *low,
-                             double const *high, double boundary, double nominal, int doCutoff)
+inline double flexibleInterp(unsigned int code, double const *params, std::size_t const *paramIndices, unsigned int n,
+                             double const *low, double const *high, double boundary, double nominal, int doCutoff)
 {
    double total = nominal;
    for (std::size_t i = 0; i < n; ++i) {
-      total += flexibleInterpSingle(code, low[i], high[i], boundary, nominal, params[i], total);
+      total += flexibleInterpSingle(code, low[i], high[i], boundary, nominal, params[paramIndices[i]], total);
    }
 
    return doCutoff && total <= 0 ? TMath::Limits<double>::Min() : total;
