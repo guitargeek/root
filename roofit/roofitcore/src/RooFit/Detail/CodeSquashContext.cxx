@@ -96,7 +96,13 @@ std::string CodeSquashContext::assembleCode(std::string const &returnExpr)
       arrDecl += "std::size_t sauxArr[" + std::to_string(sxlArr().size()) + "];\n";
       arrDecl += "for (int i = 0; i < " + std::to_string(sxlArr().size()) + "; i++) sauxArr[i] = sxlArr[i];\n";
    }
-   return arrDecl + _globalScope + _code + "\n return " + returnExpr + ";\n";
+   std::stringstream allCode;
+   allCode << arrDecl << std::endl;
+   allCode << "int loopIdx0 = 0;\n" << std::endl;
+   allCode << _globalScope;
+   allCode << _code << "\n";
+   allCode << "return " + returnExpr + ";\n";
+   return allCode.str();
 }
 
 /// @brief Since the squashed code represents all observables as a single flattened array, it is important
@@ -172,7 +178,7 @@ std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAb
    _scopePtr = _code.size();
 
    // Make sure that the name of this variable doesn't clash with other stuff
-   addToCodeBody(in, "for(int " + idx + " = 0; " + idx + " < " + std::to_string(numEntries) + "; " + idx + "++) {\n");
+   addToCodeBody(in, "for(" + idx + " = 0; " + idx + " < " + std::to_string(numEntries) + "; " + idx + "++) {\n");
 
    ++_loopLevel;
    return std::make_unique<LoopScope>(*this, std::move(vars));
@@ -180,7 +186,10 @@ std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAb
 
 void CodeSquashContext::endLoop(LoopScope const &scope)
 {
+   std::string idx = "loopIdx" + std::to_string(--_loopLevel);
+
    _code += "}\n";
+   _code += idx + " = 0;\n";
 
    // Insert the temporary code into the correct code position.
    _code.insert(_scopePtr, _tempScope);
@@ -192,7 +201,6 @@ void CodeSquashContext::endLoop(LoopScope const &scope)
       if (_vecObsIndices.find(ptr) != _vecObsIndices.end())
          _nodeNames.erase(ptr);
    }
-   --_loopLevel;
 }
 
 /// @brief Get a unique variable name to be used in the generated code.
@@ -253,7 +261,7 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
    return savedName;
 }
 
-std::string CodeSquashContext::buildArg(std::span<const double> arr)
+std::string CodeSquashContext::buildOffset(std::span<const double> arr)
 {
    unsigned int n = arr.size();
    std::string offset = std::to_string(xlArr().size());
@@ -261,10 +269,10 @@ std::string CodeSquashContext::buildArg(std::span<const double> arr)
    for (unsigned int i = 0; i < n; i++) {
       xlArr().push_back(arr[i]);
    }
-   return "auxArr + " + offset;
+   return offset;
 }
 
-std::string CodeSquashContext::buildArg(std::span<const std::size_t> arr)
+std::string CodeSquashContext::buildOffset(std::span<const std::size_t> arr)
 {
    unsigned int n = arr.size();
    std::string offset = std::to_string(sxlArr().size());
@@ -272,7 +280,17 @@ std::string CodeSquashContext::buildArg(std::span<const std::size_t> arr)
    for (unsigned int i = 0; i < n; i++) {
       sxlArr().push_back(arr[i]);
    }
-   return "sauxArr + " + offset;
+   return offset;
+}
+
+std::string CodeSquashContext::buildArg(std::span<const double> arr)
+{
+   return "auxArr + " + buildOffset(arr);
+}
+
+std::string CodeSquashContext::buildArg(std::span<const std::size_t> arr)
+{
+   return "sauxArr + " + buildOffset(arr);
 }
 
 bool CodeSquashContext::isScopeIndependent(RooAbsArg const *in) const

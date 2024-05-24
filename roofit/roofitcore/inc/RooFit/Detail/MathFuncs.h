@@ -285,16 +285,30 @@ inline double flexibleInterpSingle(unsigned int code, double low, double high, d
    return 0.0;
 }
 
-inline double flexibleInterp(unsigned int code, double const *params, std::size_t const *paramIndices, unsigned int n,
-                             double const *low, double const *high, double boundary, double nominal, int doCutoff)
+inline double flexibleInterp(unsigned int code, double const *params, double const *constants, std::size_t const *paramIndices, unsigned int n,
+                             std::size_t low, std::size_t high, double boundary, double nominal)
 {
    double total = nominal;
    for (std::size_t i = 0; i < n; ++i) {
-      total += flexibleInterpSingle(code, low[i], high[i], boundary, nominal, params[paramIndices[i]], total);
+      total += flexibleInterpSingle(code, constants[low + i], constants[high + i], boundary, nominal, params[paramIndices[i]], total);
    }
 
-   return doCutoff && total <= 0 ? TMath::Limits<double>::Min() : total;
+   return total <= 0 ? TMath::Limits<double>::Min() : total;
 }
+
+inline double piecewiseInterp(unsigned int code, double const *params, double const *constants, std::size_t const *paramIndices, unsigned int n,
+                              std::size_t binIdx,
+                              std::size_t low, std::size_t high, double nominal, int positiveDefinite)
+{
+   double total = nominal;
+   for (std::size_t i = 0; i < n; ++i) {
+      std::size_t offset = n * binIdx + i;
+      total += flexibleInterpSingle(code, constants[low + offset], constants[high + offset], 1., nominal, params[paramIndices[i]], total);
+   }
+
+   return positiveDefinite && total <= 0. ? 0. : total;
+}
+
 
 inline double landau(double x, double mu, double sigma)
 {

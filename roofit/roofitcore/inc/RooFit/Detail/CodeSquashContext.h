@@ -113,6 +113,9 @@ public:
    std::string buildArg(std::span<const double> arr);
    std::string buildArg(std::span<const std::size_t> arr);
 
+   std::string buildOffset(std::span<const double> arr);
+   std::string buildOffset(std::span<const std::size_t> arr);
+
    void setParamIndex(RooFit::Detail::DataKey key, std::size_t idx) { _paramIndices[key] = idx; }
    std::size_t paramIndex(RooFit::Detail::DataKey key);
 

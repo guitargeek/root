@@ -1012,6 +1012,7 @@ std::string RooDataHist::calculateTreeIndexForCodeSquash(RooAbsArg const * /*kla
                                                          const RooAbsCollection &coords, bool reverse) const
 {
    assert(coords.size() == _vars.size());
+   return "loopIdx0";
 
    std::string code;
    int idxMult = 1;

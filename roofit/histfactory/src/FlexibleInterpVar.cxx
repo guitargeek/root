@@ -247,7 +247,7 @@ void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
    }
 
    std::string const &resName = ctx.buildCall("RooFit::Detail::MathFuncs::flexibleInterp", interpCode,
-                                              "params", paramIndices, n, _low, _high, _interpBoundary, _nominal, 1.0);
+                                              "params", "auxArr", paramIndices, n, ctx.buildOffset(_low), ctx.buildOffset(_high), _interpBoundary, _nominal);
    ctx.addResult(this, resName);
 }
 

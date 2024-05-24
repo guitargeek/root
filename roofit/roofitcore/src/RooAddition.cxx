@@ -37,6 +37,7 @@ in the two sets.
 #include "RooMsgService.h"
 #include "RooBatchCompute.h"
 #include "RooFuncWrapper.h"
+#include "RooConstraintSum.h"
 
 #ifdef ROOFIT_LEGACY_EVAL_BACKEND
 #include "RooNLLVar.h"
@@ -169,10 +170,7 @@ void RooAddition::translate(RooFit::Detail::CodeSquashContext &ctx) const
    std::size_t i = 0;
    for (auto *component : static_range_cast<RooAbsReal *>(_set)) {
 
-      // if (dynamic_cast<RooNLLVarNew *>(component)) {
-      //    result += ctx.getResultFrom
-      // } else {
-      if (!dynamic_cast<RooNLLVarNew *>(component) || _set.size() == 1) {
+      if (!dynamic_cast<RooConstraintSum *>(component) || _set.size() == 1) {
          result += ctx.getResult(*component);
          ++i;
          if (i < _set.size()) result += '+';

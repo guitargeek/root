@@ -188,7 +188,6 @@ void PiecewiseInterpolation::translate(RooFit::Detail::CodeSquashContext &ctx) c
 {
    std::size_t n = _interpCode.size();
 
-   std::string resName = "total_" + ctx.getTmpVarName();
    for (std::size_t i = 0; i < n; ++i) {
       if (_interpCode[i] < 0 || _interpCode[i] > 5) {
          coutE(InputArguments) << "PiecewiseInterpolation::evaluate ERROR:  " << _paramSet[i].GetName()
@@ -224,36 +223,26 @@ void PiecewiseInterpolation::translate(RooFit::Detail::CodeSquashContext &ctx) c
          valsHigh.push_back(dynamic_cast<RooHistFunc const &>(_highSet[iParam]).dataHist().weight(i));
       }
    }
-   std::string idxName = ctx.getTmpVarName();
+   std::string idxName = "loopIdx0";
    std::string valsNominalStr = ctx.buildArg(valsNominal);
-   std::string valsLowStr = ctx.buildArg(valsLow);
-   std::string valsHighStr = ctx.buildArg(valsHigh);
+   std::string valsLowStr = ctx.buildOffset(valsLow);
+   std::string valsHighStr = ctx.buildOffset(valsHigh);
    std::string nStr = std::to_string(n);
    std::string code;
 
-   std::string lowName = ctx.getTmpVarName();
-   std::string highName = ctx.getTmpVarName();
-   std::string nominalName = ctx.getTmpVarName();
-   code += "unsigned int " + idxName + " = " + nomHist.calculateTreeIndexForCodeSquash(this, ctx, dynamic_cast<RooHistFunc const &>(*_nominal).variables()) + ";\n";
-   code += "double const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
-   code += "double const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
-   code += "double " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
-
    std::vector<std::size_t> paramIndices;
    paramIndices.reserve(_paramSet.size());
-   for(RooAbsArg * param : _paramSet) {
-       paramIndices.push_back(ctx.paramIndex(param));
+   for (RooAbsArg *param : _paramSet) {
+      paramIndices.push_back(ctx.paramIndex(param));
    }
 
-   std::string funcCall = ctx.buildCall("RooFit::Detail::MathFuncs::flexibleInterp", _interpCode[0], "params", paramIndices, n,
-                                        lowName, highName, 1.0, nominalName, 0.0);
-   code += "double " + resName + " = " + funcCall + ";\n";
-
-   if (_positiveDefinite)
-      code += resName + " = " + resName + " < 0 ? 0 : " + resName + ";\n";
+   std::string funcCall =
+      ctx.buildCall("RooFit::Detail::MathFuncs::piecewiseInterp", _interpCode[0], "params", "auxArr", paramIndices, n, idxName,
+                    valsLowStr, valsHighStr,
+                    "*(" + valsNominalStr + " + " + idxName + ")", _positiveDefinite);
 
    ctx.addToCodeBody(this, code);
-   ctx.addResult(this, resName);
+   ctx.addResult(this, funcCall);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

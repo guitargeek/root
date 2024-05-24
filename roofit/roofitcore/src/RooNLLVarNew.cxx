@@ -366,7 +366,7 @@ void RooNLLVarNew::translate(RooFit::Detail::CodeSquashContext &ctx) const
    {
       auto scope = ctx.beginLoop(this);
       std::string term = ctx.buildCall("RooFit::Detail::MathFuncs::nll", _pdf, _weightVar, _binnedL, 0);
-      ctx.addToCodeBody(this, resName + " += " + term + ";");
+      ctx.addToCodeBody(this, resName + " += " + term + ";\n");
    }
    if (_expectedEvents) {
       std::string expected = ctx.getResult(**_expectedEvents);
