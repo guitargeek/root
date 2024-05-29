@@ -36,8 +36,7 @@ namespace RooStats {
       ProfileLikelihoodTestStat()
          : fStrategy(::ROOT::Math::MinimizerOptions::DefaultStrategy()),
            fTolerance(std::max(1., ::ROOT::Math::MinimizerOptions::DefaultTolerance())),
-           fPrintLevel(::ROOT::Math::MinimizerOptions::DefaultPrintLevel()),
-           fLOffset(RooStats::IsNLLOffset())
+           fPrintLevel(::ROOT::Math::MinimizerOptions::DefaultPrintLevel())
       {
       }
 
@@ -45,8 +44,7 @@ namespace RooStats {
          : fPdf(&pdf),
            fStrategy(::ROOT::Math::MinimizerOptions::DefaultStrategy()),
            fTolerance(std::max(1., ::ROOT::Math::MinimizerOptions::DefaultTolerance())),
-           fPrintLevel(::ROOT::Math::MinimizerOptions::DefaultPrintLevel()),
-           fLOffset(RooStats::IsNLLOffset())
+           fPrintLevel(::ROOT::Math::MinimizerOptions::DefaultPrintLevel())
       {
          // avoid default tolerance to be too small (1. is default in RooMinimizer)
       }
@@ -65,7 +63,6 @@ namespace RooStats {
      static void SetAlwaysReuseNLL(bool flag);
 
      void SetReuseNLL(bool flag) { fReuseNll = flag ; }
-     void SetLOffset(bool flag=true) { fLOffset = flag ; }
 
      void SetMinimizer(const char* minimizer){ fMinimizer=minimizer;}
      void SetStrategy(Int_t strategy){fStrategy=strategy;}
@@ -135,11 +132,10 @@ namespace RooStats {
       Int_t fStrategy;
       double fTolerance;
       Int_t fPrintLevel;
-      bool fLOffset ;
 
    protected:
 
-      ClassDefOverride(ProfileLikelihoodTestStat,10)   // implements the profile likelihood ratio as a test statistic to be used with several tools
+      ClassDefOverride(ProfileLikelihoodTestStat,11)   // implements the profile likelihood ratio as a test statistic to be used with several tools
    };
 }
 

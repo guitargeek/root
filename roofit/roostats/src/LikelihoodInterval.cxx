@@ -247,7 +247,7 @@ bool LikelihoodInterval::CreateMinimizer() {
    const auto& config = GetGlobalRooStatsConfig();
 
    // now do binding of NLL with a functor for Minimizer
-   if (config.useLikelihoodOffset) {
+   if (config.useLikelihoodOffset == "initial") {
       ccoutI(InputArguments) << "LikelihoodInterval: using nll offset - set all RooAbsReal to hide the offset  " << std::endl;
       RooAbsReal::setHideOffset(false); // need to keep this false
    }

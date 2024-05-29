@@ -74,7 +74,6 @@ Internally it operates by delegating to a MinNLLTestStat object.
      void SetStrategy(Int_t strategy){ fProflts->SetStrategy(strategy); }
      void SetTolerance(double tol){ fProflts->SetTolerance(tol); }
      void SetPrintLevel(Int_t printlevel){ fProflts->SetPrintLevel(printlevel); }
-     void SetLOffset(bool flag=true) { fProflts->SetLOffset(flag) ; }
 
      // Main interface to evaluate the test statistic on a dataset
      double Evaluate(RooAbsData& data, RooArgSet& paramsOfInterest) override {

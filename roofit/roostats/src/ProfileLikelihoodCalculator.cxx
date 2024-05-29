@@ -291,6 +291,7 @@ HypoTestResult* ProfileLikelihoodCalculator::GetHypoTest() const {
    RooAbsPdf * pdf = GetPdf();
    RooAbsData* data = GetData();
 
+   auto& config = GetGlobalRooStatsConfig();
 
    if (!data || !pdf) return nullptr;
 
@@ -315,7 +316,7 @@ HypoTestResult* ProfileLikelihoodCalculator::GetHypoTest() const {
 
    double nLLatMLE = fFitResult->minNll();
    // in case of using offset need to save offset value
-   double nlloffset = (RooStats::IsNLLOffset() ) ? nll->getVal() - nLLatMLE : 0;
+   double nlloffset = (config.useLikelihoodOffset == "initial") ? nll->getVal() - nLLatMLE : 0;
 
    // set POI to given values, set constant, calculate conditional MLE
    std::vector<double> oldValues(poiList.size() );
@@ -367,7 +368,7 @@ HypoTestResult* ProfileLikelihoodCalculator::GetHypoTest() const {
       // get just the likelihood value (no need to do a fit since the likelihood is a constant function)
       nLLatCondMLE = nll->getVal();
       // this value contains the offset
-      if (RooStats::IsNLLOffset() ) nLLatCondMLE -= nlloffset;
+      if (config.useLikelihoodOffset == "initial") nLLatCondMLE -= nlloffset;
    }
 
    // Use Wilks' theorem to translate -2 log lambda into a significance/p-value

@@ -409,7 +409,7 @@ double AsymptoticCalculator::EvaluateNLL(RooStats::ModelConfig const& modelConfi
           result = std::unique_ptr<RooFitResult>{minim.save()};
        }
        if (result){
-          if (!RooStats::IsNLLOffset()) {
+          if (config.useLikelihoodOffset != "initial") {
              val = result->minNll();
           } else {
              bool previous = RooAbsReal::hideOffset();

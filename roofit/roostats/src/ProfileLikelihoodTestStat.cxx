@@ -54,6 +54,8 @@ void RooStats::ProfileLikelihoodTestStat::SetAlwaysReuseNLL(bool flag) { fgAlway
 
 double RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type, RooAbsData& data, RooArgSet& paramsOfInterest) {
 
+       const auto& config = GetGlobalRooStatsConfig();
+
        if (fDetailedOutputEnabled) {
           fDetailedOutput = std::make_unique<RooArgSet>();
        }
@@ -85,9 +87,7 @@ double RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type, 
 
           // need to call constrain for RooSimultaneous until stripDisconnected problem fixed
           fNll = std::unique_ptr<RooAbsReal>{fPdf->createNLL(data, RooFit::CloneData(false),RooFit::Constrain(*allParams),
-                                 RooFit::GlobalObservables(fGlobalObs), RooFit::ConditionalObservables(fConditionalObs), RooFit::Offset(fLOffset))};
-
-          if (fPrintLevel > 0 && fLOffset) cout << "ProfileLikelihoodTestStat::Evaluate - Use Offset in creating NLL " << endl ;
+                                 RooFit::GlobalObservables(fGlobalObs), RooFit::ConditionalObservables(fConditionalObs), RooFit::Offset(config.useLikelihoodOffset))};
 
           created = true ;
           if (fPrintLevel > 1) cout << "creating NLL " << &*fNll << " with data = " << &data << endl ;
@@ -193,9 +193,9 @@ double RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type, 
           // no need to minimize just evaluate the nll
           if (allParams.empty() ) {
              // be sure to evaluate with offsets
-             if (fLOffset) RooAbsReal::setHideOffset(false);
+             if (config.useLikelihoodOffset == "initial") RooAbsReal::setHideOffset(false);
              condML = fNll->getVal();
-             if (fLOffset) RooAbsReal::setHideOffset(true);
+             if (config.useLikelihoodOffset == "initial") RooAbsReal::setHideOffset(true);
           }
           else {
             fNll->clearEvalErrorLog();
@@ -223,7 +223,7 @@ double RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type, 
        if (type != 0)  {
           // for conditional only or unconditional fits
           // need to compute nll value without the offset
-          if (fLOffset) {
+          if (config.useLikelihoodOffset == "initial") {
              RooAbsReal::setHideOffset(false) ;
              pll = fNll->getVal();
           }
