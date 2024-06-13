@@ -70,6 +70,29 @@ RegulatorCleanup &GetRegulatorCleanup()
    return m;
 }
 
+bool &staticShutDownFlag() {
+   static bool shutDown = false;
+   return shutDown;
+}
+
+PyObject *GetShutDownFlag(PyObject * /* self */, PyObject * /* args */)
+{
+   if(staticShutDownFlag()) {
+      Py_RETURN_TRUE;
+   }
+   Py_RETURN_FALSE;
+}
+
+PyObject *SetShutDownFlag(PyObject * /* self */, PyObject * args)
+{
+   int flag;
+   PyArg_ParseTuple(args, "p:SetShutDownFlag", &flag);
+
+   staticShutDownFlag() = (flag == 1);
+
+   Py_RETURN_NONE;
+}
+
 struct CleanupRAII {
    ~CleanupRAII()
    {
@@ -80,7 +103,7 @@ struct CleanupRAII {
       // Hard teardown: run part of the gROOT shutdown sequence. Running it here
       // ensures that it is done before any ROOT libraries are off-loaded, with
       // unspecified order of static object destruction.
-      if (true /*PyConfig.ShutDown*/) {
+      if (staticShutDownFlag()) {
          gROOT->EndOfProcessCleanups();
       }
    }
@@ -141,6 +164,10 @@ static PyMethodDef gPyROOTMethods[] = {
     (char *)"Register a custom converter that is a reference to an existing converter"},
    {(char *)"CPyCppyyRegisterExecutorAlias", (PyCFunction)PyROOT::RegisterExecutorAlias, METH_VARARGS,
     (char *)"Register a custom executor that is a reference to an existing executor"},
+   {(char *)"GetShutDownFlag", (PyCFunction)PyROOT::GetShutDownFlag, METH_NOARGS,
+    (char *)"Whether gROOT->EndOfProcessCleanups() is called when this library is unloaded"},
+   {(char *)"SetShutDownFlag", (PyCFunction)PyROOT::SetShutDownFlag, METH_VARARGS,
+    (char *)"Define whether gROOT->EndOfProcessCleanups() should be called when this library is unloaded"},
    {NULL, NULL, 0, NULL}};
 
 struct module_state {
@@ -185,6 +212,11 @@ extern "C" PyObject *PyInit_libROOTPythonizations()
 
    // inject ROOT namespace for convenience
    PyModule_AddObject(PyROOT::gRootModule, (char *)"ROOT", CPyCppyy::CreateScopeProxy("ROOT"));
+
+   // The CleanupRAII uses the static shutdown flag in the destructor. To make
+   // sure the flag lives longer than the RAII, we have to initialize it first
+   // by calling the function where it is defined.
+   PyROOT::staticShutDownFlag();
 
    // activate the cleanup function
    static PyROOT::CleanupRAII cleanupRAII;

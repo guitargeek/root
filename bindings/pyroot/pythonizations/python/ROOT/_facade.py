@@ -23,6 +23,18 @@ class PyROOTConfiguration(object):
         self.DisableRootLogon = False
         self.StartGUIThread = True
 
+    @property
+    def ShutDown(self):
+        from libROOTPythonizations import GetShutDownFlag
+
+        return GetShutDownFlag()
+
+    @ShutDown.setter
+    def ShutDown(self, flag):
+        from libROOTPythonizations import SetShutDownFlag
+
+        return SetShutDownFlag(flag)
+
 
 class _gROOTWrapper(object):
     """Internal class to manage lookups of gROOT in the facade.
