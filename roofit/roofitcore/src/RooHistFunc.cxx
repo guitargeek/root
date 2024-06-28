@@ -186,8 +186,7 @@ double RooHistFunc::evaluate() const
     }
   }
 
-  double ret =  _dataHist->weightFast(_histObsList,_intOrder,false,_cdfBoundaries) ;
-  return ret ;
+  return _dataHist->weight(_histObsList,_intOrder,false,_cdfBoundaries, RooDataHist::WeightFast::True);
 }
 
 void RooHistFunc::translate(RooFit::Detail::CodeSquashContext &ctx) const
@@ -231,7 +230,7 @@ void RooHistFunc::doEval(RooFit::EvalContext & ctx) const
       }
     }
 
-    output[i] = skip ? 0. : _dataHist->weightFast(_histObsList, _intOrder, false, _cdfBoundaries);
+    output[i] = skip ? 0. : _dataHist->weight(_histObsList, _intOrder, false, _cdfBoundaries, RooDataHist::WeightFast::True);
   }
 }
 

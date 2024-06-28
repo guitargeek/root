@@ -217,7 +217,7 @@ double RooHistPdf::evaluate() const
     }
   }
 
-  double ret = _dataHist->weightFast(_histObsList, _intOrder, !_unitNorm, _cdfBoundaries);
+  double ret = _dataHist->weight(_histObsList, _intOrder, !_unitNorm, _cdfBoundaries, RooDataHist::WeightFast::True);
 
   return std::max(ret, 0.0);
 }

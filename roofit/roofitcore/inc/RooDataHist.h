@@ -102,8 +102,8 @@ public:
   void weights(double* output, std::span<double const> xVals, int intOrder, bool correctForBinSize, bool cdfBoundaries);
   /// Return weight of i-th bin. \see getIndex()
   double weight(std::size_t i) const { return _wgt[i]; }
-  double weightFast(const RooArgSet& bin, int intOrder, bool correctForBinSize, bool cdfBoundaries);
-  double weight(const RooArgSet& bin, Int_t intOrder=1, bool correctForBinSize=false, bool cdfBoundaries=false, bool oneSafe=false);
+  enum class WeightFast { False, True};
+  double weight(const RooArgSet& bin, Int_t intOrder=1, bool correctForBinSize=false, bool cdfBoundaries=false, WeightFast=WeightFast::False);
   /// Return squared weight sum of i-th bin. \see getIndex(). If sumw2 is not
   /// being tracked, assume that all previous fill operations had a
   /// weight of 1, i.e., return the bare weight of the bin.
@@ -257,8 +257,8 @@ public:
   mutable double _cache_sum{0.};          ///<! Cache for sum of entries ;
 
 private:
-  void interpolateQuadratic(double* output, std::span<const double> xVals, bool correctForBinSize, bool cdfBoundaries);
-  void interpolateLinear(double* output, std::span<const double> xVals, bool correctForBinSize, bool cdfBoundaries);
+  void interpolateQuadratic(double* output, double const *xVals, std::size_t nEvents, std::size_t nBins, bool correctForBinSize, bool cdfBoundaries);
+  void interpolateLinear(double* output, double const *xVals, std::size_t nEvents, std::size_t nBins, bool correctForBinSize, bool cdfBoundaries);
   double weightInterpolated(const RooArgSet& bin, int intOrder, bool correctForBinSize, bool cdfBoundaries);
 
   void _adjustBinning(RooRealVar &theirVar, const TAxis &axis, RooRealVar *ourVar, Int_t *offset);
