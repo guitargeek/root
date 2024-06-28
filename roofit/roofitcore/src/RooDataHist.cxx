@@ -1346,36 +1346,39 @@ void RooDataHist::interpolateLinear(double *output, double const *xVals, std::si
 ///                          histogram is mirrored at the boundaries for the
 ///                          interpolation.
 
-void RooDataHist::weights(double* output, std::span<double const> xVals, int intOrder, bool correctForBinSize, bool cdfBoundaries)
+void RooDataHist::weights(double *output, std::span<double const> xVals, int intOrder, bool correctForBinSize,
+                          bool cdfBoundaries)
 {
-  auto const nEvents = xVals.size();
+   // Handle illegal intOrder values
+   if (intOrder < 0 || intOrder > 2) {
+      std::stringstream errorMsg;
+      errorMsg << "RooDataHist::weight(" << GetName() << ") ERROR: interpolation order must be 0, 1, or 2";
+      coutE(InputArguments) << errorMsg.str() << std::endl;
+      throw std::invalid_argument(errorMsg.str());
+   }
 
-  if (intOrder == 0) {
-    RooAbsBinning const& binning = *_lvbins[0];
+   auto const nEvents = xVals.size();
 
-    // Reuse the output buffer for bin indices and zero-initialize it
-    auto binIndices = reinterpret_cast<int*>(output + nEvents) - nEvents;
-    std::fill(binIndices, binIndices + nEvents, 0);
-    binning.binNumbers(xVals.data(), binIndices, nEvents);
+   if (intOrder == 1)
+   {
+      interpolateLinear(output, xVals.data(), xVals.size(), numEntries(), correctForBinSize, cdfBoundaries);
+   }
+   else if (intOrder == 2)
+   {
+      interpolateQuadratic(output, xVals.data(), xVals.size(), numEntries(), correctForBinSize, cdfBoundaries);
+   }
 
-    for (std::size_t i=0; i < nEvents; ++i) {
+   RooAbsBinning const &binning = *_lvbins[0];
+
+   // Reuse the output buffer for bin indices and zero-initialize it
+   auto binIndices = reinterpret_cast<int *>(output + nEvents) - nEvents;
+   std::fill(binIndices, binIndices + nEvents, 0);
+   binning.binNumbers(xVals.data(), binIndices, nEvents);
+
+   for (std::size_t i = 0; i < nEvents; ++i) {
       auto binIdx = binIndices[i];
       output[i] = correctForBinSize ? _wgt[binIdx] / _binv[binIdx] : _wgt[binIdx];
-    }
-  }
-  else if (intOrder == 1) {
-    interpolateLinear(output, xVals.data(), xVals.size(), numEntries(), correctForBinSize, cdfBoundaries);
-  }
-    else if (intOrder == 2) {
-    interpolateQuadratic(output, xVals.data(), xVals.size(), numEntries(), correctForBinSize, cdfBoundaries);
-  }
-  else {
-    // Higher dimensional scenarios not yet implemented
-    coutE(InputArguments) << "RooDataHist::weights(" << GetName() << ") interpolation in "
-                          << intOrder << " dimensions not yet implemented" << std::endl ;
-    // Fall back to 1st order interpolation
-    weights(output, xVals, 1, correctForBinSize, cdfBoundaries);
-  }
+   }
 }
 
 
@@ -1399,15 +1402,18 @@ double RooDataHist::weight(const RooArgSet& bin, Int_t intOrder, bool correctFor
   checkInit() ;
 
   // Handle illegal intOrder values
-  if (intOrder<0) {
-    coutE(InputArguments) << "RooDataHist::weight(" << GetName() << ") ERROR: interpolation order must be positive" << endl ;
-    return 0 ;
+  if (intOrder<0 || intOrder > 2) {
+    std::stringstream errorMsg;
+    errorMsg << "RooDataHist::weight(" << GetName() << ") ERROR: interpolation order must be 0, 1, or 2";
+    coutE(InputArguments) << errorMsg.str() << std::endl;
+    throw std::invalid_argument(errorMsg.str());
   }
+
+  const auto centralIdx = calcTreeIndex(bin, fast == WeightFast::True);
 
   // Handle no-interpolation case
   if (intOrder==0) {
-    const auto idx = calcTreeIndex(bin, fast == WeightFast::True);
-    return correctForBinSize ? _wgt[idx] / _binv[idx] : _wgt[idx];
+    return correctForBinSize ? _wgt[centralIdx] / _binv[centralIdx] : _wgt[centralIdx];
   }
 
   // Handle all interpolation cases
@@ -1415,27 +1421,9 @@ double RooDataHist::weight(const RooArgSet& bin, Int_t intOrder, bool correctFor
     _vars.assignValueOnly(bin) ;
   }
 
-  return weightInterpolated(fast == WeightFast::True ? bin : _vars, intOrder, correctForBinSize, cdfBoundaries);
-}
+  RooArgSet const &actualBin = fast == WeightFast::True ? bin : _vars;
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Return the weight at given coordinates with interpolation.
-/// \param[in] bin Coordinates for which the weight should be calculated.
-///                Has to be aligned with the internal histogram variables.
-/// \param[in] intOrder Interpolation order, i.e. how many neighbouring bins are
-///                     used for the interpolation.
-/// \param[in] correctForBinSize Enable the inverse bin volume correction factor.
-/// \param[in] cdfBoundaries Enable the special boundary condition for a cdf:
-///                          underflow bins are assumed to have weight zero and
-///                          overflow bins have weight one. Otherwise, the
-///                          histogram is mirrored at the boundaries for the
-///                          interpolation.
-
-double RooDataHist::weightInterpolated(const RooArgSet& bin, int intOrder, bool correctForBinSize, bool cdfBoundaries) {
   VarInfo const& varInfo = getVarInfo();
-
-  const auto centralIdx = calcTreeIndex(bin, true);
 
   double wInt{0} ;
   if (varInfo.nRealVars == 1) {
@@ -1444,7 +1432,7 @@ double RooDataHist::weightInterpolated(const RooArgSet& bin, int intOrder, bool 
     _interpolationBuffer.resize(2 * intOrder + 2);
 
     // 1-dimensional interpolation
-    auto const& realX = static_cast<RooRealVar const&>(*bin[varInfo.realVarIdx1]);
+    auto const& realX = static_cast<RooRealVar const&>(*actualBin[varInfo.realVarIdx1]);
     wInt = interpolateDim(varInfo.realVarIdx1, realX.getVal(), centralIdx, intOrder, correctForBinSize, cdfBoundaries) ;
 
   } else if (varInfo.nRealVars == 2) {
@@ -1454,8 +1442,8 @@ double RooDataHist::weightInterpolated(const RooArgSet& bin, int intOrder, bool 
     _interpolationBuffer.resize(4 * intOrder + 4);
 
     // 2-dimensional interpolation
-    auto const& realX = static_cast<RooRealVar const&>(*bin[varInfo.realVarIdx1]);
-    auto const& realY = static_cast<RooRealVar const&>(*bin[varInfo.realVarIdx2]);
+    auto const& realX = static_cast<RooRealVar const&>(*actualBin[varInfo.realVarIdx1]);
+    auto const& realY = static_cast<RooRealVar const&>(*actualBin[varInfo.realVarIdx2]);
     double xval = realX.getVal() ;
     double yval = realY.getVal() ;
 
@@ -1499,14 +1487,6 @@ double RooDataHist::weightInterpolated(const RooArgSet& bin, int intOrder, bool 
       cout << endl ;
     }
     wInt = RooMath::interpolate(xarr,yarr,intOrder+1,yval) ;
-
-  } else {
-
-    // Higher dimensional scenarios not yet implemented
-    coutE(InputArguments) << "RooDataHist::weight(" << GetName() << ") interpolation in "
-                          << varInfo.nRealVars << " dimensions not yet implemented" << endl ;
-    return weight(bin,0,correctForBinSize,cdfBoundaries,WeightFast::True);
-
   }
 
   return wInt ;

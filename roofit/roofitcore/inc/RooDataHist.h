@@ -259,7 +259,6 @@ public:
 private:
   void interpolateQuadratic(double* output, double const *xVals, std::size_t nEvents, std::size_t nBins, bool correctForBinSize, bool cdfBoundaries);
   void interpolateLinear(double* output, double const *xVals, std::size_t nEvents, std::size_t nBins, bool correctForBinSize, bool cdfBoundaries);
-  double weightInterpolated(const RooArgSet& bin, int intOrder, bool correctForBinSize, bool cdfBoundaries);
 
   void _adjustBinning(RooRealVar &theirVar, const TAxis &axis, RooRealVar *ourVar, Int_t *offset);
   void registerWeightArraysToDataStore() const;
