@@ -242,7 +242,9 @@ public:
       RooAbsReal *func = tool->requestArg<RooAbsReal>(p, "integrand");
       auto vars = tool->requestArgList<RooAbsReal>(p, "variables");
       auto normset = tool->requestArgSet<RooAbsReal>(p, "normalization");
-      tool->wsEmplace<RooRealIntegral>(name, *func, vars, &normset);
+      auto domain = p["domain"].val();
+      // todo: at some point, take care of integrator configurations
+      tool->wsEmplace<RooRealIntegral>(name, *func, vars, &normset, (RooNumIntConfig*)0, domain.c_str());
       return true;
    }
 };
@@ -693,6 +695,7 @@ public:
       auto *integral = static_cast<const RooRealIntegral *>(func);
       elem["type"] << key();
       elem["integrand"] << integral->integrand().GetName();
+      elem["domain"] << integral->intRange();
       RooJSONFactoryWSTool::fillSeq(elem["variables"], integral->intVars());
       RooJSONFactoryWSTool::fillSeq(elem["normalization"], *integral->funcNormSet());      
       return true;
