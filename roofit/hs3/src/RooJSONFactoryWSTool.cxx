@@ -583,11 +583,12 @@ std::unique_ptr<RooAbsData> loadData(const JSONNode &p, RooWorkspace &workspace)
  * @param rootnode The root JSONNode representing the entire JSON file.
  * @param analysisNode The JSONNode representing the analysis to be imported.
  * @param likelihoodsNode The JSONNode containing information about likelihoods associated with the analysis.
+ * @param domainsNode The JSONNode containing information about domains associated with the analysis. 
  * @param workspace The RooWorkspace to which the analysis will be imported.
  * @param datasets A vector of unique pointers to RooAbsData objects representing the data associated with the analysis.
  * @return void
  */
-void importAnalysis(const JSONNode &rootnode, const JSONNode &analysisNode, const JSONNode &likelihoodsNode,
+void importAnalysis(const JSONNode &rootnode, const JSONNode &analysisNode, const JSONNode &likelihoodsNode, const JSONNode &domainsNode,
                     RooWorkspace &workspace, const std::vector<std::unique_ptr<RooAbsData>> &datasets)
 {
    // if this is a toplevel pdf, also create a modelConfig for it
@@ -682,6 +683,16 @@ void importAnalysis(const JSONNode &rootnode, const JSONNode &analysisNode, cons
    RooArgSet mainPars{pars};
    pdf->getAllConstraints(observables, mainPars, /*stripDisconnected*/ true);
 
+   RooArgSet domainPars;
+   for(auto& domain: analysisNode["domains"].children()){
+     const auto& thisDomain = RooJSONFactoryWSTool::findNamedChild(domainsNode,domain.val());
+     if(!thisDomain || !thisDomain->has_child("axes")) continue;
+     for(auto& var:(*thisDomain)["axes"].children()){
+       auto* wsvar = workspace.var(RooJSONFactoryWSTool::name(var));
+       if(wsvar) domainPars.add(*wsvar);
+     }
+   }
+   
    RooArgSet nps;
    RooArgSet globs;
    for (const auto &p : pars) {
@@ -689,8 +700,8 @@ void importAnalysis(const JSONNode &rootnode, const JSONNode &analysisNode, cons
          continue;
       if (p->isConstant() && !mainPars.find(*p)) {
          globs.add(*p);
-      } else {
-         nps.add(*p);
+      } else if(domainPars.find(*p)){
+	nps.add(*p);
       }
    }
    mc->SetGlobalObservables(globs);
@@ -1707,7 +1718,7 @@ void RooJSONFactoryWSTool::exportSingleModelConfig(JSONNode &rootnode, RooStats:
 
    JSONNode &analysisNode = appendNamedChild(rootnode["analyses"], analysisName);
 
-   analysisNode["domains"].set_seq().append_child() << "default_domain";
+   auto& domains = analysisNode["domains"].set_seq();
 
    analysisNode["likelihood"] << analysisName;
 
@@ -1745,6 +1756,24 @@ void RooJSONFactoryWSTool::exportSingleModelConfig(JSONNode &rootnode, RooStats:
 
    writeList("parameters_of_interest", mc.GetParametersOfInterest());
 
+   auto& domainsNode = rootnode["domains"];
+   
+   std::string np_domain_name = analysisName + "_nuisance_parameters";
+   domains.append_child() << np_domain_name;
+   RooFit::JSONIO::Detail::Domains::ProductDomain np_domain;   
+   for(const auto& np : static_range_cast<const RooRealVar *>(*mc.GetNuisanceParameters())){
+     np_domain.readVariable(*np);
+   }
+   np_domain.writeJSON(appendNamedChild(domainsNode,np_domain_name));
+   
+   std::string poi_domain_name = analysisName + "_parameters_of_interest";   
+   domains.append_child() << poi_domain_name;  
+   RooFit::JSONIO::Detail::Domains::ProductDomain poi_domain;   
+   for(const auto& poi : static_range_cast<const RooRealVar *>(*mc.GetParametersOfInterest())){
+     poi_domain.readVariable(*poi);
+   }
+   poi_domain.writeJSON(appendNamedChild(domainsNode,poi_domain_name));   
+   
    auto &modelConfigAux = getRooFitInternal(rootnode, "ModelConfigs", analysisName);
    modelConfigAux.set_map();
    modelConfigAux["pdfName"] << pdf->GetName();
@@ -2111,7 +2140,7 @@ void RooJSONFactoryWSTool::importAllNodes(const JSONNode &n)
 
    if (auto analysesNode = n.find("analyses")) {
       for (JSONNode const &analysisNode : analysesNode->children()) {
-         importAnalysis(*_rootnodeInput, analysisNode, n["likelihoods"], _workspace, datasets);
+  	importAnalysis(*_rootnodeInput, analysisNode, n["likelihoods"], n["domains"], _workspace, datasets);
       }
    }
 
