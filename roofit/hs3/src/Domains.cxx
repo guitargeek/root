@@ -85,11 +85,18 @@ void Domains::writeJSON(RooFit::Detail::JSONNode &node) const
       domain.second.writeJSON(RooJSONFactoryWSTool::appendNamedChild(node, domain.first));
    }
 }
+
+void Domains::ProductDomain::readVariable(RooRealVar const &var)
+{
+  readVariable(var.GetName(),var.getMin(),var.getMax());
+}
   
 void Domains::ProductDomain::readVariable(const char *name, double min, double max)
 {
+   if (RooNumber::isInfinite(min) && RooNumber::isInfinite(max)) return;
+  
    auto &elem = _map[name];
-
+   
    if (!RooNumber::isInfinite(min)) {
       elem.hasMin = true;
       elem.min = min;
