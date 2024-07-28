@@ -97,6 +97,7 @@ if (NOT dataframe)
     list(APPEND dataframe_veto tmva/RBatchGenerator_PyTorch.py)
     list(APPEND dataframe_veto tmva/RBatchGenerator_filters_vectors.py)
     # RooFit tutorial depending on RDataFrame
+    list(APPEND dataframe_veto roofit/rf401*)
     list(APPEND dataframe_veto roofit/rf408*)
 endif()
 

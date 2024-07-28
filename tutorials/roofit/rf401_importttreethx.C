@@ -11,26 +11,29 @@
 /// \date July 2008
 /// \author Wouter Verkerke
 
-#include "RooRealVar.h"
-#include "RooDataSet.h"
-#include "RooDataHist.h"
 #include "RooCategory.h"
+#include "RooDataHist.h"
+#include "RooDataSet.h"
 #include "RooGaussian.h"
-#include "TCanvas.h"
-#include "TAxis.h"
 #include "RooPlot.h"
+#include "RooRealVar.h"
+
+#include "ROOT/RDataFrame.hxx"
+
+#include "TAxis.h"
+#include "TCanvas.h"
 #include "TH1.h"
-#include "TTree.h"
 #include "TRandom.h"
+#include "TTree.h"
+
 #include <map>
 
-using namespace RooFit;
-
 TH1 *makeTH1(const char *name, double mean, double sigma);
-TTree *makeTTree();
 
 void rf401_importttreethx()
 {
+   using namespace RooFit;
+
    // I m p o r t  m u l t i p l e   T H 1   i n t o   a   R o o D a t a H i s t
    // --------------------------------------------------------------------------
 
@@ -61,18 +64,29 @@ void rf401_importttreethx()
    // I m p o r t i n g   a   T T r e e   i n t o   a   R o o D a t a S e t   w i t h   c u t s
    // -----------------------------------------------------------------------------------------
 
-   TTree *tree = makeTTree();
+   const std::string treename = "tree";
+   const std::string filename = "rf401_importttreethx.root";
+
+   ROOT::RDataFrame(100)
+       .Define("x", "gRandom->Gaus(0, 3)")
+       .Define("y", "gRandom->Uniform() * 30 - 15")
+       .Define("z", "gRandom->Gaus(0, 5)")
+       .Define("i", "rdfentry_ % 3")
+       .Snapshot(treename, filename);
+
+   std::unique_ptr<TFile> file{TFile::Open(filename.c_str())};
+   TTree *tree = file->Get<TTree>(treename.c_str());
 
    // Define observables y,z
    RooRealVar y("y", "y", -10, 10);
    RooRealVar z("z", "z", -10, 10);
 
    // Import only observables (y,z)
-   RooDataSet ds("ds", "ds", RooArgSet(x, y), Import(*tree));
+   RooDataSet ds("ds", "ds", {x, y}, Import(*tree));
    ds.Print();
 
    // Import observables (x,y,z) but only event for which (y+z<0) is true
-   RooDataSet ds2("ds2", "ds2", RooArgSet(x, y, z), Import(*tree), Cut("y+z<0"));
+   RooDataSet ds2("ds2", "ds2", {x, y, z}, Import(*tree), Cut("y+z<0"));
    ds2.Print();
 
    // I m p o r t i n g   i n t e g e r   T T r e e   b r a n c h e s
@@ -80,7 +94,7 @@ void rf401_importttreethx()
 
    // Import integer tree branch as RooRealVar
    RooRealVar i("i", "i", 0, 5);
-   RooDataSet ds3("ds3", "ds3", RooArgSet(i, x), Import(*tree));
+   RooDataSet ds3("ds3", "ds3", {i, x}, Import(*tree));
    ds3.Print();
 
    // Define category i
@@ -90,8 +104,11 @@ void rf401_importttreethx()
 
    // Import integer tree branch as RooCategory (only events with i==0 and i==1
    // will be imported as those are the only defined states)
-   RooDataSet ds4("ds4", "ds4", RooArgSet(icat, x), Import(*tree));
+   RooDataSet ds4("ds4", "ds4", {icat, x}, Import(*tree));
    ds4.Print();
+
+   // No need for the TTree anymore, so we can close the file that contains it
+   file->Close();
 
    // I m p o r t  m u l t i p l e   R o o D a t a S e t s   i n t o   a   R o o D a t a S e t
    // ----------------------------------------------------------------------------------------
@@ -102,7 +119,7 @@ void rf401_importttreethx()
    std::unique_ptr<RooAbsData> dsC{ds2.reduce({x, y}, "z>5")};
 
    // Create a dataset that imports contents of all the above datasets mapped by index category c
-   RooDataSet dsABC{"dsABC", "dsABC", RooArgSet(x, y), Index(c), Import("SampleA", *dsA),
+   RooDataSet dsABC{"dsABC", "dsABC", {x, y}, Index(c), Import("SampleA", *dsA),
                     Import("SampleB", *dsB), Import("SampleC", *dsC)};
 
    dsABC.Print();
@@ -117,27 +134,4 @@ TH1 *makeTH1(const char *name, double mean, double sigma)
       hh->Fill(gRandom->Gaus(mean, sigma));
    }
    return hh;
-}
-
-TTree *makeTTree()
-{
-   // Create ROOT TTree filled with a Gaussian distribution in x and a uniform distribution in y
-
-   TTree *tree = new TTree("tree", "tree");
-   double *px = new double;
-   double *py = new double;
-   double *pz = new double;
-   Int_t *pi = new Int_t;
-   tree->Branch("x", px, "x/D");
-   tree->Branch("y", py, "y/D");
-   tree->Branch("z", pz, "z/D");
-   tree->Branch("i", pi, "i/I");
-   for (int i = 0; i < 100; i++) {
-      *px = gRandom->Gaus(0, 3);
-      *py = gRandom->Uniform() * 30 - 15;
-      *pz = gRandom->Gaus(0, 5);
-      *pi = i % 3;
-      tree->Fill();
-   }
-   return tree;
 }

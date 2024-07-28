@@ -14,7 +14,6 @@
 ## \authors Clemens Lange, Wouter Verkerke (C version)
 
 import ROOT
-from array import array
 
 
 def makeTH1(name, mean, sigma):
@@ -25,28 +24,6 @@ def makeTH1(name, mean, sigma):
         hh.Fill(ROOT.gRandom.Gaus(mean, sigma))
 
     return hh
-
-
-def makeTTree():
-    """Create ROOT ROOT.TTree filled with a Gaussian distribution in x and a uniform distribution in y."""
-
-    tree = ROOT.TTree("tree", "tree")
-    px = array("d", [0])
-    py = array("d", [0])
-    pz = array("d", [0])
-    pi = array("i", [0])
-    tree.Branch("x", px, "x/D")
-    tree.Branch("y", py, "y/D")
-    tree.Branch("z", pz, "z/D")
-    tree.Branch("i", pi, "i/I")
-    for i in range(100):
-        px[0] = ROOT.gRandom.Gaus(0, 3)
-        py[0] = ROOT.gRandom.Uniform() * 30 - 15
-        pz[0] = ROOT.gRandom.Gaus(0, 5)
-        pi[0] = i % 3
-        tree.Fill()
-
-    return tree
 
 
 # Import multiple TH1 into a RooDataHist
@@ -77,7 +54,18 @@ dh2.Print()
 # Importing a ROOT TTree into a RooDataSet with cuts
 # --------------------------------------------------------------------
 
-tree = makeTTree()
+treename = "tree"
+filename = "rf401_importttreethx_py.root"
+
+ROOT.RDataFrame(100) \
+    .Define("x", "gRandom->Gaus(0, 3)") \
+    .Define("y", "gRandom->Uniform() * 30 - 15") \
+    .Define("z", "gRandom->Gaus(0, 5)") \
+    .Define("i", "rdfentry_ % 3") \
+    .Snapshot(treename, filename)
+
+file = ROOT.TFile.Open(filename)
+tree = file[treename]
 
 # Define observables y,z
 y = ROOT.RooRealVar("y", "y", -10, 10)
@@ -107,6 +95,9 @@ icat = ROOT.RooCategory("i", "i", {"State0": 0, "State1": 1})
 # will be imported as those are the only defined states)
 ds4 = ROOT.RooDataSet("ds4", "ds4", {icat, x}, Import=tree)
 ds4.Print()
+
+# No need for the TTree anymore, so we can close the file that contains it
+file.Close()
 
 # Import multiple RooDataSets into a RooDataSet
 # ----------------------------------------------------------------------------------------
