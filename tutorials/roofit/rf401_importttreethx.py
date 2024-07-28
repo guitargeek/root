@@ -16,23 +16,18 @@
 import ROOT
 
 
-def makeTH1(name, mean, sigma):
-    """Create ROOT TH1 filled with a Gaussian distribution."""
-
-    hh = ROOT.TH1D(name, name, 100, -10, 10)
-    for i in range(1000):
-        hh.Fill(ROOT.gRandom.Gaus(mean, sigma))
-
-    return hh
-
-
 # Import multiple TH1 into a RooDataHist
 # ----------------------------------------------------------
 
 # Create thee ROOT ROOT.TH1 histograms
-hh_1 = makeTH1("hh1", 0, 3)
-hh_2 = makeTH1("hh2", -3, 1)
-hh_3 = makeTH1("hh3", +3, 4)
+hh_1 = ROOT.TH1D("hh1", "hh1", 100, -10., 10., 0, 3)
+hh_2 = ROOT.TH1D("hh2", "hh2", 100, -10., 10., -3, 1)
+hh_3 = ROOT.TH1D("hh3", "hh3", 100, -10., 10., +3, 4)
+
+for i in range(1000):
+    hh_1.Fill(ROOT.gRandom.Gaus(0., 3.))
+    hh_2.Fill(ROOT.gRandom.Gaus(-3., 1.))
+    hh_3.Fill(ROOT.gRandom.Gaus(+3., 4.))
 
 # Declare observable x
 x = ROOT.RooRealVar("x", "x", -10, 10)
@@ -42,6 +37,7 @@ c = ROOT.RooCategory("c", "c")
 c.defineType("SampleA")
 c.defineType("SampleB")
 c.defineType("SampleC")
+c.Print()
 
 # Create a binned dataset that imports contents of all ROOT.TH1 mapped by
 # index category c
