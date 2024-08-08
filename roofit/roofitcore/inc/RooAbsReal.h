@@ -25,6 +25,8 @@
 #include "RooFit/EvalContext.h"
 #include "RooGlobalFunc.h"
 
+#include "TMatrixDSym.h"
+
 #include <ROOT/RSpan.hxx>
 
 class RooDataSet ;
@@ -134,6 +136,8 @@ public:
   virtual double getValV(const RooArgSet* normalisationSet = nullptr) const ;
 
   double getPropagatedError(const RooFitResult &fr, const RooArgSet &nset = {}) const;
+  double getPropagatedError(RooArgList const& paramList, const RooArgSet &nset = {}) const;
+  double getPropagatedError(RooArgList const& paramList, TMatrixDSym const& covMat, const RooArgSet &nset = {}) const;
 
   bool operator==(double value) const ;
   bool operator==(const RooAbsArg& other) const override;
