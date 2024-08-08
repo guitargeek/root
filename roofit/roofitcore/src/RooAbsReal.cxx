@@ -2479,22 +2479,39 @@ double RooAbsReal::getPropagatedError(const RooFitResult &fr, const RooArgSet &n
      paramList.add(*rrvInAbsReal);
   }
 
-  std::vector<double> plusVar;
-  std::vector<double> minusVar;
-  plusVar.reserve(paramList.size());
-  minusVar.reserve(paramList.size());
-
   // Create std::vector of plus,minus variations for each parameter
   TMatrixDSym V(paramList.size() == fr.floatParsFinal().size() ?
       fr.covarianceMatrix() :
       fr.reducedCovarianceMatrix(paramList)) ;
+
+  return getPropagatedError(paramList, V, nset);
+}
+
+double RooAbsReal::getPropagatedError(RooArgList const& paramList, const RooArgSet &nset) const
+{
+   TMatrixDSym covMat(paramList.size());
+   for (std::size_t i = 0; i < paramList.size(); ++i) {
+       auto& rrv = static_cast<RooRealVar&>(paramList[i]);
+       double err = rrv.getError();
+       covMat(i, i) = err * err;
+   }
+   covMat.Print();
+   return getPropagatedError(paramList, covMat, nset);
+}
+
+double RooAbsReal::getPropagatedError(RooArgList const& paramList, TMatrixDSym const& covMat, const RooArgSet &nset) const
+{
+  std::vector<double> plusVar;
+  std::vector<double> minusVar;
+  plusVar.reserve(paramList.size());
+  minusVar.reserve(paramList.size());
 
   for (std::size_t ivar=0 ; ivar<paramList.size() ; ivar++) {
 
     auto& rrv = static_cast<RooRealVar&>(paramList[ivar]);
 
     double cenVal = rrv.getVal() ;
-    double errVal = sqrt(V(ivar,ivar)) ;
+    double errVal = sqrt(covMat(ivar,ivar)) ;
 
     // Make Plus variation
     rrv.setVal(cenVal+errVal) ;
@@ -2519,9 +2536,12 @@ double RooAbsReal::getPropagatedError(const RooFitResult &fr, const RooArgSet &n
   TMatrixDSym C(paramList.size()) ;
   std::vector<double> errVec(paramList.size()) ;
   for (std::size_t i=0 ; i<paramList.size() ; i++) {
-    errVec[i] = std::sqrt(V(i,i)) ;
+    errVec[i] = std::sqrt(covMat(i,i)) ;
     for (std::size_t j=i ; j<paramList.size() ; j++) {
-      C(i,j) = V(i,j) / std::sqrt(V(i,i)*V(j,j));
+      C(i,j) = covMat(i,j);
+      if(C(i,j)) {
+        C(i,j) = C(i,j) / std::sqrt(covMat(i,i)*covMat(j,j));
+      }
       C(j,i) = C(i,j) ;
     }
   }
