@@ -23,8 +23,8 @@ if(roofit)
         ROOT/_pythonization/_roofit/_rooabscollection.py
         ROOT/_pythonization/_roofit/_rooabsdata.py
         ROOT/_pythonization/_roofit/_rooabspdf.py
-        ROOT/_pythonization/_roofit/_rooabsreallvalue.py
         ROOT/_pythonization/_roofit/_rooabsreal.py
+        ROOT/_pythonization/_roofit/_rooabsreallvalue.py
         ROOT/_pythonization/_roofit/_rooarglist.py
         ROOT/_pythonization/_roofit/_rooargset.py
         ROOT/_pythonization/_roofit/_roocategory.py
@@ -42,6 +42,7 @@ if(roofit)
         ROOT/_pythonization/_roofit/_roorealvar.py
         ROOT/_pythonization/_roofit/_roosimultaneous.py
         ROOT/_pythonization/_roofit/_roosimwstool.py
+        ROOT/_pythonization/_roofit/_roostats.py
         ROOT/_pythonization/_roofit/_roovectordatastore.py
         ROOT/_pythonization/_roofit/_rooworkspace.py
         ROOT/_pythonization/_roofit/_utils.py)

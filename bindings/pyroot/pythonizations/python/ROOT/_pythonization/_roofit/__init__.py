@@ -56,8 +56,9 @@ from ._rooprodpdf import RooProdPdf
 from ._roorealvar import RooRealVar
 from ._roosimultaneous import RooSimultaneous
 from ._roosimwstool import RooSimWSTool
-from ._rooworkspace import RooWorkspace
+from ._roostats import pythonize_splot
 from ._roovectordatastore import RooVectorDataStore
+from ._rooworkspace import RooWorkspace
 
 
 # list of python classes that are used to pythonize RooFit classes
@@ -69,8 +70,8 @@ python_classes = [
     RooAbsRealLValue,
     RooArgList,
     RooArgSet,
-    RooBCPGenDecay,
     RooBCPEffDecay,
+    RooBCPGenDecay,
     RooBDecay,
     RooBMixDecay,
     RooCategory,
@@ -85,10 +86,10 @@ python_classes = [
     RooNLLVar,
     RooProdPdf,
     RooRealVar,
-    RooSimultaneous,
     RooSimWSTool,
-    RooWorkspace,
+    RooSimultaneous,
     RooVectorDataStore,
+    RooWorkspace,
 ]
 
 # list of python functions that are used to pythonize RooGlobalFunc function in RooFit
