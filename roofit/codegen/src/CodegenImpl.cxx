@@ -323,7 +323,42 @@ void codegenImpl(RooConstVar &arg, CodegenContext &ctx)
 
 void codegenImpl(RooConstraintSum &arg, CodegenContext &ctx)
 {
-   ctx.addResult(&arg, ctx.buildCall(mathFunc("constraintSum"), arg.list(), arg.list().size()));
+   RooArgSet gaussianSet;
+   RooArgSet nonGaussianSet;
+   std::string resName = RooFit::Detail::makeValidVarName(arg.GetName()) + "Result";
+   for (RooAbsArg const* pdf : arg.list()) {
+      //auto normalizedPdf = dynamic_cast<RooFit::Detail::RooNormalizedPdf const*>(pdf);
+      //if(!normalizedPdf) {
+          //nonGaussianSet.add(*pdf);
+          //continue;
+      //}
+      //if(auto gauss = dynamic_cast<RooGaussian const*>(&normalizedPdf->pdf())) {
+         //if(ctx.isParam(gauss->getX()) && gauss->getMean().isConstant() && gauss->getSigma().isConstant()) {
+            //gaussianSet.add(*gauss);
+            //continue;
+         //}
+      //}
+      nonGaussianSet.add(*pdf);
+   }
+   std::vector<int> paramIndices;
+   std::vector<double> means;
+   std::vector<double> sigmas;
+   std::vector<double> norms;
+   for (auto* gauss : static_range_cast<RooGaussian const*>(gaussianSet)) {
+      paramIndices.push_back(ctx.getParamIdx(gauss->getX()));
+      means.push_back(gauss->getMean().getVal());
+      sigmas.push_back(gauss->getSigma().getVal());
+      // TODO: assert that 1 is really the right code
+      norms.push_back(gauss->analyticalIntegral(1));
+   }
+   ctx.addResult(&arg, resName);
+   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
+   std::stringstream code;
+   if(!gaussianSet.empty()) {
+      code << resName + " += " << ctx.buildCall("RooFit::Detail::MathFuncs::nlogGaussianSum", std::string{"params"}, gaussianSet.size(), paramIndices, means, sigmas, norms) << ";\n";
+   }
+   code << resName + " += " << ctx.buildCall("RooFit::Detail::MathFuncs::constraintSum", nonGaussianSet, nonGaussianSet.size()) << ";\n";
+   ctx.addToCodeBody(&arg, code.str());
 }
 
 void codegenImpl(RooGamma &arg, CodegenContext &ctx)

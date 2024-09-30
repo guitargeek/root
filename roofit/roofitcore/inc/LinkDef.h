@@ -323,6 +323,7 @@
 #pragma link C++ class RooStats::ModelConfig+;
 #pragma link C++ class RooStudyManager+ ;
 #pragma link C++ class RooStudyPackage+ ;
+#pragma link C++ class RooGaussian+ ;
 #pragma link C++ class RooAbsStudy+ ;
 #pragma link C++ class RooGenFitStudy+ ;
 #pragma link C++ class RooExtendedBinding+ ;

@@ -41,6 +41,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooAbsArg.h
     RooAbsBinning.h
     RooAbsCache.h
+    RooGaussian.h
     RooAbsCacheElement.h
     RooAbsCachedPdf.h
     RooAbsCachedReal.h
@@ -425,6 +426,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooTruthModel.cxx
     src/RooUniformBinning.cxx
     src/RooUnitTest.cxx
+    src/RooGaussian.cxx
     src/RooVectorDataStore.cxx
     src/RooWorkspace.cxx
     src/RooWrapperPdf.cxx

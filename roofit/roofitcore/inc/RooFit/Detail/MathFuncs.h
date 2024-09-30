@@ -89,6 +89,17 @@ inline double gaussian(double x, double mean, double sigma)
    return std::exp(-0.5 * arg * arg / (sig * sig));
 }
 
+inline double nlogGaussianSum(double *params, int n, const int *paramIndices, double const *mean, double const *sigma, double const* norms)
+{
+   double res = 0.0;
+   for (int i = 0; i < n; ++i) {
+      const double arg = params[paramIndices[i]] - mean[i];
+      const double sig = sigma[i];
+      res -= -0.5 * arg * arg / (sig * sig) - norms[i];
+   }
+   return res;
+}
+
 inline double product(double const *factors, std::size_t nFactors)
 {
    double out = 1.0;
