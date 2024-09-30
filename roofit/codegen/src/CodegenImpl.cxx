@@ -130,6 +130,14 @@ void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx)
       ctx.addResult(&arg, ctx.buildCall(mathFunc("ratio"), *arg.cache()._rearrangedNum, *arg.cache()._rearrangedDen));
    } else {
       ctx.addResult(&arg, ctx.buildCall(mathFunc("product"), arg.cache()._partList, arg.cache()._partList.size()));
+      std::string result;
+      // Build a (node1 * node2 * node3 * ...) like expression.
+      result = '(';
+      for (RooAbsArg* item : arg.cache()._partList) {
+         result += ctx.getResult(*item) + "*";
+      }
+      result.back() = ')';
+      ctx.addResult(&arg, result);
    }
 }
 
@@ -259,7 +267,7 @@ void codegenImpl(RooAddition &arg, CodegenContext &ctx)
             result += '+';
          continue;
       }
-      result += ctx.buildFunction(*component, ctx.outputSizes()) + "(params, obs, xlArr)";
+      result += ctx.buildFunction(*component, ctx.outputSizes()) + "(params, obs, xlArr, xlIntArr)";
       ++i;
       if (i < arg.list().size())
          result += '+';
@@ -493,7 +501,15 @@ void codegenImpl(RooPolynomial &arg, CodegenContext &ctx)
 
 void codegenImpl(RooProduct &arg, CodegenContext &ctx)
 {
-   ctx.addResult(&arg, ctx.buildCall(mathFunc("product"), arg.realComponents(), arg.realComponents().size()));
+   std::string result;
+
+   // Build a (node1 * node2 * node3 * ...) like expression.
+   result = '(';
+   for (RooAbsArg* item : arg.realComponents()) {
+      result += ctx.getResult(*item) + "*";
+   }
+   result.back() = ')';
+   ctx.addResult(&arg, result);
 }
 
 void codegenImpl(RooRatio &arg, CodegenContext &ctx)
@@ -571,9 +587,9 @@ void codegenImpl(RooRealIntegral &arg, CodegenContext &ctx)
       << "   double eps = d / n;\n"
       << "   for (int i = 0; i < n; ++i) {\n"
       << "      " << obsName << "[0] = " << intVar.getMin(arg.intRange()) << " + eps * i;\n"
-      << "      double tmpA = " << funcName << "(params, " << obsName << ", xlArr);\n"
+      << "      double tmpA = " << funcName << "(params, " << obsName << ", xlArr, xlIntArr);\n"
       << "      " << obsName << "[0] = " << intVar.getMin(arg.intRange()) << " + eps * (i + 1);\n"
-      << "      double tmpB = " << funcName << "(params, " << obsName << ", xlArr);\n"
+      << "      double tmpB = " << funcName << "(params, " << obsName << ", xlArr, xlIntArr);\n"
       << "      " << resName << " += (tmpA + tmpB) * 0.5 * eps;\n"
       << "   }\n"
       << "}\n";
@@ -739,6 +755,11 @@ std::string codegenIntegralImpl(RooGaussian &arg, int code, const char *rangeNam
 {
    auto &constant = code == 1 ? arg.getMean() : arg.getX();
    auto &integrand = dynamic_cast<RooAbsRealLValue const &>(code == 1 ? arg.getX() : arg.getMean());
+
+   // If everything is constant, just hard code
+   if(constant.isConstant() && arg.getSigma().isConstant()) {
+      return RooNumber::toString(arg.analyticalIntegral(code, rangeName));
+   }
 
    return ctx.buildCall(mathFunc("gaussianIntegral"), integrand.getMin(rangeName), integrand.getMax(rangeName),
                         constant, arg.getSigma());

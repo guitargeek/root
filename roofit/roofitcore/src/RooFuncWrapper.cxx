@@ -78,6 +78,7 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal &
    int idx = 0;
    for (RooAbsArg *param : _params) {
       ctx.addResult(param, "params[" + std::to_string(idx) + "]");
+      ctx.addParamIdx(param, idx);
       idx++;
    }
 
@@ -103,6 +104,7 @@ RooFuncWrapper::RooFuncWrapper(const char *name, const char *title, RooAbsReal &
    _func = reinterpret_cast<Func>(gInterpreter->ProcessLine((_funcName + ";").c_str()));
 
    _xlArr = ctx.xlArr();
+   _xlIntArr = ctx.xlIntArr();
    _collectedFunctions = ctx.collectedFunctions();
 }
 
@@ -193,7 +195,7 @@ void RooFuncWrapper::createGradient()
    // function pointer would be ambiguous.
    std::stringstream ss;
    RooFit::Detail::TimingScope timingScope(print, "Gradient IR to machine code time:");
-   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << gradName << ");";
+   ss << "static_cast<void (*)(double *, double const *, double const *, int const *, double *)>(" << gradName << ");";
    _grad = reinterpret_cast<Grad>(gInterpreter->ProcessLine(ss.str().c_str()));
    _hasGradient = true;
 }
@@ -203,7 +205,7 @@ void RooFuncWrapper::gradient(double *out) const
    updateGradientVarBuffer();
    std::fill(out, out + _params.size(), 0.0);
 
-   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), out);
+   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _xlIntArr.data(), out);
 }
 
 void RooFuncWrapper::updateGradientVarBuffer() const
@@ -218,14 +220,14 @@ double RooFuncWrapper::evaluate() const
       return _absReal->getVal();
    updateGradientVarBuffer();
 
-   return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data());
+   return _func(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), _xlIntArr.data());
 }
 
 void RooFuncWrapper::gradient(const double *x, double *g) const
 {
    std::fill(g, g + _params.size(), 0.0);
 
-   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), g);
+   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), _xlIntArr.data(), g);
 }
 
 /// @brief Dumps a macro "filename.C" that can be used to test and debug the generated code and gradient.
@@ -288,12 +290,29 @@ void gradient_request() {
       outFile << declStr;
    };
 
+   auto writeIntVector = [&](std::string const &name, std::span<const int> vec) {
+      std::stringstream decl;
+      decl << "std::vector<int> " << name << " = {";
+      for (std::size_t i = 0; i < vec.size(); ++i) {
+         if (i % 10 == 0)
+            decl << "\n    ";
+         decl << vec[i];
+         if (i < vec.size() - 1)
+            decl << ", ";
+      }
+      decl << "\n};\n";
+
+      outFile << decl.str();
+   };
+
    outFile << "// clang-format off\n" << std::endl;
    writeVector("parametersVec", _gradientVarBuffer);
    outFile << std::endl;
    writeVector("observablesVec", _observables);
    outFile << std::endl;
    writeVector("auxConstantsVec", _xlArr);
+   outFile << std::endl;
+   writeIntVector("auxIntConstantsVec", _xlIntArr);
    outFile << std::endl;
    outFile << "// clang-format on\n" << std::endl;
 
@@ -306,11 +325,11 @@ void )" << filename
 
    auto func = [&](std::span<double> params) {
       return )"
-           << _funcName << R"((params.data(), observablesVec.data(), auxConstantsVec.data());
+           << _funcName << R"((params.data(), observablesVec.data(), auxConstantsVec.data(), auxIntConstantsVec.data());
    };
    auto grad = [&](std::span<double> params, std::span<double> out) {
       return )"
-           << _funcName << R"(_grad_0(parametersVec.data(), observablesVec.data(), auxConstantsVec.data(),
+           << _funcName << R"(_grad_0(parametersVec.data(), observablesVec.data(), auxConstantsVec.data(), auxIntConstantsVec.data(),
                                         out.data());
    };
 

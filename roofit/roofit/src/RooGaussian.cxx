@@ -24,6 +24,7 @@ Plain Gaussian p.d.f
 #include "RooBatchCompute.h"
 #include "RooHelpers.h"
 #include "RooRandom.h"
+#include "RooNumber.h"
 
 #include <RooFit/Detail/MathFuncs.h>
 

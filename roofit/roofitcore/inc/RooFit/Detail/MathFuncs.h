@@ -44,7 +44,7 @@ inline double binomial(int n, int k)
 }
 
 /// The caller needs to make sure that there is at least one coefficient.
-inline double bernstein(double x, double xmin, double xmax, double *coefs, int nCoefs)
+inline double bernstein(double x, double xmin, double xmax, double const *coefs, int nCoefs)
 {
    double xScaled = (x - xmin) / (xmax - xmin); // rescale to [0,1]
    int degree = nCoefs - 1;                     // n+1 polys of degree n
@@ -394,7 +394,7 @@ inline double nll(double pdf, double weight, int binnedL, int doBinOffset)
    }
 }
 
-inline double recursiveFraction(double *a, unsigned int n)
+inline double recursiveFraction(double const *a, unsigned int n)
 {
    double prod = a[0];
 
@@ -731,7 +731,7 @@ inline double cbShapeIntegral(double mMin, double mMax, double m0, double sigma,
    return result;
 }
 
-inline double bernsteinIntegral(double xlo, double xhi, double xmin, double xmax, double *coefs, int nCoefs)
+inline double bernsteinIntegral(double xlo, double xhi, double xmin, double xmax, double const *coefs, int nCoefs)
 {
    double xloScaled = (xlo - xmin) / (xmax - xmin);
    double xhiScaled = (xhi - xmin) / (xmax - xmin);

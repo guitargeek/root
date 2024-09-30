@@ -45,6 +45,21 @@ void CodegenContext::addResult(const char *key, std::string const &value)
       addResult(namePtr, value);
 }
 
+void CodegenContext::addParamIdx(RooAbsArg const *key, int index)
+{
+   _paramIndices[key->namePtr()] = index;
+}
+
+bool CodegenContext::isParam(RooAbsArg const &key) const
+{
+   return _paramIndices.find(key.namePtr()) != _paramIndices.end();
+}
+
+int CodegenContext::getParamIdx(RooAbsArg const &key) const
+{
+   return _paramIndices.at(key.namePtr());
+}
+
 void CodegenContext::addResult(TNamed const *key, std::string const &value)
 {
    _nodeNames[key] = value;
@@ -295,6 +310,17 @@ void CodegenContext::popScope()
    _code.back() += active_scope;
 }
 
+std::string CodegenContext::buildArg(std::span<const int> arr)
+{
+   unsigned int n = arr.size();
+   std::string offset = std::to_string(_xlIntArr.size());
+   _xlIntArr.reserve(_xlIntArr.size() + n);
+   for (unsigned int i = 0; i < n; i++) {
+      _xlIntArr.push_back(arr[i]);
+   }
+   return "xlIntArr + " + offset;
+}
+
 bool CodegenContext::isScopeIndependent(RooAbsArg const *in) const
 {
    return !in->isReducerNode() && outputSize(in->namePtr()) == 1;
@@ -324,6 +350,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::map<RooFit::Detail::Dat
       }
    }
    ctx._xlArr = _xlArr;
+   ctx._xlIntArr = _xlIntArr;
    ctx._collectedFunctions = _collectedFunctions;
 
    static int iCodegen = 0;
@@ -339,7 +366,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::map<RooFit::Detail::Dat
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr) {\n"
+   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr, int const *xlIntArr) {\n"
                    << funcBody << "\n}";
    ctx._collectedFunctions.emplace_back(funcName);
    if (!gInterpreter->Declare(bodyWithSigStrm.str().c_str())) {
@@ -350,6 +377,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::map<RooFit::Detail::Dat
    }
 
    _xlArr = ctx._xlArr;
+   _xlIntArr = ctx._xlIntArr;
    _collectedFunctions = ctx._collectedFunctions;
 
    return funcName;
