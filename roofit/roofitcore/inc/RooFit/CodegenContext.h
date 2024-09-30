@@ -48,6 +48,10 @@ public:
    void addResult(RooAbsArg const *key, std::string const &value);
    void addResult(const char *key, std::string const &value);
 
+   void addParamIdx(RooAbsArg const *key, int idx);
+   bool isParam(RooAbsArg const &key) const;
+   int getParamIdx(RooAbsArg const &key) const;
+
    std::string const &getResult(RooAbsArg const &arg);
 
    template <class T>
@@ -100,9 +104,12 @@ public:
    std::string buildArg(RooAbsCollection const &x, std::string const &arrayType = "double");
 
    std::string buildArg(std::span<const double> arr);
-   std::string buildArg(std::span<const int> arr) { return buildArgSpanImpl(arr); }
+   std::string buildArg(std::span<const int> arr);
+
+   std::string buildArg(std::string const &x) { return x; }
 
    std::vector<double> const &xlArr() { return _xlArr; }
+   std::vector<int> const &xlIntArr() { return _xlIntArr; }
 
    void collectFunction(std::string const &name);
    std::string const &collectedCode() { return _collectedCode; }
@@ -126,8 +133,6 @@ public:
 private:
    void pushScope();
    void popScope();
-   template <class T>
-   std::string buildArgSpanImpl(std::span<const T> arr);
 
    bool isScopeIndependent(RooAbsArg const *in) const;
 
@@ -149,8 +154,6 @@ private:
    {
       return std::to_string(x);
    }
-
-   std::string buildArg(std::string const &x) { return x; }
 
    std::string buildArg(std::nullptr_t) { return "nullptr"; }
 
@@ -181,6 +184,7 @@ private:
 
    /// @brief Map of node names to their result strings.
    std::unordered_map<const TNamed *, std::string> _nodeNames;
+   std::unordered_map<const TNamed *, int> _paramIndices;
    /// @brief A map to keep track of the observable indices if they are non scalar.
    std::unordered_map<const TNamed *, int> _vecObsIndices;
    /// @brief Indicate whether a node depends on the dataset.
@@ -194,6 +198,7 @@ private:
    /// @brief A map to keep track of list names as assigned by addResult.
    std::unordered_map<RooFit::UniqueId<RooAbsCollection>::Value_t, std::string> _listNames;
    std::vector<double> _xlArr;
+   std::vector<int> _xlIntArr;
    std::vector<std::string> _collectedFunctions;
    std::string _collectedCode;
 };
@@ -207,24 +212,6 @@ template <>
 inline std::string CodegenContext::typeName<int>() const
 {
    return "int";
-}
-
-template <class T>
-std::string CodegenContext::buildArgSpanImpl(std::span<const T> arr)
-{
-   unsigned int n = arr.size();
-   std::string arrName = getTmpVarName();
-   std::stringstream ss;
-   ss << typeName<T>() << " " << arrName << "[" << n << "] = {";
-   for (unsigned int i = 0; i < n; i++) {
-      ss << " " << arr[i] << ",";
-   }
-   std::string arrDecl = ss.str();
-   arrDecl.back() = '}';
-   arrDecl += ";\n";
-   addToCodeBody(arrDecl, true);
-
-   return arrName;
 }
 
 void declareDispatcherCode(std::string const &funcName);
