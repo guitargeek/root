@@ -35,7 +35,11 @@ arguments.
 #include "RooArgSet.h"
 #include "RooMsgService.h"
 #include "RooHelpers.h"
+#include "RooGaussian.h"
 #include "RooAbsCategoryLValue.h"
+#include "RooNormalizedPdf.h"
+
+#include "RooFitImplHelpers.h"
 
 ClassImp(RooConstraintSum);
 
@@ -81,7 +85,48 @@ double RooConstraintSum::evaluate() const
 
 void RooConstraintSum::translate(RooFit::Detail::CodeSquashContext &ctx) const
 {
-   ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::constraintSum", _set1, _set1.size()));
+   RooArgSet gaussianSet;
+   RooArgSet nonGaussianSet;
+
+   std::string resName = RooFit::Detail::makeValidVarName(GetName()) + "Result";
+
+   for (RooAbsArg const* arg : _set1) {
+      //auto normalizedPdf = dynamic_cast<RooNormalizedPdf const*>(arg);
+      //if(!normalizedPdf) {
+          //nonGaussianSet.add(*arg);
+          //continue;
+      //}
+      //if(auto gauss = dynamic_cast<RooGaussian const*>(&normalizedPdf->pdf())) {
+         //if(ctx.isParam(gauss->getX()) && gauss->getMean().isConstant() && gauss->getSigma().isConstant()) {
+            //gaussianSet.add(*gauss);
+            //continue;
+         //}
+      //}
+      nonGaussianSet.add(*arg);
+   }
+
+   std::vector<int> paramIndices;
+   std::vector<double> means;
+   std::vector<double> sigmas;
+   std::vector<double> norms;
+   for (auto* gauss : static_range_cast<RooGaussian const*>(gaussianSet)) {
+      paramIndices.push_back(ctx.getParamIdx(gauss->getX()));
+      means.push_back(gauss->getMean().getVal());
+      sigmas.push_back(gauss->getSigma().getVal());
+      // TODO: assert that 1 is really the right code
+      norms.push_back(gauss->analyticalIntegral(1));
+   }
+
+   ctx.addResult(this, resName);
+   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
+
+   std::stringstream code;
+   if(!gaussianSet.empty()) {
+      code << resName + " += " << ctx.buildCall("RooFit::Detail::MathFuncs::nlogGaussianSum", "params", gaussianSet.size(), paramIndices, means, sigmas, norms) << ";\n";
+   }
+   code << resName + " += " << ctx.buildCall("RooFit::Detail::MathFuncs::constraintSum", nonGaussianSet, nonGaussianSet.size()) << ";\n";
+
+   ctx.addToCodeBody(this, code.str());
 }
 
 void RooConstraintSum::doEval(RooFit::EvalContext &ctx) const

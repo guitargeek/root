@@ -68,6 +68,9 @@ public:
 
    bool canComputeBatchWithCuda() const override { return true; }
 
+   RooAbsPdf const &pdf() const { return *_pdf; }
+   RooAbsReal const &integral() const { return *_normIntegral; }
+
 protected:
    void doEval(RooFit::EvalContext &) const override;
    double evaluate() const override
