@@ -24,6 +24,7 @@ Plain Gaussian p.d.f
 #include "RooBatchCompute.h"
 #include "RooHelpers.h"
 #include "RooRandom.h"
+#include "RooNumber.h"
 
 #include <RooFit/Detail/MathFuncs.h>
 
@@ -142,6 +143,11 @@ std::string RooGaussian::buildCallToAnalyticIntegral(Int_t code, const char *ran
 {
    auto& constant  = code == 1 ? mean : x;
    auto& integrand = code == 1 ? x : mean;
+
+   // If everything is constant, just hard code
+   if(constant->isConstant() && sigma->isConstant()) {
+      return RooNumber::toString(analyticalIntegral(code, rangeName));
+   }
 
    return ctx.buildCall("RooFit::Detail::MathFuncs::gaussianIntegral",
                         integrand.min(rangeName), integrand.max(rangeName), constant, sigma);

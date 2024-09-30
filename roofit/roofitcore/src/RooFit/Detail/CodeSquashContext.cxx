@@ -25,8 +25,8 @@ namespace RooFit {
 namespace Detail {
 
 CodeSquashContext::CodeSquashContext(std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes,
-                                     std::vector<double> &xlarr, Experimental::RooFuncWrapper &wrapper)
-   : _wrapper{&wrapper}, _nodeOutputSizes(outputSizes), _xlArr(xlarr)
+                                     std::vector<double> &xlarr, std::vector<int> &xlintarr, Experimental::RooFuncWrapper &wrapper)
+   : _wrapper{&wrapper}, _nodeOutputSizes(outputSizes), _xlArr(xlarr), _xlIntArr{xlintarr}
 {
 }
 
@@ -38,6 +38,21 @@ void CodeSquashContext::addResult(const char *key, std::string const &value)
    const TNamed *namePtr = RooNameReg::known(key);
    if (namePtr)
       addResult(namePtr, value);
+}
+
+void CodeSquashContext::addParamIdx(RooAbsArg const *key, int index)
+{
+   _paramIndices[key->namePtr()] = index;
+}
+
+bool CodeSquashContext::isParam(RooAbsArg const &key) const
+{
+   return _paramIndices.find(key.namePtr()) != _paramIndices.end();
+}
+
+int CodeSquashContext::getParamIdx(RooAbsArg const &key) const
+{
+   return _paramIndices.at(key.namePtr());
 }
 
 void CodeSquashContext::addResult(TNamed const *key, std::string const &value)
@@ -258,6 +273,17 @@ std::string CodeSquashContext::buildArg(std::span<const double> arr)
       _xlArr.push_back(arr[i]);
    }
    return "xlArr + " + offset;
+}
+
+std::string CodeSquashContext::buildArg(std::span<const int> arr)
+{
+   unsigned int n = arr.size();
+   std::string offset = std::to_string(_xlIntArr.size());
+   _xlIntArr.reserve(_xlIntArr.size() + n);
+   for (unsigned int i = 0; i < n; i++) {
+      _xlIntArr.push_back(arr[i]);
+   }
+   return "xlIntArr + " + offset;
 }
 
 bool CodeSquashContext::isScopeIndependent(RooAbsArg const *in) const

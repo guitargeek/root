@@ -492,7 +492,14 @@ void RooProduct::setCacheAndTrackHints(RooArgSet& trackNodes)
 
 void RooProduct::translate(RooFit::Detail::CodeSquashContext &ctx) const
 {
-   ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::product", _compRSet, _compRSet.size()));
+   std::string result;
+   // Build a (node1 * node2 * node3 * ...) like expression.
+   result = '(';
+   for (RooAbsArg* item : _compRSet) {
+      result += ctx.getResult(*item) + "*";
+   }
+   result.back() = ')';
+   ctx.addResult(this, result);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

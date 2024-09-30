@@ -2345,7 +2345,14 @@ public:
       if (_cache->_isRearranged) {
          ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::ratio", *_cache->_rearrangedNum, *_cache->_rearrangedDen));
       } else {
-         ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::product", _cache->_partList, _cache->_partList.size()));
+         std::string result;
+         // Build a (node1 * node2 * node3 * ...) like expression.
+         result = '(';
+         for (RooAbsArg* item : _cache->_partList) {
+            result += ctx.getResult(*item) + "*";
+         }
+         result.back() = ')';
+         ctx.addResult(this, result);
       }
    }
 
