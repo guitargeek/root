@@ -44,10 +44,10 @@ public:
    /// synchronization in subclasses.
    virtual bool Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameters);
 
-   RooArgList *GetFloatParamList() { return _floatParamList.get(); }
-   RooArgList *GetConstParamList() { return _constParamList.get(); }
-   RooArgList *GetInitFloatParamList() { return _initFloatParamList.get(); }
-   RooArgList *GetInitConstParamList() { return _initConstParamList.get(); }
+   RooArgList *GetFloatParamList() { return &_floatParamList; }
+   RooArgList *GetConstParamList() { return &_constParamList; }
+   RooArgList *GetInitFloatParamList() { return &_initFloatParamList; }
+   RooArgList *GetInitConstParamList() { return &_initConstParamList; }
    Int_t GetNumInvalidNLL() const { return _numBadNLL; }
 
    double &GetMaxFCN() { return _maxFCN; }
@@ -122,10 +122,10 @@ protected:
 
    bool _optConst = false;
 
-   std::unique_ptr<RooArgList> _floatParamList;
-   std::unique_ptr<RooArgList> _constParamList;
-   std::unique_ptr<RooArgList> _initFloatParamList;
-   std::unique_ptr<RooArgList> _initConstParamList;
+   RooArgList _floatParamList;
+   RooArgList _constParamList;
+   RooArgList _initFloatParamList;
+   RooArgList _initConstParamList;
 
    std::ofstream *_logfile = nullptr;
 };

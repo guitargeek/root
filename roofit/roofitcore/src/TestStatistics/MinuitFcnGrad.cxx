@@ -231,7 +231,7 @@ bool MinuitFcnGrad::syncParameterValuesFromMinuitCalls(const double *x, bool min
          bool parameter_changed = (x[ix] != _minuitExternalX[ix]);
          aParamWasUpdated |= parameter_changed;
          aParamIsMismatched |=
-            (static_cast<RooRealVar const *>(_floatParamList->at(ix))->getVal() != _minuitExternalX[ix]);
+            (static_cast<RooRealVar const *>(_floatParamList.at(ix))->getVal() != _minuitExternalX[ix]);
       }
 
       _minuitInternalRooFitXMismatch = aParamIsMismatched;
