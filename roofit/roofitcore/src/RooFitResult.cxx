@@ -805,7 +805,7 @@ bool RooFitResult::isIdenticalNoCov(const RooFitResult& other, double tol, doubl
     return right != 0. ? std::abs((left - right)/right) >= tolerance : std::abs(left) >= tolerance;
   };
 
-  auto compare = [&](RooArgList const& pars, RooArgList const& otherpars, std::string const& prefix, bool isVerbose) {
+  auto compare = [&](RooArgList const& pars, RooArgList const& otherpars, std::string const& prefix, bool isVerbose, bool compareErrors) {
     bool out = true;
 
     for (auto * tv : static_range_cast<const RooAbsReal*>(pars)) {
@@ -826,7 +826,7 @@ bool RooFitResult::isIdenticalNoCov(const RooFitResult& other, double tol, doubl
       // Compare parameter error if it's a RooRealVar
       auto * rtv = dynamic_cast<RooRealVar const*>(tv);
       auto * rov = dynamic_cast<RooRealVar const*>(ov);
-      if(rtv && rov) {
+      if(compareErrors && rtv && rov) {
         if (ov && deviation(rtv->getError(), rov->getError(), tolErr)) {
           isErrorIdenticalErrMsg(prefix, rtv, rov, isVerbose);
           out = false;
@@ -842,9 +842,29 @@ bool RooFitResult::isIdenticalNoCov(const RooFitResult& other, double tol, doubl
     ret = false;
   }
 
-  ret &= compare(*_constPars, *other._constPars, "constant parameter", verbose);
-  ret &= compare(*_initPars, *other._initPars, "initial parameter", verbose);
-  ret &= compare(*_finalPars, *other._finalPars, "final parameter", verbose);
+  // Depending on how the state of the minimizer was changed during the fitting
+  // steps, there can be artifacts in the initial parameter list. These are
+  // parameters that were made constant during the lifetime of the
+  // RooMinimizer. Before ROOT 6.34 such parameters were both in the
+  // "constant parameters" and in the "initial parameters" list.
+  // Afterwards they were only in the constant parameter list. We are excluding
+  // these parameters from the validation of the initial parameter list, to
+  // avoid having to update the ROOT files with the reference results for unit
+  // tests (which is always risky and increases the size of the repository
+  // significantly).
+  RooArgList initParsCleanedFromConstPars;
+  for(RooAbsArg *arg : *_initPars) {
+    if(!_constPars->find(*arg)) initParsCleanedFromConstPars.add(*arg);
+  }
+  RooArgList initParsCleanedFromConstParsOther;
+  for(RooAbsArg *arg : *other._initPars) {
+    if(!other._constPars->find(*arg)) initParsCleanedFromConstParsOther.add(*arg);
+  }
+
+  // We don't care about error values for constant parameters
+  ret &= compare(*_constPars, *other._constPars, "constant parameter", verbose, /*compareErrors=*/false);
+  ret &= compare(initParsCleanedFromConstPars, initParsCleanedFromConstParsOther, "initial parameter", verbose, true);
+  ret &= compare(*_finalPars, *other._finalPars, "final parameter", verbose, true);
 
   return ret;
 }
