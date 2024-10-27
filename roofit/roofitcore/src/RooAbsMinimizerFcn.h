@@ -33,7 +33,6 @@ class RooAbsMinimizerFcn {
 
 public:
    RooAbsMinimizerFcn(RooArgList paramList, RooMinimizer *context);
-   RooAbsMinimizerFcn(const RooAbsMinimizerFcn &other);
    virtual ~RooAbsMinimizerFcn() = default;
 
    /// Informs Minuit through its parameter_settings vector of RooFit parameter properties.
@@ -44,10 +43,9 @@ public:
    /// synchronization in subclasses.
    virtual bool Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameters);
 
-   RooArgList *GetFloatParamList() { return &_floatParamList; }
-   RooArgList *GetConstParamList() { return &_constParamList; }
-   RooArgList *GetInitFloatParamList() { return &_initFloatParamList; }
-   RooArgList *GetInitConstParamList() { return &_initConstParamList; }
+   RooArgList floatParams() const;
+   RooArgList constParams() const;
+   RooArgList initFloatParams() const;
    Int_t GetNumInvalidNLL() const { return _numBadNLL; }
 
    double &GetMaxFCN() { return _maxFCN; }
@@ -70,7 +68,7 @@ public:
    bool SetLogFile(const char *inLogfile);
    std::ofstream *GetLogFile() { return _logfile; }
 
-   unsigned int getNDim() const { return _nDim; }
+   unsigned int getNDim() const;
 
    // In the past, the `getNDim` function was called just `NDim`. The function
    // was renamed to match the code convention (lower case for function names),
@@ -94,18 +92,13 @@ protected:
    /// to the function to be minimized. For a RooAbsArg, this would be RooAbsArg::constOptimizeTestStatistic.
    virtual void setOptimizeConstOnFunction(RooAbsArg::ConstOpCode opcode, bool doAlsoTrackingOpt) = 0;
 
-   // used in BackProp (Minuit results -> RooFit) and ApplyCovarianceMatrix
-   void SetPdfParamErr(Int_t index, double value);
-   void ClearPdfParamAsymErr(Int_t index);
-   void SetPdfParamErr(Int_t index, double loVal, double hiVal);
-
    void printEvalErrors() const;
 
    double applyEvalErrorHandling(double fvalue) const;
    void finishDoEval() const;
 
    // members
-   RooMinimizer *_context;
+   RooMinimizer *_context = nullptr;
 
    // the following four are mutable because DoEval is const (in child classes)
    // Reset the *largest* negative log-likelihood value we have seen so far:
@@ -118,14 +111,10 @@ protected:
    // functions to be actually const (even though state still changes in the
    // error handling object).
 
-   unsigned int _nDim = 0;
-
    bool _optConst = false;
 
-   RooArgList _floatParamList;
-   RooArgList _constParamList;
-   RooArgList _initFloatParamList;
-   RooArgList _initConstParamList;
+   RooArgList _allParams;
+   RooArgList _allParamsInit;
 
    std::ofstream *_logfile = nullptr;
 };

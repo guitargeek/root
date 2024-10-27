@@ -219,6 +219,7 @@ bool MinuitFcnGrad::syncParameterValuesFromMinuitCalls(const double *x, bool min
    } else {
       bool aParamIsMismatched = false;
 
+      RooArgList floatParamList = floatParams();
       for (std::size_t ix = 0; ix < NDim(); ++ix) {
          // Note: the return value of SetPdfParamVal does not always mean that the parameter's value in the RooAbsReal
          // changed since last time! If the value was out of range bin, setVal was still called, but the value was not
@@ -231,7 +232,7 @@ bool MinuitFcnGrad::syncParameterValuesFromMinuitCalls(const double *x, bool min
          bool parameter_changed = (x[ix] != _minuitExternalX[ix]);
          aParamWasUpdated |= parameter_changed;
          aParamIsMismatched |=
-            (static_cast<RooRealVar const *>(_floatParamList.at(ix))->getVal() != _minuitExternalX[ix]);
+            (static_cast<RooRealVar const *>(floatParamList.at(ix))->getVal() != _minuitExternalX[ix]);
       }
 
       _minuitInternalRooFitXMismatch = aParamIsMismatched;

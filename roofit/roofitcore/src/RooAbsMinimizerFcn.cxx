@@ -37,52 +37,34 @@
 #include <fstream>
 #include <iomanip>
 
-RooAbsMinimizerFcn::RooAbsMinimizerFcn(RooArgList paramList, RooMinimizer *context)
-   : _context{context}, _floatParamList{"floatParamList"}, _constParamList{"constParamList"}
+namespace {
+
+// Figure out whether we have to treat this parameter as a constant.
+bool treatAsConstant(RooAbsArg const &arg)
 {
+   return arg.isConstant() || !(arg.isLValue() && !arg.isCategory());
+}
+
+} // namespace
+
+RooAbsMinimizerFcn::RooAbsMinimizerFcn(RooArgList paramList, RooMinimizer *context) : _context{context}
+{
+   _allParams.add(paramList);
+
    // Examine parameter list
-   for (RooAbsArg *param : paramList) {
-      (param->isConstant() ? _constParamList : _floatParamList).add(*param);
-   }
+   for (RooAbsArg *param : _allParams) {
 
-   _floatParamList.sort();
-   _constParamList.sort();
-
-   // Remove all non-RooRealVar parameters from list (MINUIT cannot handle them)
-   for (unsigned int i = 0; i < _floatParamList.size();) { // Note: Counting loop, since removing from collection!
-      const RooAbsArg *arg = _floatParamList.at(i);
-      if (!arg->IsA()->InheritsFrom(RooAbsRealLValue::Class())) {
+      // Treat all non-RooRealVar parameters as constants (MINUIT cannot handle them)
+      if (!param->isConstant() && treatAsConstant(*param)) {
          oocoutW(_context, Minimization) << "RooAbsMinimizerFcn::RooAbsMinimizerFcn: removing parameter "
-                                         << arg->GetName() << " from list because it is not of type RooRealVar" << std::endl;
-         _floatParamList.remove(*arg);
-      } else {
-         ++i;
+                                         << param->GetName() << " from list because it is not of type RooRealVar"
+                                         << std::endl;
       }
    }
 
-   _nDim = _floatParamList.size();
+   _allParams.sort();
 
-   // Save snapshot of initial lists
-   _floatParamList.snapshot(_initFloatParamList, false);
-   _constParamList.snapshot(_initConstParamList, false);
-}
-
-RooAbsMinimizerFcn::RooAbsMinimizerFcn(const RooAbsMinimizerFcn &other)
-   : _context(other._context),
-     _maxFCN(other._maxFCN),
-     _funcOffset(other._funcOffset),
-     _numBadNLL(other._numBadNLL),
-     _evalCounter(other._evalCounter),
-     _nDim(other._nDim),
-     _optConst(other._optConst),
-     _floatParamList(other._floatParamList),
-     _constParamList(other._constParamList),
-     _initFloatParamList{},
-     _initConstParamList{},
-     _logfile(other._logfile)
-{
-   other._initFloatParamList.snapshot(_initFloatParamList, false);
-   other._initConstParamList.snapshot(_initConstParamList, false);
+   _allParams.snapshot(_allParamsInit, false);
 }
 
 /// Internal function to synchronize TMinimizer with current
@@ -94,26 +76,20 @@ bool RooAbsMinimizerFcn::synchronizeParameterSettings(std::vector<ROOT::Fit::Par
    bool constStatChange(false);
 
    // Handle eventual migrations from constParamList -> floatParamList
-   for (std::size_t index = 0; index < _constParamList.size(); index++) {
+   for (std::size_t index = 0; index < _allParams.size(); index++) {
 
-      RooRealVar *par = dynamic_cast<RooRealVar *>(_constParamList.at(index));
+      RooRealVar *par = dynamic_cast<RooRealVar *>(_allParams.at(index));
       if (!par)
          continue;
 
-      RooRealVar *oldpar = dynamic_cast<RooRealVar *>(_initConstParamList.at(index));
+      RooRealVar *oldpar = dynamic_cast<RooRealVar *>(_allParamsInit.at(index));
       if (!oldpar)
          continue;
 
       // Test if constness changed
-      if (!par->isConstant()) {
+      if (treatAsConstant(*oldpar) != treatAsConstant(*par)) {
 
-         // Remove from constList, add to floatList
-         _constParamList.remove(*par);
-         _floatParamList.add(*par);
-         _initFloatParamList.addClone(*oldpar);
-         _initConstParamList.remove(*oldpar);
          constStatChange = true;
-         _nDim++;
 
          if (cfg().verbose) {
             oocoutI(_context, Minimization)
@@ -122,7 +98,7 @@ bool RooAbsMinimizerFcn::synchronizeParameterSettings(std::vector<ROOT::Fit::Par
       }
 
       // Test if value changed
-      if (par->getVal() != oldpar->getVal()) {
+      if (treatAsConstant(*par) && par->getVal() != oldpar->getVal()) {
          constValChange = true;
          if (cfg().verbose) {
             oocoutI(_context, Minimization)
@@ -132,13 +108,11 @@ bool RooAbsMinimizerFcn::synchronizeParameterSettings(std::vector<ROOT::Fit::Par
       }
    }
 
-   // Update reference list
-   _initConstParamList.assign(_constParamList);
-
    // Synchronize MINUIT with function state
    // Handle floatParamList
-   for (std::size_t index = 0; index < _floatParamList.size(); index++) {
-      RooRealVar *par = dynamic_cast<RooRealVar *>(_floatParamList.at(index));
+   RooArgList floatParamList = floatParams();
+   for (std::size_t index = 0; index < floatParamList.size(); index++) {
+      RooRealVar *par = dynamic_cast<RooRealVar *>(floatParamList.at(index));
 
       if (!par)
          continue;
@@ -147,59 +121,44 @@ bool RooAbsMinimizerFcn::synchronizeParameterSettings(std::vector<ROOT::Fit::Par
       double pmin(0);
       double pmax(0);
 
-      if (!par->isConstant()) {
+      // make sure the parameter are in dirty state to enable
+      // a real NLL computation when the minimizer calls the function the first time
+      // (see issue #7659)
+      par->setValueDirty();
 
-         // Verify that floating parameter is indeed of type RooRealVar
-         if (!par->IsA()->InheritsFrom(RooRealVar::Class())) {
-            oocoutW(_context, Minimization) << "RooAbsMinimizerFcn::fit: Error, non-constant parameter "
-                                            << par->GetName() << " is not of type RooRealVar, skipping" << std::endl;
-            _floatParamList.remove(*par);
-            index--;
-            _nDim--;
-            continue;
-         }
-         // make sure the parameter are in dirty state to enable
-         // a real NLL computation when the minimizer calls the function the first time
-         // (see issue #7659)
-         par->setValueDirty();
+      // Set the limits, if not infinite
+      if (par->hasMin())
+         pmin = par->getMin();
+      if (par->hasMax())
+         pmax = par->getMax();
 
-         // Set the limits, if not infinite
-         if (par->hasMin())
-            pmin = par->getMin();
-         if (par->hasMax())
-            pmax = par->getMax();
+      // Calculate step size
+      pstep = par->getError();
+      if (pstep <= 0) {
+         // Floating parameter without error estitimate
+         if (par->hasMin() && par->hasMax()) {
+            pstep = 0.1 * (pmax - pmin);
 
-         // Calculate step size
-         pstep = par->getError();
-         if (pstep <= 0) {
-            // Floating parameter without error estitimate
-            if (par->hasMin() && par->hasMax()) {
+            // Trim default choice of error if within 2 sigma of limit
+            if (pmax - par->getVal() < 2 * pstep) {
+               pstep = (pmax - par->getVal()) / 2;
+            } else if (par->getVal() - pmin < 2 * pstep) {
+               pstep = (par->getVal() - pmin) / 2;
+            }
+
+            // If trimming results in zero error, restore default
+            if (pstep == 0) {
                pstep = 0.1 * (pmax - pmin);
-
-               // Trim default choice of error if within 2 sigma of limit
-               if (pmax - par->getVal() < 2 * pstep) {
-                  pstep = (pmax - par->getVal()) / 2;
-               } else if (par->getVal() - pmin < 2 * pstep) {
-                  pstep = (par->getVal() - pmin) / 2;
-               }
-
-               // If trimming results in zero error, restore default
-               if (pstep == 0) {
-                  pstep = 0.1 * (pmax - pmin);
-               }
-
-            } else {
-               pstep = 1;
             }
-            if (cfg().verbose) {
-               oocoutW(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: WARNING: no initial error estimate available for "
-                  << par->GetName() << ": using " << pstep << std::endl;
-            }
+
+         } else {
+            pstep = 1;
          }
-      } else {
-         pmin = par->getVal();
-         pmax = par->getVal();
+         if (cfg().verbose) {
+            oocoutW(_context, Minimization)
+               << "RooAbsMinimizerFcn::synchronize: WARNING: no initial error estimate available for " << par->GetName()
+               << ": using " << pstep << std::endl;
+         }
       }
 
       // new parameter
@@ -219,90 +178,43 @@ bool RooAbsMinimizerFcn::synchronizeParameterSettings(std::vector<ROOT::Fit::Par
          continue;
       }
 
-      bool oldFixed = parameters[index].IsFixed();
       double oldVar = parameters[index].Value();
       double oldVerr = parameters[index].StepSize();
       double oldVlo = parameters[index].LowerLimit();
       double oldVhi = parameters[index].UpperLimit();
 
-      if (par->isConstant() && !oldFixed) {
-
-         // Parameter changes floating -> constant : update only value if necessary
-         if (oldVar != par->getVal()) {
-            parameters[index].SetValue(par->getVal());
-            if (cfg().verbose) {
-               oocoutI(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: value of parameter " << par->GetName() << " changed from "
-                  << oldVar << " to " << par->getVal() << std::endl;
-            }
+      // Parameter changes constant -> floating : update all if necessary
+      if (oldVar != par->getVal() || oldVlo != pmin || oldVhi != pmax || oldVerr != pstep) {
+         parameters[index].SetValue(par->getVal());
+         parameters[index].SetStepSize(pstep);
+         if (par->hasMin() && par->hasMax()) {
+            parameters[index].SetLimits(pmin, pmax);
+         } else if (par->hasMin()) {
+            parameters[index].SetLowerLimit(pmin);
+         } else if (par->hasMax()) {
+            parameters[index].SetUpperLimit(pmax);
          }
-         parameters[index].Fix();
-         constStatChange = true;
-         if (cfg().verbose) {
+      }
+
+      // Inform user about changes in verbose mode
+      if (cfg().verbose) {
+         // if ierr<0, par was moved from the const list and a message was already printed
+
+         if (oldVar != par->getVal()) {
+            oocoutI(_context, Minimization) << "RooAbsMinimizerFcn::synchronize: value of parameter " << par->GetName()
+                                            << " changed from " << oldVar << " to " << par->getVal() << std::endl;
+         }
+         if (oldVlo != pmin || oldVhi != pmax) {
             oocoutI(_context, Minimization)
-               << "RooAbsMinimizerFcn::synchronize: parameter " << par->GetName() << " is now fixed." << std::endl;
+               << "RooAbsMinimizerFcn::synchronize: limits of parameter " << par->GetName() << " changed from ["
+               << oldVlo << "," << oldVhi << "] to [" << pmin << "," << pmax << "]" << std::endl;
          }
 
-      } else if (par->isConstant() && oldFixed) {
-
-         // Parameter changes constant -> constant : update only value if necessary
-         if (oldVar != par->getVal()) {
-            parameters[index].SetValue(par->getVal());
-            constValChange = true;
-
-            if (cfg().verbose) {
-               oocoutI(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: value of fixed parameter " << par->GetName() << " changed from "
-                  << oldVar << " to " << par->getVal() << std::endl;
-            }
-         }
-
-      } else {
-         // Parameter changes constant -> floating
-         if (!par->isConstant() && oldFixed) {
-            parameters[index].Release();
-            constStatChange = true;
-
-            if (cfg().verbose) {
-               oocoutI(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: parameter " << par->GetName() << " is now floating." << std::endl;
-            }
-         }
-
-         // Parameter changes constant -> floating : update all if necessary
-         if (oldVar != par->getVal() || oldVlo != pmin || oldVhi != pmax || oldVerr != pstep) {
-            parameters[index].SetValue(par->getVal());
-            parameters[index].SetStepSize(pstep);
-            if (par->hasMin() && par->hasMax()) {
-               parameters[index].SetLimits(pmin, pmax);
-            } else if (par->hasMin()) {
-               parameters[index].SetLowerLimit(pmin);
-            } else if (par->hasMax()) {
-               parameters[index].SetUpperLimit(pmax);
-            }
-         }
-
-         // Inform user about changes in verbose mode
-         if (cfg().verbose) {
-            // if ierr<0, par was moved from the const list and a message was already printed
-
-            if (oldVar != par->getVal()) {
-               oocoutI(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: value of parameter " << par->GetName() << " changed from "
-                  << oldVar << " to " << par->getVal() << std::endl;
-            }
-            if (oldVlo != pmin || oldVhi != pmax) {
-               oocoutI(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: limits of parameter " << par->GetName() << " changed from ["
-                  << oldVlo << "," << oldVhi << "] to [" << pmin << "," << pmax << "]" << std::endl;
-            }
-
-            // If oldVerr=0, then parameter was previously fixed
-            if (oldVerr != pstep && oldVerr != 0) {
-               oocoutI(_context, Minimization)
-                  << "RooAbsMinimizerFcn::synchronize: error/step size of parameter " << par->GetName()
-                  << " changed from " << oldVerr << " to " << pstep << std::endl;
-            }
+         // If oldVerr=0, then parameter was previously fixed
+         if (oldVerr != pstep && oldVerr != 0) {
+            oocoutI(_context, Minimization)
+               << "RooAbsMinimizerFcn::synchronize: error/step size of parameter " << par->GetName() << " changed from "
+               << oldVerr << " to " << pstep << std::endl;
          }
       }
    }
@@ -319,46 +231,30 @@ bool RooAbsMinimizerFcn::Synchronize(std::vector<ROOT::Fit::ParameterSettings> &
    return synchronizeParameterSettings(parameters, _optConst);
 }
 
-/// Modify PDF parameter error by ordinal index (needed by MINUIT)
-void RooAbsMinimizerFcn::SetPdfParamErr(int index, double value)
-{
-   static_cast<RooRealVar *>(_floatParamList.at(index))->setError(value);
-}
-
-/// Modify PDF parameter error by ordinal index (needed by MINUIT)
-void RooAbsMinimizerFcn::ClearPdfParamAsymErr(int index)
-{
-   static_cast<RooRealVar *>(_floatParamList.at(index))->removeAsymError();
-}
-
-/// Modify PDF parameter error by ordinal index (needed by MINUIT)
-void RooAbsMinimizerFcn::SetPdfParamErr(int index, double loVal, double hiVal)
-{
-   static_cast<RooRealVar *>(_floatParamList.at(index))->setAsymError(loVal, hiVal);
-}
-
 /// Transfer MINUIT fit results back into RooFit objects.
 void RooAbsMinimizerFcn::BackProp()
 {
    auto const &results = _context->fitter()->Result();
 
-   for (unsigned int index = 0; index < _nDim; index++) {
+   RooArgList floatParamList = floatParams();
+
+   for (unsigned int index = 0; index < getNDim(); index++) {
       double value = results.fParams[index];
       SetPdfParamVal(index, value);
 
       // Set the parabolic error
       double err = results.fErrors[index];
-      SetPdfParamErr(index, err);
+      static_cast<RooRealVar *>(floatParamList.at(index))->setError(err);
 
       double eminus = results.lowerError(index);
       double eplus = results.upperError(index);
 
       if (eplus > 0 || eminus < 0) {
          // Store the asymmetric error, if it is available
-         SetPdfParamErr(index, eminus, eplus);
+         static_cast<RooRealVar *>(floatParamList.at(index))->setAsymError(eminus, eplus);
       } else {
          // Clear the asymmetric error
-         ClearPdfParamAsymErr(index);
+         static_cast<RooRealVar *>(floatParamList.at(index))->removeAsymError();
       }
    }
 }
@@ -390,19 +286,17 @@ bool RooAbsMinimizerFcn::SetLogFile(const char *inLogfile)
 /// HESSE matrix at the next save() call
 void RooAbsMinimizerFcn::ApplyCovarianceMatrix(TMatrixDSym &V)
 {
-   for (unsigned int i = 0; i < _nDim; i++) {
-      // Skip fixed parameters
-      if (_floatParamList.at(i)->isConstant()) {
-         continue;
-      }
-      SetPdfParamErr(i, sqrt(V(i, i)));
+   RooArgList floatParamList = floatParams();
+   for (unsigned int i = 0; i < floatParamList.size(); i++) {
+      static_cast<RooRealVar *>(floatParamList.at(i))->setError(std::sqrt(V(i, i)));
    }
 }
 
 /// Set value of parameter i.
 bool RooAbsMinimizerFcn::SetPdfParamVal(int index, double value) const
 {
-   auto par = static_cast<RooRealVar *>(&_floatParamList[index]);
+   RooArgList floatParamList = floatParams();
+   auto par = static_cast<RooRealVar *>(&floatParamList[index]);
 
    if (par->getVal() != value) {
       if (cfg().verbose)
@@ -433,7 +327,7 @@ void RooAbsMinimizerFcn::printEvalErrors() const
    }
 
    msg << "Parameter values: ";
-   for (const auto par : _floatParamList) {
+   for (RooAbsArg const *par : floatParams()) {
       auto var = static_cast<const RooRealVar *>(par);
       msg << "\t" << var->GetName() << "=" << var->getVal();
    }
@@ -525,4 +419,44 @@ void RooAbsMinimizerFcn::optimizeConstantTerms(bool constStatChange, bool constV
          << std::endl;
       setOptimizeConstOnFunction(RooAbsArg::ValueChange, true);
    }
+}
+
+RooArgList RooAbsMinimizerFcn::floatParams() const
+{
+   RooArgList out;
+   for (RooAbsArg *param : _allParams) {
+      if (!treatAsConstant(*param))
+         out.add(*param);
+   }
+   return out;
+}
+
+RooArgList RooAbsMinimizerFcn::constParams() const
+{
+   RooArgList out;
+   for (RooAbsArg *param : _allParams) {
+      if (treatAsConstant(*param))
+         out.add(*param);
+   }
+   return out;
+}
+
+RooArgList RooAbsMinimizerFcn::initFloatParams() const
+{
+   RooArgList out;
+   for (RooAbsArg *param : _allParamsInit) {
+      if (!treatAsConstant(*param))
+         out.add(*param);
+   }
+   return out;
+}
+
+unsigned int RooAbsMinimizerFcn::getNDim() const
+{
+   unsigned int n = 0;
+   for (RooAbsArg *param : _allParams) {
+      if (!treatAsConstant(*param))
+         ++n;
+   }
+   return n;
 }
