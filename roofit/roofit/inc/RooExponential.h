@@ -38,9 +38,9 @@ public:
 
    bool negateCoefficient() const { return _negateCoefficient; }
 
-   void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+   void translate(RooFit::CodegenContext &ctx) const override;
    std::string buildCallToAnalyticIntegral(Int_t code, const char *rangeName,
-                                           RooFit::Detail::CodeSquashContext &ctx) const override;
+                                           RooFit::CodegenContext &ctx) const override;
 
 protected:
    RooRealProxy x;

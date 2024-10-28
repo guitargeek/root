@@ -555,7 +555,7 @@ public:
   hf << R"(
   double evaluate() const override;
   void doEval(RooFit::EvalContext &) const override;
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  void translate(RooFit::CodegenContext &ctx) const override;
 
 private:
 
@@ -674,7 +674,7 @@ CLASS_NAME::CLASS_NAME(const char *name, const char *title,
      << "   }\n"
      << "} \n";
 
-cf << "void CLASS_NAME::translate(RooFit::Detail::CodeSquashContext &ctx) const\n"
+cf << "void CLASS_NAME::translate(RooFit::CodegenContext &ctx) const\n"
 << "{\n"
 << "   ctx.addResult(this, ctx.buildCall(\"CLASS_NAME_evaluate\", " << listVars(alist) << "));\n"
 <<"}\n";

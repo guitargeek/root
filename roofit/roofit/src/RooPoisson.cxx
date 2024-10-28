@@ -64,7 +64,7 @@ double RooPoisson::evaluate() const
   return RooFit::Detail::MathFuncs::poisson(k, mean);
 }
 
-void RooPoisson::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooPoisson::translate(RooFit::CodegenContext &ctx) const
 {
    std::string xName = ctx.getResult(x);
    if (!_noRounding)
@@ -103,7 +103,7 @@ double RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
 }
 
 std::string
-RooPoisson::buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const
+RooPoisson::buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit::CodegenContext &ctx) const
 {
    R__ASSERT(code == 1 || code == 2);
    std::string xName = ctx.getResult(x);

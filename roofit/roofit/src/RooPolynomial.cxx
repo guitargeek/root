@@ -111,7 +111,7 @@ double RooPolynomial::evaluate() const
    return RooFit::Detail::MathFuncs::polynomial<true>(_wksp.data(), sz, _lowestOrder, _x);
 }
 
-void RooPolynomial::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooPolynomial::translate(RooFit::CodegenContext &ctx) const
 {
    const unsigned sz = _coefList.size();
    if (!sz) {
@@ -153,7 +153,7 @@ double RooPolynomial::analyticalIntegral(Int_t code, const char *rangeName) cons
 }
 
 std::string RooPolynomial::buildCallToAnalyticIntegral(Int_t /* code */, const char *rangeName,
-                                                       RooFit::Detail::CodeSquashContext &ctx) const
+                                                       RooFit::CodegenContext &ctx) const
 {
    const double xmin = _x.min(rangeName);
    const double xmax = _x.max(rangeName);

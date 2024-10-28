@@ -77,7 +77,7 @@ double RooParamHistFunc::evaluate() const
   return _relParam ? ret * getNominal(idx) : ret;
 }
 
-void RooParamHistFunc::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooParamHistFunc::translate(RooFit::CodegenContext &ctx) const
 {
    std::string const &idx = _dh.calculateTreeIndexForCodeSquash(this, ctx, _x);
    std::string arrName = ctx.buildArg(_p);

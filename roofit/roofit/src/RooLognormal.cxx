@@ -82,7 +82,7 @@ double RooLognormal::evaluate() const
    return ROOT::Math::lognormal_pdf(x, ln_m0, ln_k);
 }
 
-void RooLognormal::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooLognormal::translate(RooFit::CodegenContext &ctx) const
 {
    std::string funcName = _useStandardParametrization ? "logNormalEvaluateStandard" : "logNormal";
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::" + funcName, x, k, m0));
@@ -117,7 +117,7 @@ double RooLognormal::analyticalIntegral(Int_t /*code*/, const char *rangeName) c
 }
 
 std::string RooLognormal::buildCallToAnalyticIntegral(int /*code*/, const char *rangeName,
-                                                      RooFit::Detail::CodeSquashContext &ctx) const
+                                                      RooFit::CodegenContext &ctx) const
 {
    std::string funcName = _useStandardParametrization ? "logNormalIntegralStandard" : "logNormalIntegral";
    return ctx.buildCall("RooFit::Detail::MathFuncs::" + funcName, x.min(rangeName), x.max(rangeName), m0, k);

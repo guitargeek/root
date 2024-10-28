@@ -36,7 +36,7 @@ protected:
    void doEval(RooFit::EvalContext &) const override;
    inline bool canComputeBatchWithCuda() const override { return true; }
 
-   void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+   void translate(RooFit::CodegenContext &ctx) const override;
 
    RooRealProxy _numerator;
    RooRealProxy _denominator;

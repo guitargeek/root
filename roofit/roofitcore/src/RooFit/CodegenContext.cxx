@@ -11,7 +11,7 @@
  * listed in LICENSE (http://roofit.sourceforge.net/license.txt)
  */
 
-#include <RooFit/Detail/CodeSquashContext.h>
+#include <RooFit/CodegenContext.h>
 
 #include "RooFitImplHelpers.h"
 
@@ -22,19 +22,17 @@
 
 namespace RooFit {
 
-namespace Detail {
-
 /// @brief Adds (or overwrites) the string representing the result of a node.
 /// @param key The name of the node to add the result for.
 /// @param value The new name to assign/overwrite.
-void CodeSquashContext::addResult(const char *key, std::string const &value)
+void CodegenContext::addResult(const char *key, std::string const &value)
 {
    const TNamed *namePtr = RooNameReg::known(key);
    if (namePtr)
       addResult(namePtr, value);
 }
 
-void CodeSquashContext::addResult(TNamed const *key, std::string const &value)
+void CodegenContext::addResult(TNamed const *key, std::string const &value)
 {
    _nodeNames[key] = value;
 }
@@ -44,7 +42,7 @@ void CodeSquashContext::addResult(TNamed const *key, std::string const &value)
 /// existing code body.
 /// @param key The node to get the result string for.
 /// @return String representing the result of this node.
-std::string const &CodeSquashContext::getResult(RooAbsArg const &arg)
+std::string const &CodegenContext::getResult(RooAbsArg const &arg)
 {
    // If the result has already been recorded, just return the result.
    // It is usually the responsibility of each translate function to assign
@@ -72,7 +70,7 @@ std::string const &CodeSquashContext::getResult(RooAbsArg const &arg)
 /// @brief Adds the given string to the string block that will be emitted at the top of the squashed function. Useful
 /// for variable declarations.
 /// @param str The string to add to the global scope.
-void CodeSquashContext::addToGlobalScope(std::string const &str)
+void CodegenContext::addToGlobalScope(std::string const &str)
 {
    _globalScope += str;
 }
@@ -82,7 +80,7 @@ void CodeSquashContext::addToGlobalScope(std::string const &str)
 /// element. For example, a vector valued variable x with 10 entries will be squashed to obs[start_idx + i].
 /// @param key The name of the node representing the vector valued observable.
 /// @param idx The start index (or relative position of the observable in the set of all observables).
-void CodeSquashContext::addVecObs(const char *key, int idx)
+void CodegenContext::addVecObs(const char *key, int idx)
 {
    const TNamed *namePtr = RooNameReg::known(key);
    if (namePtr)
@@ -94,7 +92,7 @@ void CodeSquashContext::addVecObs(const char *key, int idx)
 /// loops, automatically determines if code needs to be stored inside or outside loop scope.
 /// @param klass The class requesting this addition, usually 'this'.
 /// @param in String to add to the squashed code.
-void CodeSquashContext::addToCodeBody(RooAbsArg const *klass, std::string const &in)
+void CodegenContext::addToCodeBody(RooAbsArg const *klass, std::string const &in)
 {
    // If we are in a loop and the value is scope independent, save it at the top of the loop.
    // else, just save it in the current scope.
@@ -106,7 +104,7 @@ void CodeSquashContext::addToCodeBody(RooAbsArg const *klass, std::string const 
 /// a value/collection of values is scope independent.
 /// @param in String to add to the squashed code.
 /// @param isScopeIndep The value determining if the input is scope dependent.
-void CodeSquashContext::addToCodeBody(std::string const &in, bool isScopeIndep /* = false */)
+void CodegenContext::addToCodeBody(std::string const &in, bool isScopeIndep /* = false */)
 {
    // If we are in a loop and the value is scope independent, save it at the top of the loop.
    // else, just save it in the current scope.
@@ -120,7 +118,7 @@ void CodeSquashContext::addToCodeBody(std::string const &in, bool isScopeIndep /
 /// @brief Create a RAII scope for iterating over vector observables. You can't use the result of vector observables
 /// outside these loop scopes.
 /// @param in A pointer to the calling class, used to determine the loop dependent variables.
-std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAbsArg const *in)
+std::unique_ptr<CodegenContext::LoopScope> CodegenContext::beginLoop(RooAbsArg const *in)
 {
    std::string idx = "loopIdx" + std::to_string(_loopLevel);
 
@@ -156,7 +154,7 @@ std::unique_ptr<CodeSquashContext::LoopScope> CodeSquashContext::beginLoop(RooAb
    return std::make_unique<LoopScope>(*this, std::move(vars));
 }
 
-void CodeSquashContext::endLoop(LoopScope const &scope)
+void CodegenContext::endLoop(LoopScope const &scope)
 {
    _code += "}\n";
 
@@ -174,7 +172,7 @@ void CodeSquashContext::endLoop(LoopScope const &scope)
 }
 
 /// @brief Get a unique variable name to be used in the generated code.
-std::string CodeSquashContext::getTmpVarName() const
+std::string CodegenContext::getTmpVarName() const
 {
    return "t" + std::to_string(_tmpVarIdx++);
 }
@@ -182,7 +180,7 @@ std::string CodeSquashContext::getTmpVarName() const
 /// @brief A function to save an expression that includes/depends on the result of the input node.
 /// @param in The node on which the valueToSave depends on/belongs to.
 /// @param valueToSave The actual string value to save as a temporary.
-void CodeSquashContext::addResult(RooAbsArg const *in, std::string const &valueToSave)
+void CodegenContext::addResult(RooAbsArg const *in, std::string const &valueToSave)
 {
    // std::string savedName = RooFit::Detail::makeValidVarName(in->GetName());
    std::string savedName = getTmpVarName();
@@ -207,7 +205,7 @@ void CodeSquashContext::addResult(RooAbsArg const *in, std::string const &valueT
 /// @brief Function to save a RooListProxy as an array in the squashed code.
 /// @param in The list to convert to array.
 /// @return Name of the array that stores the input list in the squashed code.
-std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
+std::string CodegenContext::buildArg(RooAbsCollection const &in)
 {
    if (in.empty()) {
       return "nullptr";
@@ -235,7 +233,7 @@ std::string CodeSquashContext::buildArg(RooAbsCollection const &in)
    return savedName;
 }
 
-std::string CodeSquashContext::buildArg(std::span<const double> arr)
+std::string CodegenContext::buildArg(std::span<const double> arr)
 {
    unsigned int n = arr.size();
    std::string offset = std::to_string(_xlArr.size());
@@ -246,14 +244,14 @@ std::string CodeSquashContext::buildArg(std::span<const double> arr)
    return "xlArr + " + offset;
 }
 
-bool CodeSquashContext::isScopeIndependent(RooAbsArg const *in) const
+bool CodegenContext::isScopeIndependent(RooAbsArg const *in) const
 {
    return !in->isReducerNode() && outputSize(in->namePtr()) == 1;
 }
 
 /// @brief Register a function that is only know to the interpreter to the context.
 /// This is useful to dump the standalone C++ code for the computation graph.
-void CodeSquashContext::collectFunction(std::string const &name)
+void CodegenContext::collectFunction(std::string const &name)
 {
    _collectedFunctions.emplace_back(name);
 }
@@ -261,9 +259,9 @@ void CodeSquashContext::collectFunction(std::string const &name)
 /// @brief Assemble and return the final code with the return expression and global statements.
 /// @param returnExpr The string representation of what the squashed function should return, usually the head node.
 /// @return The name of the declared function.
-std::string CodeSquashContext::buildFunction(RooAbsArg const &arg, std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes)
+std::string CodegenContext::buildFunction(RooAbsArg const &arg, std::map<RooFit::Detail::DataKey, std::size_t> const &outputSizes)
 {
-   CodeSquashContext ctx;
+   CodegenContext ctx;
    ctx._nodeOutputSizes = outputSizes;
    ctx._vecObsIndices = _vecObsIndices;
    ctx._nodeNames = _nodeNames;
@@ -294,5 +292,4 @@ std::string CodeSquashContext::buildFunction(RooAbsArg const &arg, std::map<RooF
    return funcName;
 }
 
-} // namespace Detail
 } // namespace RooFit

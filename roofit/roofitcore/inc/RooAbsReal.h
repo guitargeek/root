@@ -21,7 +21,7 @@
 #include "RooArgSet.h"
 #include "RooCmdArg.h"
 #include "RooCurve.h"
-#include "RooFit/Detail/CodeSquashContext.h"
+#include "RooFit/CodegenContext.h"
 #include "RooFit/EvalContext.h"
 #include "RooGlobalFunc.h"
 
@@ -390,7 +390,7 @@ public:
   }
 
   virtual std::string
-  buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const;
+  buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::CodegenContext &ctx) const;
 
   // PlotOn with command list
   virtual RooPlot* plotOn(RooPlot* frame, RooLinkedList& cmdList) const ;

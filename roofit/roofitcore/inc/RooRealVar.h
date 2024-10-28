@@ -132,7 +132,7 @@ public:
 
   static void cleanup() ;
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  void translate(RooFit::CodegenContext &ctx) const override;
 
   protected:
 

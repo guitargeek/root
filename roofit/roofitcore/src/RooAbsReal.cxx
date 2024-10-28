@@ -4423,7 +4423,7 @@ void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
 ///
 /// \returns The representative code string of the integral for the given object.
 std::string RooAbsReal::buildCallToAnalyticIntegral(Int_t /* code */, const char * /* rangeName */,
-                                                    RooFit::Detail::CodeSquashContext & /*ctx*/) const
+                                                    RooFit::CodegenContext & /*ctx*/) const
 {
    std::stringstream errorMsg;
    errorMsg << "An analytical integral function for class \"" << ClassName() << "\" has not yet been implemented.";

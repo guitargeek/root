@@ -174,7 +174,7 @@ std::unique_ptr<RooAbsReal> RooExtendPdf::createExpectedEventsFunc(const RooArgS
 }
 
 
-void RooExtendPdf::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooExtendPdf::translate(RooFit::CodegenContext &ctx) const
 {
    // Use the result of the underlying pdf.
    ctx.addResult(this, ctx.getResult(_pdf));

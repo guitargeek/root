@@ -63,7 +63,7 @@ double RooLandau::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooLandau::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooLandau::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::landau", x, mean, sigma));
 }
@@ -104,7 +104,7 @@ Double_t RooLandau::analyticalIntegral(Int_t /*code*/, const char *rangeName) co
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string RooLandau::buildCallToAnalyticIntegral(Int_t /*code*/, const char *rangeName,
-                                                   RooFit::Detail::CodeSquashContext &ctx) const
+                                                   RooFit::CodegenContext &ctx) const
 {
    // Don't do anything with "code". It can only be "1" anyway (see
    // implementation of getAnalyticalIntegral).

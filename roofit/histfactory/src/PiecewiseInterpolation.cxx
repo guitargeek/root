@@ -184,7 +184,7 @@ double PiecewiseInterpolation::evaluate() const
 
 }
 
-void PiecewiseInterpolation::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void PiecewiseInterpolation::translate(RooFit::CodegenContext &ctx) const
 {
    std::size_t n = _interpCode.size();
 

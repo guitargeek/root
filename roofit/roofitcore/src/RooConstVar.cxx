@@ -58,7 +58,7 @@ void RooConstVar::writeToStream(std::ostream& os, bool /*compact*/) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooConstVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooConstVar::translate(RooFit::CodegenContext &ctx) const
 {
    // Just return a stringy-field version of the const value.
    // Formats to the maximum precision.

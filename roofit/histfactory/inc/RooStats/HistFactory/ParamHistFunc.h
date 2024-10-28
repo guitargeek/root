@@ -103,7 +103,7 @@ protected:
   double evaluate() const override;
   void doEval(RooFit::EvalContext &) const override;
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  void translate(RooFit::CodegenContext &ctx) const override;
 
   private:
   static NumBins getNumBinsPerDim(RooArgSet const& vars);

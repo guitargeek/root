@@ -117,7 +117,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFirstMoment.h
     RooFit.h
     RooFit/Config.h
-    RooFit/Detail/CodeSquashContext.h
+    RooFit/CodegenContext.h
     RooFit/Detail/MathFuncs.h
     RooFit/Detail/NormalizationHelpers.h
     RooFit/EvalContext.h
@@ -324,7 +324,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooFFTConvPdf.cxx
     src/RooFactoryWSTool.cxx
     src/RooFirstMoment.cxx
-    src/RooFit/Detail/CodeSquashContext.cxx
+    src/RooFit/CodegenContext.cxx
     src/RooFit/EvalContext.cxx
     src/RooFit/Evaluator.cxx
     src/RooFitImplHelpers.cxx

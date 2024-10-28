@@ -99,9 +99,9 @@ public:
   Int_t getBin() const;
   std::vector<Int_t> getBins(RooFit::EvalContext & ctx) const;
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  void translate(RooFit::CodegenContext &ctx) const override;
   std::string
-  buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const override;
+  buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit::CodegenContext &ctx) const override;
 
   RooArgSet const &variables() const { return _depList; }
 

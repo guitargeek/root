@@ -331,7 +331,7 @@ void RooNLLVarNew::finalizeResult(RooFit::EvalContext &ctx, ROOT::Math::KahanSum
    ctx.setOutputWithOffset(this, result, _offset);
 }
 
-void RooNLLVarNew::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooNLLVarNew::translate(RooFit::CodegenContext &ctx) const
 {
    if (_binnedL && !_pdf->getAttribute("BinnedLikelihoodActiveYields")) {
       std::stringstream errorMsg;

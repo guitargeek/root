@@ -95,9 +95,9 @@ public:
 
   void doEval(RooFit::EvalContext &) const override;
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  void translate(RooFit::CodegenContext &ctx) const override;
   std::string
-  buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const override;
+  buildCallToAnalyticIntegral(int code, const char *rangeName, RooFit::CodegenContext &ctx) const override;
 
   protected:
   bool areIdentical(const RooDataHist& dh1, const RooDataHist& dh2) ;
@@ -147,7 +147,7 @@ private:
                                              double xlo,
                                              double xhi);
 
-  static void rooHistTranslateImpl(RooAbsArg const *klass, RooFit::Detail::CodeSquashContext &ctx, int intOrder,
+  static void rooHistTranslateImpl(RooAbsArg const *klass, RooFit::CodegenContext &ctx, int intOrder,
                                    RooDataHist const *dataHist, const RooArgSet &obs, bool correctForBinSize, bool cdfBoundaries);
 
   static std::string rooHistIntegralTranslateImpl(int code, RooAbsArg const *klass, RooDataHist const *dataHist,

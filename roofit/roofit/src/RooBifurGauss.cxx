@@ -62,7 +62,7 @@ double RooBifurGauss::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooBifurGauss::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooBifurGauss::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::bifurGauss", x, mean, sigmaL, sigmaR));
 }
@@ -100,7 +100,7 @@ double RooBifurGauss::analyticalIntegral(Int_t code, const char *rangeName) cons
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string RooBifurGauss::buildCallToAnalyticIntegral(Int_t code, const char *rangeName,
-                                                       RooFit::Detail::CodeSquashContext &ctx) const
+                                                       RooFit::CodegenContext &ctx) const
 {
    auto &constant = code == 1 ? mean : x;
    auto &integrand = code == 1 ? x : mean;

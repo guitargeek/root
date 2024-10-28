@@ -64,7 +64,7 @@ public:
       return _pdf->createExpectedEventsFunc(&_normSet);
    }
 
-   void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+   void translate(RooFit::CodegenContext &ctx) const override;
 
    bool canComputeBatchWithCuda() const override { return true; }
 

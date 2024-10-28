@@ -218,7 +218,7 @@ double FlexibleInterpVar::evaluate() const
    return total;
 }
 
-void FlexibleInterpVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void FlexibleInterpVar::translate(RooFit::CodegenContext &ctx) const
 {
    unsigned int n = _interpCode.size();
 

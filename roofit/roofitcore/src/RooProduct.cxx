@@ -490,7 +490,7 @@ void RooProduct::setCacheAndTrackHints(RooArgSet& trackNodes)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooProduct::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooProduct::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::product", _compRSet, _compRSet.size()));
 }

@@ -2543,7 +2543,7 @@ std::unique_ptr<RooAbsArg> RooAbsArg::compileForNormSet(RooArgSet const & normSe
 ///
 /// \param[in] ctx An object to manage auxiliary information for code-squashing. Also takes the
 /// code string that this class outputs into the squashed code through the 'addToCodeBody' function.
-void RooAbsArg::translate(RooFit::Detail::CodeSquashContext & /*ctx*/) const
+void RooAbsArg::translate(RooFit::CodegenContext & /*ctx*/) const
 {
    std::stringstream errorMsg;
    errorMsg << "Translate function for class \"" << ClassName() << "\" has not yet been implemented.";

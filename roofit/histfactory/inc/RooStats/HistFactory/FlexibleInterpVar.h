@@ -58,7 +58,7 @@ namespace HistFactory{
 
     void doEval(RooFit::EvalContext &) const override;
 
-    void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+    void translate(RooFit::CodegenContext &ctx) const override;
 
   protected:
 

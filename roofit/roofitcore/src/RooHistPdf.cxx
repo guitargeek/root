@@ -222,7 +222,7 @@ double RooHistPdf::evaluate() const
   return std::max(ret, 0.0);
 }
 
-void RooHistPdf::rooHistTranslateImpl(RooAbsArg const *klass, RooFit::Detail::CodeSquashContext &ctx, int intOrder,
+void RooHistPdf::rooHistTranslateImpl(RooAbsArg const *klass, RooFit::CodegenContext &ctx, int intOrder,
                                       RooDataHist const *dataHist, const RooArgSet &obs, bool correctForBinSize,
                                       bool cdfBoundaries)
 {
@@ -245,7 +245,7 @@ void RooHistPdf::rooHistTranslateImpl(RooAbsArg const *klass, RooFit::Detail::Co
    ctx.addResult(klass, "*(" + weightArr + " + " + offset + ")");
 }
 
-void RooHistPdf::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooHistPdf::translate(RooFit::CodegenContext &ctx) const
 {
    rooHistTranslateImpl(this, ctx, _intOrder, _dataHist, _pdfObsList, !_unitNorm, _cdfBoundaries);
 }
@@ -408,7 +408,7 @@ std::string RooHistPdf::rooHistIntegralTranslateImpl(int code, RooAbsArg const *
 }
 
 std::string RooHistPdf::buildCallToAnalyticIntegral(int code, const char * /*rangeName */,
-                                                    RooFit::Detail::CodeSquashContext & /* ctx */) const
+                                                    RooFit::CodegenContext & /* ctx */) const
 {
    return rooHistIntegralTranslateImpl(code, this, _dataHist, _pdfObsList, false);
 }

@@ -82,7 +82,7 @@ void RooRealVar::cleanup()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooRealVar::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooRealVar::translate(RooFit::CodegenContext &ctx) const
 {
    if(!isConstant()) {
       ctx.addResult(this, GetName());

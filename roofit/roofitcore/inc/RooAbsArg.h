@@ -56,9 +56,7 @@ using RooListProxy = RooCollectionProxy<RooArgList>;
 class RooExpensiveObjectCache ;
 class RooWorkspace ;
 namespace RooFit {
-namespace Detail {
-class CodeSquashContext;
-}
+class CodegenContext;
 }
 
 class RooRefArray : public TObjArray {
@@ -554,7 +552,7 @@ public:
 
   virtual bool isCategory() const { return false; }
 
-  virtual void translate(RooFit::Detail::CodeSquashContext &ctx) const;
+  virtual void translate(RooFit::CodegenContext &ctx) const;
 
 protected:
    void graphVizAddConnections(std::set<std::pair<RooAbsArg*,RooAbsArg*> >&) ;

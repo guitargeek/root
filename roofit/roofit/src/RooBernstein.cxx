@@ -81,7 +81,7 @@ double RooBernstein::evaluate() const
    return RooFit::Detail::MathFuncs::bernstein(_x, xmin(), xmax(), _buffer.data(), _coefList.size());
 }
 
-void RooBernstein::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooBernstein::translate(RooFit::CodegenContext &ctx) const
 {
    fillBuffer();
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::bernstein", _x, xmin(), xmax(), _coefList,
@@ -108,7 +108,7 @@ double RooBernstein::analyticalIntegral(Int_t /*code*/, const char *rangeName) c
 }
 
 std::string RooBernstein::buildCallToAnalyticIntegral(Int_t /*code*/, const char *rangeName,
-                                                      RooFit::Detail::CodeSquashContext &ctx) const
+                                                      RooFit::CodegenContext &ctx) const
 {
    fillBuffer(); // to get the right xmin() and xmax()
    return ctx.buildCall("RooFit::Detail::MathFuncs::bernsteinIntegral", _x.min(rangeName), _x.max(rangeName),

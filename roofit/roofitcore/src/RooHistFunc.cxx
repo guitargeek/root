@@ -190,7 +190,7 @@ double RooHistFunc::evaluate() const
   return ret ;
 }
 
-void RooHistFunc::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooHistFunc::translate(RooFit::CodegenContext &ctx) const
 {
    RooHistPdf::rooHistTranslateImpl(this, ctx, _intOrder, _dataHist, _depList, false, _cdfBoundaries);
 }
@@ -323,7 +323,7 @@ bool RooHistFunc::forceAnalyticalInt(const RooAbsArg& dep) const
 }
 
 std::string RooHistFunc::buildCallToAnalyticIntegral(int code, const char * /* rangeName */,
-                                                     RooFit::Detail::CodeSquashContext & /* ctx */) const
+                                                     RooFit::CodegenContext & /* ctx */) const
 {
    return RooHistPdf::rooHistIntegralTranslateImpl(code, this, _dataHist, _depList, true);
 }

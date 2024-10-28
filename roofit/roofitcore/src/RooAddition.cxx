@@ -156,7 +156,7 @@ void RooAddition::doEval(RooFit::EvalContext &ctx) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooAddition::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooAddition::translate(RooFit::CodegenContext &ctx) const
 {
    if (_set.empty()) {
       ctx.addResult(this, "0.0");

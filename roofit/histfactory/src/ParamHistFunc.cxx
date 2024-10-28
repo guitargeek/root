@@ -560,7 +560,7 @@ double ParamHistFunc::evaluate() const
   return getParameter().getVal();
 }
 
-void ParamHistFunc::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void ParamHistFunc::translate(RooFit::CodegenContext &ctx) const
 {
    auto const &n = _numBinsPerDim;
 

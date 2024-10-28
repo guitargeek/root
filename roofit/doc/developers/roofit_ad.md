@@ -94,7 +94,7 @@ computation, but without any overhead that is hard to digest by the AD tool.
 On a high level, this *code generation* is implemented as follows:
 
 1. The computation graph is visited recursively by a
-   RooFit::Detail::CodeSquashContext object, via the virtual
+   RooFit::CodegenContext object, via the virtual
    RooAbsArg::translate() function that implements the   translation of a
    given RooFit class to minimal C++ code. This is an example of the visitor
    pattern.
@@ -183,7 +183,7 @@ properties out of the RooFit classes that make up the statistical model.
 The `translate()` function helps implement the Code Squashing logic that is
 used to optimize numerical evaluations. It accomplishes this by using a small
 subset of helper functions that are available in the
-`RooFit::Detail::CodeSquashContext` and `RooFuncWrapper` classes
+`RooFit::CodegenContext` and `RooFuncWrapper` classes
 (see Appendix B). It converts a RooFit expression into a form that can be
 efficiently evaluated by Clad.
 
@@ -285,7 +285,7 @@ To translate the `RooPoisson` class, create a translate function and in it
 include a call to the updated function.
 
 ``` {.cpp}
-void RooPoisson::translate(RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const
+void RooPoisson::translate(RooFit::CodegenContext &ctx) const
 {
    std::string xName = ctx.getResult(x);
    if (!_noRounding)
@@ -326,7 +326,7 @@ more complicated. For a specific class, it will add whatever is represented on
 *after* it has AD support.
 
 ``` {.cpp}
-void RooGaussian::translate(RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const
+void RooGaussian::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::gaussianEvaluate", x, mean, sigma));
 }
@@ -350,7 +350,7 @@ the only way to propagate these upwards into the compute graph.
 function can be seen here:
 
 ``` {.cpp}
-void RooNLLVarNew::translate(RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const
+void RooNLLVarNew::translate(RooFit::CodegenContext &ctx) const
 {
    std::string weightSumName = ctx.makeValidVarName(GetName()) + "WeightSum";
    std::string resName = ctx.makeValidVarName(GetName()) + "Result";
@@ -516,7 +516,7 @@ the `res` variable in the following example) of this class, which can then be
 propagated in the rest of the compute graph.
 
 ``` {.cpp}
-     void translate(RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const override {
+     void translate(RooFit::CodegenContext &ctx) const override {
             std::string res = ctx.buildCall("MathFuncs::doFoo", a, b);
             ctx.addResult(this, res);
     }
@@ -561,7 +561,7 @@ return the output using the `buildCall()` function.
 
 ``` {.cpp}
     std::string
-    buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const override {
+    buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::CodegenContext &ctx) const override {
         return ctx.buildCall("EvaluateFunc::integralFoo", a, b);
     }
 ```
@@ -594,13 +594,13 @@ class RooFoo : public RooAbsReal {
     }
 
     //// ************************** functions for AD Support ***********************
-    void translate(RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const override {
+    void translate(RooFit::CodegenContext &ctx) const override {
         std::string res = ctx.buildCall("EvaluateFunc::doFoo", a, b);
         ctx.addResult(this, res);
     }
 
     std::string
-    buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::Detail::RooFit::Detail::CodeSquashContext &ctx) const override {
+    buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::CodegenContext &ctx) const override {
         return ctx.buildCall("EvaluateFunc::integralFoo", a, b);
     }
     //// ************************** functions for AD Support ***********************
@@ -717,19 +717,19 @@ compile times are reasonable, but with an increase in the level of complexity,
 Following classes provide several Helper Functions to translate existing logic
 into AD-supported logic.
 
-a - RooFit::Detail::CodeSquashContext
+a - RooFit::CodegenContext
 
 b - RooFuncWrapper
 
-### a. RooFit::Detail::CodeSquashContext
+### a. RooFit::CodegenContext
 
-> [roofit/roofitcore/inc/RooFit/Detail/CodeSquashContext.h](https://github.com/root-project/root/blob/master/roofit/roofitcore/inc/RooFit/Detail/CodeSquashContext.h)
+> [roofit/roofitcore/inc/RooFit/CodegenContext.h](https://github.com/root-project/root/blob/master/roofit/roofitcore/inc/RooFit/CodegenContext.h)
 
 It handles how to create a C++ function out of the compute graph (which is
 created with different RooFit classes). This C++ function will be independent
 of these RooFit classes.
 
-RooFit::Detail::CodeSquashContext helps traverse the compute graph received from RooFit and
+RooFit::CodegenContext helps traverse the compute graph received from RooFit and
 then it translates that into a single piece of code (a C++ function), that can
 then be differentiated using Clad. It also helps evaluate the model.
 
@@ -747,7 +747,7 @@ the squashing to happen.
 
 #### Helper Functions
 
-- **RooFit::Detail::CodeSquashContext**: this class maintains the context for squashing of
+- **RooFit::CodegenContext**: this class maintains the context for squashing of
 RooFit models into code.  It keeps track of the results of various
 expressions to avoid redundant calculations.
 
@@ -787,7 +787,7 @@ code body of the squashed function.
 These functions will appear again in this document with more contextual
 examples. For detailed in-line documentation (code comments), please see:
 
-> [roofit/roofitcore/src/RooFit/Detail/CodeSquashContext.cxx](https://github.com/root-project/root/blob/master/roofit/roofitcore/src/RooFit/Detail/CodeSquashContext.cxx)
+> [roofit/roofitcore/src/RooFit/CodegenContext.cxx](https://github.com/root-project/root/blob/master/roofit/roofitcore/src/RooFit/Detail/CodegenContext.cxx)
 
 
 ### b. RooFuncWrapper
@@ -828,7 +828,7 @@ examples. For detailed in-line documentation (code comments), please see:
 
 ## Appendix C - Helper functions discussed in this document
 
-- **RooFit::Detail::CodeSquashContext::addResult()**: For a specific class, it
+- **RooFit::CodegenContext::addResult()**: For a specific class, it
 will add whatever is represented on the right-hand side (a function call, an
 expression, etc.) to the result of this class, which can then be propagated in
  the rest of the compute graph. A to call `addResult()`must be included in
@@ -838,14 +838,14 @@ expression, etc.) to the result of this class, which can then be propagated in
     new name to assign/overwrite).
   - Output: Adds (or overwrites) the string representing the result of a node.
 
-- **RooFit::Detail::CodeSquashContext::getResult()**: It helps lookup the
+- **RooFit::CodegenContext::getResult()**: It helps lookup the
 result of a child node (the string that the child node previously saved in a
 variable using the `addResult()` function).
 
   - Input: `key` (the node to get the result string for).
   - Output: String representing the result of this node.
 
-- **RooFit::Detail::CodeSquashContext::addToCodeBody()**: Takes whatever string
+- **RooFit::CodegenContext::addToCodeBody()**: Takes whatever string
  is computed in its arguments and adds it to the overall function string (which
  will later be just-in-time compiled).
 
@@ -853,7 +853,7 @@ variable using the `addResult()` function).
     (string to add to the squashed code).
   - Output: Adds the input string to the squashed code body.
 
-- **RooFit::Detail::CodeSquashContext::addToGlobalScope()**: Helps declare and
+- **RooFit::CodegenContext::addToGlobalScope()**: Helps declare and
 initialize the results variable, so that it can be available globally
 (throughout the function body).
 
@@ -861,14 +861,14 @@ initialize the results variable, so that it can be available globally
   - Output: Adds the given string to the string block that will be emitted at
     the top of the squashed function.
 
-- **RooFit::Detail::CodeSquashContext::assembleCode()**: combines the generated
+- **RooFit::CodegenContext::assembleCode()**: combines the generated
 code statements into the final code body of the squashed function.
 
   - Input: `returnExpr` (he string representation of what the squashed function
     should return, usually the head node).
   - Output: The final body of the function.
 
-- **RooFit::Detail::CodeSquashContext::beginLoop()**: The code squashing task
+- **RooFit::CodegenContext::beginLoop()**: The code squashing task
 will automatically build a For loop around the indented statements that follow
  this function.
 
@@ -876,13 +876,13 @@ will automatically build a For loop around the indented statements that follow
     dependent variables).
   - Output: A scope for iterating over vector observables.
 
-- **RooFit::Detail::CodeSquashContext::buildArg()**: helps convert RooFit
+- **RooFit::CodegenContext::buildArg()**: helps convert RooFit
 objects into arrays or other C++ representations for efficient computation.
 
   - Input: `in` (the list to convert to array).
   - Output: Name of the array that stores the input list in the squashed code.
 
-- **RooFit::Detail::CodeSquashContext::buildCall()**: Creates a string
+- **RooFit::CodegenContext::buildCall()**: Creates a string
 representation of the function to be called and its arguments.
 
   - Input: A function with name `funcname`, passing some arguments.

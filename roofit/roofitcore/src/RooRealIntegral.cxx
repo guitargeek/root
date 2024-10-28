@@ -1031,7 +1031,7 @@ void RooRealIntegral::setAllowComponentSelection(bool allow){
   _respectCompSelect = allow;
 }
 
-void RooRealIntegral::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooRealIntegral::translate(RooFit::CodegenContext &ctx) const
 {
    if (_sumList.empty() && _intList.empty()) {
       ctx.addResult(this, _function.arg().buildCallToAnalyticIntegral(_mode, RooNameReg::str(_rangeName), ctx));

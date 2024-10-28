@@ -2340,7 +2340,7 @@ public:
       _prodPdf->doEvalImpl(this, *_cache, ctx);
    }
 
-   void translate(RooFit::Detail::CodeSquashContext &ctx) const override
+   void translate(RooFit::CodegenContext &ctx) const override
    {
       if (_cache->_isRearranged) {
          ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::ratio", *_cache->_rearrangedNum, *_cache->_rearrangedDen));

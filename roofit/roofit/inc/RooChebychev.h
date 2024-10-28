@@ -37,9 +37,9 @@ public:
 
   void selectNormalizationRange(const char* rangeName=nullptr, bool force=false) override ;
 
-  void translate(RooFit::Detail::CodeSquashContext &ctx) const override;
+  void translate(RooFit::CodegenContext &ctx) const override;
   std::string
-  buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const override;
+  buildCallToAnalyticIntegral(Int_t code, const char *rangeName, RooFit::CodegenContext &ctx) const override;
 
   private:
   RooRealProxy _x;

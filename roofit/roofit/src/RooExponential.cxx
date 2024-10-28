@@ -113,7 +113,7 @@ double RooExponential::analyticalIntegral(Int_t code, const char *rangeName) con
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooExponential::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooExponential::translate(RooFit::CodegenContext &ctx) const
 {
    // Build a call to the stateless exponential defined later.
    std::string coef;
@@ -127,7 +127,7 @@ void RooExponential::translate(RooFit::Detail::CodeSquashContext &ctx) const
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string RooExponential::buildCallToAnalyticIntegral(Int_t code, const char *rangeName,
-                                                        RooFit::Detail::CodeSquashContext &ctx) const
+                                                        RooFit::CodegenContext &ctx) const
 {
    bool isOverX = code == 1;
 

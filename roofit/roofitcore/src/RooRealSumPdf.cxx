@@ -297,7 +297,7 @@ void RooRealSumPdf::doEval(RooFit::EvalContext & ctx) const
   }
 }
 
-std::string RooRealSumPdf::translateImpl(RooFit::Detail::CodeSquashContext &ctx, RooAbsArg const *klass,
+std::string RooRealSumPdf::translateImpl(RooFit::CodegenContext &ctx, RooAbsArg const *klass,
                                          RooArgList const &funcList, RooArgList const &coefList, bool normalize)
 {
    bool noLastCoeff = funcList.size() != coefList.size();
@@ -328,7 +328,7 @@ std::string RooRealSumPdf::translateImpl(RooFit::Detail::CodeSquashContext &ctx,
    return sum;
 }
 
-void RooRealSumPdf::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooRealSumPdf::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, translateImpl(ctx, this, _funcList, _coefList));
 }

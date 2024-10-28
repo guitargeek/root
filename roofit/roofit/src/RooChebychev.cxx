@@ -90,7 +90,7 @@ double RooChebychev::evaluate() const
    return RooFit::Detail::MathFuncs::chebychev(coeffs.data(), _coefList.size(), _x, xmin, xmax);
 }
 
-void RooChebychev::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooChebychev::translate(RooFit::CodegenContext &ctx) const
 {
    // first bring the range of the variable _x to the normalised range [-1, 1]
    // calculate sum_k c_k T_k(x) where x is given in the normalised range,
@@ -145,7 +145,7 @@ double RooChebychev::analyticalIntegral(Int_t code, const char* rangeName) const
 }
 
 std::string RooChebychev::buildCallToAnalyticIntegral(Int_t /* code */, const char *rangeName,
-                                                      RooFit::Detail::CodeSquashContext &ctx) const
+                                                      RooFit::CodegenContext &ctx) const
 {
    double xmax = _x.max(_refRangeName ? _refRangeName->GetName() : nullptr);
    double xmaxFull = _x.max(rangeName);

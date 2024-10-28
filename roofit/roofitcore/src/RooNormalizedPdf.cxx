@@ -48,7 +48,7 @@ void RooNormalizedPdf::doEval(RooFit::EvalContext &ctx) const
    }
 }
 
-void RooNormalizedPdf::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooNormalizedPdf::translate(RooFit::CodegenContext &ctx) const
 {
    // For now just return function/normalization integral.
    ctx.addResult(this, ctx.getResult(_pdf) + "/" + ctx.getResult(_normIntegral));

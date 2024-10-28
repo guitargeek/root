@@ -88,7 +88,7 @@ double RooRecursiveFraction::evaluate() const
   return prod ;
 }
 
-void RooRecursiveFraction::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooRecursiveFraction::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::recursiveFraction", _list, _list.size()));
 }

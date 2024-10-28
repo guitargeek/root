@@ -64,7 +64,7 @@ double RooCBShape::evaluate() const
    return RooFit::Detail::MathFuncs::cbShape(m, m0, sigma, alpha, n);
 }
 
-void RooCBShape::translate(RooFit::Detail::CodeSquashContext &ctx) const
+void RooCBShape::translate(RooFit::CodegenContext &ctx) const
 {
    ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::cbShape", m, m0, sigma, alpha, n));
 }
@@ -96,7 +96,7 @@ double RooCBShape::analyticalIntegral(Int_t /*code*/, const char *rangeName) con
 }
 
 std::string
-RooCBShape::buildCallToAnalyticIntegral(Int_t /*code*/, const char *rangeName, RooFit::Detail::CodeSquashContext &ctx) const
+RooCBShape::buildCallToAnalyticIntegral(Int_t /*code*/, const char *rangeName, RooFit::CodegenContext &ctx) const
 {
    return ctx.buildCall("RooFit::Detail::MathFuncs::cbShapeIntegral",
                         m.min(rangeName), m.max(rangeName), m0, sigma, alpha, n);
