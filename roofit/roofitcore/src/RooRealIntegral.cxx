@@ -1048,37 +1048,13 @@ void RooRealIntegral::translate(RooFit::CodegenContext &ctx) const
 
    auto &intVar = static_cast<RooAbsRealLValue &>(*_intList[0]);
 
-   std::string obsName = ctx.getTmpVarName();
    std::string oldIntVarResult = ctx.getResult(intVar);
    ctx.addResult(&intVar, "obs[0]");
 
    std::string funcName = ctx.buildFunction(*_function, {});
 
-   std::stringstream ss;
-
-   ss  << "double " << obsName << "[1];\n";
-
-   std::string resName = RooFit::Detail::makeValidVarName(GetName()) + "Result";
-   ctx.addResult(this, resName);
-   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
-
-   // TODO: once Clad has support for higher-order functions (follow also the
-   // Clad issue #637), we could refactor this code into an actual function
-   // instead of hardcoding it here as a string.
-   ss << "{\n"
-      << "   const int n = 1000; // number of sampling points\n"
-      << "   double d = " << intVar.getMax(intRange()) << " - " << intVar.getMin(intRange()) << ";\n"
-      << "   double eps = d / n;\n"
-      << "   for (int i = 0; i < n; ++i) {\n"
-      << "      " << obsName << "[0] = " << intVar.getMin(intRange()) << " + eps * i;\n"
-      << "      double tmpA = " << funcName << "(params, " << obsName << ", xlArr);\n"
-      << "      " << obsName << "[0] = " << intVar.getMin(intRange()) << " + eps * (i + 1);\n"
-      << "      double tmpB = " << funcName << "(params, " << obsName << ", xlArr);\n"
-      << "      " << resName << " += (tmpA + tmpB) * 0.5 * eps;\n"
-      << "   }\n"
-      << "}\n";
-
-   ctx.addToGlobalScope(ss.str());
+   ctx.addResult(this, ctx.buildCall("RooFit::Detail::MathFuncs::simpleNumericIntegral", "params", "xlArr", funcName,
+                                     intVar.getMin(intRange()), intVar.getMax(intRange())));
 
    ctx.addResult(&intVar, oldIntVarResult);
 }

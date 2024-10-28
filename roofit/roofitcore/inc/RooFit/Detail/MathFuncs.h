@@ -728,6 +728,24 @@ inline double bernsteinIntegral(double xlo, double xhi, double xmin, double xmax
    return norm * (xmax - xmin);
 }
 
+template <class Function>
+inline double simpleNumericIntegral(double *params, double const *xlArr, Function func, double xmin, double xmax)
+{
+   const int n = 1000; // number of sampling points
+   double d = xmax - xmin;
+   double eps = d / n;
+   double out = 0.;
+   double obs[1];
+   for (int i = 0; i < n; ++i) {
+      obs[0] = xmin + eps * i;
+      double tmpA = func(params, obs, xlArr);
+      obs[0] = xmin + eps * (i + 1);
+      double tmpB = func(params, obs, xlArr);
+      out += (tmpA + tmpB) * 0.5 * eps;
+   }
+   return out;
+}
+
 } // namespace MathFuncs
 
 } // namespace Detail
