@@ -250,43 +250,60 @@ void PiecewiseInterpolation::translate(RooFit::Detail::CodeSquashContext &ctx) c
    ctx.addResult(this, resName);
 }
 
+namespace {
+
+inline double broadcast(std::span<const double> const &s, std::size_t i)
+{
+   return s.size() > 1 ? s[i] : s[0];
+}
+
+} // namespace
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Interpolate between input distributions for all values of the observable in `evalData`.
 /// \param[in,out] evalData Struct holding spans pointing to input data. The results of this function will be stored here.
 /// \param[in] normSet Arguments to normalise over.
-void PiecewiseInterpolation::doEval(RooFit::EvalContext & ctx) const
+void PiecewiseInterpolation::doEval(RooFit::EvalContext &ctx) const
 {
-  std::span<double> sum = ctx.output();
+   std::span<double> sum = ctx.output();
 
-  auto nominal = ctx.at(_nominal);
-  for(unsigned int j=0; j < nominal.size(); ++j) {
-    sum[j] = nominal[j];
-  }
+   auto nominal = ctx.at(_nominal);
 
-  for (unsigned int i=0; i < _paramSet.size(); ++i) {
-    const double param = static_cast<RooAbsReal*>(_paramSet.at(i))->getVal();
-    auto low   = ctx.at(_lowSet.at(i));
-    auto high  = ctx.at(_highSet.at(i));
-    const int icode = _interpCode[i];
+   // Figure out the output size, which is the maximum of the sizes of nominal,
+   // low, and high. This is important because any of them might be a scalar
+   // that has to be broadcasted.
+   const std::size_t nOut = std::max(nominal.size(), ctx.at(_lowSet.at(0)).size(), ctx.at(_highSet.at(0)).size());
 
-    if (icode < 0 || icode > 5) {
-      coutE(InputArguments) << "PiecewiseInterpolation::doEval(): " << _paramSet[i].GetName()
-                       << " with unknown interpolation code" << icode << std::endl;
-      throw std::invalid_argument("PiecewiseInterpolation::doEval() got invalid interpolation code " + std::to_string(icode));
-    }
+   for (std::size_t j = 0; j < nOut; ++j) {
+      sum[j] = broadcast(nominal, j);
+   }
 
-    for (unsigned int j=0; j < nominal.size(); ++j) {
-       using RooFit::Detail::MathFuncs::flexibleInterpSingle;
-       sum[j] += flexibleInterpSingle(icode, low[j], high[j], 1.0, nominal[j], param, sum[j]);
-    }
-  }
+   for (unsigned int i = 0; i < _paramSet.size(); ++i) {
+      const double param = ctx.at(_paramSet.at(i))[0];
+      auto low = ctx.at(_lowSet.at(i));
+      auto high = ctx.at(_highSet.at(i));
+      const int icode = _interpCode[i];
 
-  if (_positiveDefinite) {
-    for(unsigned int j=0; j < nominal.size(); ++j) {
-      if (sum[j] < 0.)
-        sum[j] = 0.;
-    }
-  }
+      if (icode < 0 || icode > 5) {
+         coutE(InputArguments) << "PiecewiseInterpolation::doEval(): " << _paramSet[i].GetName()
+                               << " with unknown interpolation code" << icode << std::endl;
+         throw std::invalid_argument("PiecewiseInterpolation::doEval() got invalid interpolation code " +
+                                     std::to_string(icode));
+      }
+
+      for (std::size_t j = 0; j < nOut; ++j) {
+         using RooFit::Detail::MathFuncs::flexibleInterpSingle;
+         sum[j] += flexibleInterpSingle(icode, broadcast(low, j), broadcast(high, j), 1.0, broadcast(nominal, j), param,
+                                        sum[j]);
+      }
+   }
+
+   if (_positiveDefinite) {
+      for (std::size_t j = 0; j < nOut; ++j) {
+         if (sum[j] < 0.)
+            sum[j] = 0.;
+      }
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
