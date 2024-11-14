@@ -30,6 +30,8 @@ https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-strid
 
 #include <TMath.h>
 
+#include "RooFit/Detail/MathFuncs.h"
+
 #include <RooHeterogeneousMath.h>
 
 #include <vector>
@@ -705,6 +707,38 @@ __rooglobal__ void computeNovosibirsk(Batches &batches)
       batches.output[i] = fast_exp(batches.output[i]);
 }
 
+__rooglobal__ void computePiecewiseInterpolation(Batches &batches)
+{
+   Batch nominal = batches.args[0];
+
+   for (size_t i = 0; i < batches.nEvents; ++i) {
+      batches.output[i] = nominal[i];
+   }
+
+   std::size_t nParams = (batches.nBatches - 1) / 3;
+
+   for (std::size_t iParam = 0; iParam < nParams; ++iParam) {
+      std::size_t offset = 1 + 3 * iParam;
+      Batch param = batches.args[offset];
+      Batch low = batches.args[offset + 1];
+      Batch high = batches.args[offset + 2];
+
+      const int icode = batches.nExtra[iParam];
+
+      for (size_t i = 0; i < batches.nEvents; ++i) {
+         using f = RooFit::Detail::MathFuncs::flexibleInterpSingle;
+         batches.output[i] += f(icode, low[i], high[i], 1.0, nominal[i], param[i], batches.output[i]);
+      }
+   }
+
+   bool positiveDefinite = batches.extra[batches.nExtra - 1];
+   if (positiveDefinite) {
+      for (size_t i = 0; i < batches.nEvents; ++i) {
+         batches.output[i] = std::max(batches.output[i], 0.0);
+      }
+   }
+}
+
 __rooglobal__ void computePoisson(Batches &batches)
 {
    Batch x = batches.args[0];
@@ -946,6 +980,7 @@ std::vector<void (*)(Batches &)> getFunctions()
            computeNegativeLogarithms,
            computeNormalizedPdf,
            computeNovosibirsk,
+           computePiecewiseInterpolation,
            computePoisson,
            computePolynomial,
            computePower,
