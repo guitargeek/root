@@ -200,7 +200,7 @@ The [TUnfold package](https://www.desy.de/~sschmitt/tunfold.html) inside ROOT is
 * **Usage of `std::span<const double>`in the interface**: To avoid forcing the user to do manual memory allocations via `std::vector`, the interfaces of Minuit 2 function adapter classes like `ROOT::Minuit2::FCNBase` or `ROOT::Minuit2::FCNGradientBase` were changed to accept `std::span<const double>` arguments instead of `std::vector<double> const&`.
 This should have minimal impact on users, since one should usual use Minuit 2 via the `ROOT::Math::Minimizer` interface, which is unchanged.
 
-* **Initial error/covariance matrix values for Hessian matrix**: Initial error/covariance matrix values can be passed for initializating the Hessian matrix to be used in minimization algorithms by attaching the covariance matrix to the `ROOT::Minuit2::MnUserParameterState` instance used for seeding via the method `AddCovariance(const MnUserCovariance &);`.
+* **Initial error/covariance matrix values for Hessian matrix**: Initial error/covariance matrix values can be passed for initializing the Hessian matrix to be used in minimization algorithms by attaching the covariance matrix to the `ROOT::Minuit2::MnUserParameterState` instance used for seeding via the method `AddCovariance(const MnUserCovariance &);`.
 
 ## RooFit Libraries
 
@@ -220,9 +220,13 @@ This enables the latest ATLAS Higgs combination fits to complete successfully, a
 
 * The `ExportOnly()` attribute of the `RooStats::HistFactory::Measurement` object is now switched on by default, and the associated getter and setter functions are deprecated. They will be removed in ROOT 6.36. If you want to fit the model as well instead of just exporting it to a RooWorkspace, please do so with your own code as demonstrated in the `hf001` tutorial.
 
-* Initial error values can be used for initializating the Hessian matrix to be used in Minuit2 minimization algorithms by setting the `RooMinimizer::Config` option `setInitialCovariance` to `true`. These values correspond to the diagonal entries of the initial covariance matrix.
+* Initial error values can be used for initializing the Hessian matrix to be used in Minuit2 minimization algorithms by setting the `RooMinimizer::Config` option `setInitialCovariance` to `true`. These values correspond to the diagonal entries of the initial covariance matrix.
 
 * `RooFit::MultiProcess`-enabled fitting developer/advanced documentation -- [available through GitHub](https://github.com/root-project/root/blob/master/roofit/doc/developers/test_statistics.md) -- was updated. It now contains the most up to date usage instructions for optimizing load balancing (and hence run speed) using this backend.
+
+* The **6.34.02** patch release introduces a **bugfix** for [RooAbsReal::createHistogram()](https://root.cern.ch/doc/master/classRooAbsReal.html#a9451168bb4159899fe1854f591f69814) when using it to get histograms with predicted yields for extended pdfs.
+The `Scale(bool)` argument was always set to `false` internally in calse `createHistogram()` was called on an extended pdf. There was no way for the user to override that.
+This meant that one could not get yield histograms that were correctly scaled by the bin volumes using that function. The patch release changes that behavior.
 
 ### Deprecations
 
@@ -276,7 +280,7 @@ frame border. Provide demo in `tutorials\webcanv\inframe.cxx` macro
 
 Provide batch mode for image production with headless browser. In such mode data for several canvases collected together (in batch) and then N images are produced with single invocation of the web browser (chrome or firefox). For instance after `TWebCanvas::BatchImageMode(100)` next 99 calls to `TCanvas::SaveAs(filename)` method will not lead to image files creation. But with following call all 100 images will be produced together. Alternatively one can use `TCanvas::SaveAll()` static method which allows to create images for several canvases at once.
 
-Support multi-page PDF file creation with web-based canvas using `svg2pdf.js` library. Both with native and web-baed graphics one can do now:
+Support multi-page PDF file creation with web-based canvas using `svg2pdf.js` library. Both with native and web-based graphics one can do now:
 ```c++
 c1->SaveAs("file.pdf[")
 c2->SaveAs("file.pdf+")
@@ -291,7 +295,7 @@ TCanvas::SaveAll({c1, c2, c3, c4}, "file.pdf");
 ## 2D Graphics Libraries
 * In `TGraphErrors` `TGraphAsymmErrors` and `TGraphBentErrors`, the error bars were drawn inside the marker when the marker was bigger than the error bars. This produced a weird plot. This is now fixed.
 
-* When error-bars exceeded the y range limits the end of error bars were nevertheless displayed was not correcton the x-bottom and top axis. So it looked like the total error bar while it was indeed not.
+* When error-bars exceeded the y range limits the end of error bars were nevertheless displayed was not correction the x-bottom and top axis. So it looked like the total error bar while it was indeed not.
 
 * Choosing an appropriate color scheme is essential for making results easy to understand and interpret. Factors like colorblindness and converting colors to grayscale for publications can impact accessibility. Furthermore, results should be aesthetically pleasing. The following three color schemes, recommended by M. Petroff in [arXiv:2107.02270v2](https://arxiv.org/pdf/2107.02270) and available on [GitHub](https://github.com/mpetroff/accessible-color-cycles) under the MIT License, meet these criteria.
 
@@ -539,7 +543,7 @@ More than 200 items were addressed for this release. The full list is:
 * [[#14487](https://github.com/root-project/root/issues/14487)] - Assert when trying to write RNTuple to full disk
 * [[#14217](https://github.com/root-project/root/issues/14217)] - Module merge problems with GCC 13, C++20, Pythia8
 * [[#14173](https://github.com/root-project/root/issues/14173)] - Adding a couple of useful methods in THnD
-* [[#14132](https://github.com/root-project/root/issues/14132)] - Lazy multithread RDataFrame::Snapshot cause unnessary warning and break gDirectory
+* [[#14132](https://github.com/root-project/root/issues/14132)] - Lazy multithread RDataFrame::Snapshot cause unnecessary warning and break gDirectory
 * [[#14055](https://github.com/root-project/root/issues/14055)] - Failing build with `-Dasan=ON` and memory leak in minimal build
 * [[#13729](https://github.com/root-project/root/issues/13729)] - [math] Contour method has some problems with Minuit2
 * [[#13677](https://github.com/root-project/root/issues/13677)] - [Cling] Potential unloading issue which breaks distributed execution
@@ -568,7 +572,7 @@ More than 200 items were addressed for this release. The full list is:
 * [[#10317](https://github.com/root-project/root/issues/10317)] - [Doxygen] tutorials appear as namespaces
 * [[#10239](https://github.com/root-project/root/issues/10239)] - ? wildcard broken in TChain::Add()
 * [[#10010](https://github.com/root-project/root/issues/10010)] - TLeaf::ReadBasket invalid write in TMVA test
-* [[#9792](https://github.com/root-project/root/issues/9792)] - should fLogger be persistant ?
+* [[#9792](https://github.com/root-project/root/issues/9792)] - should fLogger be persistent ?
 * [[#9646](https://github.com/root-project/root/issues/9646)] - Numerically stable computation of invariant mass
 * [[#9637](https://github.com/root-project/root/issues/9637)] - `TGraph::Add(TF1 *f)` method like for `TH1`'s
 * [[#9445](https://github.com/root-project/root/issues/9445)] - Hit errors when build ROOT with msvc on AddressSanitizer mode
