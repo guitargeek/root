@@ -59,6 +59,19 @@ IncludeCategories:
     Priority:        3
   - Regex:           '.*'
     Priority:        6
+   # Order alphabetically and by generality the included header files.
+  - Regex:           '^"[^/]+\"'
+    Priority:        10
+  - Regex:           '^"ROOT/'
+    Priority:        15
+  - Regex:           '^"cling/'
+    Priority:        20
+  - Regex:           '^"clang/'
+    Priority:        30
+  - Regex:           '^"llvm/'
+    Priority:        40
+  - Regex:           '^<'
+    Priority:        50
 IndentCaseLabels: false
 IndentWidth:     3
 IndentWrappedFunctionNames: false
@@ -94,18 +107,3 @@ SpacesInSquareBrackets: false
 Standard:        Cpp11
 TabWidth:        3
 UseTab:          Never
-
-# Order alphabetically and by generality the included header files.
-IncludeCategories:
-  - Regex:           '^"[^/]+\"'
-    Priority:        10
-  - Regex:           '^"ROOT/'
-    Priority:        15
-  - Regex:           '^"cling/'
-    Priority:        20
-  - Regex:           '^"clang/'
-    Priority:        30
-  - Regex:           '^"llvm/'
-    Priority:        40
-  - Regex:           '^<'
-    Priority:        50
