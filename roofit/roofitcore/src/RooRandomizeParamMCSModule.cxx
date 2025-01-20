@@ -44,7 +44,6 @@ number of expected events of an extended p.d.f
 #include "RooMsgService.h"
 #include "RooRandomizeParamMCSModule.h"
 
-using std::endl;
 
 ClassImp(RooRandomizeParamMCSModule);
 

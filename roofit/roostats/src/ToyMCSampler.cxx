@@ -47,7 +47,6 @@ TestStatistic.
 
 
 using namespace RooFit;
-using std::endl;
 
 
 ClassImp(RooStats::ToyMCSampler);

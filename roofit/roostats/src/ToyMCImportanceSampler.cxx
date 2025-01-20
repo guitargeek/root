@@ -25,7 +25,7 @@ Implementation based on a work by   Cranmer, Kreiss, Read (in Preparation)
 #include "TMath.h"
 
 using namespace RooFit;
-using std::endl, std::vector;
+using std::vector;
 
 
 ClassImp(RooStats::ToyMCImportanceSampler);

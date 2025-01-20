@@ -55,8 +55,6 @@ can be selected to speed up the convergence of these integrals.
 #include "TMath.h"
 #include "RooMsgService.h"
 
-using std::endl;
-
 
 // --- From GSL_MATH.h -------------------------------------------
 struct gsl_function_struct

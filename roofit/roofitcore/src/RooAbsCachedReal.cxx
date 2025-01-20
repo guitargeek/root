@@ -29,7 +29,7 @@ for changes to trigger a refilling of the cache histogram.
 **/
 
 #include "Riostream.h"
-using std::string, std::endl, std::ostream;
+using std::string, std::ostream;
 
 #include "TString.h"
 #include "RooAbsCachedReal.h"

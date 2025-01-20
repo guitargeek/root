@@ -48,7 +48,7 @@
 
 #include <stdexcept>
 
-using std::endl, std::istream, std::ostream;
+using std::istream, std::ostream;
 
 ClassImp(RooArgList);
 

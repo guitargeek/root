@@ -33,7 +33,7 @@ and it has a protected version of getVal()
 #include "RooCategory.h"
 #include "RooMsgService.h"
 
-using std::ostream, std::istream, std::endl;
+using std::ostream, std::istream;
 
 ClassImp(RooAbsHiddenReal);
 

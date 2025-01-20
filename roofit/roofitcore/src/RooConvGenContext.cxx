@@ -38,9 +38,6 @@ subsequently explicitly smeared with the resolution model distribution.
 #include "RooTruthModel.h"
 #include "Riostream.h"
 
-
-using std::ostream;
-
 ClassImp(RooConvGenContext);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -313,7 +310,7 @@ void RooConvGenContext::setProtoDataOrder(Int_t* lut)
 ////////////////////////////////////////////////////////////////////////////////
 /// Print the details of this generator context
 
-void RooConvGenContext::printMultiline(ostream &os, Int_t content, bool verbose, TString indent) const
+void RooConvGenContext::printMultiline(std::ostream &os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsGenContext::printMultiline(os,content,verbose,indent) ;
   os << indent << "--- RooConvGenContext ---" << std::endl ;

@@ -40,9 +40,6 @@ to test that assumption.
 #include "RooMsgService.h"
 
 
-
-using std::endl;
-
 ClassImp(RooDLLSignificanceMCSModule);
 
 

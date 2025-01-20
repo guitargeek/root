@@ -99,8 +99,6 @@ bool isCacheSet(std::string const& setName) {
 
 } // namespace
 
-using std::string, std::list, std::map, std::vector, std::ifstream, std::ofstream, std::fstream, std::make_unique;
-
 ClassImp(RooWorkspace);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,9 +109,9 @@ ClassImp(RooWorkspace::CodeRepo);
 
 ClassImp(RooWorkspace::WSDir);
 
-list<string> RooWorkspace::_classDeclDirList ;
-list<string> RooWorkspace::_classImplDirList ;
-string RooWorkspace::_classFileExportDir = ".wscode.%s.%s" ;
+std::list<std::string> RooWorkspace::_classDeclDirList ;
+std::list<std::string> RooWorkspace::_classImplDirList ;
+std::string RooWorkspace::_classFileExportDir = ".wscode.%s.%s" ;
 bool RooWorkspace::_autoClass = false ;
 
 
@@ -140,13 +138,9 @@ void RooWorkspace::addClassImplImportDir(const char* dir)
 /// code is unpacked and compiled. The specified string may contain
 /// one '%s' token which will be substituted by the workspace name
 
-void RooWorkspace::setClassFileExportDir(const char* dir)
+void RooWorkspace::setClassFileExportDir(const char *dir)
 {
-  if (dir) {
-    _classFileExportDir = dir ;
-  } else {
-    _classFileExportDir = ".wscode.%s.%s" ;
-  }
+   _classFileExportDir = dir ? dir : ".wscode.%s.%s";
 }
 
 
@@ -210,7 +204,7 @@ RooWorkspace::RooWorkspace(const RooWorkspace& other) :
   }
 
   // Copy named sets
-  for (map<string,RooArgSet>::const_iterator iter3 = other._namedSets.begin() ; iter3 != other._namedSets.end() ; ++iter3) {
+  for (auto iter3 = other._namedSets.begin() ; iter3 != other._namedSets.end() ; ++iter3) {
     // Make RooArgSet with equivalent content of this workspace
     _namedSets[iter3->first].add(*std::unique_ptr<RooArgSet>{_allOwnedNodes.selectCommon(iter3->second)});
   }
@@ -429,14 +423,14 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
   const char* suffix = suffixA ? suffixA : suffixC ;
 
   // Process any change in variable names
-  std::map<string,string> varMap ;
+  std::map<std::string,std::string> varMap ;
   if (strlen(varChangeIn)>0) {
 
     // Parse comma separated lists into map<string,string>
     const std::vector<std::string> tokIn = ROOT::Split(varChangeIn, ", ", /*skipEmpty= */ true);
     const std::vector<std::string> tokOut = ROOT::Split(varChangeOut, ", ", /*skipEmpty= */ true);
     for (unsigned int i=0; i < tokIn.size(); ++i) {
-      varMap.insert(std::make_pair(tokIn[i], tokOut[i]));
+      varMap.emplace(tokIn[i], tokOut[i]);
     }
 
     assert(tokIn.size() == tokOut.size());
@@ -444,7 +438,7 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
 
   // Process RenameAllVariables argument if specified
   // First convert exception list if provided
-  std::set<string> exceptVarNames ;
+  std::set<std::string> exceptVarNames ;
   if (exceptVars && strlen(exceptVars)) {
     const std::vector<std::string> toks = ROOT::Split(exceptVars, ", ", /*skipEmpty= */ true);
     exceptVarNames.insert(toks.begin(), toks.end());
@@ -525,15 +519,15 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
   }
 
   // Mark nodes that are to be renamed with special attribute
-  string topName2 = cloneTop->GetName() ;
+  std::string topName2 = cloneTop->GetName() ;
   if (!renameConflictOrig) {
     // Mark all nodes to be imported for renaming following conflict resolution protocol
     for (const auto cnode : conflictNodes) {
       RooAbsArg* cnode2 = cloneSet.find(cnode->GetName()) ;
-      string origName = cnode2->GetName() ;
+      std::string origName = cnode2->GetName() ;
       cnode2->SetName(Form("%s_%s",cnode2->GetName(),suffix)) ;
       cnode2->SetTitle(Form("%s (%s)",cnode2->GetTitle(),suffix)) ;
-      string tag = Form("ORIGNAME:%s",origName.c_str()) ;
+      std::string tag = "ORIGNAME:" + origName;
       cnode2->setAttribute(tag.c_str()) ;
       if (!cnode2->getStringAttribute("origName")) {
         cnode2->setStringAttribute("origName",origName.c_str());
@@ -555,7 +549,7 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
     // Rename all nodes already in the workspace to 'clear the way' for the imported nodes
     for (const auto cnode : conflictNodes) {
 
-      string origName = cnode->GetName() ;
+      std::string origName = cnode->GetName() ;
       RooAbsArg* wsnode = _allOwnedNodes.find(origName.c_str()) ;
       if (wsnode) {
 
@@ -569,7 +563,7 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
         } else {
           // Name with suffix already taken, add additional suffix
           for (unsigned int n=1; true; ++n) {
-            string newname = Form("%s_%s_%d",cnode->GetName(),suffix,n) ;
+            std::string newname = Form("%s_%s_%d",cnode->GetName(),suffix,n) ;
             if (!_allOwnedNodes.find(newname.c_str())) {
               wsnode->SetName(newname.c_str()) ;
               wsnode->SetTitle(Form("%s (%s %d)",cnode->GetTitle(),suffix,n)) ;
@@ -597,9 +591,9 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
     for (const auto cnode : cloneSet) {
 
       if (varMap.find(cnode->GetName())!=varMap.end()) {
-        string origName = cnode->GetName() ;
+        std::string origName = cnode->GetName() ;
         cnode->SetName(varMap[cnode->GetName()].c_str()) ;
-        string tag = Form("ORIGNAME:%s",origName.c_str()) ;
+        std::string tag = "ORIGNAME:" + origName;
         cnode->setAttribute(tag.c_str()) ;
         if (!cnode->getStringAttribute("origName")) {
           cnode->setStringAttribute("origName",origName.c_str()) ;
@@ -844,7 +838,7 @@ bool RooWorkspace::import(RooAbsData const& inData,
 bool RooWorkspace::defineSet(const char* name, const RooArgSet& aset, bool importMissing)
 {
   // Check if set was previously defined, if so print warning
-  map<string,RooArgSet>::iterator i = _namedSets.find(name) ;
+  auto i = _namedSets.find(name) ;
   if (i!=_namedSets.end()) {
     coutW(InputArguments) << "RooWorkspace::defineSet(" << GetName() << ") WARNING redefining previously defined named set " << name << std::endl ;
   }
@@ -882,7 +876,7 @@ bool RooWorkspace::defineSetInternal(const char *name, const RooArgSet &aset)
    // for missing components
 
    // Check if set was previously defined, if so print warning
-   map<string, RooArgSet>::iterator i = _namedSets.find(name);
+   auto i = _namedSets.find(name);
    if (i != _namedSets.end()) {
       coutW(InputArguments) << "RooWorkspace::defineSet(" << GetName()
                             << ") WARNING redefining previously defined named set " << name << std::endl;
@@ -902,7 +896,7 @@ bool RooWorkspace::defineSetInternal(const char *name, const RooArgSet &aset)
 bool RooWorkspace::defineSet(const char* name, const char* contentList)
 {
   // Check if set was previously defined, if so print warning
-  map<string,RooArgSet>::iterator i = _namedSets.find(name) ;
+  auto i = _namedSets.find(name) ;
   if (i!=_namedSets.end()) {
     coutW(InputArguments) << "RooWorkspace::defineSet(" << GetName() << ") WARNING redefining previously defined named set " << name << std::endl ;
   }
@@ -963,7 +957,7 @@ bool RooWorkspace::extendSet(const char* name, const char* newContents)
 
 const RooArgSet* RooWorkspace::set(RooStringView name)
 {
-  std::map<string,RooArgSet>::iterator i = _namedSets.find(name.c_str());
+  auto i = _namedSets.find(name.c_str());
   return (i!=_namedSets.end()) ? &(i->second) : nullptr;
 }
 
@@ -1515,8 +1509,8 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
   }
 
   // Retrieve file names through ROOT TClass interface
-  string implfile = tc->GetImplFileName() ;
-  string declfile = tc->GetDeclFileName() ;
+  std::string implfile = tc->GetImplFileName() ;
+  std::string declfile = tc->GetDeclFileName() ;
 
   // Check that file names are not empty
   if (implfile.empty() || declfile.empty()) {
@@ -1552,7 +1546,7 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
   if (gSystem->AccessPathName(declfile.c_str())) {
 
     // Check list of additional declaration paths
-    list<string>::iterator diter = RooWorkspace::_classDeclDirList.begin() ;
+    auto diter = RooWorkspace::_classDeclDirList.begin() ;
 
     while(diter!= RooWorkspace::_classDeclDirList.end()) {
 
@@ -1597,7 +1591,7 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
   if (gSystem->AccessPathName(implfile.c_str())) {
 
     // Check list of additional declaration paths
-    list<string>::iterator iiter = RooWorkspace::_classImplDirList.begin() ;
+    auto iiter = RooWorkspace::_classImplDirList.begin() ;
 
     while(iiter!= RooWorkspace::_classImplDirList.end()) {
 
@@ -1653,10 +1647,10 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
 
   // Split in base and extension
   int dotpos2 = strrchr(declfilename.c_str(),'.') - declfilename.c_str() ;
-  string declfilebase = declfilename.substr(0,dotpos2) ;
-  string declfileext = declfilename.substr(dotpos2+1) ;
+  std::string declfilebase = declfilename.substr(0,dotpos2) ;
+  std::string declfileext = declfilename.substr(dotpos2+1) ;
 
-  list<string> extraHeaders ;
+  std::list<std::string> extraHeaders ;
 
   // If file has not been stored yet, enter stl strings with implementation and declaration in file map
   if (_fmap.find(declfilebase) == _fmap.end()) {
@@ -1678,7 +1672,7 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
 
 
     // Read entire file into an stl string
-    string decl ;
+    std::string decl ;
     while(fdecl.getline(buf,1023)) {
 
       // Look for include state of self
@@ -1719,7 +1713,7 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
     }
 
     // Open implementation file
-    fstream fimpl(!implpath.empty() ? implpath.c_str() : implfile.c_str()) ;
+    std::fstream fimpl(!implpath.empty() ? implpath.c_str() : implfile.c_str()) ;
 
     // Abort import if implementation file cannot be opened
     if (!fimpl) {
@@ -1730,7 +1724,7 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
 
 
     // Import entire implementation file into stl string
-    string impl ;
+    std::string impl ;
     while(fimpl.getline(buf,1023)) {
       // Process #include statements here
 
@@ -1790,13 +1784,13 @@ bool RooWorkspace::CodeRepo::autoImportClass(TClass* tc, bool doReplace)
     _fmap[declfilebase]._hext = declfileext ;
 
     // Process extra includes now
-    for (list<string>::iterator ehiter = extraHeaders.begin() ; ehiter != extraHeaders.end() ; ++ehiter ) {
+    for (auto ehiter = extraHeaders.begin() ; ehiter != extraHeaders.end() ; ++ehiter ) {
       if (_ehmap.find(*ehiter) == _ehmap.end()) {
 
    ExtraHeader eh ;
    eh._hname = ehiter->c_str() ;
-   fstream fehdr(ehiter->c_str()) ;
-   string ehimpl ;
+   std::fstream fehdr(ehiter->c_str()) ;
+   std::string ehimpl ;
    char buf2[1024] ;
    while(fehdr.getline(buf2,1023)) {
 
@@ -2070,7 +2064,7 @@ RooFactoryWSTool& RooWorkspace::factory()
     return *_factory;
   }
   cxcoutD(ObjectHandling) << "INFO: Creating RooFactoryWSTool associated with this workspace" << std::endl ;
-  _factory = make_unique<RooFactoryWSTool>(*this);
+  _factory = std::make_unique<RooFactoryWSTool>(*this);
   return *_factory;
 }
 
@@ -2290,7 +2284,7 @@ void RooWorkspace::Print(Option_t* opts) const
   if (!_namedSets.empty()) {
     std::cout << "named sets" << std::endl ;
     std::cout << "----------" << std::endl ;
-    for (map<string,RooArgSet>::const_iterator it = _namedSets.begin() ; it != _namedSets.end() ; ++it) {
+    for (auto it = _namedSets.begin() ; it != _namedSets.end() ; ++it) {
        if (verbose || !isCacheSet(it->first)) {
           std::cout << it->first << ":" << it->second << std::endl;
        }
@@ -2406,7 +2400,7 @@ void RooWorkspace::CodeRepo::Streamer(TBuffer &R__b)
       // Stream contents of ClassFiles map
       UInt_t count = _fmap.size();
       R__b << count;
-      map<TString, ClassFiles>::iterator iter = _fmap.begin();
+      auto iter = _fmap.begin();
       while (iter != _fmap.end()) {
          TString key_copy(iter->first);
          key_copy.Streamer(R__b);
@@ -2420,7 +2414,7 @@ void RooWorkspace::CodeRepo::Streamer(TBuffer &R__b)
       // Stream contents of ClassRelInfo map
       count = _c2fmap.size();
       R__b << count;
-      map<TString, ClassRelInfo>::iterator iter2 = _c2fmap.begin();
+      auto iter2 = _c2fmap.begin();
       while (iter2 != _c2fmap.end()) {
          TString key_copy(iter2->first);
          key_copy.Streamer(R__b);
@@ -2432,7 +2426,7 @@ void RooWorkspace::CodeRepo::Streamer(TBuffer &R__b)
       // Stream contents of ExtraHeader map
       count = _ehmap.size();
       R__b << count;
-      map<TString, ExtraHeader>::iterator iter3 = _ehmap.begin();
+      auto iter3 = _ehmap.begin();
       while (iter3 != _ehmap.end()) {
          TString key_copy(iter3->first);
          key_copy.Streamer(R__b);
@@ -2486,9 +2480,9 @@ void RooWorkspace::Streamer(TBuffer &R__b)
 
       // Make lists of external clients of WS objects, and remove those links temporarily
 
-      map<RooAbsArg *, vector<RooAbsArg *>> extClients;
-      map<RooAbsArg *, vector<RooAbsArg *>> extValueClients;
-      map<RooAbsArg *, vector<RooAbsArg *>> extShapeClients;
+      std::map<RooAbsArg *, std::vector<RooAbsArg *>> extClients;
+      std::map<RooAbsArg *, std::vector<RooAbsArg *>> extValueClients;
+      std::map<RooAbsArg *, std::vector<RooAbsArg *>> extShapeClients;
 
       for (RooAbsArg *tmparg : _allOwnedNodes) {
 
@@ -2570,8 +2564,8 @@ void RooWorkspace::Streamer(TBuffer &R__b)
 
 std::string RooWorkspace::CodeRepo::listOfClassNames() const
 {
-  string ret ;
-  map<TString,ClassRelInfo>::const_iterator iter = _c2fmap.begin() ;
+  std::string ret ;
+  auto iter = _c2fmap.begin() ;
   while(iter!=_c2fmap.end()) {
     if (!ret.empty()) {
       ret += ", " ;
@@ -2686,12 +2680,12 @@ bool RooWorkspace::CodeRepo::compileClasses()
   bool haveDir=false ;
 
   // Retrieve name of directory in which to export code files
-  string dirName = Form(_classFileExportDir.c_str(),_wspace->uuid().AsString(),_wspace->GetName()) ;
+  std::string dirName = Form(_classFileExportDir.c_str(),_wspace->uuid().AsString(),_wspace->GetName()) ;
 
   bool writeExtraHeaders(false) ;
 
   // Process all class entries in repository
-  map<TString,ClassRelInfo>::iterator iter = _c2fmap.begin() ;
+  auto iter = _c2fmap.begin() ;
   while(iter!=_c2fmap.end()) {
 
     oocxcoutD(_wspace,ObjectHandling) << "RooWorkspace::CodeRepo::compileClasses() now processing class " << iter->first.Data() << std::endl ;
@@ -2729,13 +2723,13 @@ bool RooWorkspace::CodeRepo::compileClasses()
     if (!writeExtraHeaders) {
       writeExtraHeaders = true ;
 
-      map<TString,ExtraHeader>::iterator extraIter = _ehmap.begin() ;
+      auto extraIter = _ehmap.begin() ;
       while(extraIter!=_ehmap.end()) {
 
    // Check if identical declaration file (header) is already written
    bool needEHWrite=true ;
-   string fdname = Form("%s/%s",dirName.c_str(),extraIter->second._hname.Data()) ;
-   ifstream ifdecl(fdname.c_str()) ;
+   std::string fdname = Form("%s/%s",dirName.c_str(),extraIter->second._hname.Data()) ;
+   std::ifstream ifdecl(fdname.c_str()) ;
    if (ifdecl) {
      TString contents ;
      char buf[64000];
@@ -2756,7 +2750,7 @@ bool RooWorkspace::CodeRepo::compileClasses()
       // Extra headers may contain non-existing path - create first to be sure
       gSystem->MakeDirectory(gSystem->GetDirName(fdname.c_str()));
 
-      ofstream fdecl(fdname.c_str());
+      std::ofstream fdecl(fdname.c_str());
       if (!fdecl) {
          oocoutE(_wspace, ObjectHandling) << "RooWorkspace::CodeRepo::compileClasses() ERROR opening file " << fdname
                                           << " for writing" << std::endl;
@@ -2784,8 +2778,8 @@ bool RooWorkspace::CodeRepo::compileClasses()
 
     // Check if identical declaration file (header) is already written
     bool needDeclWrite=true ;
-    string fdname = Form("%s/%s.%s",dirName.c_str(),iter->second._fileBase.Data(),cfinfo._hext.Data()) ;
-    ifstream ifdecl(fdname.c_str()) ;
+    std::string fdname = Form("%s/%s.%s",dirName.c_str(),iter->second._fileBase.Data(),cfinfo._hext.Data()) ;
+    std::ifstream ifdecl(fdname.c_str()) ;
     if (ifdecl) {
       TString contents ;
       char buf[64000];
@@ -2801,7 +2795,7 @@ bool RooWorkspace::CodeRepo::compileClasses()
     // Write declaration file if required
     if (needDeclWrite) {
       oocoutI(_wspace,ObjectHandling) << "RooWorkspace::CodeRepo::compileClasses() Extracting declaration code of class " << iter->first << ", file " << fdname << std::endl ;
-      ofstream fdecl(fdname.c_str()) ;
+      std::ofstream fdecl(fdname.c_str()) ;
       if (!fdecl) {
    oocoutE(_wspace,ObjectHandling) << "RooWorkspace::CodeRepo::compileClasses() ERROR opening file "
                << fdname << " for writing" << std::endl ;
@@ -2813,8 +2807,8 @@ bool RooWorkspace::CodeRepo::compileClasses()
 
     // Check if identical implementation file is already written
     bool needImplWrite=true ;
-    string finame = Form("%s/%s.cxx",dirName.c_str(),iter->second._fileBase.Data()) ;
-    ifstream ifimpl(finame.c_str()) ;
+    std::string finame = Form("%s/%s.cxx",dirName.c_str(),iter->second._fileBase.Data()) ;
+    std::ifstream ifimpl(finame.c_str()) ;
     if (ifimpl) {
       TString contents ;
       char buf[64000];
@@ -2830,7 +2824,7 @@ bool RooWorkspace::CodeRepo::compileClasses()
     // Write implementation file if required
     if (needImplWrite) {
       oocoutI(_wspace,ObjectHandling) << "RooWorkspace::CodeRepo::compileClasses() Extracting implementation code of class " << iter->first << ", file " << finame << std::endl ;
-      ofstream fimpl(finame.c_str()) ;
+      std::ofstream fimpl(finame.c_str()) ;
       if (!fimpl) {
    oocoutE(_wspace,ObjectHandling) << "RooWorkspace::CodeRepo::compileClasses() ERROR opening file"
                << finame << " for writing" << std::endl ;

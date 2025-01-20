@@ -30,7 +30,6 @@ in the GNU scientific library (v0.99).
 #include "Riostream.h"
 #include "RooMsgService.h"
 
-using std::endl;
 
 ClassImp(RooBrentRootFinder);
 

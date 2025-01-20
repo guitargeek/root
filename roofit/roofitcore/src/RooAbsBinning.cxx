@@ -33,16 +33,14 @@ This class defines the interface to retrieve bin boundaries, ranges etc.
 
 #include "Riostream.h"
 
-using std::ostream;
 
 ClassImp(RooAbsBinning);
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Print binning name
 
-void RooAbsBinning::printName(ostream& os) const
+void RooAbsBinning::printName(std::ostream& os) const
 {
   os << GetName() ;
 }
@@ -52,7 +50,7 @@ void RooAbsBinning::printName(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print binning title
 
-void RooAbsBinning::printTitle(ostream& os) const
+void RooAbsBinning::printTitle(std::ostream& os) const
 {
   os << GetTitle() ;
 }
@@ -62,7 +60,7 @@ void RooAbsBinning::printTitle(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print binning class name
 
-void RooAbsBinning::printClassName(ostream& os) const
+void RooAbsBinning::printClassName(std::ostream& os) const
 {
   os << ClassName() ;
 }
@@ -73,7 +71,7 @@ void RooAbsBinning::printClassName(ostream& os) const
 /// Print binning arguments (the RooAbsReal objects represening
 /// the variable bin boundaries for parameterized binning implementations
 
-void RooAbsBinning::printArgs(ostream& os) const
+void RooAbsBinning::printArgs(std::ostream& os) const
 {
   os << "[ " ;
   if (lowBoundFunc()) {
@@ -93,7 +91,7 @@ void RooAbsBinning::printArgs(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print binning value, i.e the bin boundary positions
 
-void RooAbsBinning::printValue(ostream &os) const
+void RooAbsBinning::printValue(std::ostream &os) const
 {
   Int_t n = numBins() ;
   os << "B(" ;

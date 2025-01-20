@@ -49,7 +49,6 @@ the names of the arguments are not hard coded.
 #include "RooArgList.h"
 #include "RooFormula.h"
 
-using std::istream, std::ostream, std::endl;
 
 ClassImp(RooGenericPdf);
 
@@ -155,7 +154,7 @@ bool RooGenericPdf::redirectServersHook(const RooAbsCollection& newServerList, b
 ////////////////////////////////////////////////////////////////////////////////
 /// Print info about this object to the specified stream.
 
-void RooGenericPdf::printMultiline(ostream& os, Int_t content, bool verbose, TString indent) const
+void RooGenericPdf::printMultiline(std::ostream& os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsPdf::printMultiline(os,content,verbose,indent);
   if (verbose) {
@@ -171,7 +170,7 @@ void RooGenericPdf::printMultiline(ostream& os, Int_t content, bool verbose, TSt
 ////////////////////////////////////////////////////////////////////////////////
 /// Add formula expression as meta argument in printing interface
 
-void RooGenericPdf::printMetaArgs(ostream& os) const
+void RooGenericPdf::printMetaArgs(std::ostream& os) const
 {
   os << "formula=\"" << _formExpr << "\" " ;
 }
@@ -183,7 +182,7 @@ void RooGenericPdf::dumpFormula() { formula().dump() ; }
 ////////////////////////////////////////////////////////////////////////////////
 /// Read object contents from given stream
 
-bool RooGenericPdf::readFromStream(istream& /*is*/, bool /*compact*/, bool /*verbose*/)
+bool RooGenericPdf::readFromStream(std::istream& /*is*/, bool /*compact*/, bool /*verbose*/)
 {
   coutE(InputArguments) << "RooGenericPdf::readFromStream(" << GetName() << "): can't read" << std::endl;
   return true;
@@ -193,7 +192,7 @@ bool RooGenericPdf::readFromStream(istream& /*is*/, bool /*compact*/, bool /*ver
 ////////////////////////////////////////////////////////////////////////////////
 /// Write object contents to given stream
 
-void RooGenericPdf::writeToStream(ostream& os, bool compact) const
+void RooGenericPdf::writeToStream(std::ostream& os, bool compact) const
 {
   if (compact) {
     os << getVal() << std::endl ;

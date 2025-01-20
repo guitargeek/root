@@ -33,7 +33,7 @@ use this class in the (normalization) integral configuration interface
 #include "RooMsgService.h"
 
 
-using std::endl, std::ostream;
+using std::ostream;
 
 ClassImp(RooNumIntConfig)
 

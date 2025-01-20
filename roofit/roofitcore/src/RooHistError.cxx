@@ -32,8 +32,6 @@ a specified area of a Poisson or Binomail error distribution.
 #include "Riostream.h"
 #include <cassert>
 
-using std::endl;
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Return a reference to a singleton object that is created the

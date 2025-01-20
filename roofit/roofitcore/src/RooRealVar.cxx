@@ -46,7 +46,7 @@ or integrals to sub ranges. The range without any name is used as default range.
 #include "TBranch.h"
 #include "snprintf.h"
 
-using std::endl, std::ostream, std::istream;
+using std::ostream, std::istream;
 
 ClassImp(RooRealVar);
 

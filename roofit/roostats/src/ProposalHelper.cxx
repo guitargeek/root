@@ -39,7 +39,6 @@ ClassImp(RooStats::ProposalHelper);
 
 using namespace RooFit;
 using namespace RooStats;
-using std::endl;
 
 //static const double DEFAULT_UNI_FRAC = 0.10;
 static const double DEFAULT_CLUES_FRAC = 0.20;

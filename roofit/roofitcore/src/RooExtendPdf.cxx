@@ -47,10 +47,6 @@ the nominal integration range \f$ \mathrm{normRegion}[x] \f$.
 #include "RooRatio.h"
 #include "RooMsgService.h"
 
-
-
-using std::endl;
-
 ClassImp(RooExtendPdf);
 
 RooExtendPdf::RooExtendPdf(const char *name, const char *title, RooAbsPdf& pdf,

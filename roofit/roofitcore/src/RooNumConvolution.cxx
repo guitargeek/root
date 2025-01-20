@@ -69,7 +69,7 @@ convolution precision.
 #include "RooMsgService.h"
 
 
-using std::endl, std::ostream;
+using std::ostream;
 
 ClassImp(RooNumConvolution);
 

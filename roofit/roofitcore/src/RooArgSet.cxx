@@ -66,7 +66,7 @@
 #include <iomanip>
 #include <stdexcept>
 
-using std::istream, std::ostream, std::ifstream, std::ofstream, std::endl;
+using std::istream, std::ostream, std::ifstream, std::ofstream;
 
 ClassImp(RooArgSet);
 

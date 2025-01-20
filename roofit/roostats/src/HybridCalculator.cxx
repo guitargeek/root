@@ -30,7 +30,6 @@ The use of the of ToyMCSampler as the TestStatSampler is assumed.
 ClassImp(RooStats::HybridCalculator);
 
 using namespace RooStats;
-using std::endl;
 
 ////////////////////////////////////////////////////////////////////////////////
 

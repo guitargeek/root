@@ -57,8 +57,6 @@ reached
 #include <cfloat>
 #include <cmath>
 
-using std::endl;
-
 /// \cond ROOFIT_INTERNAL
 
 // register integrator class

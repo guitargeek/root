@@ -42,7 +42,6 @@
 #include "RooRealBinding.h"
 #include "RooNumIntFactory.h"
 
-using std::endl;
 
 namespace {
   RooAbsTestStatistic::Configuration makeRooAbsTestStatisticCfg() {

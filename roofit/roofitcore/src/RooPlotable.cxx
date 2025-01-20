@@ -28,7 +28,7 @@ most useful implementation of RooPlotable are RooHist and RooCurve.
 #include "TObject.h"
 #include "Riostream.h"
 
-using std::endl, std::ostream;
+using std::ostream;
 
 ClassImp(RooPlotable);
 

@@ -30,8 +30,6 @@ the RooRealVar::setRange() method.
 
 #include "RooRangeBinning.h"
 
-using std::endl;
-
 ClassImp(RooRangeBinning);
 
 ////////////////////////////////////////////////////////////////////////////////

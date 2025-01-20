@@ -27,7 +27,6 @@ any external RooAbsPdf input function provided in the constructor.
 #include "RooDataHist.h"
 #include "RooHistPdf.h"
 
-using std::endl;
 
 ClassImp(RooCachedPdf);
 

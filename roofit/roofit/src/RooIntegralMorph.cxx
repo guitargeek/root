@@ -88,7 +88,6 @@ in calculation speed.
 #include "RooDataHist.h"
 #include "TH1.h"
 
- using std::flush, std::endl;
 
 ClassImp(RooIntegralMorph);
 
@@ -196,7 +195,7 @@ void RooIntegralMorph::fillCacheObject(PdfCacheElem& cache) const
       alphaSet.assign(*cache.hist()->get()) ;
       std::unique_ptr<TIterator> dIter{cache.hist()->sliceIterator(const_cast<RooAbsReal&>(x.arg()),RooArgSet(alpha.arg()))};
       mcache.calculate(dIter.get());
-      ccoutP(Eval) << "." << flush;
+      ccoutP(Eval) << "." << std::flush;
     }
     ccoutP(Eval) << std::endl;
 

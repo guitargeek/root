@@ -91,7 +91,7 @@ for advanced uses of categories.
 #include <iostream>
 #include <memory>
 
-using std::endl, std::istream, std::ostream;
+using std::istream, std::ostream;
 
 ClassImp(RooCategory);
 

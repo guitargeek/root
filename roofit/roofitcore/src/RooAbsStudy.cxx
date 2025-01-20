@@ -30,7 +30,6 @@ Abstract base class for RooStudyManager modules
 #include "RooDataSet.h"
 #include "TList.h"
 
-using std::endl;
 
 ClassImp(RooAbsStudy);
 

@@ -70,7 +70,7 @@ ClassImp(RooStats::NeymanConstruction);
 
 using namespace RooFit;
 using namespace RooStats;
-using std::endl, std::string;
+using std::string;
 
 
 ////////////////////////////////////////////////////////////////////////////////

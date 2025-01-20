@@ -68,8 +68,6 @@
 #include "RooResolutionModel.h"
 #include "RooMsgService.h"
 
-using std::endl, std::ostream;
-
 ClassImp(RooResolutionModel);
 
 
@@ -321,7 +319,7 @@ double RooResolutionModel::getNorm(const RooArgSet* nset) const
 ///     Shape : value, units, plot range
 ///   Verbose : default binning and print label
 
-void RooResolutionModel::printMultiline(ostream& os, Int_t content, bool verbose, TString indent) const
+void RooResolutionModel::printMultiline(std::ostream& os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsPdf::printMultiline(os,content,verbose,indent) ;
 

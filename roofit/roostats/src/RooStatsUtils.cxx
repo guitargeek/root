@@ -28,7 +28,7 @@ NamespaceImp(RooStats)
 #include "RooStats/ModelConfig.h"
 #include "RooStats/RooStatsUtils.h"
 
-using std::endl, std::vector;
+using std::vector;
 
 
 namespace {

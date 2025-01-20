@@ -25,8 +25,6 @@
 
 #include "RooStats/HistFactory/LinInterpVar.h"
 
-using std::vector, std::endl;
-
 ClassImp(RooStats::HistFactory::LinInterpVar);
 
 using namespace RooStats;
@@ -36,7 +34,7 @@ using namespace HistFactory;
 
 LinInterpVar::LinInterpVar(const char* name, const char* title,
              const RooArgList& paramList,
-             double nominal, vector<double> low, vector<double> high) :
+             double nominal, std::vector<double> low, std::vector<double> high) :
   RooAbsReal(name, title),
   _paramList("paramList","List of paramficients",this),
   _nominal(nominal), _low(low), _high(high)

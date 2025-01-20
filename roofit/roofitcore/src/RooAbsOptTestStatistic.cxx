@@ -64,7 +64,7 @@ parallelized calculation of test statistics.
 
 #include "ROOT/StringUtils.hxx"
 
-using std::endl, std::ostream;
+using std::ostream;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Create a test statistic, and optimise its calculation.

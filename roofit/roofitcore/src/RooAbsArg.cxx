@@ -96,8 +96,6 @@ for single nodes.
 #include <fstream>
 #include <sstream>
 
-using std::ostream, std::string, std::set, std::map, std::istream, std::pair, std::ofstream, std::make_pair;
-
 ClassImp(RooAbsArg);
 
 bool RooAbsArg::_verboseDirty(false) ;
@@ -229,7 +227,7 @@ void RooAbsArg::setAttribute(const Text_t* name, bool value)
   if (value) {
     _boolAttrib.insert(name) ;
   } else {
-    set<string>::iterator iter = _boolAttrib.find(name) ;
+    auto iter = _boolAttrib.find(name) ;
     if (iter != _boolAttrib.end()) {
       _boolAttrib.erase(iter) ;
     }
@@ -274,7 +272,7 @@ void RooAbsArg::removeStringAttribute(const Text_t* key)
 
 const Text_t* RooAbsArg::getStringAttribute(const Text_t* key) const
 {
-  map<string,string>::const_iterator iter = _stringAttrib.find(key) ;
+  auto iter = _stringAttrib.find(key) ;
   if (iter!=_stringAttrib.end()) {
     return iter->second.c_str() ;
   } else {
@@ -294,7 +292,7 @@ void RooAbsArg::setTransientAttribute(const Text_t* name, bool value)
 
   } else {
 
-    set<string>::iterator iter = _boolAttribTransient.find(name) ;
+    auto iter = _boolAttribTransient.find(name) ;
     if (iter != _boolAttribTransient.end()) {
       _boolAttribTransient.erase(iter) ;
     }
@@ -1032,7 +1030,7 @@ bool RooAbsArg::redirectServers(const RooAbsCollection& newSetOrig, bool mustRep
     newSetOwned = std::make_unique<RooArgSet>();
     for (auto arg : *newSet) {
 
-      if (string("REMOVAL_DUMMY")==arg->GetName()) {
+      if (std::string("REMOVAL_DUMMY")==arg->GetName()) {
 
         if (arg->getAttribute("REMOVE_ALL")) {
           newSetOwned->add(*arg) ;
@@ -1497,7 +1495,7 @@ bool RooAbsArg::isValid() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print object name
 
-void RooAbsArg::printName(ostream& os) const
+void RooAbsArg::printName(std::ostream& os) const
 {
   os << GetName() ;
 }
@@ -1507,7 +1505,7 @@ void RooAbsArg::printName(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print object title
 
-void RooAbsArg::printTitle(ostream& os) const
+void RooAbsArg::printTitle(std::ostream& os) const
 {
   os << GetTitle() ;
 }
@@ -1517,14 +1515,14 @@ void RooAbsArg::printTitle(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print object class name
 
-void RooAbsArg::printClassName(ostream& os) const
+void RooAbsArg::printClassName(std::ostream& os) const
 {
   os << ClassName() ;
 }
 
 
 /// Print address of this RooAbsArg.
-void RooAbsArg::printAddress(ostream& os) const
+void RooAbsArg::printAddress(std::ostream& os) const
 {
   os << this ;
 }
@@ -1534,7 +1532,7 @@ void RooAbsArg::printAddress(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print object arguments, ie its proxies
 
-void RooAbsArg::printArgs(ostream& os) const
+void RooAbsArg::printArgs(std::ostream& os) const
 {
   // Print nothing if there are no dependencies
   if (numProxies()==0) return ;
@@ -1567,7 +1565,7 @@ Int_t RooAbsArg::defaultPrintContents(Option_t* /*opt*/) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Implement multi-line detailed printing
 
-void RooAbsArg::printMultiline(ostream& os, Int_t /*contents*/, bool /*verbose*/, TString indent) const
+void RooAbsArg::printMultiline(std::ostream& os, Int_t /*contents*/, bool /*verbose*/, TString indent) const
 {
   os << indent << "--- RooAbsArg ---" << std::endl;
   // dirty state flags
@@ -1635,7 +1633,7 @@ void RooAbsArg::printMultiline(ostream& os, Int_t /*contents*/, bool /*verbose*/
 ////////////////////////////////////////////////////////////////////////////////
 /// Print object tree structure
 
-void RooAbsArg::printTree(ostream& os, TString /*indent*/) const
+void RooAbsArg::printTree(std::ostream& os, TString /*indent*/) const
 {
   const_cast<RooAbsArg*>(this)->printCompactTree(os) ;
 }
@@ -1644,7 +1642,7 @@ void RooAbsArg::printTree(ostream& os, TString /*indent*/) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Ostream operator
 
-ostream& operator<<(ostream& os, RooAbsArg const& arg)
+std::ostream& operator<<(std::ostream& os, RooAbsArg const& arg)
 {
   arg.writeToStream(os,true) ;
   return os ;
@@ -1653,7 +1651,7 @@ ostream& operator<<(ostream& os, RooAbsArg const& arg)
 ////////////////////////////////////////////////////////////////////////////////
 /// Istream operator
 
-istream& operator>>(istream& is, RooAbsArg &arg)
+std::istream& operator>>(std::istream& is, RooAbsArg &arg)
 {
   arg.readFromStream(is,true,false) ;
   return is ;
@@ -1662,9 +1660,9 @@ istream& operator>>(istream& is, RooAbsArg &arg)
 ////////////////////////////////////////////////////////////////////////////////
 /// Print the attribute list
 
-void RooAbsArg::printAttribList(ostream& os) const
+void RooAbsArg::printAttribList(std::ostream& os) const
 {
-  set<string>::const_iterator iter = _boolAttrib.begin() ;
+  auto iter = _boolAttrib.begin() ;
   bool first(true) ;
   while (iter != _boolAttrib.end()) {
     os << (first?" [":",") << *iter ;
@@ -1971,7 +1969,7 @@ void RooAbsArg::setOperMode(OperMode mode, bool recurseADirty)
 void RooAbsArg::printCompactTree(const char* indent, const char* filename, const char* namePat, RooAbsArg* client)
 {
   if (filename) {
-    ofstream ofs(filename) ;
+    std::ofstream ofs(filename) ;
     printCompactTree(ofs,indent,namePat,client) ;
   } else {
     printCompactTree(std::cout,indent,namePat,client) ;
@@ -1985,7 +1983,7 @@ void RooAbsArg::printCompactTree(const char* indent, const char* filename, const
 /// The client argument is used in recursive calls to properly display the value or shape nature
 /// of the client-server links. It should be zero in calls initiated by users.
 
-void RooAbsArg::printCompactTree(ostream& os, const char* indent, const char* namePat, RooAbsArg* client)
+void RooAbsArg::printCompactTree(std::ostream& os, const char* indent, const char* namePat, RooAbsArg* client)
 {
   if ( !namePat || TString(GetName()).Contains(namePat)) {
     os << indent << this ;
@@ -2082,7 +2080,7 @@ TString RooAbsArg::cleanBranchName() const
 /// when printed in the context of a tree structure. This default
 /// implementation prints nothing
 
-void RooAbsArg::printCompactTreeHook(ostream&, const char *)
+void RooAbsArg::printCompactTreeHook(std::ostream&, const char *)
 {
 }
 
@@ -2149,7 +2147,7 @@ RooFit::OwningPtr<RooArgSet> RooAbsArg::getVariables(bool stripDisconnected) con
 
 void RooAbsArg::graphVizTree(const char* fileName, const char* delimiter, bool useTitle, bool useLatex)
 {
-  ofstream ofs(fileName) ;
+  std::ofstream ofs(fileName) ;
   if (!ofs) {
     coutE(InputArguments) << "RooAbsArg::graphVizTree() ERROR: Cannot open graphViz output file with name " << fileName << std::endl ;
     return ;
@@ -2165,7 +2163,7 @@ void RooAbsArg::graphVizTree(const char* fileName, const char* delimiter, bool u
 ///
 /// Based on concept developed by Kyle Cranmer.
 
-void RooAbsArg::graphVizTree(ostream& os, const char* delimiter, bool useTitle, bool useLatex)
+void RooAbsArg::graphVizTree(std::ostream& os, const char* delimiter, bool useTitle, bool useLatex)
 {
   if (!os) {
     coutE(InputArguments) << "RooAbsArg::graphVizTree() ERROR: output stream provided as input argument is in invalid state" << std::endl ;
@@ -2183,18 +2181,18 @@ void RooAbsArg::graphVizTree(ostream& os, const char* delimiter, bool useTitle, 
 
   // iterate over nodes
   for(RooAbsArg * node : nodeSet) {
-    string nodeName = node->GetName();
-    string nodeTitle = node->GetTitle();
-    string nodeLabel = (useTitle && !nodeTitle.empty()) ? nodeTitle : nodeName;
+    std::string nodeName = node->GetName();
+    std::string nodeTitle = node->GetTitle();
+    std::string nodeLabel = (useTitle && !nodeTitle.empty()) ? nodeTitle : nodeName;
 
     // if using latex, replace ROOT's # with normal latex backslash
-    string::size_type position = nodeLabel.find('#') ;
+    std::string::size_type position = nodeLabel.find('#') ;
     while(useLatex && position!=nodeLabel.npos){
       nodeLabel.replace(position, 1, "\\");
     }
 
-    string typeFormat = "\\texttt{";
-    string nodeType = (useLatex) ? typeFormat+node->ClassName()+"}" : node->ClassName();
+    std::string typeFormat = "\\texttt{";
+    std::string nodeType = (useLatex) ? typeFormat+node->ClassName()+"}" : node->ClassName();
 
     if (auto realNode = dynamic_cast<RooAbsReal*>(node)) {
       nodeLabel += delimiter + std::to_string(realNode->getVal());
@@ -2206,7 +2204,7 @@ void RooAbsArg::graphVizTree(ostream& os, const char* delimiter, bool useTitle, 
   }
 
   // Get set of all server links
-  set<pair<RooAbsArg*,RooAbsArg*> > links ;
+  std::set<std::pair<RooAbsArg*,RooAbsArg*> > links ;
   graphVizAddConnections(links) ;
 
   // And write them out
@@ -2224,10 +2222,10 @@ void RooAbsArg::graphVizTree(ostream& os, const char* delimiter, bool useTitle, 
 /// between any two RooAbsArgs in the expression tree headed by this object
 /// in the linkSet argument.
 
-void RooAbsArg::graphVizAddConnections(set<pair<RooAbsArg*,RooAbsArg*> >& linkSet)
+void RooAbsArg::graphVizAddConnections(std::set<std::pair<RooAbsArg*,RooAbsArg*> >& linkSet)
 {
   for (const auto server : _serverList) {
-    linkSet.insert(make_pair(this,server)) ;
+    linkSet.emplace(this,server);
     server->graphVizAddConnections(linkSet) ;
   }
 }
@@ -2316,7 +2314,7 @@ RooExpensiveObjectCache& RooAbsArg::expensiveObjectCache() const
 
 const char* RooAbsArg::aggregateCacheUniqueSuffix() const
 {
-  string suffix ;
+  std::string suffix ;
 
   RooArgSet branches ;
   branchNodeServerList(&branches) ;

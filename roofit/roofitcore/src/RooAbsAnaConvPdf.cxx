@@ -74,7 +74,7 @@
 #include "RooConvCoefVar.h"
 #include "RooNameReg.h"
 
-using std::endl, std::string, std::ostream;
+using std::string, std::ostream;
 
 ClassImp(RooAbsAnaConvPdf);
 

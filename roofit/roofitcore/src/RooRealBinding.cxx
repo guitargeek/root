@@ -33,7 +33,6 @@ of its servers and present it as a simple array oriented interface.
 
 #include <cassert>
 
-using std::endl;
 
 ClassImp(RooRealBinding);
 

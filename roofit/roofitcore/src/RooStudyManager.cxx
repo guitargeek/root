@@ -41,7 +41,7 @@ repeated applications of generate-and-fit operations on a workspace
 #include "TROOT.h"
 #include "TSystem.h"
 
-using std::string, std::endl, std::ios, std::list, std::ofstream;
+using std::string, std::list, std::ofstream;
 
 ClassImp(RooStudyManager);
 
@@ -110,7 +110,7 @@ void RooStudyManager::prepareBatchInput(const char* studyName, Int_t nExpPerJob,
     gSystem->Exec(Form("cat study_data_%s.root | uuencode -m study_data_%s.root >> study_driver_%s.sh",studyName,studyName,studyName)) ;
 
     // Write remainder of driver script
-    ofstream bdr2 (Form("study_driver_%s.sh",studyName),ios::app) ;
+    ofstream bdr2 (Form("study_driver_%s.sh",studyName), std::ios::app) ;
     bdr2 << "EOR" << std::endl
     << "fi" << std::endl
     << "root -l -b <<EOR" << std::endl

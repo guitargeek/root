@@ -97,7 +97,7 @@ void RooSimultaneous::InitializationOutput::addPdf(const RooAbsPdf &pdf, std::st
    finalCatLabels.emplace_back(catLabel);
 }
 
-using std::string, std::endl;
+using std::string;
 
 ClassImp(RooSimultaneous);
 

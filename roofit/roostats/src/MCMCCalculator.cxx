@@ -51,7 +51,6 @@ ClassImp(RooStats::MCMCCalculator);
 
 using namespace RooFit;
 using namespace RooStats;
-using std::endl;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// default constructor

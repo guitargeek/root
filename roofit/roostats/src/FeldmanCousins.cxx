@@ -57,7 +57,6 @@ ClassImp(RooStats::FeldmanCousins);
 
 using namespace RooFit;
 using namespace RooStats;
-using std::endl;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// standard constructor

@@ -29,8 +29,6 @@ any external RooAbsReal input function provided in the constructor.
 #include "RooHistPdf.h"
 #include "RooChangeTracker.h"
 
-using std::endl;
-
 ClassImp(RooCachedReal);
 
 

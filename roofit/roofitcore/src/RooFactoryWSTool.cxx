@@ -63,7 +63,7 @@ It interprets all expressions for RooWorkspace::factory(const char*).
 #endif
 
 using namespace RooFit;
-using std::string, std::map, std::list, std::pair, std::endl, std::vector;
+using std::string, std::map, std::list, std::pair, std::vector;
 
 #define BUFFER_SIZE 64000
 

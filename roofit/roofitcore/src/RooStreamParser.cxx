@@ -46,7 +46,7 @@
 #include "RooNumber.h"
 
 
-using std::istream, std::endl;
+using std::istream;
 
 ClassImp(RooStreamParser);
 

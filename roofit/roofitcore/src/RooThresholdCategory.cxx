@@ -26,8 +26,6 @@ A real-to-category mapping defined by a series of thresholds.
 #include "RooThresholdCategory.h"
 #include "RooMsgService.h"
 
-using std::endl, std::ostream;
-
 ClassImp(RooThresholdCategory);
 
 namespace {
@@ -121,7 +119,7 @@ RooAbsCategory::value_type RooThresholdCategory::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Write object contents to given stream
 
-void RooThresholdCategory::writeToStream(ostream& os, bool compact) const
+void RooThresholdCategory::writeToStream(std::ostream& os, bool compact) const
 {
   if (compact) {
     // Write value only
@@ -147,7 +145,7 @@ void RooThresholdCategory::writeToStream(ostream& os, bool compact) const
 ///     Shape : default value
 ///   Verbose : list of thresholds
 
-void RooThresholdCategory::printMultiline(ostream& os, Int_t content, bool verbose, TString indent) const
+void RooThresholdCategory::printMultiline(std::ostream& os, Int_t content, bool verbose, TString indent) const
 {
    RooAbsCategory::printMultiline(os,content,verbose,indent);
 

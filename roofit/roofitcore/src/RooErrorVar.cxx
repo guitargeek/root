@@ -33,7 +33,7 @@ error, such as calculating the pull value.
 #include "RooMsgService.h"
 #include "RooUniformBinning.h"
 
-using std::endl, std::istream, std::ostream;
+using std::istream, std::ostream;
 
 ClassImp(RooErrorVar);
 

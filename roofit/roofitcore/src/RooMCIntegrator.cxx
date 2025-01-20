@@ -39,9 +39,6 @@ based on a C version from the 0.9 beta release of the GNU scientific library.
 #include <cmath>
 
 
-using std::endl;
-
-
 // Register this class with RooNumIntFactory
 
 

@@ -34,7 +34,6 @@ convergence of a Monte Carlo integration.
 #include <iostream>
 #include <cassert>
 
-using std::endl;
 
 ClassImp(RooQuasiRandomGenerator);
 

@@ -38,7 +38,6 @@ implementations like RooAcceptReject and RooFoam
 
 #include <cassert>
 
-using std::endl;
 
 RooAbsNumGenerator::RooAbsNumGenerator() = default;
 

@@ -41,7 +41,7 @@ setting the states.
 
 #include "TString.h"
 
-using std::endl, std::ostream;
+using std::ostream;
 
 ClassImp(RooMultiCategory);
 

@@ -53,7 +53,7 @@
 #include "RooNameReg.h"
 #include "RooBatchCompute.h"
 
-using std::endl, std::ostream;
+using std::ostream;
 
 ClassImp(RooAddModel);
 

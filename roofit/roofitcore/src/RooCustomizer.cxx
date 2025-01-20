@@ -172,7 +172,7 @@
 #endif
 
 
-using std::endl, std::ostream, std::string;
+using std::ostream, std::string;
 
 
 namespace {
