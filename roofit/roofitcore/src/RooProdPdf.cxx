@@ -1613,11 +1613,16 @@ Int_t RooProdPdf::getGenerator(const RooArgSet& directVars, RooArgSet &generateV
 
 
   if (!generateVars.empty()) {
-    Int_t masterCode = _genCode.store(code) ;
-    return masterCode+1 ;
-  } else {
-    return 0 ;
+    auto found = std::find(_genCode.begin(), _genCode.end(), code);
+    // If a generator for the codes was already cached, return the index to the
+    // corresponding caching index plus one.
+    if (found != _genCode.end()) {
+       return std::distance(_genCode.begin(), found) + 1;
+    }
+    _genCode.emplace_back(std::move(code));
+    return _genCode.size();
   }
+  return 0;
 }
 
 
@@ -1630,7 +1635,7 @@ void RooProdPdf::initGenerator(Int_t code)
 {
   if (!_useDefaultGen) return ;
 
-  const std::vector<Int_t>& codeList = _genCode.retrieve(code-1) ;
+  const std::vector<int>& codeList = _genCode[code-1];
   Int_t i(0) ;
   for (auto* pdf : static_range_cast<RooAbsPdf*>(_pdfList)) {
     if (codeList[i]!=0) {
@@ -1651,7 +1656,7 @@ void RooProdPdf::generateEvent(Int_t code)
 {
   if (!_useDefaultGen) return ;
 
-  const std::vector<Int_t>& codeList = _genCode.retrieve(code-1) ;
+  const std::vector<Int_t>& codeList = _genCode[code-1];
   Int_t i(0) ;
   for (auto* pdf : static_range_cast<RooAbsPdf*>(_pdfList)) {
     if (codeList[i]!=0) {

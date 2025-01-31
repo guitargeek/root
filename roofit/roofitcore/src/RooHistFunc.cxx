@@ -54,7 +54,6 @@ RooHistFunc::RooHistFunc(const char *name, const char *title, const RooArgSet& v
   RooAbsReal(name,title),
   _depList("depList","List of dependents",this),
   _dataHist(const_cast<RooDataHist*>(&dhist)),
-  _codeReg(10),
   _intOrder(intOrder)
 {
   _histObsList.addClone(vars) ;
@@ -93,7 +92,6 @@ RooHistFunc::RooHistFunc(const char *name, const char *title, const RooArgList& 
   RooAbsReal(name,title),
   _depList("depList","List of dependents",this),
   _dataHist(const_cast<RooDataHist*>(&dhist)),
-  _codeReg(10),
   _intOrder(intOrder)
 {
   _histObsList.addClone(histObs) ;
@@ -140,7 +138,6 @@ RooHistFunc::RooHistFunc(const RooHistFunc& other, const char* name) :
   RooAbsReal(other,name),
   _depList("depList",this,other._depList),
   _dataHist(other._dataHist),
-  _codeReg(other._codeReg),
   _intOrder(other._intOrder),
   _cdfBoundaries(other._cdfBoundaries),
   _totVolume(other._totVolume),
