@@ -7,7 +7,14 @@ __all__ = [
     'ensure_precompiled_header'   # build precompiled header as necessary
 ]
 
-import os, sys, ctypes, subprocess, sysconfig, warnings
+import ctypes
+import os
+import platform
+import re
+import subprocess
+import sys
+import sysconfig
+import warnings
 
 if 'win32' in sys.platform:
     soext = '.dll'
@@ -15,22 +22,19 @@ else:
     soext = '.so'
 
 soabi = sysconfig.get_config_var("SOABI")
+soext2 = sysconfig.get_config_var("EXT_SUFFIX")
+if not soext2:
+    soext2 = sysconfig.get_config_var("SO")
 
 
 def _load_helper(bkname):
+    errors = set()
+
  # normal load, allowing for user overrides of LD_LIBRARY_PATH
     try:
-        return ctypes.CDLL(bkname, ctypes.RTLD_GLOBAL)
-    except OSError:
-         pass
-
- # failed ... try absolute path
- # needed on MacOS12 with soversion
-    try:
-        libpath = os.path.dirname(os.path.dirname(__file__))
-        return ctypes.CDLL(os.path.join(libpath, bkname), ctypes.RTLD_GLOBAL)
-    except OSError:
-        pass
+        return ctypes.CDLL(bkname, ctypes.RTLD_GLOBAL), errors
+    except OSError as e:
+        errors.add(str(e))
 
  # failed ... load dependencies explicitly
     try:
@@ -47,11 +51,11 @@ def _load_helper(bkname):
                     if dep == 'libCling': ldtype = ctypes.RTLD_LOCAL
                     ctypes.CDLL(fpath, ldtype)
                     break
-        return ctypes.CDLL(os.path.join(pkgpath, 'lib', bkname), ctypes.RTLD_GLOBAL)
-    except OSError:
-        pass
+        return ctypes.CDLL(os.path.join(pkgpath, 'lib', bkname), ctypes.RTLD_GLOBAL), errors
+    except OSError as e:
+        errors.add(str(e))
 
-    return None
+    return None, errors
 
 
 _precompiled_header_ensured = False
@@ -61,22 +65,29 @@ def load_cpp_backend():
      # distribution as there are too many varieties; create it now if needed
         ensure_precompiled_header()
 
-    altbkname = None
+    names = list()
     try:
         bkname = os.environ['CPPYY_BACKEND_LIBRARY']
         if bkname.rfind(soext) < 0:
             bkname += soext
+        names.append(bkname)
     except KeyError:
-        bkname = 'libcppyy_backend'+soext
+        names.append('libcppyy_backend'+soext)
         if soabi:
-            altbkname = 'libcppyy_backend.'+soabi+soext
+            names.append('libcppyy_backend.'+soabi+soext)
+        if soext2:
+            names.append('libcppyy_backend'+soext2)
 
-    c = _load_helper(bkname)
-    if not c and altbkname is not None:
-        c = _load_helper(altbkname)
+    err = set()
+    for name in names:
+        c, err2 = _load_helper(name)
+        if c:
+            break
+        err = err.union(err2)
 
     if not c:
-        raise RuntimeError("could not load cppyy_backend library")
+        raise RuntimeError("could not load cppyy_backend library, details:\n%s" %
+            '\n'.join(['  '+x for x in err]))
 
     return c
 

@@ -1,4 +1,3 @@
-import cppyy
 import platform
 import unittest
 
@@ -28,7 +27,7 @@ class RDataFrameMisc(unittest.TestCase):
 
             # When passing explicitly the vector of strings, type dispatching will not be necessary
             # and the real C++ exception will immediately surface
-            with self.assertRaisesRegex(cppyy.gbl.std.invalid_argument, "RDataFrame: empty list of input files."):
+            with self.assertRaisesRegex(ROOT.std.invalid_argument, "RDataFrame: empty list of input files."):
                 ROOT.RDataFrame("events", ROOT.std.vector[ROOT.std.string]())
 
             with self.assertRaisesRegex(TypeError, "RDataFrame: empty list of input files."):

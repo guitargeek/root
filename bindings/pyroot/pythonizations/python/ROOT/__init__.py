@@ -8,16 +8,23 @@
 # For the list of contributors see $ROOTSYS/README/CREDITS.                    #
 ################################################################################
 
-from os import environ
+import os
+import platform
 
 # Prevent cppyy's check for the PCH
-environ["CLING_STANDARD_PCH"] = "none"
+os.environ["CLING_STANDARD_PCH"] = "none"
 
 # Prevent cppyy's check for extra header directory
-environ["CPPYY_API_PATH"] = "none"
+os.environ["CPPYY_API_PATH"] = "none"
 
 # Prevent cppyy from filtering ROOT libraries
-environ["CPPYY_NO_ROOT_FILTER"] = "1"
+os.environ["CPPYY_NO_ROOT_FILTER"] = "1"
+
+# For macOS, need to load cppyy backend library with absolute path (see also PR #9725)
+if platform.system() == "Darwin":
+    os.environ["CPPYY_BACKEND_LIBRARY"] = os.path.abspath(
+        os.path.join(__file__, os.path.pardir, os.path.pardir, "libcppyy_backend")
+    )
 
 # Do setup specific to AddressSanitizer environments
 from . import _asan
