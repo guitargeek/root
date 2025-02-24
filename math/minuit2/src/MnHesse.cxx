@@ -164,6 +164,53 @@ MinimumState ComputeAnalytical(const FCNBase &fcn, const MinimumState &st, const
    return MinimumState(st.Parameters(), err, gr, edm, st.NFcn());
 }
 
+namespace {
+
+// Helper class to call the MnFcn, cashing the transformed parameters in case
+// it is a MnUserFcn that does the parameter transformation when calling.
+class MnFcnCaller {
+public:
+   MnFcnCaller(const MnFcn &mfcn) : _mfcn{mfcn}, _isUserFcn{static_cast<bool>(dynamic_cast<MnUserFcn const *>(&mfcn))}
+   {
+      if (!_isUserFcn)
+         return;
+
+      MnUserTransformation const &transform = static_cast<MnUserFcn const &>(_mfcn).transform();
+
+      // get first initial values of parameter (in case some one is fixed)
+      _vpar.assign(transform.InitialParValues().begin(), transform.InitialParValues().end());
+   }
+
+   double operator()(const MnAlgebraicVector &v)
+   {
+      if (!_isUserFcn)
+         return _mfcn(v);
+
+      MnUserTransformation const &transform = static_cast<MnUserFcn const &>(_mfcn).transform();
+
+      bool firstCall = _lastInput.size() != v.size();
+
+      _lastInput.resize(v.size());
+
+      for (unsigned int i = 0; i < v.size(); i++) {
+         if (firstCall || _lastInput[i] != v(i)) {
+            _vpar[transform.ExtOfInt(i)] = transform.Int2ext(i, v(i));
+            _lastInput[i] = v(i);
+         }
+      }
+
+      return static_cast<MnUserFcn const &>(_mfcn).call(_vpar);
+   }
+
+private:
+   MnFcn const &_mfcn;
+   bool _isUserFcn = false;
+   std::vector<double> _lastInput;
+   std::vector<double> _vpar;
+};
+
+} // namespace
+
 MinimumState ComputeNumerical(const MnFcn &mfcn, const MinimumState &st, const MnUserTransformation &trafo,
                               unsigned int maxcalls, MnStrategy const &strat)
 {
@@ -171,9 +218,11 @@ MinimumState ComputeNumerical(const MnFcn &mfcn, const MinimumState &st, const M
    // Function who does the real Hessian calculations
    MnPrint print("MnHesse");
 
+   MnFcnCaller mfcnCaller{mfcn};
+
    const MnMachinePrecision &prec = trafo.Precision();
    // make sure starting at the right place
-   double amin = mfcn(st.Vec());
+   double amin = mfcnCaller(st.Vec());
    double aimsag = std::sqrt(prec.Eps2()) * (std::fabs(amin) + mfcn.Up());
 
    // diagonal Elements first
@@ -223,9 +272,9 @@ MinimumState ComputeNumerical(const MnFcn &mfcn, const MinimumState &st, const M
          double fs2 = 0.;
          for (unsigned int multpy = 0; multpy < 5; multpy++) {
             x(i) = xtf + d;
-            fs1 = mfcn(x);
+            fs1 = mfcnCaller(x);
             x(i) = xtf - d;
-            fs2 = mfcn(x);
+            fs2 = mfcnCaller(x);
             x(i) = xtf;
             sag = 0.5 * (fs1 + fs2 - 2. * amin);
 
@@ -336,16 +385,22 @@ MinimumState ComputeNumerical(const MnFcn &mfcn, const MinimumState &st, const M
 
          x(j) += dirin(j);
 
-         double fs1 = mfcn(x);
+         double fs1 = mfcnCaller(x);
          if(!doCentralFD) {
             double elem = (fs1 + amin - yy(i) - yy(j)) / (dirin(i) * dirin(j));
             vhmat(i, j) = elem;
             x(j) -= dirin(j);
          } else {
             // three more function evaluations required for central fd
-            x(i) -= dirin(i); x(i) -= dirin(i);double fs3 = mfcn(x);
-            x(j) -= dirin(j); x(j) -= dirin(j);double fs4 = mfcn(x);
-            x(i) += dirin(i); x(i) += dirin(i);double fs2 = mfcn(x);
+            x(i) -= dirin(i);
+            x(i) -= dirin(i);
+            double fs3 = mfcnCaller(x);
+            x(j) -= dirin(j);
+            x(j) -= dirin(j);
+            double fs4 = mfcnCaller(x);
+            x(i) += dirin(i);
+            x(i) += dirin(i);
+            double fs2 = mfcnCaller(x);
             x(j) += dirin(j);
             double elem = (fs1 - fs2 - fs3 + fs4)/(4.*dirin(i)*dirin(j));
             vhmat(i, j) = elem;

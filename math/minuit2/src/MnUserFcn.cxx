@@ -17,9 +17,6 @@ namespace Minuit2 {
 
 double MnUserFcn::operator()(const MnAlgebraicVector &v) const
 {
-   // call Fcn function transforming from a MnAlgebraicVector of internal values to a std::vector of external ones
-   fNumCall++;
-
    // calling fTransform() like here was not thread safe because it was using a cached vector
    // return Fcn()( fTransform(v) );
    // make a new thread-safe implementation creating a vector each time
@@ -38,6 +35,16 @@ double MnUserFcn::operator()(const MnAlgebraicVector &v) const
          vpar[ext] = v(i);
       }
    }
+
+   return call(vpar);
+}
+
+// Calling the underlying function with the transformed parameters.
+double MnUserFcn::call(std::vector<double> const &vpar) const
+{
+   // call Fcn function transforming from a MnAlgebraicVector of internal values to a std::vector of external ones
+   fNumCall++;
+
    return Fcn()(vpar);
 }
 

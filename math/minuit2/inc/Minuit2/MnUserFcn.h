@@ -12,6 +12,8 @@
 
 #include "Minuit2/MnFcn.h"
 
+#include <vector>
+
 namespace ROOT {
 
 namespace Minuit2 {
@@ -31,6 +33,10 @@ public:
    }
 
    double operator()(const MnAlgebraicVector &) const override;
+
+   double call(std::vector<double> const &vpar) const;
+
+   const MnUserTransformation &transform() const { return fTransform; }
 
 private:
    const MnUserTransformation &fTransform;
