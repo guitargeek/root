@@ -30,8 +30,6 @@ public:
    {
    }
 
-   ~MnUserFcn() override {}
-
    double operator()(const MnAlgebraicVector &) const override;
 
 private:

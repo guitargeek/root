@@ -92,7 +92,6 @@ set(MINUIT2_HEADERS
     MnUserParameterState.h
     MnUserParameters.h
     MnUserTransformation.h
-    MnVectorTransform.h
     ModularFunctionMinimizer.h
     NegativeG2LineSearch.h
     Numerical2PGradientCalculator.h
