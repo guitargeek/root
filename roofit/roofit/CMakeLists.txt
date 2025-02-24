@@ -16,6 +16,7 @@ endif()
 
 ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
   HEADERS
+    RooTwoSidedCBShape.h
     Roo2DKeysPdf.h
     RooArgusBG.h
     RooBCPEffDecay.h
@@ -80,6 +81,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
     RooVoigtian.h
     RooJohnson.h
   SOURCES
+    src/RooTwoSidedCBShape.cxx
     src/Roo2DKeysPdf.cxx
     src/RooArgusBG.cxx
     src/RooBCPEffDecay.cxx
