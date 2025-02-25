@@ -23,8 +23,6 @@ class MatrixInverse {
 public:
    MatrixInverse(const M &obj) : fObject(obj) {}
 
-   ~MatrixInverse() {}
-
    typedef mtype Type;
 
    const M &Obj() const { return fObject; }
@@ -40,8 +38,6 @@ private:
    MatrixInverse(const M &obj) : fObject(obj) {}
 
 public:
-   ~MatrixInverse() {}
-
    typedef vec Type;
 
    const M &Obj() const { return fObject; }

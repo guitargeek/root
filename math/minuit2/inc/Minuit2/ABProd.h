@@ -33,8 +33,6 @@ private:
 public:
    ABProd(const M1 &a, const M2 &b) : fA(a), fB(b) {}
 
-   ~ABProd() {}
-
    ABProd(const ABProd &prod) : fA(prod.fA), fB(prod.fB) {}
 
    template <class MI1, class MI2>

@@ -23,8 +23,6 @@ class VectorOuterProduct {
 public:
    VectorOuterProduct(const M &obj) : fObject(obj) {}
 
-   ~VectorOuterProduct() {}
-
    typedef sym Type;
 
    const M &Obj() const { return fObject; }

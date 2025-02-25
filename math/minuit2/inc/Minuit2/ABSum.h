@@ -33,8 +33,6 @@ private:
 public:
    ABSum(const M1 &a, const M2 &b) : fA(a), fB(b) {}
 
-   ~ABSum() {}
-
    ABSum(const ABSum &sum) : fA(sum.fA), fB(sum.fB) {}
 
    template <class MI1, class MI2>

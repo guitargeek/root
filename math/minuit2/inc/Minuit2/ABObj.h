@@ -43,8 +43,6 @@ public:
 
    ABObj(const M &obj, T factor) : fObject(obj), fFactor(factor) {}
 
-   ~ABObj() {}
-
    ABObj(const ABObj &obj) : fObject(obj.fObject), fFactor(obj.fFactor) {}
 
    template <class b, class c>
@@ -75,8 +73,6 @@ public:
    ABObj(const LAVector &obj) : fObject(obj), fFactor(double(1.)) {}
 
    ABObj(const LAVector &obj, double factor) : fObject(obj), fFactor(factor) {}
-
-   ~ABObj() {}
 
    // remove copy constructor to Fix a problem in AIX
    // should be able to use the compiler generated one
@@ -111,8 +107,6 @@ public:
    ABObj(const LASymMatrix &obj) : fObject(obj), fFactor(double(1.)) {}
 
    ABObj(const LASymMatrix &obj, double factor) : fObject(obj), fFactor(factor) {}
-
-   ~ABObj() {}
 
    ABObj(const ABObj &obj) : fObject(obj.fObject), fFactor(obj.fFactor) {}
 
