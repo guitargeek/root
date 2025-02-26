@@ -113,7 +113,6 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
       Minuit2/VariableMetricBuilder.h
       Minuit2/VariableMetricEDMEstimator.h
       Minuit2/VariableMetricMinimizer.h
-      Minuit2/VectorOuterProduct.h
       TMinuit2TraceObject.h
     SOURCES
       src/AnalyticalGradientCalculator.cxx

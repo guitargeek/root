@@ -22,7 +22,6 @@
 #include "Minuit2/LASymMatrix.h"
 #include "Minuit2/LAVector.h"
 #include "Minuit2/MatrixInverse.h"
-#include "Minuit2/VectorOuterProduct.h"
 
 namespace ROOT {
 
@@ -51,8 +50,7 @@ int Invert_undef_sym(LASymMatrix &);
 ///    LAPACK Algebra function
 ///    specialize the Outer_product function for LAVector;
 
-inline ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector>, double>>
-Outer_product(const ABObj<vec, LAVector> &obj)
+inline ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector>, double>> Outer_product(const ABObj<vec, LAVector> &obj)
 {
    return {VectorOuterProduct<ABObj<vec, LAVector>, double>{obj}};
 }

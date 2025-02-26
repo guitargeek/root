@@ -236,6 +236,24 @@ operator*(const ABObj<atype, A, T> &a, const ABObj<btype, B, T> &b)
    return {ABProd<ABObj<atype, A, T>, ABObj<btype, B, T>>(a, b)};
 }
 
+template <class M, class T>
+class VectorOuterProduct {
+
+public:
+   VectorOuterProduct(const M &obj) : fObject(obj) {}
+
+   const M &Obj() const { return fObject; }
+
+private:
+   M fObject;
+};
+
+template <class M, class T>
+ABObj<sym, VectorOuterProduct<ABObj<vec, M, T>, T>, T> Outer_product(const ABObj<vec, M, T> &obj)
+{
+   return {VectorOuterProduct<ABObj<vec, M, T>, T>(obj)};
+}
+
 } // namespace Minuit2
 
 } // namespace ROOT

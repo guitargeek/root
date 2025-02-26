@@ -12,7 +12,6 @@
 
 #include "Minuit2/MnConfig.h"
 #include "Minuit2/ABObj.h"
-#include "Minuit2/VectorOuterProduct.h"
 #include "Minuit2/MatrixInverse.h"
 #include "Minuit2/StackAllocator.h"
 

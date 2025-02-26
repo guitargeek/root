@@ -102,7 +102,6 @@ set(MINUIT2_HEADERS
     VariableMetricBuilder.h
     VariableMetricEDMEstimator.h
     VariableMetricMinimizer.h
-    VectorOuterProduct.h
     )
 
 set(MINUIT2_SOURCES
