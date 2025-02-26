@@ -11,6 +11,7 @@
 #define ROOT_Minuit2_LaInverse
 
 #include "Minuit2/MatrixInverse.h"
+#include "Minuit2/LAVector.h"
 #include "Minuit2/LASymMatrix.h"
 
 namespace ROOT {

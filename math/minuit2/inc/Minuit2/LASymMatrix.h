@@ -29,6 +29,7 @@ namespace Minuit2 {
 int Mndaxpy(unsigned int, double, const double *, int, double *, int);
 int Mndscal(unsigned int, double, double *, int);
 
+class LASymMatrix;
 class LAVector;
 
 int Invert(LASymMatrix &);

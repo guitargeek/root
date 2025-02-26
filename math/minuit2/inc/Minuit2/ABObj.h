@@ -16,39 +16,20 @@ namespace ROOT {
 
 namespace Minuit2 {
 
-template <class mtype, class M, class T>
+template <class Type, class M, class T>
 class ABObj {
 
 public:
-   typedef mtype Type;
+   ABObj(const M &obj, T factor = 1.) : fObject(obj), fFactor(factor) {}
 
-private:
-   ABObj() : fObject(M()), fFactor(T(0.)) {}
-
-   ABObj &operator=(const ABObj &) { return *this; }
-
-   template <class a, class b, class c>
-   ABObj(const ABObj<a, b, c> &) : fObject(M()), fFactor(T(0.))
-   {
-   }
-
-   template <class a, class b, class c>
-   ABObj &operator=(const ABObj<a, b, c> &)
-   {
-      return *this;
-   }
-
-public:
-   ABObj(const M &obj) : fObject(obj), fFactor(T(1.)) {}
-
-   ABObj(const M &obj, T factor) : fObject(obj), fFactor(factor) {}
-
-   ABObj(const ABObj &obj) : fObject(obj.fObject), fFactor(obj.fFactor) {}
-
-   template <class b, class c>
-   ABObj(const ABObj<mtype, b, c> &obj) : fObject(M(obj.Obj())), fFactor(T(obj.f()))
-   {
-   }
+   // Assignment is historically deleted (that was done probably to avoid
+   // mistakes from accidental re-assignment). Also define destructor and copy
+   // constructor in this case, according to the rule of five.
+   ~ABObj() = default;
+   ABObj(const ABObj &) = default;
+   ABObj(ABObj &&) = default;
+   ABObj &operator=(const ABObj &) = delete;
+   ABObj &operator=(ABObj &&) = delete;
 
    const M &Obj() const { return fObject; }
 
@@ -59,107 +40,26 @@ private:
    T fFactor;
 };
 
-class LAVector;
-template <>
-class ABObj<vec, LAVector, double> {
-
-public:
-   typedef vec Type;
-
-private:
-   ABObj &operator=(const ABObj &) = delete;
-
-public:
-   ABObj(const LAVector &obj) : fObject(obj), fFactor(double(1.)) {}
-
-   ABObj(const LAVector &obj, double factor) : fObject(obj), fFactor(factor) {}
-
-   // remove copy constructor to Fix a problem in AIX
-   // should be able to use the compiler generated one
-   //   ABObj(const ABObj& obj) :
-   //     fObject(obj.fObject), fFactor(obj.fFactor) {}
-
-   template <class c>
-   ABObj(const ABObj<vec, LAVector, c> &obj) : fObject(obj.fObject), fFactor(double(obj.fFactor))
-   {
-   }
-
-   const LAVector &Obj() const { return fObject; }
-
-   double f() const { return fFactor; }
-
-private:
-   const LAVector &fObject;
-   double fFactor;
-};
-
-class LASymMatrix;
-template <>
-class ABObj<sym, LASymMatrix, double> {
-
-public:
-   typedef sym Type;
-
-private:
-   ABObj &operator=(const ABObj &) { return *this; }
-
-public:
-   ABObj(const LASymMatrix &obj) : fObject(obj), fFactor(double(1.)) {}
-
-   ABObj(const LASymMatrix &obj, double factor) : fObject(obj), fFactor(factor) {}
-
-   ABObj(const ABObj &obj) : fObject(obj.fObject), fFactor(obj.fFactor) {}
-
-   template <class c>
-   ABObj(const ABObj<vec, LASymMatrix, c> &obj) : fObject(obj.fObject), fFactor(double(obj.fFactor))
-   {
-   }
-
-   const LASymMatrix &Obj() const { return fObject; }
-
-   double f() const { return fFactor; }
-
-private:
-   const LASymMatrix &fObject;
-   double fFactor;
-};
-
 // templated scaling operator *
 template <class mt, class M, class T>
-inline ABObj<mt, M, T> operator*(T f, const M &obj)
+ABObj<mt, M, T> operator*(T f, const M &obj)
 {
-   return ABObj<mt, M, T>(obj, f);
+   return {obj, f};
 }
 
 // templated operator /
 template <class mt, class M, class T>
-inline ABObj<mt, M, T> operator/(const M &obj, T f)
+ABObj<mt, M, T> operator/(const M &obj, T f)
 {
-   return ABObj<mt, M, T>(obj, T(1.) / f);
+   return {obj, T(1.) / f};
 }
 
 // templated unary operator -
 template <class mt, class M, class T>
-inline ABObj<mt, M, T> operator-(const M &obj)
+ABObj<mt, M, T> operator-(const M &obj)
 {
-   return ABObj<mt, M, T>(obj, T(-1.));
+   return {obj, -1.};
 }
-
-/*
-// specialization for LAVector
-
-inline ABObj<vec, LAVector, double> operator*(double f, const LAVector& obj) {
-  return ABObj<vec, LAVector, double>(obj, f);
-}
-
-inline ABObj<vec, LAVector, double> operator/(const LAVector& obj, double f) {
-  return ABObj<vec, LAVector, double>(obj, double(1.)/f);
-}
-
-inline ABObj<vec,LAVector,double> operator-(const LAVector& obj) {
-  return ABObj<vec,LAVector,double>(obj, double(-1.));
-}
-*/
 
 } // namespace Minuit2
 
