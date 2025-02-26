@@ -87,7 +87,6 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
       Minuit2/MnSeedGenerator.h
       Minuit2/MnSimplex.h
       Minuit2/MnStrategy.h
-      Minuit2/MnTiny.h
       Minuit2/MnTraceObject.h
       Minuit2/MnUserCovariance.h
       Minuit2/MnUserFcn.h
@@ -158,7 +157,6 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
       src/MnScan.cxx
       src/MnSeedGenerator.cxx
       src/MnStrategy.cxx
-      src/MnTiny.cxx
       src/MnTraceObject.cxx
       src/MnUserFcn.cxx
       src/MnUserParameterState.cxx
