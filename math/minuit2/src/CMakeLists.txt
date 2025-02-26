@@ -8,9 +8,6 @@ add_subdirectory(math)
 
 set(MINUIT2_HEADERS
     ABObj.h
-    ABProd.h
-    ABSum.h
-    ABTypes.h
     AnalyticalGradientCalculator.h
     BFGSErrorUpdator.h
     CombinedMinimizer.h

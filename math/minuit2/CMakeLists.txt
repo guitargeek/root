@@ -18,9 +18,6 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
   ROOT_STANDARD_LIBRARY_PACKAGE(Minuit2
     HEADERS
       Minuit2/ABObj.h
-      Minuit2/ABProd.h
-      Minuit2/ABSum.h
-      Minuit2/ABTypes.h
       Minuit2/AnalyticalGradientCalculator.h
       Minuit2/BFGSErrorUpdator.h
       Minuit2/CombinedMinimizer.h

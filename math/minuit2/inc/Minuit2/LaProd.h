@@ -10,8 +10,7 @@
 #ifndef ROOT_Minuit2_LaProd
 #define ROOT_Minuit2_LaProd
 
-#include "Minuit2/ABProd.h"
-#include "Minuit2/LAVector.h"
+#include "Minuit2/ABObj.h"
 #include "Minuit2/LASymMatrix.h"
 
 namespace ROOT {

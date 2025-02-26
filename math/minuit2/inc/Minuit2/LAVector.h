@@ -10,8 +10,7 @@
 #ifndef ROOT_Minuit2_LAVector
 #define ROOT_Minuit2_LAVector
 
-#include "Minuit2/ABSum.h"
-#include "Minuit2/ABProd.h"
+#include "Minuit2/ABObj.h"
 #include "Minuit2/LASymMatrix.h"
 
 #include <cassert>

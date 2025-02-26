@@ -10,7 +10,6 @@
 #ifndef ROOT_Minuit2_VectorOuterProduct
 #define ROOT_Minuit2_VectorOuterProduct
 
-#include "Minuit2/ABTypes.h"
 #include "Minuit2/ABObj.h"
 
 namespace ROOT {

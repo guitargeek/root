@@ -10,7 +10,6 @@
 #ifndef ROOT_Minuit2_MatrixInverse
 #define ROOT_Minuit2_MatrixInverse
 
-#include "Minuit2/ABTypes.h"
 #include "Minuit2/ABObj.h"
 
 namespace ROOT {

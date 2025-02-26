@@ -10,7 +10,7 @@
 #ifndef ROOT_Minuit2_LaSum
 #define ROOT_Minuit2_LaSum
 
-#include "Minuit2/ABSum.h"
+#include "Minuit2/ABObj.h"
 #include "Minuit2/LAVector.h"
 #include "Minuit2/LASymMatrix.h"
 

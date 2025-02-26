@@ -11,7 +11,7 @@
 #define MA_LaOuterProd_H_
 
 #include "Minuit2/VectorOuterProduct.h"
-#include "Minuit2/ABSum.h"
+#include "Minuit2/ABObj.h"
 #include "Minuit2/LAVector.h"
 #include "Minuit2/LASymMatrix.h"
 
