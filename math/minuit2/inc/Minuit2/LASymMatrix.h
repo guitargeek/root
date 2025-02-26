@@ -12,7 +12,6 @@
 
 #include "Minuit2/MnConfig.h"
 #include "Minuit2/ABObj.h"
-#include "Minuit2/MatrixInverse.h"
 #include "Minuit2/StackAllocator.h"
 
 #include <cassert>
@@ -43,9 +42,6 @@ int Invert(LASymMatrix &);
  */
 
 class LASymMatrix {
-
-private:
-   LASymMatrix() : fSize(0), fNRow(0), fData(nullptr) {}
 
 public:
    typedef sym Type;
@@ -100,7 +96,7 @@ public:
    }
 
    template <class A, class B, class T>
-   LASymMatrix(const ABObj<sym, ABSum<ABObj<sym, A, T>, ABObj<sym, B, T>>, T> &sum) : fSize(0), fNRow(0), fData(nullptr)
+   LASymMatrix(const ABObj<sym, ABSum<ABObj<sym, A, T>, ABObj<sym, B, T>>, T> &sum)
    {
       //     std::cout<<"template<class A, class B, class T> LASymMatrix(const ABObj<sym, ABSum<ABObj<sym, A, T>,
       //     ABObj<sym, B, T> > >& sum)"<<std::endl; recursive construction
@@ -111,7 +107,6 @@ public:
 
    template <class A, class T>
    LASymMatrix(const ABObj<sym, ABSum<ABObj<sym, LASymMatrix, T>, ABObj<sym, A, T>>, T> &sum)
-      : fSize(0), fNRow(0), fData(nullptr)
    {
       //     std::cout<<"template<class A, class T> LASymMatrix(const ABObj<sym, ABSum<ABObj<sym, LASymMatrix, T>,
       //     ABObj<sym, A, T> >,T>& sum)"<<std::endl;
@@ -126,7 +121,7 @@ public:
    }
 
    template <class A, class T>
-   LASymMatrix(const ABObj<sym, ABObj<sym, A, T>, T> &something) : fSize(0), fNRow(0), fData(nullptr)
+   LASymMatrix(const ABObj<sym, ABObj<sym, A, T>, T> &something)
    {
       //     std::cout<<"template<class A, class T> LASymMatrix(const ABObj<sym, ABObj<sym, A, T>, T>&
       //     something)"<<std::endl;
@@ -151,7 +146,6 @@ public:
    LASymMatrix(
       const ABObj<sym, ABSum<ABObj<sym, MatrixInverse<sym, ABObj<sym, LASymMatrix, T>, T>, T>, ABObj<sym, A, T>>, T>
          &sum)
-      : fSize(0), fNRow(0), fData(nullptr)
    {
       //     std::cout<<"template<class A, class T> LASymMatrix(const ABObj<sym, ABSum<ABObj<sym, MatrixInverse<sym,
       //     ABObj<sym, LASymMatrix, T>, T>, T>, ABObj<sym, A, T> >, T>& sum)"<<std::endl;
@@ -168,7 +162,6 @@ public:
    template <class A, class T>
    LASymMatrix(
       const ABObj<sym, ABSum<ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector, T>, T>, T>, ABObj<sym, A, T>>, T> &sum)
-      : fSize(0), fNRow(0), fData(nullptr)
    {
       //     std::cout<<"template<class A, class T> LASymMatrix(const ABObj<sym, ABSum<ABObj<sym,
       //     VectorOuterProduct<ABObj<vec, LAVector, T>, T>, T> ABObj<sym, A, T> >,T>& sum)"<<std::endl;
@@ -276,9 +269,9 @@ public:
    unsigned int Ncol() const { return Nrow(); }
 
 private:
-   unsigned int fSize;
-   unsigned int fNRow;
-   double *fData;
+   unsigned int fSize = 0;
+   unsigned int fNRow = 0;
+   double *fData = nullptr;
 
 public:
    template <class T>

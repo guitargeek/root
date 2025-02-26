@@ -48,7 +48,6 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
       Minuit2/LASymMatrix.h
       Minuit2/LAVector.h
       Minuit2/MPIProcess.h
-      Minuit2/MatrixInverse.h
       Minuit2/MinimumBuilder.h
       Minuit2/MinimumError.h
       Minuit2/MinimumErrorUpdator.h

@@ -30,9 +30,6 @@ int Mndspmv(const char *, unsigned int, double, const double *, const double *, 
 
 class LAVector {
 
-private:
-   LAVector() : fSize(0), fData(nullptr) {}
-
 public:
    typedef vec Type;
 
@@ -41,18 +38,12 @@ public:
    fData( (n>0) ? (double *)StackAllocatorHolder::Get().Allocate(sizeof(double) * n)
                 : nullptr)
    {
-      //     assert(fSize>0);
       if (fData)
          std::memset(fData, 0, size() * sizeof(double));
-      //     std::cout<<"LAVector(unsigned int n), n= "<<n<<std::endl;
    }
 
    ~LAVector()
    {
-      //     std::cout<<"~LAVector()"<<std::endl;
-      //    if(fData) std::cout<<"deleting "<<fSize<<std::endl;
-      //     else std::cout<<"no delete"<<std::endl;
-      //     if(fData) delete [] fData;
       if (fData)
          StackAllocatorHolder::Get().Deallocate(fData);
    }
@@ -88,7 +79,7 @@ public:
    }
 
    template <class A, class B, class T>
-   LAVector(const ABObj<vec, ABSum<ABObj<vec, A, T>, ABObj<vec, B, T>>, T> &sum) : fSize(0), fData(nullptr)
+   LAVector(const ABObj<vec, ABSum<ABObj<vec, A, T>, ABObj<vec, B, T>>, T> &sum)
    {
       //     std::cout<<"template<class A, class B, class T> LAVector(const ABObj<ABSum<ABObj<A, T>, ABObj<B, T> > >&
       //     sum)"<<std::endl;
@@ -98,7 +89,7 @@ public:
    }
 
    template <class A, class T>
-   LAVector(const ABObj<vec, ABSum<ABObj<vec, LAVector, T>, ABObj<vec, A, T>>, T> &sum) : fSize(0), fData(nullptr)
+   LAVector(const ABObj<vec, ABSum<ABObj<vec, LAVector, T>, ABObj<vec, A, T>>, T> &sum)
    {
       //     std::cout<<"template<class A, class T> LAVector(const ABObj<ABSum<ABObj<LAVector, T>, ABObj<A, T> >,T>&
       //     sum)"<<std::endl;
@@ -113,7 +104,7 @@ public:
    }
 
    template <class A, class T>
-   LAVector(const ABObj<vec, ABObj<vec, A, T>, T> &something) : fSize(0), fData(nullptr)
+   LAVector(const ABObj<vec, ABObj<vec, A, T>, T> &something)
    {
       //     std::cout<<"template<class A, class T> LAVector(const ABObj<ABObj<A, T>, T>& something)"<<std::endl;
       (*this) = something.Obj();
@@ -139,7 +130,6 @@ public:
             vec,
             ABSum<ABObj<vec, ABProd<ABObj<sym, LASymMatrix, T>, ABObj<vec, LAVector, T>>, T>, ABObj<vec, LAVector, T>>,
             T> &prod)
-      : fSize(0), fData(nullptr)
    {
       (*this) = prod.Obj().B();
       (*this) += prod.Obj().A();
@@ -230,8 +220,8 @@ public:
    unsigned int size() const { return fSize; }
 
 private:
-   unsigned int fSize;
-   double *fData;
+   unsigned int fSize = 0;
+   double *fData = nullptr;
 
 public:
    template <class T>

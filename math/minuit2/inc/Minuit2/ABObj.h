@@ -163,6 +163,32 @@ ABObj<sym, VectorOuterProduct<ABObj<vec, M, T>, T>, T> Outer_product(const ABObj
    return {VectorOuterProduct<ABObj<vec, M, T>, T>(obj)};
 }
 
+template <class mtype, class M, class T>
+class MatrixInverse {
+
+public:
+   MatrixInverse(const M &obj) : fObject(obj) {}
+
+   const M &Obj() const { return fObject; }
+
+private:
+   M fObject;
+};
+
+// Matrix inverse of a vector is not possible.
+template <class M, class T>
+class MatrixInverse<vec, M, T> {
+   MatrixInverse() = delete;
+   MatrixInverse(const MatrixInverse &) = delete;
+   MatrixInverse(MatrixInverse &&) = delete;
+};
+
+template <class mt, class M, class T>
+inline ABObj<mt, MatrixInverse<mt, ABObj<mt, M, T>, T>, T> Inverse(const ABObj<mt, M, T> &obj)
+{
+   return {MatrixInverse<mt, ABObj<mt, M, T>, T>(obj)};
+}
+
 } // namespace Minuit2
 
 } // namespace ROOT

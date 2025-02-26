@@ -38,7 +38,6 @@ set(MINUIT2_HEADERS
     LASymMatrix.h
     LAVector.h
     MPIProcess.h
-    MatrixInverse.h
     MinimumBuilder.h
     MinimumError.h
     MinimumErrorUpdator.h

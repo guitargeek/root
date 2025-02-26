@@ -21,7 +21,6 @@
 #include "Minuit2/ABObj.h"
 #include "Minuit2/LASymMatrix.h"
 #include "Minuit2/LAVector.h"
-#include "Minuit2/MatrixInverse.h"
 
 namespace ROOT {
 
@@ -37,8 +36,7 @@ operator*(const ABObj<sym, LASymMatrix> &a, const ABObj<vec, LAVector> &b)
 ///    LAPACK Algebra functions
 ///    specialize the Invert function for LASymMatrix
 
-inline ABObj<sym, MatrixInverse<sym, ABObj<sym, LASymMatrix>, double>>
-Inverse(const ABObj<sym, LASymMatrix> &obj)
+inline ABObj<sym, MatrixInverse<sym, ABObj<sym, LASymMatrix>, double>> Inverse(const ABObj<sym, LASymMatrix> &obj)
 {
    return {MatrixInverse<sym, ABObj<sym, LASymMatrix>, double>{obj}};
 }
