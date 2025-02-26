@@ -385,6 +385,33 @@ public:
    LASymMatrix &operator=(const ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector, double>, double>, double> &);
 };
 
+inline ABObj<sym, ABSum<ABObj<sym, LASymMatrix>, ABObj<sym, LASymMatrix>>>
+operator+(const ABObj<sym, LASymMatrix> &a, const ABObj<sym, LASymMatrix> &b)
+{
+   return {ABSum<ABObj<sym, LASymMatrix>, ABObj<sym, LASymMatrix>>(a, b)};
+}
+
+inline ABObj<sym, ABSum<ABObj<sym, LASymMatrix>, ABObj<sym, LASymMatrix>>>
+operator-(const ABObj<sym, LASymMatrix> &a, const ABObj<sym, LASymMatrix> &b)
+{
+   return {ABSum<ABObj<sym, LASymMatrix>, ABObj<sym, LASymMatrix>>(a, ABObj<sym, LASymMatrix>(b.Obj(), -1. * b.f()))};
+}
+
+inline ABObj<sym, LASymMatrix> operator*(double f, const LASymMatrix &obj)
+{
+   return {obj, f};
+}
+
+inline ABObj<sym, LASymMatrix> operator/(const LASymMatrix &obj, double f)
+{
+   return {obj, 1. / f};
+}
+
+inline ABObj<sym, LASymMatrix> operator-(const LASymMatrix &obj)
+{
+   return {obj, -1.};
+}
+
 } // namespace Minuit2
 
 } // namespace ROOT

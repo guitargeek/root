@@ -9,8 +9,6 @@
 
 #include "Minuit2/DavidonErrorUpdator.h"
 #include "Minuit2/MinimumState.h"
-#include "Minuit2/LaSum.h"
-#include "Minuit2/LaProd.h"
 #include "Minuit2/MnPrint.h"
 
 namespace ROOT {

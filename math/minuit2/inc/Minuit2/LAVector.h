@@ -338,6 +338,31 @@ public:
    }
 };
 
+inline ABObj<vec, ABSum<ABObj<vec, LAVector>, ABObj<vec, LAVector>>>
+operator+(const ABObj<vec, LAVector> &a, const ABObj<vec, LAVector> &b)
+{
+   return {ABSum<ABObj<vec, LAVector>, ABObj<vec, LAVector>>(a, b)};
+}
+
+inline ABObj<vec, ABSum<ABObj<vec, LAVector>, ABObj<vec, LAVector>>>
+operator-(const ABObj<vec, LAVector> &a, const ABObj<vec, LAVector> &b)
+{
+   return {ABSum<ABObj<vec, LAVector>, ABObj<vec, LAVector>>(a, ABObj<vec, LAVector>(b.Obj(), -1. * b.f()))};
+}
+
+inline ABObj<vec, LAVector> operator*(double f, const LAVector &obj)
+{
+   return {obj, f};
+}
+inline ABObj<vec, LAVector> operator/(const LAVector &obj, double f)
+{
+   return {obj, 1. / f};
+}
+inline ABObj<vec, LAVector> operator-(const LAVector &obj)
+{
+   return {obj, -1.};
+}
+
 } // namespace Minuit2
 
 } // namespace ROOT

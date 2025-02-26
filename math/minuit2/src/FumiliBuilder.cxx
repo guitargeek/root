@@ -19,8 +19,6 @@
 #include "Minuit2/MnFcn.h"
 #include "Minuit2/MnMachinePrecision.h"
 #include "Minuit2/MnPosDef.h"
-#include "Minuit2/LaSum.h"
-#include "Minuit2/LaProd.h"
 #include "Minuit2/MnStrategy.h"
 #include "Minuit2/MnHesse.h"
 #include "Minuit2/MnPrint.h"

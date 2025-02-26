@@ -17,7 +17,6 @@
 #include "Minuit2/MnMatrix.h"
 #include "Minuit2/MinimumError.h"
 #include "Minuit2/MinimumState.h"
-#include "Minuit2/LaSum.h"
 #include "Minuit2/MnPrint.h"
 
 #include <limits>

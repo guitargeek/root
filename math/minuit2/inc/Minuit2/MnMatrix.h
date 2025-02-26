@@ -28,6 +28,13 @@ namespace ROOT {
 
 namespace Minuit2 {
 
+// Matrix-vector product
+inline ABObj<AlgebraicProdType<sym, vec>::Type, ABProd<ABObj<sym, LASymMatrix>, ABObj<vec, LAVector>>>
+operator*(const ABObj<sym, LASymMatrix> &a, const ABObj<vec, LAVector> &b)
+{
+   return {ABProd<ABObj<sym, LASymMatrix>, ABObj<vec, LAVector>>(a, b)};
+}
+
 ///    LAPACK Algebra functions
 ///    specialize the Invert function for LASymMatrix
 

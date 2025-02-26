@@ -47,8 +47,6 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
       Minuit2/InitialGradientCalculator.h
       Minuit2/LASymMatrix.h
       Minuit2/LAVector.h
-      Minuit2/LaProd.h
-      Minuit2/LaSum.h
       Minuit2/MPIProcess.h
       Minuit2/MatrixInverse.h
       Minuit2/MinimumBuilder.h

@@ -37,8 +37,6 @@ set(MINUIT2_HEADERS
     InitialGradientCalculator.h
     LASymMatrix.h
     LAVector.h
-    LaProd.h
-    LaSum.h
     MPIProcess.h
     MatrixInverse.h
     MinimumBuilder.h
