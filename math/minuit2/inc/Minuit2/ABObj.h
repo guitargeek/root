@@ -14,99 +14,8 @@ namespace ROOT {
 
 namespace Minuit2 {
 
-class gen {};
 class sym {};
 class vec {};
-
-template <class A, class B>
-class AlgebraicSumType {
-public:
-   typedef gen Type;
-};
-
-template <class T>
-class AlgebraicSumType<T, T> {
-public:
-   typedef T Type;
-};
-
-template <>
-class AlgebraicSumType<vec, gen> {
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicSumType<gen, vec> {
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicSumType<vec, sym> {
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicSumType<sym, vec> {
-   typedef gen Type;
-};
-
-//
-
-template <class A, class B>
-class AlgebraicProdType {
-   typedef gen Type;
-};
-
-template <class T>
-class AlgebraicProdType<T, T> {
-   typedef T Type;
-};
-
-template <>
-class AlgebraicProdType<gen, gen> {
-public:
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicProdType<sym, sym> {
-public:
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicProdType<sym, gen> {
-public:
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicProdType<gen, sym> {
-public:
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicProdType<vec, gen> {
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicProdType<gen, vec> {
-public:
-   typedef vec Type;
-};
-
-template <>
-class AlgebraicProdType<vec, sym> {
-   typedef gen Type;
-};
-
-template <>
-class AlgebraicProdType<sym, vec> {
-public:
-   typedef vec Type;
-};
 
 // Helper base class to delete assignment.
 //
@@ -126,7 +35,7 @@ public:
    DeleteAssignment &operator=(DeleteAssignment &&) = delete;
 };
 
-template <class Type, class M, class T=double>
+template <class Type, class M, class T = double>
 class ABObj : public DeleteAssignment {
 
 public:
@@ -197,21 +106,21 @@ private:
 };
 
 // ABObj + ABObj
-template <class atype, class A, class btype, class B, class T>
-ABObj<typename AlgebraicSumType<atype, btype>::Type, ABSum<ABObj<atype, A, T>, ABObj<btype, B, T>>, T>
-operator+(const ABObj<atype, A, T> &a, const ABObj<btype, B, T> &b)
+template <class atype, class A, class B, class T>
+ABObj<atype, ABSum<ABObj<atype, A, T>, ABObj<atype, B, T>>, T>
+operator+(const ABObj<atype, A, T> &a, const ABObj<atype, B, T> &b)
 {
 
-   return {ABSum<ABObj<atype, A, T>, ABObj<btype, B, T>>(a, b)};
+   return {ABSum<ABObj<atype, A, T>, ABObj<atype, B, T>>(a, b)};
 }
 
 // ABObj - ABObj
-template <class atype, class A, class btype, class B, class T>
-ABObj<typename AlgebraicSumType<atype, btype>::Type, ABSum<ABObj<atype, A, T>, ABObj<btype, B, T>>, T>
-operator-(const ABObj<atype, A, T> &a, const ABObj<btype, B, T> &b)
+template <class atype, class A, class B, class T>
+ABObj<atype, ABSum<ABObj<atype, A, T>, ABObj<atype, B, T>>, T>
+operator-(const ABObj<atype, A, T> &a, const ABObj<atype, B, T> &b)
 {
 
-   return {ABSum<ABObj<atype, A, T>, ABObj<btype, B, T>>(a, ABObj<btype, B, T>(b.Obj(), T(-1.) * b.f()))};
+   return {ABSum<ABObj<atype, A, T>, ABObj<atype, B, T>>(a, ABObj<atype, B, T>(b.Obj(), T(-1.) * b.f()))};
 }
 
 template <class M1, class M2>
@@ -227,13 +136,13 @@ private:
    M2 fB;
 };
 
-// ABObj * ABObj
-template <class atype, class A, class btype, class B, class T>
-ABObj<typename AlgebraicProdType<atype, btype>::Type, ABProd<ABObj<atype, A, T>, ABObj<btype, B, T>>, T>
-operator*(const ABObj<atype, A, T> &a, const ABObj<btype, B, T> &b)
+// ABObj * ABObj (only supported for sym * vec)
+template <class A, class B, class T>
+ABObj<vec, ABProd<ABObj<sym, A, T>, ABObj<vec, B, T>>, T>
+operator*(const ABObj<sym, A, T> &a, const ABObj<vec, B, T> &b)
 {
 
-   return {ABProd<ABObj<atype, A, T>, ABObj<btype, B, T>>(a, b)};
+   return {ABProd<ABObj<sym, A, T>, ABObj<vec, B, T>>(a, b)};
 }
 
 template <class M, class T>
