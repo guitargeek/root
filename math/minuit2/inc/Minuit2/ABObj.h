@@ -126,7 +126,7 @@ public:
    DeleteAssignment &operator=(DeleteAssignment &&) = delete;
 };
 
-template <class Type, class M, class T>
+template <class Type, class M, class T=double>
 class ABObj : public DeleteAssignment {
 
 public:
@@ -160,6 +160,27 @@ template <class mt, class M, class T>
 ABObj<mt, M, T> operator-(const M &obj)
 {
    return {obj, -1.};
+}
+
+// factor * ABObj
+template <class mt, class M, class T>
+ABObj<mt, M, T> operator*(T f, const ABObj<mt, M, T> &obj)
+{
+   return {obj.Obj(), obj.f() * f};
+}
+
+// ABObj / factor
+template <class mt, class M, class T>
+ABObj<mt, M, T> operator/(const ABObj<mt, M, T> &obj, T f)
+{
+   return {obj.Obj(), obj.f() / f};
+}
+
+// -ABObj
+template <class mt, class M, class T>
+ABObj<mt, M, T> operator-(const ABObj<mt, M, T> &obj)
+{
+   return {obj.Obj(), T(-1.) * obj.f()};
 }
 
 template <class M1, class M2>

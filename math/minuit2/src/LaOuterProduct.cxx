@@ -7,9 +7,7 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LaOuterProduct.h"
-#include "Minuit2/LAVector.h"
-#include "Minuit2/LASymMatrix.h"
+#include "Minuit2/MnMatrix.h"
 
 namespace ROOT {
 

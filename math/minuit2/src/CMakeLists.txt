@@ -37,8 +37,6 @@ set(MINUIT2_HEADERS
     InitialGradientCalculator.h
     LASymMatrix.h
     LAVector.h
-    LaInverse.h
-    LaOuterProduct.h
     LaProd.h
     LaSum.h
     MPIProcess.h

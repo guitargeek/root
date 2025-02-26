@@ -7,8 +7,7 @@
  *                                                                    *
  **********************************************************************/
 
-#include "Minuit2/LaInverse.h"
-#include "Minuit2/LASymMatrix.h"
+#include "Minuit2/MnMatrix.h"
 
 namespace ROOT {
 

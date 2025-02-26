@@ -18,10 +18,42 @@
 // define typedf's in MnMatrixfwd
 #include "Minuit2/MnMatrixfwd.h"
 
+#include "Minuit2/ABObj.h"
 #include "Minuit2/LASymMatrix.h"
 #include "Minuit2/LAVector.h"
-#include "Minuit2/LaInverse.h"
-#include "Minuit2/LaOuterProduct.h"
+#include "Minuit2/MatrixInverse.h"
+#include "Minuit2/VectorOuterProduct.h"
 
+namespace ROOT {
+
+namespace Minuit2 {
+
+///    LAPACK Algebra functions
+///    specialize the Invert function for LASymMatrix
+
+inline ABObj<sym, MatrixInverse<sym, ABObj<sym, LASymMatrix>, double>>
+Inverse(const ABObj<sym, LASymMatrix> &obj)
+{
+   return {MatrixInverse<sym, ABObj<sym, LASymMatrix>, double>{obj}};
+}
+
+int Invert(LASymMatrix &);
+
+int Invert_undef_sym(LASymMatrix &);
+
+///    LAPACK Algebra function
+///    specialize the Outer_product function for LAVector;
+
+inline ABObj<sym, VectorOuterProduct<ABObj<vec, LAVector>, double>>
+Outer_product(const ABObj<vec, LAVector> &obj)
+{
+   return {VectorOuterProduct<ABObj<vec, LAVector>, double>{obj}};
+}
+
+void Outer_prod(LASymMatrix &, const LAVector &, double f = 1.);
+
+} // namespace Minuit2
+
+} // namespace ROOT
 
 #endif // ROOT_Minuit2_MnMatrix
