@@ -12,12 +12,19 @@
    -lf2c -lm   (in that order)
 */
 
+#include "Minuit2/MnConfig.h"
+#include "Minuit2/MnPrint.h"
+
+#include <cstring>
+
 namespace ROOT {
 
 namespace Minuit2 {
 
-bool mnlsame(const char *, const char *);
-int mnxerbla(const char *, int);
+inline bool mnlsame(const char *ca, const char *cb)
+{
+   return std::strcmp(ca, cb) == 0;
+}
 
 int mndspr(const char *uplo, unsigned int n, double alpha, const double *x, int incx, double *ap)
 {
@@ -130,7 +137,7 @@ int mndspr(const char *uplo, unsigned int n, double alpha, const double *x, int 
       info = 5;
    }
    if (info != 0) {
-      mnxerbla("DSPR  ", info);
+      MnPrint{"mndspr"}.Warn("On entry to", "DSPR", "Parameter number", info, "had an illegal Value");
       return 0;
    }
 

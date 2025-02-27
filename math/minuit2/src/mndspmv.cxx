@@ -12,12 +12,19 @@
    -lf2c -lm   (in that order)
 */
 
+#include "Minuit2/MnConfig.h"
+#include "Minuit2/MnPrint.h"
+
+#include <cstring>
+
 namespace ROOT {
 
 namespace Minuit2 {
 
-bool mnlsame(const char *, const char *);
-int mnxerbla(const char *, int);
+inline bool mnlsame(const char *ca, const char *cb)
+{
+   return std::strcmp(ca, cb) == 0;
+}
 
 int Mndspmv(const char *uplo, unsigned int n, double alpha, const double *ap, const double *x, int incx, double beta,
             double *y, int incy)
@@ -147,7 +154,7 @@ int Mndspmv(const char *uplo, unsigned int n, double alpha, const double *ap, co
       info = 9;
    }
    if (info != 0) {
-      mnxerbla("DSPMV ", info);
+      MnPrint{"mndspmv"}.Warn("On entry to", "DSPMV", "Parameter number", info, "had an illegal Value");
       return 0;
    }
 

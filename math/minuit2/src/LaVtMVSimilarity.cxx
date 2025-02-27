@@ -9,21 +9,20 @@
 
 #include "Minuit2/MnMatrix.h"
 
+#include <numeric>
+
 namespace ROOT {
 
 namespace Minuit2 {
 
-double mnddot(unsigned int, const double *, int, const double *, int);
-
 double similarity(const LAVector &avec, const LASymMatrix &mat)
 {
    // calculate the similarity vector-matrix product: V^T M V
-   // use matrix product and then dot function (using mnddot)
+   // use matrix product and then dot function
 
    LAVector tmp = mat * avec;
 
-   double value = mnddot(avec.size(), avec.Data(), 1, tmp.Data(), 1);
-   return value;
+   return std::inner_product(avec.Data(), avec.Data() + avec.size(), tmp.Data(), 0.0);
 }
 
 } // namespace Minuit2

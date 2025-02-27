@@ -178,17 +178,12 @@ if(CMAKE_PROJECT_NAME STREQUAL ROOT)
       src/VariableMetricBuilder.cxx
       src/VariableMetricEDMEstimator.cxx
       src/mnbins.cxx
-      src/mndasum.cxx
       src/mndaxpy.cxx
-      src/mnddot.cxx
       src/mndscal.cxx
       src/mndspmv.cxx
       src/mndspr.cxx
-      src/mnlsame.cxx
       src/mnteigen.cxx
       src/mntplot.cxx
-      src/mnvert.cxx
-      src/mnxerbla.cxx
     DICTIONARY_OPTIONS
       -writeEmptyRootPCM
     DEPENDENCIES

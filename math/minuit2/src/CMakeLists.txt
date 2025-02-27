@@ -165,17 +165,12 @@ set(MINUIT2_SOURCES
     VariableMetricBuilder.cxx
     VariableMetricEDMEstimator.cxx
     mnbins.cxx
-    mndasum.cxx
     mndaxpy.cxx
-    mnddot.cxx
     mndscal.cxx
     mndspmv.cxx
     mndspr.cxx
-    mnlsame.cxx
     mnteigen.cxx
     mntplot.cxx
-    mnvert.cxx
-    mnxerbla.cxx
     )
 
 prepend_path(MINUIT2_HEADERS "${Minuit2_SOURCE_DIR}/inc/Minuit2" ${MINUIT2_HEADERS})

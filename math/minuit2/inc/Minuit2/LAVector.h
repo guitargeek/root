@@ -24,8 +24,8 @@ namespace Minuit2 {
 
 // extern StackAllocator StackAllocatorHolder::Get();
 
-int Mndaxpy(unsigned int, double, const double *, int, double *, int);
-int Mndscal(unsigned int, double, double *, int);
+void Mndaxpy(unsigned int, double, const double *, double *);
+void Mndscal(unsigned int, double, double *);
 int Mndspmv(const char *, unsigned int, double, const double *, const double *, int, double, double *, int);
 
 class LAVector {
@@ -141,7 +141,7 @@ public:
    {
       //     std::cout<<"LAVector& operator+=(const LAVector& m)"<<std::endl;
       assert(fSize == m.size());
-      Mndaxpy(fSize, 1., m.Data(), 1, fData, 1);
+      Mndaxpy(fSize, 1., m.Data(), fData);
       return *this;
    }
 
@@ -149,7 +149,7 @@ public:
    {
       //     std::cout<<"LAVector& operator-=(const LAVector& m)"<<std::endl;
       assert(fSize == m.size());
-      Mndaxpy(fSize, -1., m.Data(), 1, fData, 1);
+      Mndaxpy(fSize, -1., m.Data(), fData);
       return *this;
    }
 
@@ -159,9 +159,9 @@ public:
       //     std::cout<<"template<class T> LAVector& operator+=(const ABObj<LAVector, T>& m)"<<std::endl;
       assert(fSize == m.Obj().size());
       if (m.Obj().Data() == fData) {
-         Mndscal(fSize, 1. + double(m.f()), fData, 1);
+         Mndscal(fSize, 1. + double(m.f()), fData);
       } else {
-         Mndaxpy(fSize, double(m.f()), m.Obj().Data(), 1, fData, 1);
+         Mndaxpy(fSize, double(m.f()), m.Obj().Data(), fData);
       }
       //     std::cout<<"fData= "<<fData[0]<<" "<<fData[1]<<std::endl;
       return *this;
@@ -185,7 +185,7 @@ public:
 
    LAVector &operator*=(double scal)
    {
-      Mndscal(fSize, scal, fData, 1);
+      Mndscal(fSize, scal, fData);
       return *this;
    }
 

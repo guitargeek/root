@@ -24,8 +24,8 @@ namespace ROOT {
 
 namespace Minuit2 {
 
-int Mndaxpy(unsigned int, double, const double *, int, double *, int);
-int Mndscal(unsigned int, double, double *, int);
+void Mndaxpy(unsigned int, double, const double *, double *);
+void Mndscal(unsigned int, double, double *);
 
 class LASymMatrix;
 class LAVector;
@@ -91,7 +91,7 @@ public:
       //     std::cout<<"LASymMatrix(const ABObj<sym, LASymMatrix, T>& v)"<<std::endl;
       // std::cout<<"allocate "<<fSize<<std::endl;
       std::memcpy(fData, v.Obj().Data(), fSize * sizeof(double));
-      Mndscal(fSize, double(v.f()), fData, 1);
+      Mndscal(fSize, double(v.f()), fData);
       // std::cout<<"fData= "<<fData[0]<<" "<<fData[1]<<std::endl;
    }
 
@@ -137,9 +137,9 @@ public:
         fData((double *)StackAllocatorHolder::Get().Allocate(sizeof(double) * inv.Obj().Obj().Obj().size()))
    {
       std::memcpy(fData, inv.Obj().Obj().Obj().Data(), fSize * sizeof(double));
-      Mndscal(fSize, double(inv.Obj().Obj().f()), fData, 1);
+      Mndscal(fSize, double(inv.Obj().Obj().f()), fData);
       Invert(*this);
-      Mndscal(fSize, double(inv.f()), fData, 1);
+      Mndscal(fSize, double(inv.f()), fData);
    }
 
    template <class A, class T>
@@ -177,7 +177,7 @@ public:
    {
       //     std::cout<<"LASymMatrix& operator+=(const LASymMatrix& m)"<<std::endl;
       assert(fSize == m.size());
-      Mndaxpy(fSize, 1., m.Data(), 1, fData, 1);
+      Mndaxpy(fSize, 1., m.Data(), fData);
       return *this;
    }
 
@@ -185,7 +185,7 @@ public:
    {
       //     std::cout<<"LASymMatrix& operator-=(const LASymMatrix& m)"<<std::endl;
       assert(fSize == m.size());
-      Mndaxpy(fSize, -1., m.Data(), 1, fData, 1);
+      Mndaxpy(fSize, -1., m.Data(), fData);
       return *this;
    }
 
@@ -195,9 +195,9 @@ public:
       //     std::cout<<"template<class T> LASymMatrix& operator+=(const ABObj<sym, LASymMatrix, T>& m)"<<std::endl;
       assert(fSize == m.Obj().size());
       if (m.Obj().Data() == fData) {
-         Mndscal(fSize, 1. + double(m.f()), fData, 1);
+         Mndscal(fSize, 1. + double(m.f()), fData);
       } else {
-         Mndaxpy(fSize, double(m.f()), m.Obj().Data(), 1, fData, 1);
+         Mndaxpy(fSize, double(m.f()), m.Obj().Data(), fData);
       }
       // std::cout<<"fData= "<<fData[0]<<" "<<fData[1]<<std::endl;
       return *this;
@@ -236,7 +236,7 @@ public:
 
    LASymMatrix &operator*=(double scal)
    {
-      Mndscal(fSize, scal, fData, 1);
+      Mndscal(fSize, scal, fData);
       return *this;
    }
 
