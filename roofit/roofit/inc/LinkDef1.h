@@ -131,6 +131,7 @@
 #pragma link C++ class RooCFunction4Binding<double,double,double,double,bool>+ ;
 #pragma link C++ class RooCFunction4PdfBinding<double,double,double,double,bool>+ ;
 
+#pragma link C++ class RooResponseFunction+ ;
 #pragma link C++ class RooTwoSidedCBShape+ ;
 
 //#ifdef USE_FOR_AUTLOADING
