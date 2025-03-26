@@ -713,8 +713,7 @@ static PyObject* mp_call(CPPOverload* pymeth, PyObject* args, PyObject* kwds)
                 }
 
             // clear collected errors
-                if (!errors.empty())
-                    std::for_each(errors.begin(), errors.end(), Utility::PyError_t::Clear);
+                errors.clear();
                 return HandleReturn(pymeth, im_self, result);
             }
 

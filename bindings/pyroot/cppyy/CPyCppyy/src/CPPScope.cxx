@@ -504,7 +504,7 @@ static PyObject* meta_getattro(PyObject* pyclass, PyObject* pyname)
     }
 
     if (attr) {
-        std::for_each(errors.begin(), errors.end(), Utility::PyError_t::Clear);
+        errors.clear();
         PyErr_Clear();
     } else {
     // not found: prepare a full error report

@@ -437,8 +437,7 @@ static int tpp_doc_set(TemplateProxy* pytmpl, PyObject *val, void *)
 //= CPyCppyy template proxy callable behavior ================================
 
 #define TPPCALL_RETURN                                                       \
-{ if (!errors.empty())                                                       \
-      std::for_each(errors.begin(), errors.end(), Utility::PyError_t::Clear);\
+{ errors.clear();                                                            \
   return result; }
 
 static inline std::string targs2str(TemplateProxy* pytmpl)
