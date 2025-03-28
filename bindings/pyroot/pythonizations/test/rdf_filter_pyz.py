@@ -1,9 +1,15 @@
-import unittest
-import ROOT
-import numpy as np
-
 import os
-from rdf_filter_pyz_helper import CreateData, TYPE_TO_SYMBOL, filter_dict
+import unittest
+
+import numba
+import numpy as np
+import ROOT
+from rdf_filter_pyz_helper import TYPE_TO_SYMBOL, CreateData, filter_dict
+
+# numba is not used directly, but tests can crash when ROOT is built with
+# builtin_llvm=OFF and numba is not imported at the beginning:
+numba.__version__  # this is to avoid unused import warnings
+
 
 class PyFilter(unittest.TestCase):
     """
