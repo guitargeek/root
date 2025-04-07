@@ -198,16 +198,16 @@ std::string ROperator_RNN<T>::GenerateSessionMembersCode(std::string opName)
    size_t input_size = fShapeX[2];
 
    if (fAttrLayout != 0) {
-      out << "std::vector<" << fType << "> fVec_" << opName << "_input = std::vector<" << fType << ">("
+      out << "mutable std::vector<" << fType << "> fVec_" << opName << "_input = std::vector<" << fType << ">("
        << seq_length * batch_size * input_size << ");\n";
-      out << "std::vector<" << fType << "> fVec_" << opName << "_initial_hidden_state = std::vector<" << fType << ">("
+      out << "mutable std::vector<" << fType << "> fVec_" << opName << "_initial_hidden_state = std::vector<" << fType << ">("
           << num_directions * batch_size * fAttrHiddenSize << ");\n";
    }
-   out << "std::vector<" << fType << "> fVec_" << opName << "_feedforward = std::vector<" << fType << ">("
+   out << "mutable std::vector<" << fType << "> fVec_" << opName << "_feedforward = std::vector<" << fType << ">("
        << seq_length * batch_size * fAttrHiddenSize << ");\n";
 
    if (fAttrLayout != 0 || fNY.empty()) {
-      out << "std::vector<" << fType << "> fVec_" << opName << "_hidden_state = std::vector<" << fType << ">("
+      out << "mutable std::vector<" << fType << "> fVec_" << opName << "_hidden_state = std::vector<" << fType << ">("
           << seq_length * num_directions * batch_size * fAttrHiddenSize << ");\n";
    }
 

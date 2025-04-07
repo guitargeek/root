@@ -34,8 +34,14 @@ private:
    std::vector<std::string> fDimShapeNames; // parameter names used to define the shapes
    std::vector<std::string> fOutputTensorNames;
    std::vector<std::string> fInputTensorNames; // input tensor names using ONNX order
+   std::vector<std::string> fPointerMemberNames;
 
+   inline std::string AddTensorMember(std::string const &name) {
+       fPointerMemberNames.push_back(name);
+       return "tensor_" + name;
+   }
 
+   bool IsInputTensorShapeParam(std::string const &name) const;
 
    std::vector<std::unique_ptr<ROperator>> fOperators;
 

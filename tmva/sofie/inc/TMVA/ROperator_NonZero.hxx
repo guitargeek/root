@@ -101,15 +101,23 @@ public:
          }
       }
    }
-   std::string GenerateSessionCtorCode() override {
+
+   std::string GenerateSessionMembersCode(std::string /*opName*/) override {
       if (fIsOutputConstant) return "";
       // define output value used as max non zero with max size = input shape * N
       auto inputLength = ConvertDynamicShapeToLength(fShapeX);
       std::stringstream out;
-      out << SP << "size_t v_NonZero_" << fNX << " = " << inputLength << ";\n";
+      out << SP << "size_t fV_NonZero_" << fNX << " = " << inputLength << ";\n";
       return out.str();
    }
 
+   std::string GenerateSessionCtorCode() override {
+      if (fIsOutputConstant) return "";
+      // define output value used as max non zero with max size = input shape * N
+      std::stringstream out;
+      out << SP << "size_t v_NonZero_" << fNX << " = " << "fV_NonZero_" << fNX << ";\n";
+      return out.str();
+   }
 
    std::string Generate(std::string opName) override {
       if (fIsOutputConstant) {
