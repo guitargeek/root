@@ -32,9 +32,10 @@
 //   2. The reproducer workspace needs to have the same name as the broken
 //      workspace in that file
 //   3. The reproducer workspace must have some RooArgSet defined
-TEST(RooWorkspace, Issue_10282) {
+TEST(RooWorkspace, Issue_10282)
+{
    auto f = TFile::Open("test_workspace_01.root");
-   auto * ws = f->Get<RooWorkspace>("combWS");
+   auto *ws = f->Get<RooWorkspace>("combWS");
 
    ASSERT_NE(ws->set("myset"), nullptr);
    ASSERT_EQ(ws->set("myset")->size(), 0);
