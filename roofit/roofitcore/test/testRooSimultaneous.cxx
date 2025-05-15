@@ -1,10 +1,12 @@
 // Tests for the RooSimultaneous
 // Authors: Jonas Rembser, CERN  06/2021
 
+#include <RooAddPdf.h>
 #include <RooAddition.h>
 #include <RooCategory.h>
 #include <RooConstVar.h>
 #include <RooDataSet.h>
+#include <RooExponential.h>
 #include <RooFitResult.h>
 #include <RooGenericPdf.h>
 #include <RooHelpers.h>
@@ -243,6 +245,41 @@ TEST_P(TestStatisticTest, RooSimultaneousSingleChannelCrossCheck)
    EXPECT_TRUE(resSimWrapped->isIdentical(*resDirect)) << "Inconsistency in RooSimultaneous wrapping";
    EXPECT_TRUE(resAdditionWrapped->isIdentical(*resDirect))
       << "Inconsistency in RooSimultaneous + RooAddition wrapping";
+}
+
+/// Ensure that ranged fits with a RooSimultaneous work correctly, by cross
+/// checking that the likelihood value for a non-ranged fit is the same as for
+/// a ranged fit when the fit range is identical to the full range.
+/// Covers the regression reported in GitHub issue 18718.
+TEST_P(TestStatisticTest, RangedFitConsistencyCheck)
+{
+   using namespace RooFit;
+
+   const double nBkgA_nom = 9000;
+
+   RooRealVar x("x", "Observable", 100, 150);
+   x.setRange("fitRange", 100, 150);
+
+   RooRealVar nBkgA("nBkgA", "", nBkgA_nom, 0.8 * nBkgA_nom, 1.2 * nBkgA_nom);
+
+   // It is important for the test to use a pdf that can be integrated
+   // analytically, because that's the case where the regression happened.
+   RooExponential expA("expA", "", x, RooConst(-0.06));
+   RooAddPdf modelA("modelA", "", {expA}, {nBkgA});
+
+   RooCategory runCat("runCat", "", {{"RunA", 0}});
+
+   RooSimultaneous simPdf("simPdf", "", {{"RunA", &modelA}}, runCat);
+
+   std::unique_ptr<RooDataSet> combData{simPdf.generate({x, runCat}, Extended())};
+
+   std::unique_ptr<RooAbsReal> nll1{simPdf.createNLL(*combData, Range("fitRange"), _evalBackend)};
+   std::unique_ptr<RooAbsReal> nll2{simPdf.createNLL(*combData, _evalBackend)};
+
+   double val1 = nll1->getVal();
+   double val2 = nll2->getVal();
+
+   EXPECT_DOUBLE_EQ(val1, val2);
 }
 
 /// Checks that the Range() command argument for fitTo can be used to select
