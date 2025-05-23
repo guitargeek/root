@@ -67,9 +67,6 @@ HypoTestInverterResult::HypoTestInverterResult(const char * name ) :
 {
    fLowerLimit = TMath::QuietNaN();
    fUpperLimit = TMath::QuietNaN();
-
-   fYObjects.SetOwner();
-   fExpPValues.SetOwner();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,56 +88,14 @@ HypoTestInverterResult::HypoTestInverterResult(const HypoTestInverterResult &oth
 {
    fLowerLimit = TMath::QuietNaN();
    fUpperLimit = TMath::QuietNaN();
-   int nOther = other.ArraySize();
+   std::size_t nOther = other.ArraySize();
 
-   for (int i = 0; i < nOther; ++i)
-     fYObjects.Add( other.fYObjects.At(i)->Clone() );
-   for (int i = 0; i <  fExpPValues.GetSize() ; ++i)
-     fExpPValues.Add( other.fExpPValues.At(i)->Clone() );
-
-   fYObjects.SetOwner();
-   fExpPValues.SetOwner();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-HypoTestInverterResult&
-HypoTestInverterResult::operator=(const HypoTestInverterResult& other)
-{
-  if (&other==this) {
-    return *this ;
-  }
-
-  SimpleInterval::operator = (other);
-  fLowerLimit = other.fLowerLimit;
-  fUpperLimit = other.fUpperLimit;
-  fUseCLs = other.fUseCLs;
-  fIsTwoSided = other.fIsTwoSided;
-  fInterpolateLowerLimit = other.fInterpolateLowerLimit;
-  fInterpolateUpperLimit = other.fInterpolateUpperLimit;
-  fFittedLowerLimit = other.fFittedLowerLimit;
-  fFittedUpperLimit = other.fFittedUpperLimit;
-  fInterpolOption = other.fInterpolOption;
-  fLowerLimitError = other.fLowerLimitError;
-  fUpperLimitError = other.fUpperLimitError;
-  fCLsCleanupThreshold = other.fCLsCleanupThreshold;
-
-  int nOther = other.ArraySize();
-  fXValues = other.fXValues;
-
-  fYObjects.RemoveAll();
-  for (int i=0; i < nOther; ++i) {
-    fYObjects.Add( other.fYObjects.At(i)->Clone() );
-  }
-  fExpPValues.RemoveAll();
-  for (int i=0; i <  fExpPValues.GetSize() ; ++i) {
-    fExpPValues.Add( other.fExpPValues.At(i)->Clone() );
-  }
-
-  fYObjects.SetOwner();
-  fExpPValues.SetOwner();
-
-  return *this;
+   for (std::size_t i = 0; i < nOther; ++i) {
+     fYObjects.emplace_back( static_cast<HypoTestResult*>(other.fYObjects[i]->Clone()) );
+   }
+   for (std::size_t i = 0; i <  fExpPValues.size() ; ++i) {
+     fExpPValues.emplace_back( static_cast<SamplingDistribution*>(other.fExpPValues[i]->Clone()) );
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -161,9 +116,6 @@ HypoTestInverterResult::HypoTestInverterResult( const char* name,
    fUpperLimitError(-1),
    fCLsCleanupThreshold(0.005)
 {
-   fYObjects.SetOwner();
-   fExpPValues.SetOwner();
-
    // put a cloned copy of scanned variable to set in the interval
    // to avoid I/O problem of the Result class -
    // make the set owning the cloned copy (use clone instead of Clone to not copying all links)
@@ -174,15 +126,7 @@ HypoTestInverterResult::HypoTestInverterResult( const char* name,
 ////////////////////////////////////////////////////////////////////////////////
 /// destructor
 
-HypoTestInverterResult::~HypoTestInverterResult()
-{
-   // explicitly empty the TLists - these contain pointers, not objects
-   fYObjects.RemoveAll();
-   fExpPValues.RemoveAll();
-
-   fYObjects.Delete();
-   fExpPValues.Delete();
-}
+HypoTestInverterResult::~HypoTestInverterResult() = default;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Remove problematic points from this result.
@@ -286,8 +230,8 @@ int HypoTestInverterResult::ExclusionCleanup()
     // to remove or not to remove
     if (removeThisPoint) {
       itr = fXValues.erase(itr)--;
-      fYObjects.RemoveAt(i);
-      fExpPValues.RemoveAt(i);
+      fYObjects.erase(fYObjects.begin() + i);
+      fExpPValues.erase(fExpPValues.begin() + i);
       nPointsRemoved++;
       continue;
     } else { // keep
@@ -316,21 +260,21 @@ int HypoTestInverterResult::ExclusionCleanup()
 
 bool HypoTestInverterResult::Add( const HypoTestInverterResult& otherResult   )
 {
-   int nThis = ArraySize();
-   int nOther = otherResult.ArraySize();
+   std::size_t nThis = ArraySize();
+   std::size_t nOther = otherResult.ArraySize();
    if (nOther == 0) return true;
-   if (nOther != otherResult.fYObjects.GetSize() ) return false;
-   if (nThis != fYObjects.GetSize() ) return false;
+   if (nOther != otherResult.fYObjects.size() ) return false;
+   if (nThis != fYObjects.size() ) return false;
 
    // cannot merge in case of inconsistent members
-   if (fExpPValues.GetSize() > 0 && fExpPValues.GetSize() != nThis ) return false;
-   if (otherResult.fExpPValues.GetSize() > 0 && otherResult.fExpPValues.GetSize() != nOther ) return false;
+   if (fExpPValues.size() > 0 && fExpPValues.size() != nThis ) return false;
+   if (otherResult.fExpPValues.size() > 0 && otherResult.fExpPValues.size() != nOther ) return false;
 
    coutI(Eval) << "HypoTestInverterResult::Add - merging result from " << otherResult.GetName()
                                 << " in " << GetName() << std::endl;
 
-   bool addExpPValues = (fExpPValues.GetSize() == 0 && otherResult.fExpPValues.GetSize() > 0);
-   bool mergeExpPValues = (fExpPValues.GetSize() > 0 && otherResult.fExpPValues.GetSize() > 0);
+   bool addExpPValues = (fExpPValues.size() == 0 && otherResult.fExpPValues.size() > 0);
+   bool mergeExpPValues = (fExpPValues.size() > 0 && otherResult.fExpPValues.size() > 0);
 
    if (addExpPValues || mergeExpPValues)
       coutI(Eval) << "HypoTestInverterResult::Add - merging also the expected p-values from pseudo-data" << std::endl;
@@ -340,29 +284,29 @@ bool HypoTestInverterResult::Add( const HypoTestInverterResult& otherResult   )
    // just make a simple copy of the other result
    if (nThis == 0) {
       fXValues = otherResult.fXValues;
-      for (int i = 0; i < nOther; ++i)
-         fYObjects.Add( otherResult.fYObjects.At(i)->Clone() );
-      for (int i = 0; i <  fExpPValues.GetSize() ; ++i)
-         fExpPValues.Add( otherResult.fExpPValues.At(i)->Clone() );
+      for (std::size_t i = 0; i < nOther; ++i)
+         fYObjects.emplace_back( static_cast<HypoTestResult*>(otherResult.fYObjects[i]->Clone()) );
+      for (std::size_t i = 0; i <  fExpPValues.size() ; ++i)
+         fExpPValues.emplace_back( static_cast<SamplingDistribution*>(otherResult.fExpPValues[i]->Clone()) );
    }
    // now do the real merge combining point with same value or adding extra ones
    else {
-      for (int i = 0; i < nOther; ++i) {
+      for (std::size_t i = 0; i < nOther; ++i) {
          double otherVal = otherResult.fXValues[i];
-         HypoTestResult * otherHTR = static_cast<HypoTestResult*>(otherResult.fYObjects.At(i));
+         HypoTestResult * otherHTR = otherResult.fYObjects[i].get();
          if (otherHTR == nullptr) continue;
          bool sameXFound = false;
-         for (int j = 0; j < nThis; ++j) {
+         for (std::size_t j = 0; j < nThis; ++j) {
             double thisVal = fXValues[j];
 
             // if same value merge the result
             if ( (std::abs(otherVal) < 1  && TMath::AreEqualAbs(otherVal, thisVal,1.E-12) ) ||
                  (std::abs(otherVal) >= 1 && TMath::AreEqualRel(otherVal, thisVal,1.E-12) ) ) {
-               HypoTestResult * thisHTR = static_cast<HypoTestResult*>(fYObjects.At(j));
+               HypoTestResult * thisHTR = fYObjects[j].get();
                thisHTR->Append(otherHTR);
                sameXFound = true;
                if (mergeExpPValues) {
-                  (static_cast<SamplingDistribution*>(fExpPValues.At(j)))->Add( static_cast<SamplingDistribution*>(otherResult.fExpPValues.At(i)) );
+                  fExpPValues[j]->Add( otherResult.fExpPValues[i].get() );
                   // check if same toys have been used for the test statistic distribution
                   int thisNToys = (thisHTR->GetNullDistribution() ) ? thisHTR->GetNullDistribution()->GetSize() : 0;
                   int otherNToys = (otherHTR->GetNullDistribution() ) ? otherHTR->GetNullDistribution()->GetSize() : 0;
@@ -374,23 +318,23 @@ bool HypoTestInverterResult::Add( const HypoTestInverterResult& otherResult   )
          }
          if (!sameXFound) {
             // add the new result
-            fYObjects.Add(otherHTR->Clone() );
+            fYObjects.emplace_back(static_cast<HypoTestResult*>(otherHTR->Clone()));
             fXValues.push_back( otherVal);
          }
          // add in any case also when same x found
          if (addExpPValues)
-            fExpPValues.Add( otherResult.fExpPValues.At(i)->Clone() );
+            fExpPValues.emplace_back( static_cast<SamplingDistribution*>(otherResult.fExpPValues[i]->Clone()) );
 
 
       }
    }
 
-   if (ArraySize() > nThis) {
+   if (static_cast<std::size_t>(ArraySize()) > nThis) {
       coutI(Eval) << "HypoTestInverterResult::Add  - new number of points is " << fXValues.size()
                          << std::endl;
    } else {
       coutI(Eval) << "HypoTestInverterResult::Add  - new toys/point is "
-                  << (static_cast<HypoTestResult *>(fYObjects.At(0)))->GetNullDistribution()->GetSize() << std::endl;
+                  << fYObjects.front()->GetNullDistribution()->GetSize() << std::endl;
    }
 
    // reset cached limit values
@@ -408,7 +352,7 @@ bool HypoTestInverterResult::Add (double x, const HypoTestResult & res)
    int i= FindIndex(x);
    if (i<0) {
       fXValues.push_back(x);
-      fYObjects.Add(res.Clone());
+      fYObjects.emplace_back(static_cast<HypoTestResult*>(res.Clone()));
    } else {
       HypoTestResult* r= GetResult(i);
       if (!r) return false;
@@ -546,12 +490,7 @@ double HypoTestInverterResult::CLsError( int index ) const
 
 HypoTestResult* HypoTestInverterResult::GetResult( int index ) const
 {
-   if ( index >= ArraySize() || index<0 ) {
-      coutE(InputArguments) << "Problem: You are asking for an impossible array index value\n";
-      return nullptr;
-   }
-
-   return (static_cast<HypoTestResult*>(fYObjects.At(index)));
+   return fYObjects.at(index).get();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1106,7 +1045,7 @@ double HypoTestInverterResult::UpperLimitEstimatedError()
 
 SamplingDistribution *  HypoTestInverterResult::GetBackgroundTestStatDist(int index ) const {
 
-   HypoTestResult * firstResult = static_cast<HypoTestResult*>(fYObjects.At(index));
+   HypoTestResult * firstResult = fYObjects[index].get();
    if (!firstResult) return nullptr;
    return firstResult->GetBackGroundIsAlt() ? firstResult->GetAltDistribution() : firstResult->GetNullDistribution();
 }
@@ -1115,7 +1054,7 @@ SamplingDistribution *  HypoTestInverterResult::GetBackgroundTestStatDist(int in
 /// get the signal and background test statistic distribution
 
 SamplingDistribution *  HypoTestInverterResult::GetSignalAndBackgroundTestStatDist(int index) const {
-   HypoTestResult * result = static_cast<HypoTestResult*>(fYObjects.At(index));
+   HypoTestResult * result = fYObjects[index].get();
    if (!result) return nullptr;
    return !result->GetBackGroundIsAlt() ? result->GetAltDistribution() : result->GetNullDistribution();
 }
@@ -1127,8 +1066,8 @@ SamplingDistribution *  HypoTestInverterResult::GetExpectedPValueDist(int index)
 
    if (index < 0 || index >=  ArraySize() ) return nullptr;
 
-   if (fExpPValues.GetSize() == ArraySize()  ) {
-      return static_cast<SamplingDistribution*>( fExpPValues.At(index)->Clone());
+   if (fExpPValues.size() == static_cast<std::size_t>(ArraySize())) {
+      return static_cast<SamplingDistribution*>( fExpPValues[index]->Clone());
    }
 
    static bool useFirstB = false;
@@ -1138,7 +1077,7 @@ SamplingDistribution *  HypoTestInverterResult::GetExpectedPValueDist(int index)
    SamplingDistribution * bDistribution = GetBackgroundTestStatDist(bIndex);
    SamplingDistribution * sbDistribution = GetSignalAndBackgroundTestStatDist(index);
 
-   HypoTestResult * result = static_cast<HypoTestResult*>(fYObjects.At(index));
+   HypoTestResult * result = fYObjects[index].get();
 
    if (bDistribution && sbDistribution) {
 
@@ -1314,7 +1253,7 @@ double  HypoTestInverterResult::GetExpectedLimit(double nsig, bool lower, const 
    const int nEntries = ArraySize();
    if (nEntries <= 0)  return (lower) ? 1 : 0;  // return 1 for lower, 0 for upper
 
-   HypoTestResult * r = dynamic_cast<HypoTestResult *> (fYObjects.First() );
+   HypoTestResult * r = fYObjects.front().get();
    assert(r != nullptr);
    if (!r->GetNullDistribution() && !r->GetAltDistribution() ) {
       // we are in the asymptotic case

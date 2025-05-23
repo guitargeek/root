@@ -41,7 +41,7 @@ public:
    ~HypoTestInverterResult() override;
 
    /// operator =
-   HypoTestInverterResult& operator = (const HypoTestInverterResult& other);
+   HypoTestInverterResult& operator = (const HypoTestInverterResult& other) = delete;
 
    /// remove points that appear to have failed.
    int ExclusionCleanup();
@@ -204,13 +204,13 @@ protected:
 
    std::vector<double> fXValues;
 
-   TList fYObjects;       ///< list of HypoTestResult for each point
-   TList fExpPValues;     ///< list of expected sampling distribution for each point
+   std::vector<std::unique_ptr<HypoTestResult>> fYObjects;         ///< list of HypoTestResult for each point
+   std::vector<std::unique_ptr<SamplingDistribution>> fExpPValues; ///< list of expected sampling distribution for each point
 
    friend class HypoTestInverter;
    friend class HypoTestInverterPlot;
 
-   ClassDefOverride(HypoTestInverterResult,5)  // HypoTestInverterResult class
+   ClassDefOverride(HypoTestInverterResult,6)  // HypoTestInverterResult class
 };
 }
 

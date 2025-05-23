@@ -729,17 +729,14 @@ bool HypoTestInverter::RunOnePoint( double rVal, bool adaptive, double clTarget)
       else {
          // if it was empty we re-use it
          oocoutI(nullptr,Eval) << "HypoTestInverter::RunOnePoint - replace previous empty result\n";
-         auto oldObj = fResults->fYObjects.Remove(prevResult);
-         delete oldObj;
-
-         fResults->fYObjects.Add(result.release());
+         fResults->fYObjects.back() = std::move(result);
       }
 
    } else {
 
      // fill the results in the HypoTestInverterResult array
      fResults->fXValues.push_back(rVal);
-     fResults->fYObjects.Add(result.release());
+     fResults->fYObjects.emplace_back(std::move(result));
 
    }
 
@@ -1035,8 +1032,8 @@ SamplingDistribution * HypoTestInverter::GetLowerLimitDistribution(bool rebuild,
 
    TList * clsDist = nullptr;
    TList * clsbDist = nullptr;
-   if (fUseCLs) clsDist = &fResults->fExpPValues;
-   else clsbDist = &fResults->fExpPValues;
+   //if (fUseCLs) clsDist = &fResults->fExpPValues;
+   //else clsbDist = &fResults->fExpPValues;
 
    return RebuildDistributions(false, nToys,clsDist, clsbDist);
 
@@ -1062,8 +1059,8 @@ SamplingDistribution * HypoTestInverter::GetUpperLimitDistribution(bool rebuild,
 
    TList * clsDist = nullptr;
    TList * clsbDist = nullptr;
-   if (fUseCLs) clsDist = &fResults->fExpPValues;
-   else clsbDist = &fResults->fExpPValues;
+   //if (fUseCLs) clsDist = &fResults->fExpPValues;
+   //else clsbDist = &fResults->fExpPValues;
 
    return RebuildDistributions(true, nToys,clsDist, clsbDist);
 }

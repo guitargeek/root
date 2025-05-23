@@ -394,7 +394,7 @@ void HypoTestInverterPlot::Draw(Option_t * opt) {
 SamplingDistPlot * HypoTestInverterPlot::MakeTestStatPlot(int index, int type, int nbins) {
    SamplingDistPlot * pl = nullptr;
    if (type == 0) {
-      HypoTestResult * result = static_cast<HypoTestResult*>(fResults->fYObjects.At(index));
+      HypoTestResult * result = fResults->fYObjects[index].get();
       if (result)
          pl = new HypoTestPlot(*result, nbins );
       return pl;
