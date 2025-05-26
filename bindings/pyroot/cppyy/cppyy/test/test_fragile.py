@@ -1,11 +1,9 @@
-import py, os, sys, pytest
+import os, sys, pytest
 from pytest import mark, raises, skip
 from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libfragileDict"
-
+test_dct = "fragile_cxx"
 
 class TestFRAGILE:
     def setup_class(cls):
@@ -35,7 +33,16 @@ class TestFRAGILE:
         assert cppyy.gbl.fragile == cppyy.gbl.fragile
         fragile = cppyy.gbl.fragile
 
-        raises(AttributeError, getattr, fragile, "no_such_class")
+        if "runtime_cxxmodules" in cppyy.gbl.gROOT.GetConfigFeatures():
+            # When using modules, Clang records forward declarations as proper
+            # AST entities (incomplete types that can't be instantiated).
+            no_such_class = fragile.no_such_class
+            raises(TypeError, no_such_class)  # cannot instantiate incomplete type
+        else:
+            # Without a PCM module, the incomplete type doesn't exist, because
+            # incomplete types are not existing in the rootmap + dictionary
+            # metadata.
+            raises(AttributeError, getattr, fragile, "no_such_class")
 
         assert fragile.C is fragile.C
         assert fragile.C == fragile.C

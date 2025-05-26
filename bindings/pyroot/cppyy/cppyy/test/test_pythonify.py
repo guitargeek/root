@@ -1,10 +1,9 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises, skip
 from support import setup_make, pylong, ispypy
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libexample01Dict"
+test_dct = "example01_cxx"
 
 
 class TestPYTHONIFY:

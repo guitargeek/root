@@ -1,10 +1,9 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises, skip, mark
 from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/liboverloadsDict"
+test_dct = "overloads_cxx"
 
 
 class TestOVERLOADS:

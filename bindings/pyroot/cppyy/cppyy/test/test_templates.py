@@ -1,10 +1,9 @@
-import py, pytest, os
+import pytest, os
 from pytest import mark, raises
 from support import setup_make, pylong
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libtemplatesDict"
+test_dct = "templates_cxx"
 
 
 class TestTEMPLATES:

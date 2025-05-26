@@ -1,9 +1,8 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises
 from support import setup_make
 
-currpath = os.getcwd()
-test_dct = currpath + "/libconversionsDict"
+test_dct = "conversions_cxx"
 
 
 class TestCONVERSIONS:

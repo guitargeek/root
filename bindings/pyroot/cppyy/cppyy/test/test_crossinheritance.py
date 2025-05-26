@@ -1,10 +1,8 @@
-import py, os, pytest
+import os, pytest
 from pytest import raises, skip, mark
 from support import setup_make, pylong, IS_MAC_ARM
 
-
-currpath = os.getcwd()
-test_dct = currpath + "/libcrossinheritanceDict"
+test_dct = "crossinheritance_cxx"
 
 
 class TestCROSSINHERITANCE:

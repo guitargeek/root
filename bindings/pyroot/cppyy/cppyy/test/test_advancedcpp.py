@@ -1,9 +1,8 @@
-import py, pytest, os
+import pytest, os
 from pytest import mark, raises, skip
 from support import setup_make, pylong, IS_WINDOWS, ispypy
 
-currpath = os.getcwd()
-test_dct = currpath + "/libadvancedcppDict"
+test_dct = "libadvancedcppDict"
 
 
 class TestADVANCEDCPP:

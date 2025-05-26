@@ -1,10 +1,9 @@
 # -*- coding: UTF-8 -*-
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises, skip
 from support import setup_make, pylong, pyunicode, maxvalue, ispypy, no_root_errors
 
-currpath = os.getcwd()
-test_dct = currpath + "/libstltypesDict"
+test_dct = "stltypes_cxx"
 
 global_n = 5
 
@@ -933,8 +932,6 @@ class TestSTLSTRING:
 
         assert tuple(cppyy.gbl.str_array_1) == ('a', 'b', 'c')
         str_array_2 = cppyy.gbl.str_array_2
-        # fix up the size
-        str_array_2.size = 4
         assert tuple(str_array_2) == ('d', 'e', 'f', 'g')
         assert tuple(str_array_2) == ('d', 'e', 'f', 'g')
 
