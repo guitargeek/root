@@ -1,17 +1,15 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises, skip, mark
-from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM
+from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/liboverloadsDict"
+test_dct = "liboverloadsDict"
 
 
 class TestOVERLOADS:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.overloads = cppyy.load_reflection_info(cls.test_dct)
+        cls.overloads = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_class_based_overloads(self):
         """Test functions overloaded on different C++ classes"""

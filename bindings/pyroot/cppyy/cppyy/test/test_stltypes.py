@@ -1,10 +1,9 @@
 # -*- coding: UTF-8 -*-
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises, skip
-from support import setup_make, pylong, pyunicode, maxvalue, ispypy, no_root_errors
+from support import setup_make, pylong, pyunicode, maxvalue, ispypy, no_root_errors, cppyy_test_load_reflection_info
 
-currpath = os.getcwd()
-test_dct = currpath + "/libstltypesDict"
+test_dct = "stltypes_cxx"
 
 global_n = 5
 
@@ -194,7 +193,7 @@ class TestSTLVECTOR:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = global_n
 
     def test01_builtin_type_vector_types(self):
@@ -849,7 +848,7 @@ class TestSTLSTRING:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_string_argument_passing(self):
         """Test mapping of python strings and std::[w]string"""
@@ -933,8 +932,6 @@ class TestSTLSTRING:
 
         assert tuple(cppyy.gbl.str_array_1) == ('a', 'b', 'c')
         str_array_2 = cppyy.gbl.str_array_2
-        # fix up the size
-        str_array_2.size = 4
         assert tuple(str_array_2) == ('d', 'e', 'f', 'g')
         assert tuple(str_array_2) == ('d', 'e', 'f', 'g')
 
@@ -1148,7 +1145,7 @@ class TestSTLLIST:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = 13
 
     def test01_builtin_list_type(self):
@@ -1264,7 +1261,7 @@ class TestSTLMAP:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = 13
 
     def test01_builtin_map_type(self):
@@ -1442,7 +1439,7 @@ class TestSTLITERATOR:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_builtin_vector_iterators(self):
         """Test iterator comparison with operator== reflected"""
@@ -1604,7 +1601,7 @@ class TestSTLARRAY:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_array_of_basic_types(self):
         """Usage of std::array of basic types"""
@@ -1691,7 +1688,7 @@ class TestSTLSTRING_VIEW:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_string_through_string_view(self):
         """Usage of std::string_view as formal argument"""
@@ -1753,7 +1750,7 @@ class TestSTLDEQUE:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = global_n
 
     def test01_deque_byvalue_regression(self):
@@ -1780,7 +1777,7 @@ class TestSTLSET:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = global_n
 
     def test01_set_iteration(self):
@@ -1880,7 +1877,7 @@ class TestSTLTUPLE:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = global_n
 
     def test01_tuple_creation_and_access(self):
@@ -1972,7 +1969,7 @@ class TestSTLPAIR:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = global_n
 
     def test01_pair_pack_unpack(self):
@@ -1991,8 +1988,7 @@ class TestSTLPAIR:
 class TestSTLEXCEPTION:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.stltypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.stltypes = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_basics(self):
         """Test behavior of std::exception derived classes"""

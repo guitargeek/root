@@ -1,9 +1,10 @@
 #ifndef CPPYY_TEST_TEMPLATES_H
 #define CPPYY_TEST_TEMPLATES_H
 
+#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <sstream>
+#include <typeinfo>
 #include <vector>
 
 #ifndef _WIN32

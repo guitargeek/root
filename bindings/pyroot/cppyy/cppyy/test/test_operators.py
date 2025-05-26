@@ -1,17 +1,15 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises, skip, mark
-from support import setup_make, pylong, maxvalue, IS_WINDOWS, IS_MAC, no_root_errors
+from support import setup_make, pylong, maxvalue, IS_WINDOWS, IS_MAC, no_root_errors, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/liboperatorsDict"
+test_dct = "operators_cxx"
 
 
 class TestOPERATORS:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.operators = cppyy.load_reflection_info(cls.test_dct)
+        cls.operators = cppyy_test_load_reflection_info(cls.test_dct)
 
     def teardown_method(self, meth):
         import gc

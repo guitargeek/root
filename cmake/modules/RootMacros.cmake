@@ -1908,10 +1908,15 @@ endfunction()
 #                     [COPY_TO_BUILDDIR copy_file1 copy_file1 ...]
 #                     [ENVIRONMENT var1=val1 var2=val2 ...]
 #                     [PYTHON_DEPS dep_x dep_y ...] # Communicate that this test requires python packages. A fixture checking for these will be run before the test.)
-#                     [FIXTURES_SETUP ...] [FIXTURES_CLEANUP ...] [FIXTURES_REQUIRED ...]
+#                     [FIXTURES_SETUP ...] [FIXTURES_CLEANUP ...] [FIXTURES_REQUIRED ...] [PRECMD ...]
 #----------------------------------------------------------------------------
 function(ROOT_ADD_PYUNITTEST name file)
-  CMAKE_PARSE_ARGUMENTS(ARG "WILLFAIL;GENERIC" "" "COPY_TO_BUILDDIR;ENVIRONMENT;PYTHON_DEPS;FIXTURES_SETUP;FIXTURES_CLEANUP;FIXTURES_REQUIRED" ${ARGN})
+  CMAKE_PARSE_ARGUMENTS(ARG
+      "WILLFAIL;GENERIC"
+      ""
+      "COPY_TO_BUILDDIR;ENVIRONMENT;PYTHON_DEPS;FIXTURES_SETUP;FIXTURES_CLEANUP;FIXTURES_REQUIRED;PRECMD"
+      ${ARGN}
+  )
   if(MSVC)
     set(ROOT_ENV
         PYTHONPATH=${ROOTSYS}/bin;$ENV{PYTHONPATH})
@@ -1941,6 +1946,11 @@ function(ROOT_ADD_PYUNITTEST name file)
     list(APPEND labels python_runtime_deps)
   endif()
 
+  # Execute a custom command before executing the test.
+  if(ARG_PRECMD)
+    set(precmd PRECMD ${ARG_PRECMD})
+  endif()
+
   ROOT_PATH_TO_STRING(name_with_path ${good_name} PATH_SEPARATOR_REPLACEMENT "-")
   string(REPLACE "-test-" "-" clean_name_with_path ${name_with_path})
 
@@ -1957,6 +1967,7 @@ function(ROOT_ADD_PYUNITTEST name file)
               LABELS ${labels}
               ${copy_to_builddir}
               ${will_fail}
+              ${precmd}
               PYTHON_DEPS ${ARG_PYTHON_DEPS})
 
   if (ARG_FIXTURES_SETUP)

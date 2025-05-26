@@ -1,26 +1,29 @@
-import py, os, sys, pytest
+import os, sys, pytest
 from pytest import mark, raises, skip
-from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM
+from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libfragileDict"
+test_dct = "libfragileDict"
+
+# Manually specify if the dictionary comes with a Clang PCM module, as this
+# can change expected behavior of cppyy.
+HAS_PCM = True
 
 
 class TestFRAGILE:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.fragile = cppyy.load_reflection_info(cls.test_dct)
+        cls.fragile = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_load_failure(self):
         """Test failure to load dictionary"""
 
         import cppyy
-        raises(RuntimeError, cppyy.load_reflection_info, "does_not_exist")
+        raises(RuntimeError, cppyy_test_load_reflection_info, "does_not_exist")
 
         try:
-            cppyy.load_reflection_info("does_not_exist")
+            cppyy_test_load_reflection_info("does_not_exist")
         except RuntimeError as e:
             assert "does_not_exist" in str(e)
 
@@ -35,7 +38,16 @@ class TestFRAGILE:
         assert cppyy.gbl.fragile == cppyy.gbl.fragile
         fragile = cppyy.gbl.fragile
 
-        raises(AttributeError, getattr, fragile, "no_such_class")
+        if HAS_PCM:
+            # When using modules, Clang records forward declarations as proper
+            # AST entities (incomplete types that can't be instantiated).
+            no_such_class = fragile.no_such_class
+            raises(TypeError, no_such_class)  # cannot instantiate incomplete type
+        else:
+            # Without a PCM module, the incomplete type doesn't exist, because
+            # incomplete types are not existing in the rootmap + dictionary
+            # metadata.
+            raises(AttributeError, getattr, fragile, "no_such_class")
 
         assert fragile.C is fragile.C
         assert fragile.C == fragile.C
@@ -729,8 +741,7 @@ class TestFRAGILE:
 class TestSIGNALS:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.fragile = cppyy.load_reflection_info(cls.test_dct)
+        cls.fragile = cppyy_test_load_reflection_info(cls.test_dct)
 
     @mark.xfail
     def test01_abortive_signals(self):

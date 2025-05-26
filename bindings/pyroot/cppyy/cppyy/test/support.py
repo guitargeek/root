@@ -90,6 +90,14 @@ def no_root_errors():
         raise AssertionError(f"ROOT emitted {end_count - start_count} error(s) during block!")
 
 
+def cppyy_test_load_reflection_info(name):
+    import cppyy
+
+    if IS_WINDOWS:
+        name += ".dll"
+    return cppyy.load_reflection_info(name)
+
+
 try:
     import __pypy__
     ispypy = True

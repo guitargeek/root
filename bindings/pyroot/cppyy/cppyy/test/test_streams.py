@@ -1,17 +1,15 @@
-import py, pytest, os
+import pytest, os
 from pytest import mark, raises
-from support import setup_make
+from support import setup_make, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libstd_streamsDict"
+test_dct = "libstd_streamsDict"
 
 
 class TestSTDStreams:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.streams = cppyy.load_reflection_info(cls.test_dct)
+        cls.streams = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_std_ostream(self):
         """Test availability of std::ostream"""

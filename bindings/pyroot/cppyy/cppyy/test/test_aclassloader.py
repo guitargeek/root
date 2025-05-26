@@ -1,9 +1,8 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises, mark
 from support import setup_make, IS_MAC
 
-currpath = os.getcwd()
-test_dct = currpath + "/libexample01Dict"
+test_dct = "libexample01Dict"
 
 
 class TestACLASSLOADER:

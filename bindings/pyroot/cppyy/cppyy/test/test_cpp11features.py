@@ -1,17 +1,15 @@
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises
-from support import setup_make, ispypy, IS_MAC_ARM
+from support import setup_make, ispypy, IS_MAC_ARM, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libcpp11featuresDict"
+test_dct = "cpp11features_cxx"
 
 
 class TestCPP11FEATURES:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.cpp11features = cppyy.load_reflection_info(cls.test_dct)
+        cls.cpp11features = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_smart_ptr(self):
         """Usage and access of std::shared/unique_ptr<>"""

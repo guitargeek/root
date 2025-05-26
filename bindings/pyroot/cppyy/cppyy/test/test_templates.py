@@ -1,17 +1,16 @@
-import py, pytest, os
+import pytest, os
 from pytest import mark, raises
-from support import setup_make, pylong
+from support import setup_make, pylong, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libtemplatesDict"
+test_dct = "libtemplatesDict"
 
 
 class TestTEMPLATES:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.templates = cppyy.load_reflection_info(cls.test_dct)
+        cls.templates = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test00_template_back_reference(self):
         """Template reflection"""
@@ -1164,7 +1163,7 @@ class TestTEMPLATED_TYPEDEFS:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.templates = cppyy.load_reflection_info(cls.test_dct)
+        cls.templates = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_using(self):
         """Test presence and validity of using typedefs"""
@@ -1309,7 +1308,7 @@ class TestTEMPLATE_TYPE_REDUCTION:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.templates = cppyy.load_reflection_info(cls.test_dct)
+        cls.templates = cppyy_test_load_reflection_info(cls.test_dct)
 
     @mark.xfail()
     def test01_reduce_binary(self):
@@ -1329,7 +1328,7 @@ class TestTEMPLATED_CALLBACK:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.templates = cppyy.load_reflection_info(cls.test_dct)
+        cls.templates = cppyy_test_load_reflection_info(cls.test_dct)
     
     def test01_templated_callbacks(self):
         import cppyy

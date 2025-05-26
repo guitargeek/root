@@ -1,10 +1,9 @@
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises, skip
-from support import setup_make, pylong, pyunicode, IS_WINDOWS, ispypy
+from support import setup_make, pylong, pyunicode, IS_WINDOWS, ispypy, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libdatatypesDict"
+test_dct = "libdatatypesDict"
 
 
 class TestLOWLEVEL:
@@ -12,7 +11,7 @@ class TestLOWLEVEL:
         import cppyy
 
         cls.test_dct = test_dct
-        cls.datatypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.datatypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = cppyy.gbl.N
 
     def test00_import_all(self):
@@ -520,7 +519,7 @@ class TestMULTIDIMARRAYS:
         import cppyy
 
         cls.test_dct = test_dct
-        cls.datatypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.datatypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.numeric_builtin_types = [
             'short', 'unsigned short', 'int', 'unsigned int', 'long', 'unsigned long',
             'long long', 'unsigned long long', 'float', 'double'

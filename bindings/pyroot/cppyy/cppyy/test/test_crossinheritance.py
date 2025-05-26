@@ -1,17 +1,14 @@
-import py, os, pytest
+import os, pytest
 from pytest import raises, skip, mark
-from support import setup_make, pylong, IS_MAC_ARM
+from support import setup_make, pylong, IS_MAC_ARM, cppyy_test_load_reflection_info
 
-
-currpath = os.getcwd()
-test_dct = currpath + "/libcrossinheritanceDict"
+test_dct = "libcrossinheritanceDict"
 
 
 class TestCROSSINHERITANCE:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.example01 = cppyy.load_reflection_info(cls.test_dct)
+        cls.example01 = cppyy_test_load_reflection_info(cls.test_dct)
 
     @mark.xfail()
     def test01_override_function(self):

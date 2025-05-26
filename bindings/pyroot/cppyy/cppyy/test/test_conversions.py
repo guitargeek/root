@@ -1,16 +1,14 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises
-from support import setup_make
+from support import setup_make, cppyy_test_load_reflection_info
 
-currpath = os.getcwd()
-test_dct = currpath + "/libconversionsDict"
+test_dct = "libconversionsDict"
 
 
 class TestCONVERSIONS:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.conversion = cppyy.load_reflection_info(cls.test_dct)
+        cls.conversion = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_implicit_vector_conversions(self):
         """Test implicit conversions of std::vector"""

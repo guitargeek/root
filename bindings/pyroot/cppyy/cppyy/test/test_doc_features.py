@@ -1,10 +1,9 @@
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises, skip
-from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM
+from support import setup_make, ispypy, IS_WINDOWS, IS_MAC_ARM, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libdoc_helperDict"
+test_dct = "libdoc_helperDict"
 
 
 class TestDOCFEATURES:
@@ -15,7 +14,7 @@ class TestDOCFEATURES:
         # touch __version__ as a test
         assert hasattr(cppyy, '__version__')
 
-        cls.doc_helper = cppyy.load_reflection_info(cls.test_dct)
+        cls.doc_helper = cppyy_test_load_reflection_info(cls.test_dct)
 
         cppyy.cppdef("""
 #include <cmath>

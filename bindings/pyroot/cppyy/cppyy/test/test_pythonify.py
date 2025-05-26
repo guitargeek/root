@@ -1,23 +1,21 @@
-import py, pytest, os
+import pytest, os
 from pytest import raises, skip
-from support import setup_make, pylong, ispypy
+from support import setup_make, pylong, ispypy, cppyy_test_load_reflection_info
 
 
-currpath = os.getcwd()
-test_dct = currpath + "/libexample01Dict"
+test_dct = "libexample01Dict"
 
 
 class TestPYTHONIFY:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.example01 = cppyy.load_reflection_info(cls.test_dct)
+        cls.example01 = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_load_dictionary_cache(self):
         """Test whether loading a dictionary twice results in the same object"""
 
         import cppyy
-        lib2 = cppyy.load_reflection_info(self.test_dct)
+        lib2 = cppyy_test_load_reflection_info(self.test_dct)
         assert self.example01 is lib2
 
     def test02_finding_classes(self):
@@ -546,7 +544,7 @@ class TestPYTHONIFY_UI:
     def setup_class(cls):
         cls.test_dct = test_dct
         import cppyy
-        cls.example01 = cppyy.load_reflection_info(cls.test_dct)
+        cls.example01 = cppyy_test_load_reflection_info(cls.test_dct)
 
     def test01_pythonizations(self):
         """Test addition of user-defined pythonizations"""

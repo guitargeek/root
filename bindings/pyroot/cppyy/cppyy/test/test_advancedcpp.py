@@ -1,16 +1,14 @@
-import py, pytest, os
+import pytest, os
 from pytest import mark, raises, skip
-from support import setup_make, pylong, IS_WINDOWS, ispypy
+from support import setup_make, pylong, IS_WINDOWS, ispypy, cppyy_test_load_reflection_info
 
-currpath = os.getcwd()
-test_dct = currpath + "/libadvancedcppDict"
+test_dct = "libadvancedcppDict"
 
 
 class TestADVANCEDCPP:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.advanced = cppyy.load_reflection_info(cls.test_dct)
+        cls.advanced = cppyy_test_load_reflection_info(cls.test_dct)
 
     @mark.xfail
     def test01_default_arguments(self):

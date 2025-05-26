@@ -1,17 +1,14 @@
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises
-from support import setup_make, pylong
+from support import setup_make, pylong, cppyy_test_load_reflection_info
 
-
-currpath = os.getcwd()
-test_dct = currpath + "/libpythonizablesDict"
+test_dct = "libpythonizablesDict"
 
 
 class TestClassPYTHONIZATION:
     def setup_class(cls):
         cls.test_dct = test_dct
-        import cppyy
-        cls.pyzables = cppyy.load_reflection_info(cls.test_dct)
+        cls.pyzables = cppyy_test_load_reflection_info(cls.test_dct)
 
     @mark.xfail()
     def test00_api(self):

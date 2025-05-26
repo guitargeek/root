@@ -1,9 +1,8 @@
-import py, sys, pytest, os
+import sys, pytest, os
 from pytest import mark, raises, skip
-from support import setup_make, pylong, pyunicode, IS_MAC, IS_MAC_ARM
+from support import setup_make, pylong, pyunicode, IS_MAC, IS_MAC_ARM, cppyy_test_load_reflection_info
 
-currpath = os.getcwd()
-test_dct = currpath + "/libdatatypesDict"
+test_dct = "libdatatypesDict"
 
 
 class TestDATATYPES:
@@ -11,7 +10,7 @@ class TestDATATYPES:
         import cppyy
 
         cls.test_dct = test_dct
-        cls.datatypes = cppyy.load_reflection_info(cls.test_dct)
+        cls.datatypes = cppyy_test_load_reflection_info(cls.test_dct)
         cls.N = cppyy.gbl.N
 
     @mark.skip()
