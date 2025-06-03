@@ -58,6 +58,8 @@ public:
 
    void disableEvaluator() { _useEvaluator = false; }
 
+   void writeGradients(std::ostream &) const;
+
    void writeDebugMacro(std::string const &) const;
 
    std::vector<std::string> const &collectedFunctions() { return _collectedFunctions; }

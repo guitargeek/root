@@ -160,10 +160,29 @@ RooFuncWrapper::loadParamsAndData(RooArgSet const &paramSet, const RooAbsData *d
    return spans;
 }
 
+namespace {
+
+/// The code to get the right overload for a gradient function from the
+/// interpreter.
+std::string gradOverload(std::string const &funcName)
+{
+   return "static_cast<void (*)(double *, double const *, double const *, double *)>(" + funcName + "_grad_0)";
+}
+
+/// The code to get the right overload for a pullback function from the
+/// interpreter.
+std::string pullbackOverload(std::string const &funcName)
+{
+   //return "static_cast<void (*)(double *, double const *, double const *, double, double *, double *, double *)>(" +
+   return "static_cast<void (*)(double *, double const *, double const *, double, double *)>(" +
+          funcName + "_pullback)";
+}
+
+} // namespace
+
 void RooFuncWrapper::createGradient()
 {
 #ifdef ROOFIT_CLAD
-   std::string gradName = _funcName + "_grad_0";
    std::string requestName = _funcName + "_req";
 
    // Calculate gradient
@@ -196,7 +215,7 @@ void RooFuncWrapper::createGradient()
    // function pointer would be ambiguous.
    std::stringstream ss;
    ROOT::Math::Util::TimingScope timingScope(print, "Gradient IR to machine code time:");
-   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << gradName << ");";
+   ss << "" << gradOverload(_funcName) << ";";
    _grad = reinterpret_cast<Grad>(gInterpreter->ProcessLine(ss.str().c_str()));
    _hasGradient = true;
 #else
@@ -238,25 +257,65 @@ void RooFuncWrapper::gradient(const double *x, double *g) const
    _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), g);
 }
 
+namespace {
+
+std::string getFunctionBody(std::string const &name)
+{
+   std::unique_ptr<TInterpreterValue> v = gInterpreter->MakeInterpreterValue();
+   gInterpreter->Evaluate(name.c_str(), *v);
+   std::string s = v->ToString();
+   for (int i = 0; i < 2; ++i) {
+      s = s.erase(0, s.find("\n") + 1);
+   }
+   return s;
+}
+
+std::vector<std::string> deduplicate(std::vector<std::string> const &vec)
+{
+   std::vector<std::string> out;
+   std::set<std::string> seen;
+
+   // Remove duplicated declared functions
+   for (std::string const &str : vec) {
+      if (seen.count(str) > 0) {
+         continue;
+      }
+      seen.insert(str);
+      out.push_back(str);
+   }
+   return out;
+}
+
+bool startsWith(std::string_view str, std::string_view prefix)
+{
+   return str.size() >= prefix.size() && 0 == str.compare(0, prefix.size(), prefix);
+}
+
+} // namespace
+
+/// @brief Write all the generated gradient code to an output stream.
+void RooFuncWrapper::writeGradients(std::ostream &os) const
+{
+   for (std::string name : deduplicate(_collectedFunctions)) {
+      if (name == _funcName) {
+          name = gradOverload(name);
+      } else if(startsWith(name, "roo_codegen_")) {
+          name = pullbackOverload(name);
+      }
+      os << getFunctionBody(name) << std::endl;
+      os << std::flush;
+      std::cout << std::endl;
+   }
+}
+
 /// @brief Dumps a macro "filename.C" that can be used to test and debug the generated code and gradient.
 void RooFuncWrapper::writeDebugMacro(std::string const &filename) const
 {
    std::stringstream allCode;
-   std::set<std::string> seenFunctions;
 
    // Remove duplicated declared functions
-   for (std::string const &name : _collectedFunctions) {
-      if (seenFunctions.count(name) > 0) {
-         continue;
-      }
-      seenFunctions.insert(name);
-      std::unique_ptr<TInterpreterValue> v = gInterpreter->MakeInterpreterValue();
-      gInterpreter->Evaluate(name.c_str(), *v);
-      std::string s = v->ToString();
-      for (int i = 0; i < 2; ++i) {
-         s = s.erase(0, s.find("\n") + 1);
-      }
-      allCode << s << std::endl;
+   for (std::string const &name : deduplicate(_collectedFunctions)) {
+      allCode << getFunctionBody(name) << std::endl;
    }
 
    std::ofstream outFile;

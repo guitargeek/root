@@ -241,9 +241,16 @@ TEST_P(FactoryTest, NLLFit)
    std::unique_ptr<RooAbsReal> nllRef = _params._createNLL(model, *data, ws, RooFit::EvalBackend::Cpu());
    std::unique_ptr<RooAbsReal> nllFunc = _params._createNLL(model, *data, ws, RooFit::EvalBackend::Codegen());
 
+   auto &wrapper = static_cast<RooFit::Experimental::RooFuncWrapper &>(*nllFunc);
+
    // We don't use the RooFit::Evaluator for the nominal likelihood. Like this,
    // we make sure to validate also the NLL values of the generated code.
-   static_cast<RooFit::Experimental::RooFuncWrapper &>(*nllFunc).disableEvaluator();
+   wrapper.disableEvaluator();
+
+   // Check that writing the gradients to an output stream doesn't crash, e.g.
+   // because the expected gradient function names are incorrect.
+   std::stringstream gradientOutputStream;
+   wrapper.writeGradients(gradientOutputStream);
 
    double tol = _params._fitResultTolerance;
 
