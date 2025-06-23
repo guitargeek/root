@@ -327,16 +327,20 @@ inline Double_t TMath::Range(Double_t lb, Double_t ub, Double_t x)
 /// The values in the iterators range are supposed to be sorted
 /// prior to this call.  If match is found, function returns
 /// position of element.  If no match found, function gives nearest
-/// element smaller than value.
+/// element smaller than value. If the value is smaller than the
+/// smallest element in the list, it returns the `last` iterator.
 template <typename Iterator, typename Element>
 Iterator TMath::BinarySearch(Iterator first, Iterator last, Element value)
 {
-   Iterator pind;
-   pind = std::lower_bound(first, last, value);
-   if ( (pind != last) && (*pind == value) )
-      return pind;
-   else
-      return ( pind - 1);
+   Iterator pind = last;
+   for (Iterator it = first; it != last; ++it) {
+      if (*it <= value) {
+         pind = it;
+      } else {
+         return pind;
+      }
+   }
+   return pind;
 }
 
 /// Binary search in an array of n values to locate value.
