@@ -196,7 +196,7 @@ void RooFuncWrapper::createGradient()
    // function pointer would be ambiguous.
    std::stringstream ss;
    ROOT::Math::Util::TimingScope timingScope(print, "Gradient IR to machine code time:");
-   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << gradName << ");";
+   ss << "static_cast<void (*)(float *, float const *, float const *, float *)>(" << gradName << ");";
    _grad = reinterpret_cast<Grad>(gInterpreter->ProcessLine(ss.str().c_str()));
    _hasGradient = true;
 #else
@@ -213,7 +213,13 @@ void RooFuncWrapper::gradient(double *out) const
    updateGradientVarBuffer();
    std::fill(out, out + _params.size(), 0.0);
 
-   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), out);
+   static std::vector<float> outf;
+   outf.resize(_params.size());
+   std::fill(outf.begin(), outf.end(), 0.0);
+
+   _grad(_gradientVarBuffer.data(), _observables.data(), _xlArr.data(), outf.data());
+
+   std::copy(outf.begin(), outf.end(), out);
 }
 
 void RooFuncWrapper::updateGradientVarBuffer() const
@@ -235,7 +241,17 @@ void RooFuncWrapper::gradient(const double *x, double *g) const
 {
    std::fill(g, g + _params.size(), 0.0);
 
-   _grad(const_cast<double *>(x), _observables.data(), _xlArr.data(), g);
+   static std::vector<float> outf;
+   outf.resize(_params.size());
+   std::fill(outf.begin(), outf.end(), 0.0);
+
+   static std::vector<float> xf;
+   xf.resize(_params.size());
+   std::copy(x, x + _params.size(), xf.begin());
+
+   _grad(xf.data(), _observables.data(), _xlArr.data(), outf.data());
+
+   std::copy(outf.begin(), outf.end(), g);
 }
 
 /// @brief Dumps a macro "filename.C" that can be used to test and debug the generated code and gradient.
@@ -278,9 +294,9 @@ void gradient_request() {
 
    updateGradientVarBuffer();
 
-   auto writeVector = [&](std::string const &name, std::span<const double> vec) {
+   auto writeVector = [&](std::string const &name, std::span<const float> vec) {
       std::stringstream decl;
-      decl << "std::vector<double> " << name << " = {";
+      decl << "std::vector<float> " << name << " = {";
       for (std::size_t i = 0; i < vec.size(); ++i) {
          if (i % 10 == 0)
             decl << "\n    ";
@@ -292,7 +308,7 @@ void gradient_request() {
 
       std::string declStr = decl.str();
 
-      replaceAll(declStr, "inf", "std::numeric_limits<double>::infinity()");
+      replaceAll(declStr, "inf", "std::numeric_limits<float>::infinity()");
       replaceAll(declStr, "nan", "NAN");
 
       outFile << declStr;
@@ -312,13 +328,13 @@ void gradient_request() {
 void )" << filename
            << R"(()
 {
-   std::vector<double> gradientVec(parametersVec.size());
+   std::vector<float> gradientVec(parametersVec.size());
 
-   auto func = [&](std::span<double> params) {
+   auto func = [&](std::span<float> params) {
       return )"
            << _funcName << R"((params.data(), observablesVec.data(), auxConstantsVec.data());
    };
-   auto grad = [&](std::span<double> params, std::span<double> out) {
+   auto grad = [&](std::span<float> params, std::span<float> out) {
       return )"
            << _funcName << R"(_grad_0(parametersVec.data(), observablesVec.data(), auxConstantsVec.data(),
                                         out.data());
@@ -327,12 +343,12 @@ void )" << filename
    grad(parametersVec, gradientVec);
 
    auto numDiff = [&](int i) {
-      const double eps = 1e-6;
-      std::vector<double> p{parametersVec};
+      const float eps = 1e-6;
+      std::vector<float> p{parametersVec};
       p[i] = parametersVec[i] - eps;
-      double funcValDown = func(p);
+      float funcValDown = func(p);
       p[i] = parametersVec[i] + eps;
-      double funcValUp = func(p);
+      float funcValUp = func(p);
       return (funcValUp - funcValDown) / (2 * eps);
    };
 

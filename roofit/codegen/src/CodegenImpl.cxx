@@ -103,7 +103,7 @@ std::string realSumPdfTranslateImpl(CodegenContext &ctx, RooAbsArg const &arg, R
 
    std::string sum = ctx.getTmpVarName();
    std::string coeffSum = ctx.getTmpVarName();
-   ctx.addToCodeBody(&arg, "double " + sum + " = 0;\ndouble " + coeffSum + "= 0;\n");
+   ctx.addToCodeBody(&arg, "float " + sum + " = 0;\nfloat " + coeffSum + "= 0;\n");
 
    std::string iterator = "i_" + ctx.getTmpVarName();
    std::string subscriptExpr = "[" + iterator + "]";
@@ -195,13 +195,13 @@ void codegenImpl(PiecewiseInterpolation &arg, CodegenContext &ctx)
       "unsigned int " + idxName + " = " +
       nomHist.calculateTreeIndexForCodeSquash(ctx, dynamic_cast<RooHistFunc const &>(*arg.nominalHist()).variables()) +
       ";\n";
-   code += "double const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
-   code += "double const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
-   code += "double " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
+   code += "float const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
+   code += "float const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
+   code += "float " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
 
    std::string funcCall = ctx.buildCall(mathFunc("flexibleInterp"), interpCodes[0], arg.paramList(), n, lowName,
                                         highName, 1.0, nominalName, 0.0);
-   code += "double " + resName + " = " + funcCall + ";\n";
+   code += "float " + resName + " = " + funcCall + ";\n";
 
    if (arg.positiveDefinite()) {
       code += resName + " = " + resName + " < 0 ? 0 : " + resName + ";\n";
@@ -310,7 +310,7 @@ void codegenImpl(RooConstVar &arg, CodegenContext &ctx)
    ss.precision(max_precision);
    // Just use toString to make sure we do not output 'inf'.
    // This is really ugly for large numbers...
-   ss << std::fixed << RooNumber::toString(arg.getVal());
+   ss << std::fixed << RooNumber::toString(arg.getVal()) << "f";
    ctx.addResult(&arg, ss.str());
 }
 
@@ -412,8 +412,8 @@ void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
    std::string weightSumName = RooFit::Detail::makeValidVarName(arg.GetName()) + "WeightSum";
    std::string resName = RooFit::Detail::makeValidVarName(arg.GetName()) + "Result";
    ctx.addResult(&arg, resName);
-   ctx.addToGlobalScope("double " + weightSumName + " = 0.0;\n");
-   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
+   ctx.addToGlobalScope("float " + weightSumName + " = 0.0;\n");
+   ctx.addToGlobalScope("float " + resName + " = 0.0;\n");
 
    const bool needWeightSum = arg.expectedEvents() || arg.simCount() > 1;
 
@@ -557,24 +557,24 @@ void codegenImpl(RooRealIntegral &arg, CodegenContext &ctx)
 
    std::stringstream ss;
 
-   ss << "double " << obsName << "[1];\n";
+   ss << "float " << obsName << "[1];\n";
 
    std::string resName = RooFit::Detail::makeValidVarName(arg.GetName()) + "Result";
    ctx.addResult(&arg, resName);
-   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
+   ctx.addToGlobalScope("float " + resName + " = 0.0;\n");
 
    // TODO: once Clad has support for higher-order functions (follow also the
    // Clad issue #637), we could refactor this code into an actual function
    // instead of hardcoding it here as a string.
    ss << "{\n"
       << "   const int n = 1000; // number of sampling points\n"
-      << "   double d = " << intVar.getMax(arg.intRange()) << " - " << intVar.getMin(arg.intRange()) << ";\n"
-      << "   double eps = d / n;\n"
+      << "   float d = " << intVar.getMax(arg.intRange()) << " - " << intVar.getMin(arg.intRange()) << ";\n"
+      << "   float eps = d / n;\n"
       << "   for (int i = 0; i < n; ++i) {\n"
       << "      " << obsName << "[0] = " << intVar.getMin(arg.intRange()) << " + eps * i;\n"
-      << "      double tmpA = " << funcName << "(params, " << obsName << ", xlArr);\n"
+      << "      float tmpA = " << funcName << "(params, " << obsName << ", xlArr);\n"
       << "      " << obsName << "[0] = " << intVar.getMin(arg.intRange()) << " + eps * (i + 1);\n"
-      << "      double tmpB = " << funcName << "(params, " << obsName << ", xlArr);\n"
+      << "      float tmpB = " << funcName << "(params, " << obsName << ", xlArr);\n"
       << "      " << resName << " += (tmpA + tmpB) * 0.5 * eps;\n"
       << "   }\n"
       << "}\n";

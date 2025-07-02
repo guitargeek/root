@@ -215,7 +215,7 @@ void CodegenContext::addResult(RooAbsArg const *in, std::string const &valueToSa
    if (hasOperations) {
       // If this is a scalar result, it will go just outside the loop because
       // it doesn't need to be recomputed inside loops.
-      std::string outVarDecl = "const double " + savedName + " = " + valueToSave + ";\n";
+      std::string outVarDecl = "const float " + savedName + " = " + valueToSave + ";\n";
       addToCodeBody(in, outVarDecl);
    } else {
       savedName = valueToSave;
@@ -241,7 +241,7 @@ std::string CodegenContext::buildArg(RooAbsCollection const &in)
    bool canSaveOutside = true;
 
    std::stringstream declStrm;
-   declStrm << "double " << savedName << "[] = {";
+   declStrm << "float " << savedName << "[] = {";
    for (const auto arg : in) {
       declStrm << getResult(*arg) << ",";
       canSaveOutside = canSaveOutside && isScopeIndependent(arg);
@@ -340,7 +340,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::map<RooFit::Detail::Dat
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr) {\n"
+   bodyWithSigStrm << "float " << funcName << "(float* params, float const* obs, float const* xlArr) {\n"
                    << funcBody << "\n}";
    ctx._collectedFunctions.emplace_back(funcName);
    if (!gInterpreter->Declare(bodyWithSigStrm.str().c_str())) {

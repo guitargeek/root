@@ -113,7 +113,7 @@ public:
    std::string buildArg(std::span<const double> arr);
    std::string buildArg(std::span<const int> arr) { return buildArgSpanImpl(arr); }
 
-   std::vector<double> const &xlArr() { return _xlArr; }
+   std::vector<float> const &xlArr() { return _xlArr; }
 
    void collectFunction(std::string const &name);
    std::vector<std::string> const &collectedFunctions() { return _collectedFunctions; }
@@ -149,7 +149,7 @@ private:
    template <class T, typename std::enable_if<std::is_floating_point<T>{}, bool>::type = true>
    std::string buildArg(T x)
    {
-      return RooNumber::toString(x);
+      return RooNumber::toString(x) + "f";
    }
 
    // If input is integer, we want to print it into the code like one (i.e. avoid the unnecessary '.0000').
@@ -202,14 +202,14 @@ private:
    mutable int _tmpVarIdx = 0;
    /// @brief A map to keep track of list names as assigned by addResult.
    std::unordered_map<RooFit::UniqueId<RooAbsCollection>::Value_t, std::string> _listNames;
-   std::vector<double> _xlArr;
+   std::vector<float> _xlArr;
    std::vector<std::string> _collectedFunctions;
 };
 
 template <>
 inline std::string CodegenContext::typeName<double>() const
 {
-   return "double";
+   return "float";
 }
 template <>
 inline std::string CodegenContext::typeName<int>() const

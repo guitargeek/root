@@ -809,4 +809,753 @@ void binNumber_pullback(Types...)
 } // namespace custom_derivatives
 } // namespace clad
 
+
+namespace RooFit {
+namespace Detail {
+namespace MathFuncs {
+
+/// The caller needs to make sure that there is at least one coefficient.
+inline float bernstein(float x, float xmin, float xmax, float *coefs, int nCoefs)
+{
+   float xScaled = (x - xmin) / (xmax - xmin); // rescale to [0,1]
+   int degree = nCoefs - 1;                     // n+1 polys of degree n
+
+   // in case list of arguments passed is empty
+   if (degree < 0) {
+      return TMath::SignalingNaN();
+   } else if (degree == 0) {
+      return coefs[0];
+   } else if (degree == 1) {
+
+      float a0 = coefs[0];      // c0
+      float a1 = coefs[1] - a0; // c1 - c0
+      return a1 * xScaled + a0;
+
+   } else if (degree == 2) {
+
+      float a0 = coefs[0];            // c0
+      float a1 = 2 * (coefs[1] - a0); // 2 * (c1 - c0)
+      float a2 = coefs[2] - a1 - a0;  // c0 - 2 * c1 + c2
+      return (a2 * xScaled + a1) * xScaled + a0;
+   }
+
+   float t = xScaled;
+   float s = 1. - xScaled;
+
+   float result = coefs[0] * s;
+   for (int i = 1; i < degree; i++) {
+      result = (result + t * binomial(degree, i) * coefs[i]) * s;
+      t *= xScaled;
+   }
+   result += t * coefs[degree];
+
+   return result;
+}
+
+/// @brief Function to evaluate an un-normalized RooGaussian.
+inline float gaussian(float x, float mean, float sigma)
+{
+   const float arg = x - mean;
+   const float sig = sigma;
+   return std::exp(-0.5 * arg * arg / (sig * sig));
+}
+
+inline float product(float const *factors, std::size_t nFactors)
+{
+   float out = 1.0;
+   for (std::size_t i = 0; i < nFactors; ++i) {
+      out *= factors[i];
+   }
+   return out;
+}
+
+// RooRatio evaluate function.
+inline float ratio(float numerator, float denominator)
+{
+   return numerator / denominator;
+}
+
+inline float bifurGauss(float x, float mean, float sigmaL, float sigmaR)
+{
+   // Note: this simplification does not work with Clad as of v1.1!
+   // return gaussian(x, mean, x < mean ? sigmaL : sigmaR);
+   if (x < mean)
+      return gaussian(x, mean, sigmaL);
+   return gaussian(x, mean, sigmaR);
+}
+
+inline float efficiency(float effFuncVal, int catIndex, int sigCatIndex)
+{
+   // Truncate efficiency function in range 0.0-1.0
+   effFuncVal = std::clamp(effFuncVal, (float)0.0, (float)1.0);
+
+   if (catIndex == sigCatIndex)
+      return effFuncVal; // Accept case
+   else
+      return 1 - effFuncVal; // Reject case
+}
+
+/// In pdfMode, a coefficient for the constant term of 1.0 is implied if lowestOrder > 0.
+template <bool pdfMode = false>
+inline float polynomial(float const *coeffs, int nCoeffs, int lowestOrder, float x)
+{
+   float retVal = coeffs[nCoeffs - 1];
+   for (int i = nCoeffs - 2; i >= 0; i--) {
+      retVal = coeffs[i] + x * retVal;
+   }
+   retVal = retVal * std::pow(x, lowestOrder);
+   return retVal + (pdfMode && lowestOrder > 0 ? 1.0 : 0.0);
+}
+
+inline float chebychev(float *coeffs, unsigned int nCoeffs, float x_in, float xMin, float xMax)
+{
+   // transform to range [-1, +1]
+   const float xPrime = (x_in - 0.5 * (xMax + xMin)) / (0.5 * (xMax - xMin));
+
+   // extract current values of coefficients
+   float sum = 1.;
+   if (nCoeffs > 0) {
+      float curr = xPrime;
+      float twox = 2 * xPrime;
+      float last = 1;
+      float newval = twox * curr - last;
+      last = curr;
+      curr = newval;
+      for (unsigned int i = 0; nCoeffs != i; ++i) {
+         sum += last * coeffs[i];
+         newval = twox * curr - last;
+         last = curr;
+         curr = newval;
+      }
+   }
+   return sum;
+}
+
+inline float constraintSum(float const *comp, unsigned int compSize)
+{
+   float sum = 0;
+   for (unsigned int i = 0; i < compSize; i++) {
+      sum -= std::log(comp[i]);
+   }
+   return sum;
+}
+
+inline unsigned int uniformBinNumber(float low, float high, float val, unsigned int numBins, float coef)
+{
+   float binWidth = (high - low) / numBins;
+   return coef * (val >= high ? numBins - 1 : std::abs((val - low) / binWidth));
+}
+
+inline unsigned int rawBinNumber(float x, float const *boundaries, std::size_t nBoundaries)
+{
+   float const *end = boundaries + nBoundaries;
+   float const *it = std::lower_bound(boundaries, end, x);
+   // always return valid bin number
+   while (boundaries != it && (end == it || end == it + 1 || x < *it)) {
+      --it;
+   }
+   return it - boundaries;
+}
+
+inline unsigned int
+binNumber(float x, float coef, float const *boundaries, unsigned int nBoundaries, int nbins, int blo)
+{
+   const int rawBin = rawBinNumber(x, boundaries, nBoundaries);
+   int tmp = std::min(nbins, rawBin - blo);
+   return coef * std::max(0, tmp);
+}
+
+inline float interpolate1d(float low, float high, float val, unsigned int numBins, float const *vals)
+{
+   float binWidth = (high - low) / numBins;
+   int idx = val >= high ? numBins - 1 : std::abs((val - low) / binWidth);
+
+   // interpolation
+   float central = low + (idx + 0.5) * binWidth;
+   if (val > low + 0.5 * binWidth && val < high - 0.5 * binWidth) {
+      float slope;
+      if (val < central) {
+         slope = vals[idx] - vals[idx - 1];
+      } else {
+         slope = vals[idx + 1] - vals[idx];
+      }
+      return vals[idx] + slope * (val - central) / binWidth;
+   }
+
+   return vals[idx];
+}
+
+inline float poisson(float x, float par)
+{
+   if (par < 0)
+      return TMath::QuietNaN();
+
+   if (x < 0) {
+      return 0;
+   } else if (x == 0.0) {
+      return std::exp(-par);
+   } else {
+      float out = x * std::log(par) - TMath::LnGamma(x + 1.) - par;
+      return std::exp(out);
+   }
+}
+
+inline float flexibleInterpSingle(unsigned int code, float low, float high, float boundary, float nominal,
+                                   float paramVal, float res)
+{
+   if (code == 0) {
+      // piece-wise linear
+      if (paramVal > 0) {
+         return paramVal * (high - nominal);
+      } else {
+         return paramVal * (nominal - low);
+      }
+   } else if (code == 1) {
+      // piece-wise log
+      if (paramVal >= 0) {
+         return res * (std::pow(high / nominal, +paramVal) - 1);
+      } else {
+         return res * (std::pow(low / nominal, -paramVal) - 1);
+      }
+   } else if (code == 2) {
+      // parabolic with linear
+      float a = 0.5 * (high + low) - nominal;
+      float b = 0.5 * (high - low);
+      float c = 0;
+      if (paramVal > 1) {
+         return (2 * a + b) * (paramVal - 1) + high - nominal;
+      } else if (paramVal < -1) {
+         return -1 * (2 * a - b) * (paramVal + 1) + low - nominal;
+      } else {
+         return a * paramVal * paramVal + b * paramVal + c;
+      }
+      // According to an old comment in the source code, code 3 was apparently
+      // meant to be a "parabolic version of log-normal", but it never got
+      // implemented. If someone would need it, it could be implemented as doing
+      // code 2 in log space.
+   } else if (code == 4 || code == 6) {
+      float x = paramVal;
+      float mod = 1.0;
+      if (code == 6) {
+         high /= nominal;
+         low /= nominal;
+         nominal = 1;
+      }
+      if (x >= boundary) {
+         mod = x * (high - nominal);
+      } else if (x <= -boundary) {
+         mod = x * (nominal - low);
+      } else {
+         // interpolate 6th degree
+         float t = x / boundary;
+         float eps_plus = high - nominal;
+         float eps_minus = nominal - low;
+         float S = 0.5 * (eps_plus + eps_minus);
+         float A = 0.0625 * (eps_plus - eps_minus);
+
+         mod = x * (S + t * A * (15 + t * t * (-10 + t * t * 3)));
+      }
+
+      // code 6 is multiplicative version of code 4
+      if (code == 6) {
+         mod *= res;
+      }
+      return mod;
+
+   } else if (code == 5) {
+      float x = paramVal;
+      float mod = 1.0;
+      if (x >= boundary) {
+         mod = std::pow(high / nominal, +paramVal);
+      } else if (x <= -boundary) {
+         mod = std::pow(low / nominal, -paramVal);
+      } else {
+         // interpolate 6th degree exp
+         float x0 = boundary;
+
+         high /= nominal;
+         low /= nominal;
+
+         // GHL: Swagato's suggestions
+         float logHi = std::log(high);
+         float logLo = std::log(low);
+         float powUp = std::exp(x0 * logHi);
+         float powDown = std::exp(x0 * logLo);
+         float powUpLog = high <= 0.0 ? 0.0 : powUp * logHi;
+         float powDownLog = low <= 0.0 ? 0.0 : -powDown * logLo;
+         float powUpLog2 = high <= 0.0 ? 0.0 : powUpLog * logHi;
+         float powDownLog2 = low <= 0.0 ? 0.0 : -powDownLog * logLo;
+
+         float S0 = 0.5 * (powUp + powDown);
+         float A0 = 0.5 * (powUp - powDown);
+         float S1 = 0.5 * (powUpLog + powDownLog);
+         float A1 = 0.5 * (powUpLog - powDownLog);
+         float S2 = 0.5 * (powUpLog2 + powDownLog2);
+         float A2 = 0.5 * (powUpLog2 - powDownLog2);
+
+         // fcns+der+2nd_der are eq at bd
+
+         float x0Sq = x0 * x0;
+
+         float a = 1. / (8 * x0) * (15 * A0 - 7 * x0 * S1 + x0 * x0 * A2);
+         float b = 1. / (8 * x0Sq) * (-24 + 24 * S0 - 9 * x0 * A1 + x0 * x0 * S2);
+         float c = 1. / (4 * x0Sq * x0) * (-5 * A0 + 5 * x0 * S1 - x0 * x0 * A2);
+         float d = 1. / (4 * x0Sq * x0Sq) * (12 - 12 * S0 + 7 * x0 * A1 - x0 * x0 * S2);
+         float e = 1. / (8 * x0Sq * x0Sq * x0) * (+3 * A0 - 3 * x0 * S1 + x0 * x0 * A2);
+         float f = 1. / (8 * x0Sq * x0Sq * x0Sq) * (-8 + 8 * S0 - 5 * x0 * A1 + x0 * x0 * S2);
+
+         // evaluate the 6-th degree polynomial using Horner's method
+         float value = 1. + x * (a + x * (b + x * (c + x * (d + x * (e + x * f)))));
+         mod = value;
+      }
+      return res * (mod - 1.0);
+   }
+
+   return 0.0;
+}
+
+inline float flexibleInterp(unsigned int code, float const *params, unsigned int n, float const *low,
+                             float const *high, float boundary, float nominal, int doCutoff)
+{
+   float total = nominal;
+   for (std::size_t i = 0; i < n; ++i) {
+      total += flexibleInterpSingle(code, low[i], high[i], boundary, nominal, params[i], total);
+   }
+
+   return doCutoff && total <= 0 ? TMath::Limits<float>::Min() : total;
+}
+
+inline float landau(float x, float mu, float sigma)
+{
+   if (sigma <= 0.)
+      return 0.;
+   return ROOT::Math::landau_pdf((x - mu) / sigma);
+}
+
+inline float logNormal(float x, float k, float m0)
+{
+   return ROOT::Math::lognormal_pdf(x, std::log(m0), std::abs(std::log(k)));
+}
+
+inline float logNormalStandard(float x, float sigma, float mu)
+{
+   return ROOT::Math::lognormal_pdf(x, mu, std::abs(sigma));
+}
+
+inline float effProd(float eff, float pdf)
+{
+   return eff * pdf;
+}
+
+inline float nll(float pdf, float weight, int binnedL, int doBinOffset)
+{
+   if (binnedL) {
+      // Special handling of this case since std::log(Poisson(0,0)=0 but can't be
+      // calculated with usual log-formula since std::log(mu)=0. No update of result
+      // is required since term=0.
+      if (std::abs(pdf) < 1e-10 && std::abs(weight) < 1e-10) {
+         return 0.0;
+      }
+      if (doBinOffset) {
+         return pdf - weight - weight * (std::log(pdf) - std::log(weight));
+      }
+      return pdf - weight * std::log(pdf) + TMath::LnGamma(weight + 1);
+   } else {
+      return -weight * std::log(pdf);
+   }
+}
+
+inline float recursiveFraction(float *a, unsigned int n)
+{
+   float prod = a[0];
+
+   for (unsigned int i = 1; i < n; ++i) {
+      prod *= 1.0 - a[i];
+   }
+
+   return prod;
+}
+
+inline float cbShape(float m, float m0, float sigma, float alpha, float n)
+{
+   float t = (m - m0) / sigma;
+   if (alpha < 0)
+      t = -t;
+
+   float absAlpha = std::abs(alpha);
+
+   if (t >= -absAlpha) {
+      return std::exp(-0.5 * t * t);
+   } else {
+      float r = n / absAlpha;
+      float a = std::exp(-0.5 * absAlpha * absAlpha);
+      float b = r - absAlpha;
+
+      return a * std::pow(r / (b - t), n);
+   }
+}
+
+// For RooCBShape
+inline float approxErf(float arg)
+{
+   if (arg > 5.0)
+      return 1.0;
+   if (arg < -5.0)
+      return -1.0;
+
+   return std::erf(arg);
+}
+
+/// @brief Function to calculate the integral of an un-normalized RooGaussian over x. To calculate the integral over
+/// mean, just interchange the respective values of x and mean.
+/// @param xMin Minimum value of variable to integrate wrt.
+/// @param xMax Maximum value of of variable to integrate wrt.
+/// @param mean Mean.
+/// @param sigma Sigma.
+/// @return The integral of an un-normalized RooGaussian over the value in x.
+inline float gaussianIntegral(float xMin, float xMax, float mean, float sigma)
+{
+   // The normalisation constant 1./sqrt(2*pi*sigma^2) is left out in evaluate().
+   // Therefore, the integral is scaled up by that amount to make RooFit normalise
+   // correctly.
+   float resultScale = 0.5 * std::sqrt(TMath::TwoPi()) * sigma;
+
+   // Here everything is scaled and shifted into a standard normal distribution:
+   float xscale = TMath::Sqrt2() * sigma;
+   float scaledMin = 0.;
+   float scaledMax = 0.;
+   scaledMin = (xMin - mean) / xscale;
+   scaledMax = (xMax - mean) / xscale;
+
+   // Here we go for maximum precision: We compute all integrals in the UPPER
+   // tail of the Gaussian, because erfc has the highest precision there.
+   // Therefore, the different cases for range limits in the negative hemisphere are mapped onto
+   // the equivalent points in the upper hemisphere using erfc(-x) = 2. - erfc(x)
+   float ecmin = std::erfc((double)std::abs(scaledMin));
+   float ecmax = std::erfc((double)std::abs(scaledMax));
+
+   float cond = 0.0;
+   // Don't put this "prd" inside the "if" because clad will not be able to differentiate the code correctly (as of
+   // v1.1)!
+   float prd = scaledMin * scaledMax;
+   if (prd < 0.0) {
+      cond = 2.0 - (ecmin + ecmax);
+   } else if (scaledMax <= 0.0) {
+      cond = ecmax - ecmin;
+   } else {
+      cond = ecmin - ecmax;
+   }
+   return resultScale * cond;
+}
+
+inline float bifurGaussIntegral(float xMin, float xMax, float mean, float sigmaL, float sigmaR)
+{
+   const float xscaleL = TMath::Sqrt2() * sigmaL;
+   const float xscaleR = TMath::Sqrt2() * sigmaR;
+
+   const float resultScale = 0.5 * std::sqrt(TMath::TwoPi());
+
+   if (xMax < mean) {
+      return resultScale * (sigmaL * (std::erf((xMax - mean) / xscaleL) - std::erf((xMin - mean) / xscaleL)));
+   } else if (xMin > mean) {
+      return resultScale * (sigmaR * (std::erf((xMax - mean) / xscaleR) - std::erf((xMin - mean) / xscaleR)));
+   } else {
+      return resultScale * (sigmaR * std::erf((xMax - mean) / xscaleR) - sigmaL * std::erf((xMin - mean) / xscaleL));
+   }
+}
+
+inline float exponentialIntegral(float xMin, float xMax, float constant)
+{
+   if (constant == 0.0) {
+      return xMax - xMin;
+   }
+
+   return (std::exp(constant * xMax) - std::exp(constant * xMin)) / constant;
+}
+
+/// In pdfMode, a coefficient for the constant term of 1.0 is implied if lowestOrder > 0.
+template <bool pdfMode = false>
+inline float polynomialIntegral(float const *coeffs, int nCoeffs, int lowestOrder, float xMin, float xMax)
+{
+   int denom = lowestOrder + nCoeffs;
+   float min = coeffs[nCoeffs - 1] / float(denom);
+   float max = coeffs[nCoeffs - 1] / float(denom);
+
+   for (int i = nCoeffs - 2; i >= 0; i--) {
+      denom--;
+      min = (coeffs[i] / float(denom)) + xMin * min;
+      max = (coeffs[i] / float(denom)) + xMax * max;
+   }
+
+   max = max * std::pow(xMax, 1 + lowestOrder);
+   min = min * std::pow(xMin, 1 + lowestOrder);
+
+   return max - min + (pdfMode && lowestOrder > 0.0 ? xMax - xMin : 0.0);
+}
+
+/// use fast FMA if available, fall back to normal arithmetic if not
+inline float fast_fma(float x, float y, float z) noexcept
+{
+#if defined(FP_FAST_FMA) // check if std::fma has fast hardware implementation
+   return std::fma(x, y, z);
+#else // defined(FP_FAST_FMA)
+   // std::fma might be slow, so use a more pedestrian implementation
+#if defined(__clang__)
+#pragma STDC FP_CONTRACT ON // hint clang that using an FMA is okay here
+#endif                      // defined(__clang__)
+   return (x * y) + z;
+#endif                      // defined(FP_FAST_FMA)
+}
+
+inline float chebychevIntegral(float const *coeffs, unsigned int nCoeffs, float xMin, float xMax, float xMinFull,
+                                float xMaxFull)
+{
+   const float halfrange = .5 * (xMax - xMin);
+   const float mid = .5 * (xMax + xMin);
+
+   // the full range of the function is mapped to the normalised [-1, 1] range
+   const float b = (xMaxFull - mid) / halfrange;
+   const float a = (xMinFull - mid) / halfrange;
+
+   // coefficient for integral(T_0(x)) is 1 (implicit), integrate by hand
+   // T_0(x) and T_1(x), and use for n > 1: integral(T_n(x) dx) =
+   // (T_n+1(x) / (n + 1) - T_n-1(x) / (n - 1)) / 2
+   float sum = b - a; // integrate T_0(x) by hand
+
+   const unsigned int iend = nCoeffs;
+   if (iend > 0) {
+      {
+         // integrate T_1(x) by hand...
+         const float c = coeffs[0];
+         sum = fast_fma(static_cast<float>(0.5) * (b + a) * (b - a), c, sum);
+      }
+      if (1 < iend) {
+         float bcurr = b;
+         float btwox = 2 * b;
+         float blast = 1;
+
+         float acurr = a;
+         float atwox = 2 * a;
+         float alast = 1;
+
+         float newval = atwox * acurr - alast;
+         alast = acurr;
+         acurr = newval;
+
+         newval = btwox * bcurr - blast;
+         blast = bcurr;
+         bcurr = newval;
+         float nminus1 = 1.;
+         for (unsigned int i = 1; iend != i; ++i) {
+            // integrate using recursion relation
+            const float c = coeffs[i];
+            const float term2 = (blast - alast) / nminus1;
+
+            newval = atwox * acurr - alast;
+            alast = acurr;
+            acurr = newval;
+
+            newval = btwox * bcurr - blast;
+            blast = bcurr;
+            bcurr = newval;
+
+            ++nminus1;
+            const float term1 = (bcurr - acurr) / (nminus1 + 1.);
+            const float intTn = 0.5 * (term1 - term2);
+            sum = fast_fma(intTn, c, sum);
+         }
+      }
+   }
+
+   // take care to multiply with the right factor to account for the mapping to
+   // normalised range [-1, 1]
+   return halfrange * sum;
+}
+
+// The last param should be of type bool but it is not as that causes some issues with Cling for some reason...
+inline float
+poissonIntegral(int code, float mu, float x, float integrandMin, float integrandMax, unsigned int protectNegative)
+{
+   if (protectNegative && mu < 0.0) {
+      return std::exp(-2.0 * mu); // make it fall quickly
+   }
+
+   if (code == 1) {
+      // Implement integral over x as summation. Add special handling in case
+      // range boundaries are not on integer values of x
+      integrandMin = std::max((float)0., integrandMin);
+
+      if (integrandMax < 0. || integrandMax < integrandMin) {
+         return 0;
+      }
+      const float delta = 100.0 * std::sqrt(mu);
+      // If the limits are more than many standard deviations away from the mean,
+      // we might as well return the integral of the full Poisson distribution to
+      // save computing time.
+      if (integrandMin < std::max(mu - delta, (float)0.0) && integrandMax > mu + delta) {
+         return 1.;
+      }
+
+      // The range as integers. ixMin is included, ixMax outside.
+      const unsigned int ixMin = integrandMin;
+      const unsigned int ixMax = std::min(integrandMax + 1, (float)std::numeric_limits<unsigned int>::max());
+
+      // Sum from 0 to just before the bin outside of the range.
+      if (ixMin == 0) {
+         return ROOT::Math::inc_gamma_c(ixMax, mu);
+      } else {
+         // If necessary, subtract from 0 to the beginning of the range
+         if (ixMin <= mu) {
+            return ROOT::Math::inc_gamma_c(ixMax, mu) - ROOT::Math::inc_gamma_c(ixMin, mu);
+         } else {
+            // Avoid catastrophic cancellation in the high tails:
+            return ROOT::Math::inc_gamma(ixMin, mu) - ROOT::Math::inc_gamma(ixMax, mu);
+         }
+      }
+   }
+
+   // the integral with respect to the mean is the integral of a gamma distribution
+   // negative ix does not need protection (gamma returns 0.0)
+   const float ix = 1 + x;
+
+   return ROOT::Math::inc_gamma(ix, integrandMax) - ROOT::Math::inc_gamma(ix, integrandMin);
+}
+
+inline float logNormalIntegral(float xMin, float xMax, float m0, float k)
+{
+   const float root2 = std::sqrt(2.);
+
+   float ln_k = std::abs(std::log(k));
+   float ret = 0.5 * (std::erf(std::log(xMax / m0) / (root2 * ln_k)) - std::erf(std::log(xMin / m0) / (root2 * ln_k)));
+
+   return ret;
+}
+
+inline float logNormalIntegralStandard(float xMin, float xMax, float mu, float sigma)
+{
+   const float root2 = std::sqrt(2.);
+
+   float ln_k = std::abs(sigma);
+   float ret =
+      0.5 * (std::erf((std::log(xMax) - mu) / (root2 * ln_k)) - std::erf((std::log(xMin) - mu) / (root2 * ln_k)));
+
+   return ret;
+}
+
+inline float cbShapeIntegral(float mMin, float mMax, float m0, float sigma, float alpha, float n)
+{
+   const float sqrtPiOver2 = 1.2533141373;
+   const float sqrt2 = 1.4142135624;
+
+   float result = 0.0;
+   bool useLog = false;
+
+   if (std::abs(n - 1.0) < 1.0e-05)
+      useLog = true;
+
+   float sig = std::abs(sigma);
+
+   float tmin = (mMin - m0) / sig;
+   float tmax = (mMax - m0) / sig;
+
+   if (alpha < 0) {
+      float tmp = tmin;
+      tmin = -tmax;
+      tmax = -tmp;
+   }
+
+   float absAlpha = std::abs(alpha);
+
+   if (tmin >= -absAlpha) {
+      result += sig * sqrtPiOver2 * (approxErf(tmax / sqrt2) - approxErf(tmin / sqrt2));
+   } else if (tmax <= -absAlpha) {
+      float r = n / absAlpha;
+      float a = r * std::exp(-0.5 * absAlpha * absAlpha);
+      float b = r - absAlpha;
+
+      if (useLog) {
+         result += a * std::pow(r, n - 1) * sig * (std::log(b - tmin) - std::log(b - tmax));
+      } else {
+         result += a * sig / (1.0 - n) * (std::pow(r / (b - tmin), n - 1.0) - std::pow(r / (b - tmax), n - 1.0));
+      }
+   } else {
+      float r = n / absAlpha;
+      float a = r * std::exp(-0.5 * absAlpha * absAlpha);
+      float b = r - absAlpha;
+
+      float term1 = 0.0;
+      if (useLog) {
+         term1 = a * std::pow(r, n - 1) * sig * (std::log(b - tmin) - std::log(r));
+      } else {
+         term1 = a * sig / (1.0 - n) * (std::pow(r / (b - tmin), n - 1.0) - 1.0);
+      }
+
+      float term2 = sig * sqrtPiOver2 * (approxErf(tmax / sqrt2) - approxErf(-absAlpha / sqrt2));
+
+      result += term1 + term2;
+   }
+
+   if (result == 0)
+      return 1.E-300;
+   return result;
+}
+
+inline float bernsteinIntegral(float xlo, float xhi, float xmin, float xmax, float *coefs, int nCoefs)
+{
+   float xloScaled = (xlo - xmin) / (xmax - xmin);
+   float xhiScaled = (xhi - xmin) / (xmax - xmin);
+
+   int degree = nCoefs - 1; // n+1 polys of degree n
+   float norm = 0.;
+
+   for (int i = 0; i <= degree; ++i) {
+      // for each of the i Bernstein basis polynomials
+      // represent it in the 'power basis' (the naive polynomial basis)
+      // where the integral is straight forward.
+      float temp = 0.;
+      for (int j = i; j <= degree; ++j) { // power basis≈ß
+         float binCoefs = binomial(degree, j) * binomial(j, i);
+         float oneOverJPlusOne = 1. / (j + 1.);
+         float powDiff = std::pow(xhiScaled, j + 1.) - std::pow(xloScaled, j + 1.);
+         temp += std::pow(-1., j - i) * binCoefs * powDiff * oneOverJPlusOne;
+      }
+      temp *= coefs[i]; // include coeff
+      norm += temp;     // add this basis's contribution to total
+   }
+
+   return norm * (xmax - xmin);
+}
+
+inline float multiVarGaussian(int n, const float *x, const float *mu, const float *covI)
+{
+   float result = 0.0;
+
+   // Compute the bilinear form (x-mu)^T * covI * (x-mu)
+   for (int i = 0; i < n; ++i) {
+      for (int j = 0; j < n; ++j) {
+         result += (x[i] - mu[i]) * covI[i * n + j] * (x[j] - mu[j]);
+      }
+   }
+   return std::exp(-0.5 * result);
+}
+
+// Integral of a step function defined by `nBins` intervals, where the
+// intervals have values `coefs` and the boundary on the interval `iBin` is
+// given by `[boundaries[i], boundaries[i+1])`.
+inline float
+stepFunctionIntegral(float xmin, float xmax, std::size_t nBins, float const *boundaries, float const *coefs)
+{
+   float out = 0.0;
+   for (std::size_t i = 0; i < nBins; ++i) {
+      float a = boundaries[i];
+      float b = boundaries[i + 1];
+      out += coefs[i] * std::max((float)0.0, std::min(b, xmax) - std::max(a, xmin));
+   }
+   return out;
+}
+
+} // namespace MathFuncs
+} // namespace Detail
+} // namespace RooFit
+
 #endif
