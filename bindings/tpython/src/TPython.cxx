@@ -10,9 +10,9 @@
 //  *************************************************************************/
 
 // Bindings
-// CPyCppyy.h must be go first, since it includes Python.h, which must be
-// included before any standard header
-#include "CPyCppyy/API.h"
+// Python.h must be included before any standard header
+#include "Python.h"
+
 #include "TPython.h"
 #include "TPyClassGenerator.h"
 
@@ -452,97 +452,4 @@ void TPython::Prompt()
 
    // enter i/o interactive mode
    PyRun_InteractiveLoop(stdin, "\0");
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Test whether the type of the given pyobject is of CPPInstance type or any
-/// derived type.
-
-Bool_t TPython::CPPInstance_Check(PyObject *pyobject)
-{
-   // setup
-   if (!Initialize())
-      return false;
-
-   PyGILRAII gilRaii;
-
-   // detailed walk through inheritance hierarchy
-   return CPyCppyy::Instance_Check(pyobject);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Test whether the type of the given pyobject is CPPinstance type.
-
-Bool_t TPython::CPPInstance_CheckExact(PyObject *pyobject)
-{
-   // setup
-   if (!Initialize())
-      return false;
-
-   PyGILRAII gilRaii;
-
-   // direct pointer comparison of type member
-   return CPyCppyy::Instance_CheckExact(pyobject);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Test whether the type of the given pyobject is of CPPOverload type or any
-/// derived type.
-
-Bool_t TPython::CPPOverload_Check(PyObject *pyobject)
-{
-   // setup
-   if (!Initialize())
-      return false;
-
-   PyGILRAII gilRaii;
-
-   // detailed walk through inheritance hierarchy
-   return CPyCppyy::Overload_Check(pyobject);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Test whether the type of the given pyobject is CPPOverload type.
-
-Bool_t TPython::CPPOverload_CheckExact(PyObject *pyobject)
-{
-   // setup
-   if (!Initialize())
-      return false;
-
-   PyGILRAII gilRaii;
-
-   // direct pointer comparison of type member
-   return CPyCppyy::Overload_CheckExact(pyobject);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Extract the object pointer held by the CPPInstance pyobject.
-
-void *TPython::CPPInstance_AsVoidPtr(PyObject *pyobject)
-{
-   // setup
-   if (!Initialize())
-      return nullptr;
-
-   PyGILRAII gilRaii;
-
-   // get held object (may be null)
-   return CPyCppyy::Instance_AsVoidPtr(pyobject);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Bind the addr to a python object of class defined by classname.
-
-PyObject *TPython::CPPInstance_FromVoidPtr(void *addr, const char *classname, Bool_t python_owns)
-{
-   // setup
-   if (!Initialize())
-      return nullptr;
-
-   PyGILRAII gilRaii;
-
-   // perform cast (the call will check TClass and addr, and set python errors)
-   // give ownership, for ref-counting, to the python side, if so requested
-   return CPyCppyy::Instance_FromVoidPtr(addr, classname, python_owns);
 }

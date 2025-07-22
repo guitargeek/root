@@ -9,6 +9,8 @@
 //  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
 //  *************************************************************************/
 
+#include "Python.h"
+
 // Bindings
 #include "CPyCppyy/API.h"
 #include "TPyReturn.h"

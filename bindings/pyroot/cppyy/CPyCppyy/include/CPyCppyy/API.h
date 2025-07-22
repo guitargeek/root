@@ -23,9 +23,15 @@
 #undef _XOPEN_SOURCE
 #endif
 #endif
-#include "Python.h"
+
+// Python
+struct _object;
+typedef _object PyObject;
 
 #define CPYCPPYY_VERSION_HEX 0x010c10
+
+#include <cstddef>
+#include <cstdint>
 
 // Cppyy types
 namespace Cppyy {
@@ -87,7 +93,7 @@ struct CallContext;
 // Dimensions class not currently exposed
 #ifndef CPYCPPYY_DIMENSIONS_H
 #define CPYCPPYY_DIMENSIONS_H
-typedef Py_ssize_t dim_t;
+typedef intptr_t dim_t;
 
 class Dimensions {      // Windows note: NOT exported/imported
     dim_t* fDims;

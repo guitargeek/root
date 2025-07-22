@@ -15,12 +15,10 @@
 // ROOT
 #include "TObject.h"
 
+#include "CPyCppyy/API.h"
+
 #include <any>
 #include <cstdint>
-
-// Python
-struct _object;
-typedef _object PyObject;
 
 namespace ROOT {
 namespace Internal {
@@ -36,11 +34,11 @@ inline void SwapWithObjAtAddr(T &a, std::intptr_t b) { std::swap(a, *reinterpret
 class TPython {
 
 private:
-   static Bool_t Initialize();
+   static bool Initialize();
 
 public:
    // import a python module, making its classes available
-   static Bool_t Import(const char *name);
+   static bool Import(const char *name);
 
    // load a python script as if it were a macro
    static void LoadMacro(const char *name);
@@ -49,27 +47,30 @@ public:
    static void ExecScript(const char *name, int argc = 0, const char **argv = nullptr);
 
    // execute a python statement (e.g. "import ROOT" )
-   static Bool_t Exec(const char *cmd, std::any *result = nullptr, std::string const& resultName="_anyresult");
+   static bool Exec(const char *cmd, std::any *result = nullptr, std::string const& resultName="_anyresult");
 
    // bind a ROOT object with, at the python side, the name "label"
-   static Bool_t Bind(TObject *object, const char *label);
+   static bool Bind(TObject *object, const char *label);
 
    // enter an interactive python session (exit with ^D)
    static void Prompt();
 
    // type verifiers for CPPInstance
-   static Bool_t CPPInstance_Check(PyObject *pyobject);
-   static Bool_t CPPInstance_CheckExact(PyObject *pyobject);
+   static bool CPPInstance_Check(PyObject *pyobject) { return CPyCppyy::Instance_Check(pyobject); }
+   static bool CPPInstance_CheckExact(PyObject *pyobject) { return CPyCppyy::Instance_CheckExact(pyobject); }
 
    // type verifiers for CPPOverload
-   static Bool_t CPPOverload_Check(PyObject *pyobject);
-   static Bool_t CPPOverload_CheckExact(PyObject *pyobject);
+   static bool CPPOverload_Check(PyObject *pyobject) { return CPyCppyy::Overload_Check(pyobject); }
+   static bool CPPOverload_CheckExact(PyObject *pyobject) { return CPyCppyy::Overload_CheckExact(pyobject); }
 
    // CPPInstance to void* conversion
-   static void *CPPInstance_AsVoidPtr(PyObject *pyobject);
+   static void *CPPInstance_AsVoidPtr(PyObject *pyobject) { return CPyCppyy::Instance_AsVoidPtr(pyobject); }
 
    // void* to CPPInstance conversion, returns a new reference
-   static PyObject *CPPInstance_FromVoidPtr(void *addr, const char *classname, Bool_t python_owns = kFALSE);
+   static PyObject *CPPInstance_FromVoidPtr(void *addr, const char *classname, bool python_owns = false)
+   {
+      return CPyCppyy::Instance_FromVoidPtr(addr, classname, python_owns);
+   }
 
    virtual ~TPython() {}
    ClassDef(TPython, 0) // Access to the python interpreter

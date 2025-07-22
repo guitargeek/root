@@ -9,6 +9,8 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
+#include "Python.h"
+
 #include "TPyDispatcher.h"
 
 // Bindings
