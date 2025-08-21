@@ -117,6 +117,102 @@ void* CPyCppyy::Instance_AsVoidPtr(PyObject* pyobject)
     return ((CPPInstance*)pyobject)->GetObject();
 }
 
+namespace {
+
+/// A simple RAII wrapper that manages a PyObject*
+/// It increments the refcount on construction and decrements on destruction.
+/// Supports copy and move semantics.
+class PyObjectHolder {
+public:
+   /// Construct from raw pointer (default nullptr).
+   /// Takes ownership by incrementing the refcount if not null.
+   explicit PyObjectHolder(PyObject *obj = nullptr) noexcept : obj_(obj)
+   {
+      if (obj_) {
+         Py_INCREF(obj_);
+      }
+   }
+
+   /// Copy constructor: INCREF the object
+   PyObjectHolder(const PyObjectHolder &other) noexcept : obj_(other.obj_)
+   {
+      if (obj_) {
+         Py_INCREF(obj_);
+      }
+   }
+
+   /// Move constructor: steal pointer
+   PyObjectHolder(PyObjectHolder &&other) noexcept : obj_(other.obj_) { other.obj_ = nullptr; }
+
+   /// Copy assignment
+   PyObjectHolder &operator=(const PyObjectHolder &other) noexcept
+   {
+      if (this != &other) {
+         // INCREF first in case it's the same object as ours
+         PyObject *tmp = other.obj_;
+         if (tmp) {
+            Py_INCREF(tmp);
+         }
+         // DECREF old one
+         if (obj_) {
+            Py_DECREF(obj_);
+         }
+         obj_ = tmp;
+      }
+      return *this;
+   }
+
+   /// Move assignment
+   PyObjectHolder &operator=(PyObjectHolder &&other) noexcept
+   {
+      if (this != &other) {
+         // DECREF old one
+         if (obj_) {
+            Py_DECREF(obj_);
+         }
+         // Steal
+         obj_ = other.obj_;
+         other.obj_ = nullptr;
+      }
+      return *this;
+   }
+
+   /// Destructor: DECREF
+   ~PyObjectHolder()
+   {
+      if (obj_) {
+         Py_DECREF(obj_);
+      }
+   }
+
+   /// Access underlying PyObject*
+   PyObject *get() const noexcept { return obj_; }
+
+   /// Release ownership without DECREF
+   PyObject *release() noexcept
+   {
+      PyObject *tmp = obj_;
+      obj_ = nullptr;
+      return tmp;
+   }
+
+   /// Swap two holders
+   void swap(PyObjectHolder &other) noexcept { std::swap(obj_, other.obj_); }
+
+   explicit operator bool() const noexcept { return obj_ != nullptr; }
+
+private:
+   PyObject *obj_;
+};
+
+} // namespace
+
+//-----------------------------------------------------------------------------
+std::any CPyCppyy::PyObject_AsStdAny(PyObject *pyobject)
+{
+   return std::make_any<PyObjectHolder>(pyobject);
+}
+
 //-----------------------------------------------------------------------------
 PyObject* CPyCppyy::Instance_FromVoidPtr(
     void* addr, const std::string& classname, bool python_owns)

@@ -661,6 +661,38 @@ static PyObject* AsMemoryView(PyObject* /* unused */, PyObject* pyobject)
     return PyMemoryView_FromBuffer(&view);
 }
 
+
+//----------------------------------------------------------------------------
+static PyObject* WrapInStdAny(PyObject*, PyObject* args) {
+    PyObject* pyobj = nullptr;
+    if (!PyArg_ParseTuple(args, "O", &pyobj)) {
+        return nullptr;  // PyArg_ParseTuple already sets an error
+    }
+
+    try {
+        // Convert Python object to std::any
+        std::any value = CPyCppyy::PyObject_AsStdAny(pyobj);
+
+        // Allocate a new std::any on the heap, so proxy can own it
+        auto* heap_any = new std::any(std::move(value));
+
+        // Bind it into a cppyy object proxy
+        // Args: void* ptr, const std::string& classname, is_ref, is_value
+        PyObject* proxy = cppyy_backend::BindObject(
+            heap_any, "std::any", /*is_ref=*/false, /*is_value=*/true);
+
+        return proxy;
+    }
+    catch (const std::exception& e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+        return nullptr;
+    }
+    catch (...) {
+        PyErr_SetString(PyExc_RuntimeError, "Unknown C++ exception");
+        return nullptr;
+    }
+}
+
 //----------------------------------------------------------------------------
 static PyObject* BindObject(PyObject*, PyObject* args, PyObject* kwds)
 {
@@ -1023,6 +1055,8 @@ static PyMethodDef gCPyCppyyMethods[] = {
       METH_VARARGS, (char*)"Trap signals in safe mode to prevent interpreter abort."},
     {(char*) "SetOwnership", (PyCFunction)SetOwnership,
       METH_VARARGS, (char*)"Modify held C++ object ownership."},
+    {"WrapInStdAny", (PyCFunction)WrapInStdAny, METH_VARARGS,
+     "Wrap a Python object in std::any and return a cppyy proxy."},
     {(char*) "AddSmartPtrType", (PyCFunction)AddSmartPtrType,
       METH_VARARGS, (char*) "Add a smart pointer to the list of known smart pointer types."},
     {(char*) "_begin_capture_stderr", (PyCFunction)BeginCaptureStderr,

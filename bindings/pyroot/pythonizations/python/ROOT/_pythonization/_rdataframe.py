@@ -580,17 +580,12 @@ def _MakeNumpyDataFrame(np_dict):
 
         ROOT.gInterpreter.Declare(
             r"""
-    #include <Python.h>
+    #include <CPyCppyy/API.h>
 
-    namespace __ROOT_Internal {
+    inline std::any AsStdAny(std::intptr_t ptr) {
 
-    inline std::function<void()> MakePyDeleter(std::intptr_t ptr) {
-        PyObject *obj = reinterpret_cast<PyObject*>(ptr);
-        Py_INCREF(obj);
-        return [obj](){ Py_DECREF(obj); };
+        return CPyCppyy::PyObject_AsStdAny(reinterpret_cast<PyObject*>(ptr));
     }
-
-    } // namespace __ROOT_Internal
     """
         )
 
@@ -598,4 +593,5 @@ def _MakeNumpyDataFrame(np_dict):
 
     np_dict_copy = dict(**np_dict)
     key = id(np_dict_copy)
-    return ROOT.Internal.RDF.MakeRVecDataFrame(ROOT.__ROOT_Internal.MakePyDeleter(key), *args)
+    # return ROOT.Internal.RDF.MakeRVecDataFrame(ROOT.AsStdAny(key), *args)
+    return ROOT.Internal.RDF.MakeRVecDataFrame(ROOT.WrapInStdAny(key), *args)

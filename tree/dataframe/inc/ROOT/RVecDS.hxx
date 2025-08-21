@@ -14,7 +14,7 @@
 #include <ROOT/TSeq.hxx>
 
 #include <algorithm>
-#include <functional>
+#include <any>
 #include <map>
 #include <memory>
 #include <string>
@@ -55,7 +55,7 @@ class RVecDS final : public ROOT::RDF::RDataSource {
    const PointerHolderPtrs_t fPointerHoldersModels;
    std::vector<PointerHolderPtrs_t> fPointerHolders;
    std::vector<std::pair<ULong64_t, ULong64_t>> fEntryRanges{};
-   std::function<void()> fDeleteRVecs;
+   std::any fResources;
 
    Record_t GetColumnReadersImpl(std::string_view colName, const std::type_info &id)
    {
@@ -121,12 +121,12 @@ protected:
    std::string AsString() { return "Numpy data source"; };
 
 public:
-   RVecDS(std::function<void()> deleteRVecs, std::pair<std::string, ROOT::RVec<ColumnTypes>> const &...colsNameVals)
+   RVecDS(std::any resources, std::pair<std::string, ROOT::RVec<ColumnTypes>> const &...colsNameVals)
       : fColumns(colsNameVals.second...),
         fColNames{colsNameVals.first...},
         fColTypesMap({{colsNameVals.first, ROOT::Internal::RDF::TypeID2TypeName(typeid(ColumnTypes))}...}),
         fPointerHoldersModels({new ROOT::Internal::RDF::TTypedPointerHolder<ColumnTypes>(new ColumnTypes())...}),
-        fDeleteRVecs(deleteRVecs)
+        fResources(resources)
    {
    }
 
@@ -142,8 +142,6 @@ public:
             delete ptrHolder;
          }
       }
-      // Release the data associated to this data source
-      fDeleteRVecs();
    }
 
    const std::vector<std::string> &GetColumnNames() const { return fColNames; }
@@ -221,14 +219,14 @@ public:
 //                the data cannot go out of scope as long as the datasource survives.
 template <typename... ColumnTypes>
 std::unique_ptr<RDataFrame>
-MakeRVecDataFrame(std::function<void()> deleteRVecs,
+MakeRVecDataFrame(std::any resources,
                   std::pair<std::string, ROOT::RVec<ColumnTypes>> const &...colNameProxyPairs)
 {
-   return std::make_unique<RDataFrame>(std::make_unique<RVecDS<ColumnTypes...>>(deleteRVecs, colNameProxyPairs...));
+   return std::make_unique<RDataFrame>(std::make_unique<RVecDS<ColumnTypes...>>(std::move(resources), colNameProxyPairs...));
 }
 
 } // namespace RDF
 } // namespace Internal
 } // namespace ROOT
 
-#endif // ROOT_RNUMPYDS
+#endif // ROOT_RVECDS

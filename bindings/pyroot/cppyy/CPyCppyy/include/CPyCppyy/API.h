@@ -44,6 +44,7 @@ namespace Cppyy {
 #include "CPyCppyy/CommonDefs.h"
 
 // Standard
+#include <any>
 #include <string>
 #include <vector>
 
@@ -198,6 +199,9 @@ CPYCPPYY_EXTERN bool Instance_IsLively(PyObject* pyobject);
 // type verifiers for C++ Overload
 CPYCPPYY_EXTERN bool Overload_Check(PyObject* pyobject);
 CPYCPPYY_EXTERN bool Overload_CheckExact(PyObject* pyobject);
+
+// C++ Instance (python object proxy) to std::any conversion
+CPYCPPYY_EXTERN std::any PyObject_AsStdAny(PyObject* pyobject);
 
 
 //- access to the python interpreter ----------------------------------------
