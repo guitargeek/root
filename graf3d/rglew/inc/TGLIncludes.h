@@ -18,6 +18,14 @@
 #include "Windows4Root.h"
 #endif
 
-#include <GL/glew.h>
+#ifndef GL_FIXED
+#define GL_FIXED 0x140C
+#endif
+
+// #include <GL/glew.h>
+#include "glad/gl.h"
+#include "glad/glx.h"
+
+#include "GL/glu.h"
 
 #endif

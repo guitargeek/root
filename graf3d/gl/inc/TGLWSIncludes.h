@@ -41,7 +41,7 @@
 #    define GLEW_APPLE_GLX
 #  endif
 #  if !defined(R__HAS_COCOA)
-#    include <GL/glxew.h>
+//#    include <GL/glxew.h>
 #  endif
 #endif
 

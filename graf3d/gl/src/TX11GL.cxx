@@ -21,6 +21,7 @@
 #include "TX11GL.h"
 #include "TError.h"
 #include "TROOT.h"
+#include "TGLContext.h"
 
 /** \class TX11GLManager
 \ingroup opengl
@@ -201,6 +202,7 @@ TX11GLManager::~TX11GLManager()
 
 Int_t TX11GLManager::InitGLWindow(Window_t winID)
 {
+   TGLContext::GlewInit();
    XVisualInfo *visInfo = glXChooseVisual(
                                           fPimpl->fDpy, DefaultScreen(fPimpl->fDpy),
                                           const_cast<Int_t *>(dblBuff)

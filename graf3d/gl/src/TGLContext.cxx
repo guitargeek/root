@@ -32,6 +32,7 @@
 
 #include "TGLFontManager.h"
 
+
 /** \class TGLContext
 \ingroup opengl
 This class encapsulates window-system specific information about a
@@ -86,11 +87,12 @@ void TGLContext::GlewInit()
 {
    if (!fgGlewInitDone)
    {
-      GLenum status = glewInit();
-      if (status != GLEW_OK)
-         Warning("TGLContext::GlewInit", "GLEW initalization failed.");
-      else if (gDebug > 0)
-         Info("TGLContext::GlewInit", "GLEW initalization successful.");
+      if (!gladLoadGL((GLADloadfunc)glXGetProcAddress)) {
+      // if (!gladLoadGL((GLADloadfunc)wglGetProcAddress)) {
+         Warning("TGLContext::GlewInit", "GLAD initialization failed.");
+      } else if (gDebug > 0) {
+         Info("TGLContext::GlewInit", "GLAD initialization successful.");
+      }
       fgGlewInitDone = kTRUE;
    }
 }
