@@ -9,6 +9,20 @@
 # @author Pere Mato, CERN
 ############################################################################
 
+if(minuit1)
+  set(TMVA_EXTRA_HEADERS
+    TMVA/MinuitFitter.h
+    TMVA/MinuitWrapper.h
+  )
+  set(TMVA_EXTRA_SOURCES
+    src/MinuitFitter.cxx
+    src/MinuitWrapper.cxx
+  )
+  set(TMVA_EXTRA_DEPENDENCIES
+    Minuit
+  )
+endif()
+
 if(NOT tmva-gpu)
   set(installoptions ${installoptions} FILTER "Cuda")
 endif()
@@ -241,6 +255,7 @@ endif()
 ROOT_STANDARD_LIBRARY_PACKAGE(TMVA
   HEADERS
     ${TMVA_HEADERS}
+    ${TMVA_EXTRA_HEADERS}
   SOURCES
     src/BDTEventWrapper.cxx
     src/BinarySearchTree.cxx
@@ -313,8 +328,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(TMVA
     src/MethodRuleFit.cxx
     src/MethodSVM.cxx
     src/MethodTMlpANN.cxx
-    src/MinuitFitter.cxx
-    src/MinuitWrapper.cxx
     src/MisClassificationError.cxx
     src/ModulekNN.cxx
     src/MsgLogger.cxx
@@ -411,7 +424,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(TMVA
     Tree
     Hist
     Matrix
-    Minuit
     MLP
     MathCore
     Core
@@ -424,6 +436,10 @@ ROOT_STANDARD_LIBRARY_PACKAGE(TMVA
     ${installoptions}
   ${EXTRA_DICT_OPTS}
 )
+
+if(minuit1)
+  target_compile_definitions(TMVA PRIVATE ROOT_MATH_MINUIT_1)
+endif()
 
 if(MSVC)
   target_compile_definitions(TMVA PRIVATE _USE_MATH_DEFINES)

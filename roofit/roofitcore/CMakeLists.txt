@@ -482,6 +482,10 @@ if(cuda)
   target_compile_definitions(RooFitCore PUBLIC ROOFIT_CUDA)
 endif()
 
+if(minuit1)
+  target_compile_definitions(RooFitCore PUBLIC ROOT_MATH_MINUIT_1)
+endif()
+
 # Used to silence deprecation warnings when testing deprecated features
 target_compile_definitions(RooFitCore PUBLIC ROOFIT_BUILDS_ITSELF)
 

@@ -692,7 +692,9 @@ int testPolyFit()
    iniPar[1] = 2.;
    iniPar[2] = 2.;
 
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTFit<TH1, TMINUIT>(h1, f1);
+#endif
    iret |= FitUsingTFit<TH1, MINUIT2>(h1, f1);
    // dummy for testing
    // iret |= FitUsingNewFitter<DUMMY>(h1,f1);
@@ -703,7 +705,9 @@ int testPolyFit()
 
    // if Minuit2 is later than TMinuit on Interl is much slower , why ??
    iret |= FitUsingNewFitter<MINUIT2>(h1, f2);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingNewFitter<TMINUIT>(h1, f2);
+#endif
 
    // test with linear fitter
    // for this test need to pass a multi-dim function
@@ -716,7 +720,9 @@ int testPolyFit()
 
    gStyle->SetErrorX(0.); // to seto zero error on X
    TGraphErrors *gr = new TGraphErrors(h1);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTFit<TGraph, TMINUIT>(gr, f1);
+#endif
 
    iret |= FitUsingTFit<TGraph, MINUIT2>(gr, f1);
 
@@ -726,7 +732,9 @@ int testPolyFit()
    // try with error in X
    gStyle->SetErrorX(0.5); // to set zero error on X
    TGraphErrors *gr2 = new TGraphErrors(h1);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTFit<TGraph, TMINUIT>(gr2, f1);
+#endif
    iret |= FitUsingTFit<TGraph, MINUIT2>(gr2, f1);
 
    iret |= FitUsingNewFitter<MINUIT2>(gr2, f2);
@@ -797,11 +805,15 @@ int testGausFit()
    ROOT::Math::WrappedParamFunction<> f2(&gaussian, 1, iniPar, iniPar + 3);
 
    iret |= FitUsingNewFitter<MINUIT2>(h2, f2);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingNewFitter<TMINUIT>(h2, f2);
+#endif
 
    //    iret |= FitUsingNewFitter<GSL_PR>(h2,f2);
 
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTFit<TH1, TMINUIT>(h2, f1);
+#endif
    iret |= FitUsingTFit<TH1, MINUIT2>(h2, f1);
 
    iret |= FitUsingNewFitter<GSL_FR>(h2, f2);
@@ -813,7 +825,9 @@ int testGausFit()
    gStyle->SetErrorX(0.); // to seto zero error on X
    TGraphErrors *gr = new TGraphErrors(h2);
 
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTFit<TGraph, TMINUIT>(gr, f1);
+#endif
    iret |= FitUsingTFit<TGraph, MINUIT2>(gr, f1);
 
    iret |= FitUsingNewFitter<MINUIT2>(gr, f2);
@@ -821,7 +835,9 @@ int testGausFit()
    // try with error in X
    gStyle->SetErrorX(0.5); // to seto zero error on X
    TGraphErrors *gr2 = new TGraphErrors(h2);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTFit<TGraph, TMINUIT>(gr2, f1);
+#endif
 
    iret |= FitUsingNewFitter<MINUIT2>(gr2, f2);
 
@@ -830,7 +846,9 @@ int testGausFit()
    std::cout << "\n\nTest Using pre-calculated gradients\n\n";
    bool useGrad = true;
    iret |= FitUsingNewFitter<MINUIT2>(h2, f2, useGrad);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingNewFitter<TMINUIT>(h2, f2, useGrad);
+#endif
    iret |= FitUsingNewFitter<GSL_FR>(h2, f2, useGrad);
    iret |= FitUsingNewFitter<GSL_PR>(h2, f2, useGrad);
    iret |= FitUsingNewFitter<GSL_BFGS>(h2, f2, useGrad);
@@ -908,17 +926,25 @@ int testTreeFit()
    iret |= FitUsingTTreeFit<MINUIT2>(&t1, f1, "x");
    iret |= FitUsingTTreeFit<MINUIT2>(&t1, f1, "x");
 
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTTreeFit<TMINUIT>(&t1, f1, "x");
+#endif
 
    iret |= FitUsingNewFitter<MINUIT2>(&t1, wf1, false); // not copying the data
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingNewFitter<TMINUIT>(&t1, wf1, false); // not copying the data
+#endif
    iret |= FitUsingNewFitter<MINUIT2>(&t1, wf1, true);  // copying the data
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingNewFitter<TMINUIT>(&t1, wf1, true);  // copying the data
+#endif
 
    // fit 2D
 
    iret |= FitUsingTTreeFit<MINUIT2>(&t1, f2, "x:y");
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingTTreeFit<TMINUIT>(&t1, f2, "x:y");
+#endif
 
    iret |= FitUsingNewFitter<MINUIT2>(&t1, wf2, true);
    iret |= FitUsingNewFitter<MINUIT2>(&t1, wf2, false);
@@ -967,7 +993,9 @@ int testLargeTreeFit(int nevt = 1000)
 
    int iret = 0;
    iret |= FitUsingNewFitter<MINUIT2>(&t1, f2);
+#ifdef ROOT_MATH_MINUIT_1
    iret |= FitUsingNewFitter<TMINUIT>(&t1, f2);
+#endif
    //   iret |= FitUsingNewFitter<GSL_BFGS2>(&t1,f2); // Too long for a test!
 
    printResult(iret);
