@@ -9,6 +9,10 @@
 # @author Pere Mato, CERN
 ############################################################################
 
+if(minuit1)
+  list(APPEND EXTRA_LIBRARIES Minuit)
+endif()
+
 set (EXTRA_DICT_OPTS)
 if (runtime_cxxmodules AND WIN32)
   set (EXTRA_DICT_OPTS NO_CXXMODULE)
@@ -117,6 +121,8 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooStats
     src/UpperLimitMCSModule.cxx
   DICTIONARY_OPTIONS
     "-writeEmptyRootPCM"
+  LIBRARIES
+    ${EXTRA_LIBRARIES}
   DEPENDENCIES
     Core
     RooFit
@@ -126,6 +132,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooStats
     Hist
     Matrix
     MathCore
+    Foam
     Graf
     Gpad
   LIBRARIES
