@@ -851,6 +851,32 @@ double multiVarGaussian(int n, XArray x, MuArray mu, CovArray covI)
    return std::exp(-0.5 * result);
 }
 
+template <typename CoefArray, typename LimitsArray>
+double parametricStepFunction(double x, CoefArray coefs, std::size_t nBins, LimitsArray limits)
+{
+   if (x < limits[0] || x >= limits[nBins]) {
+      return 0.0;
+   }
+
+   for (std::size_t i = 1; i <= nBins; i++) {
+      if (_x < _limits[i]) {
+         // in Bin i-1 (starting with Bin 0)
+         if (i < _nBins) {
+            // not in last Bin
+            return static_cast<RooRealVar *>(_coefList.at(i - 1))->getVal();
+         } else {
+            double value = lastBinValue();
+            if (value <= 0.0) {
+               value = 0.000001;
+               // std::cout << "RooParametricStepFunction: sum of values gt 1.0 -- beware!!" << std::endl;
+            }
+            return value;
+         }
+      }
+   }
+   return 0.0;
+}
+
 // Integral of a step function defined by `nBins` intervals, where the
 // intervals have values `coefs` and the boundary on the interval `iBin` is
 // given by `[boundaries[i], boundaries[i+1])`.

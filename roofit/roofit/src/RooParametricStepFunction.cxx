@@ -187,30 +187,27 @@ double RooParametricStepFunction::lastBinValue() const
 
 double RooParametricStepFunction::evaluate() const
 {
-  double value(0.);
-  if (_x >= _limits[0] && _x < _limits[_nBins]){
-
-    for (Int_t i=1;i<=_nBins;i++){
-      if (_x < _limits[i]){
-   // in Bin i-1 (starting with Bin 0)
-   if (i<_nBins) {
-     // not in last Bin
-     value = static_cast<RooRealVar*>(_coefList.at(i-1))->getVal();
-     break;
-   } else {
-     value = lastBinValue();
-     if (value<=0.0){
-       value = 0.000001;
-       //       std::cout << "RooParametricStepFunction: sum of values gt 1.0 -- beware!!" << std::endl;
-     }
-     break;
+   if (_x < _limits[0] || _x >= _limits[_nBins]) {
+      return 0.0;
    }
+
+   for (Int_t i = 1; i <= _nBins; i++) {
+      if (_x < _limits[i]) {
+         // in Bin i-1 (starting with Bin 0)
+         if (i < _nBins) {
+            // not in last Bin
+            return static_cast<RooRealVar *>(_coefList.at(i - 1))->getVal();
+         } else {
+            double value = lastBinValue();
+            if (value <= 0.0) {
+               value = 0.000001;
+               // std::cout << "RooParametricStepFunction: sum of values gt 1.0 -- beware!!" << std::endl;
+            }
+            return value;
+         }
       }
-    }
-
-  }
-  return value;
-
+   }
+   return 0.0;
 }
 
 

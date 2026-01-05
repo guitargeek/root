@@ -41,6 +41,9 @@ public:
 
   std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
 
+  RooAbsReal const &x() const { return *_x; }
+  RooArgList const &coefList() const { return _coefList; }
+
 protected:
 
   double lastBinValue() const ;

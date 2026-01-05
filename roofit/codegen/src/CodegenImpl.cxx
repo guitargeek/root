@@ -44,6 +44,7 @@
 #include <RooMultiVarGaussian.h>
 #include <RooONNXFunc.h>
 #include <RooParamHistFunc.h>
+#include <RooParametricStepFunction.h>
 #include <RooPoisson.h>
 #include <RooPolyVar.h>
 #include <RooPolynomial.h>
@@ -664,6 +665,10 @@ void codegenImpl(RooParamHistFunc &arg, CodegenContext &ctx)
       result << " * *(" << weightArr << " + " << idx + ") * " << doubleToString(binV);
    }
    ctx.addResult(&arg, result.str());
+}
+
+void codegenImpl(RooParametricStepFunction &arg, CodegenContext &ctx)
+{
 }
 
 void codegenImpl(RooPoisson &arg, CodegenContext &ctx)
