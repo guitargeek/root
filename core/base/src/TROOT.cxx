@@ -3017,6 +3017,33 @@ const TString& TROOT::GetBinDir() {
 ////////////////////////////////////////////////////////////////////////////////
 /// Get the library directory in the installation. Static utility function.
 ///
+/// By default, this is just an alias for TROOT::GetSharedLibDir(), which
+/// returns the directory containing the ROOT shared libraries.
+///
+/// On Windows, the behavior is different. In that case, this function doesn't
+/// return the directory of the **shared libraries** (like `libCore.dll`), but
+/// the **import libraries**, which are used at link time (like `libCore.lib`).
+
+const TString &TROOT::GetLibDir()
+{
+#if defined(R__WIN32)
+   static bool initialized = false;
+   static TString rootlibdir;
+   if (initialized)
+      return rootlibdir;
+
+   initialized = true;
+   rootlibdir = "lib";
+   gSystem->PrependPathName(GetRootSys(), rootlibdir);
+   return rootlibdir;
+#else
+   return TROOT::GetSharedLibDir();
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Get the shared libraries directory in the installation. Static utility function.
+///
 /// This function inspects the libraries currently loaded in the process to
 /// locate the ROOT Core library. Once found, it extracts and returns the
 /// directory containing that library. If the ROOT Core library was not found,
@@ -3025,9 +3052,9 @@ const TString& TROOT::GetBinDir() {
 /// The result is cached in a static variable so the lookup is only performed
 /// once per process, and the implementation is platform-specific.
 ///
-/// \return The directory path (as a `TString`) containing the ROOT core library.
+/// \return The directory path (as a `TString`) containing the ROOT shared libraries.
 
-const TString &TROOT::GetLibDir()
+const TString &TROOT::GetSharedLibDir()
 {
    static bool haveLooked = false;
    static TString rootlibdir;
@@ -3057,9 +3084,35 @@ const TString &TROOT::GetLibDir()
 
 #elif defined(_WIN32)
 
-   // Or Windows, the original hardcoded path is kept for now.
-   rootlibdir = "lib";
-   gSystem->PrependPathName(GetRootSys(), rootlibdir);
+   HMODULE modules[1024];
+   DWORD needed = 0;
+
+   HANDLE process = GetCurrentProcess();
+   if (EnumProcessModules(process, modules, sizeof(modules), &needed)) {
+      const unsigned int count = needed / sizeof(HMODULE);
+
+      for (unsigned int i = 0; i < count; ++i) {
+         wchar_t wpath[MAX_PATH];
+         DWORD len = GetModuleFileNameW(modules[i], wpath, MAX_PATH);
+         if (!len)
+            continue;
+
+         fs::path p(wpath);
+         if (p.filename() == TO_LITERAL(LIB_CORE_NAME)) {
+
+            // Convert UTF-16 to UTF-8 explicitly
+            const std::wstring wdir = p.parent_path().wstring();
+
+            int utf8len = WideCharToMultiByte(CP_UTF8, 0, wdir.c_str(), -1, nullptr, 0, nullptr, nullptr);
+
+            std::string utf8dir(utf8len - 1, '\0');
+            WideCharToMultiByte(CP_UTF8, 0, wdir.c_str(), -1, utf8dir.data(), utf8len, nullptr, nullptr);
+
+            rootlibdir = utf8dir.c_str();
+            break;
+         }
+      }
+   }
 
 #else
 
@@ -3081,17 +3134,6 @@ const TString &TROOT::GetLibDir()
 #endif
 
    return rootlibdir;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Get the shared libraries directory in the installation. Static utility function.
-
-const TString& TROOT::GetSharedLibDir() {
-#if defined(R__WIN32)
-   return TROOT::GetBinDir();
-#else
-   return TROOT::GetLibDir();
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
