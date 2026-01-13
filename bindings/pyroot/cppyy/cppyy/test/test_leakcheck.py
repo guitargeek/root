@@ -73,7 +73,7 @@ class TestLEAKCHECK:
 
         assert fail < M
 
-    @mark.xfail(reason="disabled due to its sporadic nature, especially fragile on VMs")
+    @mark.skip(reason="disabled due to its sporadic nature, especially fragile on VMs")
     def test01_free_functions(self):
         """Leak test of free functions"""
 
@@ -126,6 +126,7 @@ class TestLEAKCHECK:
             self.check_func(m, 'static_method_ol', 42., tmpl_args='float')
             self.check_func(m, 'static_method_ret')
 
+    @mark.skip(reason="disabled due to its sporadic nature, especially fragile on VMs")
     def test03_test_methods(self):
         """Leak test of methods"""
 
@@ -152,6 +153,7 @@ class TestLEAKCHECK:
         self.check_func(m, 'method_ol', 42., tmpl_args='float')
         self.check_func(m, 'method_ret')
 
+    @mark.skip(reason="disabled due to its sporadic nature, especially fragile on VMs")
     def test04_default_arguments(self):
         """Leak test for functions with default arguments"""
 
@@ -257,6 +259,7 @@ class TestLEAKCHECK:
         obj = ns.Leaker()
         self.check_func(obj, 'leak_string', 2048)
 
+    @mark.skip(reason="disabled due to its sporadic nature, especially fragile on VMs")
     def test08_list_creation(self):
         """Leak check of creating a python list from an std::list"""
 
