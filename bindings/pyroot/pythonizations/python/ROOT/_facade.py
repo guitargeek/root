@@ -50,11 +50,8 @@ class ROOTFacade(types.ModuleType):
     """Facade class for ROOT module"""
 
     def __init__(self, module, is_ipython):
-        from ._pythonization import pythonization
 
         types.ModuleType.__init__(self, module.__name__)
-
-        self._cppyy = module.cppyy
 
         self.__all__ = module.__all__
         self.__name__ = module.__name__
@@ -67,6 +64,8 @@ class ROOTFacade(types.ModuleType):
 
         # Inject gROOT global
         self.gROOT = _gROOTWrapper(self)
+
+        self._cppyy = module._cppyy
 
         # Expose some functionality from CPyCppyy extension module
         self._cppyy_exports = [
@@ -88,9 +87,6 @@ class ROOTFacade(types.ModuleType):
         # Initialize configuration
         self.PyConfig = PyROOTConfiguration()
 
-        # @pythonization decorator
-        self.pythonization = pythonization
-
         self._is_ipython = is_ipython
 
         # Redirect lookups to temporary helper methods
@@ -105,6 +101,7 @@ class ROOTFacade(types.ModuleType):
         # is the address of the object.
         # The address of the buffer is the same as the address of the
         # address of the object
+        import ROOT._cppyy.ll as cppyy_ll
 
         # addr is the address of the address of the object
         addr = self.addressof(instance=obj, byref=True)
@@ -163,6 +160,7 @@ class ROOTFacade(types.ModuleType):
 
     def _finalSetup(self):
         from ._application import PyROOTApplication
+        from ._pythonization import pythonization
 
         # Prevent this method from being re-entered through the gROOT wrapper
         self.__dict__["gROOT"] = self._cppyy.gbl.ROOT.GetROOT()
@@ -196,6 +194,9 @@ class ROOTFacade(types.ModuleType):
         # Register custom converters and executors
         self._register_converters_and_executors()
 
+        # @pythonization decorator
+        self.pythonization = pythonization
+
         # Run rootlogon if exists
         self._run_rootlogon()
 
@@ -204,6 +205,15 @@ class ROOTFacade(types.ModuleType):
         if name == "__path__":
             raise AttributeError(name)
 
+        # print(name)
+        # print(dir(self))
+
+        # if name == "_cppyy":
+            # from . import _cppyy
+
+            # return _cppyy
+
+        # if name != "_cppyy":
         self._finalSetup()
 
         return getattr(self, name)
@@ -444,7 +454,7 @@ class ROOTFacade(types.ModuleType):
             raise Exception("NumbaExt requires Numba version 0.54 or higher")
 
         # The comment in the next line suppresses linter errors about unused imports
-        import cppyy.numba_ext  # noqa: F401
+        import self._cppyy.numba_ext  # noqa: F401
 
         # Return something as it is a property function
         return self

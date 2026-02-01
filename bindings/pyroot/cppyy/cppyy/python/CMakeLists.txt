@@ -6,16 +6,17 @@
 
 ROOT_PYTHON_PACKAGE(cppyy
   SOURCES
-  cppyy/_stdcpp_fix.py
+  ROOT/_cppyy/_stdcpp_fix.py
+  ROOT/_cppyy/__init__.py
+  ROOT/_cppyy/_cpython_cppyy.py
+  ROOT/_cppyy/_pypy_cppyy.py
+  ROOT/_cppyy/_pythonization.py
+  ROOT/_cppyy/_typemap.py
+  ROOT/_cppyy/_version.py
+  ROOT/_cppyy/interactive.py
+  ROOT/_cppyy/ll.py
+  ROOT/_cppyy/numba_ext.py
+  ROOT/_cppyy/reflex.py
+  ROOT/_cppyy/types.py
   cppyy/__init__.py
-  cppyy/_cpython_cppyy.py
-  cppyy/_pypy_cppyy.py
-  cppyy/_pythonization.py
-  cppyy/_typemap.py
-  cppyy/_version.py
-  cppyy/interactive.py
-  cppyy/ll.py
-  cppyy/numba_ext.py
-  cppyy/reflex.py
-  cppyy/types.py
 )

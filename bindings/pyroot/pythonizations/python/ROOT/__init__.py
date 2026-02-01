@@ -16,13 +16,12 @@ from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
 from typing import Optional, Union
 
-import cppyy
-import cppyy.ll
-import cppyy.types
-
 from . import _asan  # noqa: F401  # imported for side effects for setup specific to AddressSanitizer environments
 from ._facade import ROOTFacade
 from ._pythonization import _register_pythonizations
+
+from . import _cppyy
+from ._cppyy import ll
 
 # Prevent cppyy's check for extra header directory
 os.environ["CPPYY_API_PATH"] = "none"
@@ -105,12 +104,14 @@ def _can_be_module(obj) -> bool:
     return False
 
 
-def _lookup_root_module(fullname: str) -> Optional[Union[types.ModuleType, cppyy.types.Scope]]:
+def _lookup_root_module(fullname: str):
     """
     Recursively looks up attributes of the ROOT facade, using a full module
     name, and return it if it can be used as a ROOT submodule. This is the case
     if the attribute is a C++ namespace or an actual Python module type. If no
     matching attribute is found, return None.
+
+    Return type: Optional[Union[types.ModuleType, cppyy.types.Scope]]
     """
     keys = fullname.split(".")[1:]
     ret = _root_facade
