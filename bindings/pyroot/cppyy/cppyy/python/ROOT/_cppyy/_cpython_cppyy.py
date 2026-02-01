@@ -23,7 +23,7 @@ if platform.system() == "Windows":
     # On Windows, the library has to be searched without prefix
     import libcppyy as _backend
 else:
-    import cppyy.libcppyy as _backend
+    import ROOT.libcppyy as _backend
 
 # explicitly expose APIs from libcppyy
 _w = ctypes.CDLL(_backend.__file__, ctypes.RTLD_GLOBAL)
