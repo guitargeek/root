@@ -11,9 +11,7 @@
 #include "TMVA/RModel.hxx"
 #include "TMVA/SOFIE_common.hxx"
 
-namespace TMVA {
-namespace Experimental {
-namespace SOFIE {
+namespace TMVA::Experimental::SOFIE {
 
 namespace {
 const std::string SP = "   ";
@@ -356,7 +354,7 @@ std::string RModel::AllocateIntermediateMemory(std::span<const std::string_view>
       std::string typeName = ConvertTypeToString(GetTensorType(name));
       code << "\n // Allocating memory for intermediate tensor " << name << " with size " << size << " bytes";
       code << "\n"
-           << typeName << "* tensor_" << name << " = reinterpret_cast<" << typeName
+           << typeName << "* " << AddTensorMember(name) << " = reinterpret_cast<" << typeName
            << "*>(fIntermediateMemoryPool.data() + " << location << ");\n";
    };
 
@@ -546,6 +544,8 @@ void RModel::Initialize(const std::map<std::string, size_t> & inputParams, bool 
    }
    fIntermediateTensorInfos.clear();
    fDynamicTensorInfos.clear();
+   fDataMembers.clear();
+   fPointerMemberNames.clear();
 
 
    // loop on inputs and see if shape can be  full specified
@@ -692,7 +692,8 @@ void RModel::InitializeSubGraph(std::shared_ptr<RModel>  graph) {
 // Function to generate the code for declaring and initializing constant tensors
 // This is for tensors which are not part of weight files and can be created from the Constant operator
 template <typename T>
-std::string GenerateConstantTensorCode(const std::pair<std::string, InitializedTensor> &t)
+std::string GenerateConstantTensorCode(const std::pair<std::string, InitializedTensor> &t,
+                                       std::function<std::string(std::string const &)> addTensorMember)
 {
    std::stringstream strs;
    std::string type = ConvertTypeToString(t.second.type());
@@ -714,7 +715,7 @@ std::string GenerateConstantTensorCode(const std::pair<std::string, InitializedT
       } while (sameData && idx < length);
    }
    if (allocateOnStack) {
-      strs << type << " tensor_" << t.first << "[" << length << "] = " << ConvertValuesToString(length, data) << ";\n";
+      strs << type << " " << addTensorMember(t.first) << "[" << length << "] = " << ConvertValuesToString(length, data) << ";\n";
    } else {
       strs << "std::vector<" << type << "> fTensor_" << t.first << " = ";
       if (sameData)
@@ -722,7 +723,7 @@ std::string GenerateConstantTensorCode(const std::pair<std::string, InitializedT
       else {
          strs << ConvertValuesToString(length, data) << ";\n";
       }
-      strs << type << " * tensor_" + t.first + " = fTensor_" + t.first + ".data();\n";
+      strs << type << " * " + addTensorMember(t.first) + " = fTensor_" + t.first + ".data();\n";
    }
    return strs.str();
 }
@@ -736,11 +737,12 @@ void RModel::GenerateInitializedTensorInfo()
    for (auto &i : fInitializedTensors) {
       if (i.second.IsNotWritable())  continue;
       if (!fUseWeightFile || i.second.IsConstantTensor() || !i.second.IsWeightTensor() ) {
+         auto addTensorMember = [this](std::string const &name) -> std::string { return this->AddTensorMember(name); };
          if (i.second.type() == ETensorType::FLOAT) {
-            fGC += GenerateConstantTensorCode<float>(i);
+            fGC += GenerateConstantTensorCode<float>(i, addTensorMember);
             fConstantTensorSize += ConvertShapeToLength(i.second.shape()) * 4;
          } else if (i.second.type() == ETensorType::INT64) {
-            fGC += GenerateConstantTensorCode<int64_t>(i);
+            fGC += GenerateConstantTensorCode<int64_t>(i, addTensorMember);
             fConstantTensorSize += ConvertShapeToLength(i.second.shape()) * 8;
          }
 
@@ -749,7 +751,7 @@ void RModel::GenerateInitializedTensorInfo()
          size_t length = ConvertShapeToLength(i.second.shape());
          if (i.second.type() == ETensorType::FLOAT) {
             fGC += "std::vector<float> fTensor_" + i.first + " = std::vector<float>(" + std::to_string(length) + ");\n";
-            fGC += "float * tensor_" + i.first + " = fTensor_" + i.first + ".data();\n";
+            fGC += "float * " + AddTensorMember(i.first) + " = fTensor_" + i.first + ".data();\n";
             fWeightsTensorSize += ConvertShapeToLength(i.second.shape()) * 4;
          }
       }
@@ -774,7 +776,7 @@ void RModel::GenerateIntermediateTensorInfo() {
          bool  is_alias = (IsAliasTensor(i.first));
          if (i.second.type == ETensorType::BOOL && !is_alias) {
                tensor_declaration_block += "std::vector<std::uint8_t> fTensor_" + i.first + " = std::vector<std::uint8_t>(" + std::to_string(ConvertShapeToLength(i.second.shape)) + ");\n";
-               tensor_declaration_block += "std::uint8_t * tensor_" + i.first + " = fTensor_" + i.first + ".data();\n";
+               tensor_declaration_block += "std::uint8_t * " + AddTensorMember(i.first) + " = fTensor_" + i.first + ".data();\n";
                continue;
          }
          bool is_extended = (fOptimizationLevel == OptimizationLevel::kExtended);
@@ -788,22 +790,22 @@ void RModel::GenerateIntermediateTensorInfo() {
 
             if (i.second.type == ETensorType::FLOAT) {
                tensor_declaration_block += "std::vector<float> fTensor_" + i.first + " = std::vector<float>(" + std::to_string(length) + ");\n";
-               tensor_declaration_block += "float * tensor_" + i.first + " = fTensor_" + i.first + ".data();\n";
+               tensor_declaration_block += "float * " + AddTensorMember(i.first) + " = fTensor_" + i.first + ".data();\n";
                fOtherTensorSize += 4 * length;
             }
             else if (i.second.type == ETensorType::DOUBLE) {
                tensor_declaration_block += "std::vector<double> fTensor_" + i.first + " = std::vector<double>(" + std::to_string(length) + ");\n";
-               tensor_declaration_block += "double * tensor_" + i.first + " = fTensor_" + i.first + ".data();\n";
+               tensor_declaration_block += "double * " + AddTensorMember(i.first) + " = fTensor_" + i.first + ".data();\n";
                fOtherTensorSize += 8 * length;
             }
             else if (i.second.type == ETensorType::INT64) {
                tensor_declaration_block += "std::vector<int64_t> fTensor_" + i.first + " = std::vector<int64_t>(" + std::to_string(length) + ");\n";
-               tensor_declaration_block += "int64_t * tensor_" + i.first + " = fTensor_" + i.first + ".data();\n";
+               tensor_declaration_block += "int64_t * " + AddTensorMember(i.first) + " = fTensor_" + i.first + ".data();\n";
                fOtherTensorSize += 8 * length;
             }
          }
          if (is_alias) {
-             tensor_declaration_block += ConvertTypeToString(i.second.type) + " * tensor_" + i.first + " = nullptr;\n";
+             tensor_declaration_block += ConvertTypeToString(i.second.type) + " * " + AddTensorMember(i.first) + " = nullptr;\n";
          }
 
       }
@@ -816,7 +818,7 @@ void RModel::GenerateIntermediateTensorInfo() {
    if (!fDynamicTensorInfos.empty()) {
       fGC += "//--- declare the dynamic tensors\n";
       for (auto &i : fDynamicTensorInfos) {
-         fGC += ConvertTypeToString(i.second.type) + " * tensor_" + i.first + " = nullptr;\n";
+         fGC += ConvertTypeToString(i.second.type) + " * " + AddTensorMember(i.first) + " = nullptr;\n";
       }
       fGC += "//--- dynamic tensors pool\n";
       fGC += "std::vector<char> fDynamicMemoryPool;\n";
@@ -995,9 +997,9 @@ void RModel::GenerateOutput()
    if (!doInferArgs.empty())
       doInferArgs += ",";
    for (std::string const &name : fOutputTensorNames) {
-      bool isIntermediate = fIntermediateTensorInfos.count(name) > 0;
-      std::string n = isIntermediate ? std::to_string(ConvertShapeToLength(GetTensorShape(name)))
-                                     : ConvertDimShapeToLength(GetDynamicTensorShape(name));
+      bool isDynamic = fDynamicTensorInfos.count(name) > 0;
+      std::string n = !isDynamic ? std::to_string(ConvertShapeToLength(GetTensorShape(name)))
+                                 : ConvertDimShapeToLength(GetDynamicTensorShape(name));
       fGC += SP + "std::vector<" + typeForOutput(GetTensorType(name)) + " > output_tensor_" + name + "(" + n + ");\n";
       doInferArgs += " output_tensor_" + name + ".data(),";
    }
@@ -1060,7 +1062,7 @@ void RModel::GenerateSessionCode()
    doInferSignature.back() = ' ';
 
    if (fUseSession && !fIsGNNComponent) {
-      doInferSignature = sessionName + " const* session, " + doInferSignature;
+      doInferSignature = sessionName + " * session, " + doInferSignature;
    }
 
    doInferSignature = "void doInfer(" + doInferSignature + ")";
@@ -1205,22 +1207,14 @@ void RModel::GenerateSessionCode()
    fGC += "\n";
 
    if (fUseSession && !fIsGNNComponent) {
-      fGC += "    auto const& sess = session[0];\n";
-      std::vector<std::string> names;
-      for (auto const& it: fInitializedTensors) {
-         names.push_back(it.first);
+      fGC += "    auto & sess = session[0];\n";
+      for (auto const& name: fDataMembers) {
+         fGC += "    auto & " + name + " = sess." + name + ";\n";
       }
-      for (auto const& it: fIntermediateTensorInfos) {
-         names.push_back(it.first);
-      }
-      std::vector<std::string> added;
-      for (auto const& name : names) {
+      for (auto const& name: fPointerMemberNames) {
          auto found = std::find(fOutputTensorNames.begin(), fOutputTensorNames.end(), name);
-         auto found2 = std::find(added.begin(), added.end(), name);
-         // Output tensors are passed directly via the function call
-         if(found == fOutputTensorNames.end() && found2 == added.end()) {
+         if(found == fOutputTensorNames.end()) {
             fGC += "    auto & tensor_" + name + " = sess.tensor_" + name + ";\n";
-            added.push_back(name);
          }
       }
       fGC += "\n";
@@ -1236,6 +1230,17 @@ void RModel::GenerateSessionCode()
    for (size_t op_idx = 0; op_idx < fOperators.size(); ++op_idx) {
       if (fVerbose) std::cout << "Generating code for operator .... " << op_idx << std::endl;
       fGC += (fOperators[op_idx]->Generate(std::to_string(op_idx)));
+   }
+
+   if (fUseSession && !fIsGNNComponent) {
+      for (auto const& name: fPointerMemberNames) {
+         auto found = std::find(fOutputTensorNames.begin(), fOutputTensorNames.end(), name);
+         if(IsConstantTensor(name) && found != fOutputTensorNames.end()) {
+            std::string t = "sess.tensor_" + name;
+            fGC += "    std::copy(std::begin(" + t + "), std::end(" + t + "), tensor_" + name + ");\n";
+         }
+      }
+      fGC += "\n";
    }
 
    fGC += "}\n";
@@ -1657,6 +1662,4 @@ void RModel::Streamer(TBuffer &R__b) {
     }
 }
 
-}//SOFIE
-}//Experimental
-}//TMVA
+} // namespace SOFIE::Experimental::TMVA
