@@ -138,6 +138,8 @@ public:
   static bool _printScientific ;
   static Int_t  _printSigDigits ;
 
+   friend class RooAbsMinimizerFcn;
+
    void setValFast(double value) override
    {
       if (_value != value) {

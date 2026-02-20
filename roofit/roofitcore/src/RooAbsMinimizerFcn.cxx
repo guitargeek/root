@@ -234,7 +234,7 @@ bool RooAbsMinimizerFcn::SetPdfParamVal(int index, double value) const
       if (cfg().verbose)
          std::cout << par.GetName() << "=" << value << ", ";
 
-      par.setVal(value);
+      par.setValFast(value);
       return true;
    }
 
