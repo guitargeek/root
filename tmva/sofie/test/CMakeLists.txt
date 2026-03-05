@@ -56,6 +56,11 @@ if (BLAS_FOUND)  # we need BLAS for compiling the models
   ROOTTEST_ADD_TEST(TestCustomModelsFromONNX
                     EXEC ./TestCustomModelsFromONNX
                     FIXTURES_REQUIRED sofie-compile-models-onnx)
+
+  if(clad)
+    target_compile_definitions(TestCustomModelsFromONNX PUBLIC SOFIE_CLAD)
+  endif()
+
 endif()
 
 # For testing serialisation of RModel object
