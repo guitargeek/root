@@ -21,9 +21,7 @@
 #include <cassert>
 #include <limits>
 
-namespace TMVA {
-namespace Experimental {
-namespace SOFIE {
+namespace TMVA::Experimental::SOFIE {
 
 enum class ETensorType{
    UNDEFINED = 0, FLOAT = 1, UINT8 = 2, INT8 = 3, UINT16 = 4, INT16 = 5, INT32 = 6, INT64 = 7, STRING = 8, BOOL = 9, //order sensitive
@@ -207,12 +205,7 @@ std::vector<size_t> ConvertShapeToInt(const std::vector<Dim> & shape);
 std::size_t ConvertShapeToLength(const std::vector<size_t> & shape);
 
 std::string ConvertShapeToString(const std::vector<size_t> & shape);
-std::string ConvertDimShapeToString(const std::vector<Dim> & shape);
 std::string ConvertShapeToString(const std::vector<Dim> & shape);
-
-
-
-std::string ConvertDimShapeToLength(const std::vector<Dim> & shape);
 std::string ConvertDynamicShapeToLength(const std::vector<Dim> & shape);
 
 
@@ -833,8 +826,6 @@ struct MemoryResult {
 /// Greedy best-fit planner with coalescing free list.
 MemoryResult OrganizeMemory(const std::vector<TensorLifeInfo> & tensorsInfo );
 
-} // namespace SOFIE
-} // namespace Experimental
-} // namespace TMVA
+} // namespace TMVA::Experimental::SOFIE
 
 #endif //TMVA_SOFIE_COMMON

@@ -97,7 +97,7 @@ public:
       fShapeY = fShapeX;
       model.AddIntermediateTensor(fNY, model.GetTensorType(fNX), fShapeY);
       if (model.Verbose())
-         std::cout << "\t----> " << ConvertDimShapeToString(fShapeY) << std::endl;
+         std::cout << "\t----> " << ConvertShapeToString(fShapeY) << std::endl;
    }
 
    std::string GenerateInitCode() override {
@@ -118,7 +118,7 @@ public:
       auto strideY = UTILITY::ComputeStrideFromShape(fShapeY);
       auto strideI = UTILITY::ComputeStrideFromShape(fShapeI);
 
-      auto length = ConvertDimShapeToLength(fShapeY);
+      auto length = ConvertDynamicShapeToLength(fShapeY);
 
       // function to write compute expression for global index from axes indices
       auto tensorIndex = [](const std::vector<Dim> & stride, const std::vector<std::string> & idx) {

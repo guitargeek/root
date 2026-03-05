@@ -156,7 +156,7 @@ public:
             out << SP << "size_t " << fDimOutputShape[i].param << " = " << "tensor_" << fNX << "[" << i << "];\n";
          }
       }
-      auto length = ConvertDimShapeToLength(fDimOutputShape);
+      auto length = ConvertDynamicShapeToLength(fDimOutputShape);
       // vector is already allocated- fill with values
       out << SP << "std::fill(tensor_" << fNY << ", tensor_" << fNY << " + " << length << ", " << fValues[0] << ");\n";
       return out.str();

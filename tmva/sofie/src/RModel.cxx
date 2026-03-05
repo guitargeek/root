@@ -858,7 +858,7 @@ void RModel::GenerateDynamicTensorInfo()
          // check if is a dynamic tensor and not an alias tensor
          std::string name = std::string(it);
          if ( fDynamicTensorInfos.find(name) != fDynamicTensorInfos.end() && !IsAliasTensor(name)) {
-            auto tensor_size =  ConvertDimShapeToLength(GetDimTensorShape(name));
+            auto tensor_size =  ConvertDynamicShapeToLength(GetDimTensorShape(name));
             auto type = GetTensorType(name);
             size_t type_size = GetTypeSize(type);
             int begin = op_index;
@@ -1200,7 +1200,7 @@ void RModel::GenerateSessionCode()
       // larger size) in that case better to copy
       bool isIntermediate = fIntermediateTensorInfos.count(name) > 0;
       std::string n = isIntermediate ? std::to_string(ConvertShapeToLength(GetTensorShape(name)))
-                                     : ConvertDimShapeToLength(GetDimTensorShape(name));
+                                     : ConvertDynamicShapeToLength(GetDimTensorShape(name));
       fGC += SP + "FillOutput(tensor_" + name + ", output_tensor_" + name + ", " + n + ");\n";
    }
 

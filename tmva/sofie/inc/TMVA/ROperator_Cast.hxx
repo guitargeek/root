@@ -66,7 +66,7 @@ public:
          model.AddIntermediateTensor(fNY, ConvertStringToType(fAttrType), fShape);
       if (model.Verbose()) {
          std::cout << "Cast : " << ConvertTypeToString(inputType) << " " << fNX << " -> " << fAttrType << " for " << fNY
-                  << " shape " << ConvertDimShapeToString(fShape);
+                  << " shape " << ConvertShapeToString(fShape);
          if (fIsOutputConstant) std::cout << " (constant) ";
          std::cout << std::endl;
       }
@@ -78,9 +78,9 @@ public:
       // output shape can be empty if is a scalar
 
       std::stringstream out;
-      auto length = ConvertDimShapeToLength(fShape);
+      auto length = ConvertDynamicShapeToLength(fShape);
 
-      out << "\n//------ CAST " << opName << " ---> " << fNY << "  " << ConvertDimShapeToString(fShape) << "\n";
+      out << "\n//------ CAST " << opName << " ---> " << fNY << "  " << ConvertShapeToString(fShape) << "\n";
        // no generated code for constant outputs
       if (fIsOutputConstant) return out.str();
 

@@ -284,16 +284,16 @@ public:
       }
       std::stringstream out;
       out << SP << "\n//------ " << opName << "  " << BinaryOperatorTrait<T, Op>::Name() << " --> "
-          << ConvertDimShapeToString(fDimShapeY) << "\n";
-      auto length = ConvertDimShapeToLength(fDimShapeY);
+          << ConvertShapeToString(fDimShapeY) << "\n";
+      auto length = ConvertDynamicShapeToLength(fDimShapeY);
       std::string typeName = TensorType<T>::Name();
 
       // we need to check if we can broadcast (case flag has bit 4 set)
 
       if (fBroadcastFlag & 4) {
          // need to check if shapes are the same
-         auto lengthA = ConvertDimShapeToLength(fDimShapeA);
-         auto lengthB = ConvertDimShapeToLength(fDimShapeB);
+         auto lengthA = ConvertDynamicShapeToLength(fDimShapeA);
+         auto lengthB = ConvertDynamicShapeToLength(fDimShapeB);
          out << SP << "if (" << lengthA << "!=" << lengthB << ") {\n";
          // check if A->B or B->A
          // bool broadcastable = true;

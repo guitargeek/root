@@ -95,13 +95,13 @@ public:
       // Shape of fShapeX[0, ..., fAxis)
       fAxesShape = std::vector<Dim>(fShapeX.begin(), fShapeX.begin() + fAxis);
       // Length of the axes
-      fAxesLength = ConvertDimShapeToLength(fAxesShape);
+      fAxesLength = ConvertDynamicShapeToLength(fAxesShape);
       // Shape of fShapeX[fAxis, ..., fSize)
       fNormalizedShape = std::vector<Dim>(fShapeX.begin() + fAxis, fShapeX.end());
       // Length of the normalized axis
-      fNormalizedLength = ConvertDimShapeToLength(fNormalizedShape);
+      fNormalizedLength = ConvertDynamicShapeToLength(fNormalizedShape);
       // length of the input
-      fLength = ConvertDimShapeToLength(fShapeX);
+      fLength = ConvertDynamicShapeToLength(fShapeX);
       // Type of mean and std
       ETensorType type = (fAttrStashType == 1) ? ETensorType::FLOAT : model.GetTensorType(fNX);
       // Mean
@@ -141,7 +141,7 @@ public:
       // check also shape if consistent now
       for (size_t i = 0; i < fSize; i++) {
          if (fShapeScale[i].dim != 1 && fShapeScale[i] != fShapeX[i])
-            throw std::runtime_error("TMVA::SOFIE - LayerNormalization - Scale Tensor has invalid shape " + ConvertDimShapeToString(fShapeScale));
+            throw std::runtime_error("TMVA::SOFIE - LayerNormalization - Scale Tensor has invalid shape " + ConvertShapeToString(fShapeScale));
       }
       if (!fNB.empty()) {
          fShapeB = model.GetDimTensorShape(fNB);
@@ -153,11 +153,11 @@ public:
          }
          for (size_t i = 0; i < fSize; i++) {
             if (fShapeB[i].dim != 1 && fShapeB[i] != fShapeX[i])
-               throw std::runtime_error("TMVA::SOFIE - LayerNormalization - Bias Tensor has invalid shape " + ConvertDimShapeToString(fShapeScale));
+               throw std::runtime_error("TMVA::SOFIE - LayerNormalization - Bias Tensor has invalid shape " + ConvertShapeToString(fShapeScale));
          }
       }
 
-      std::cout << "bias + scale " << ConvertDimShapeToString(fShapeB) << "  " << ConvertDimShapeToString(fShapeScale) << std::endl;
+      std::cout << "bias + scale " << ConvertShapeToString(fShapeB) << "  " << ConvertShapeToString(fShapeScale) << std::endl;
 
       // // Broadcast the bias
       // if (!fNB.empty()) {

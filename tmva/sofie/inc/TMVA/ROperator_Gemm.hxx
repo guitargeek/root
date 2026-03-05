@@ -233,11 +233,11 @@ namespace SOFIE{
                auto r = UTILITY::MultidirectionalBroadcastShape(fShapeY, shapeDimC);
                // return flag must be equal to 1 since this is a unidirectional broadcast of C->Y
                if (r.first > 1) {
-                  throw std::runtime_error("TMVA SOFIE Gemm Op - bias tensor of shape " + ConvertShapeToString(fShapeC) + " cannot be uni-directional broadcasted to " + ConvertDimShapeToString(fShapeY));
+                  throw std::runtime_error("TMVA SOFIE Gemm Op - bias tensor of shape " + ConvertShapeToString(fShapeC) + " cannot be uni-directional broadcasted to " + ConvertShapeToString(fShapeY));
                }
                fShapeC = ConvertShapeToInt(shapeDimC);
                if (fShapeC.empty()) {
-                  throw std::runtime_error("TMVA SOFIE Gemm Op - Error in bias tensor " + ConvertDimShapeToString(shapeDimC) );
+                  throw std::runtime_error("TMVA SOFIE Gemm Op - Error in bias tensor " + ConvertShapeToString(shapeDimC) );
                }
             }
          }
@@ -299,8 +299,8 @@ namespace SOFIE{
          for (int64_t i = 0; i < dimY-2; i++) {
             sExtraY.push_back(fShapeY[i]);
          }
-         auto lengthGemm = ConvertDimShapeToLength(sY); // size of the Gemm operation
-         auto lengthExtra_Y = ConvertDimShapeToLength(sExtraY); // extra length in case input tensors are of dim>2 (MatMul)
+         auto lengthGemm = ConvertDynamicShapeToLength(sY); // size of the Gemm operation
+         auto lengthExtra_Y = ConvertDynamicShapeToLength(sExtraY); // extra length in case input tensors are of dim>2 (MatMul)
 
          // case bias is present
          if (!fNC.empty()){
@@ -338,11 +338,11 @@ namespace SOFIE{
             std::vector<Dim> sB(fShapeB.begin(), fShapeB.begin()+dimB-2);
             std::vector<Dim> mA = {fShapeA[dimA-2], fShapeA[dimA-1]};
             std::vector<Dim> mB = {fShapeA[dimB-2], fShapeB[dimB-1]};
-            lengthExtra_A = ConvertDimShapeToLength(sA);
-            lengthExtra_B = ConvertDimShapeToLength(sB);
+            lengthExtra_A = ConvertDynamicShapeToLength(sA);
+            lengthExtra_B = ConvertDynamicShapeToLength(sB);
             // size of A performing matmul is m*k and n*k for B
-            increment_A = ConvertDimShapeToLength(mA);
-            increment_B = ConvertDimShapeToLength(mB);
+            increment_A = ConvertDynamicShapeToLength(mA);
+            increment_B = ConvertDynamicShapeToLength(mB);
          }
          bool extraA = (doStackMul && lengthExtra_A != "1");
          bool extraB = (doStackMul && lengthExtra_B != "1");
@@ -406,7 +406,7 @@ namespace SOFIE{
             out << ");\n";
 
             if(fActivation == EActivationType::RELU){
-               out << SP << "for (int id = 0; id < " << ConvertDimShapeToLength(fShapeY) << " ; id++){\n";
+               out << SP << "for (int id = 0; id < " << ConvertDynamicShapeToLength(fShapeY) << " ; id++){\n";
                out << SP << SP << "tensor_" << fNY << "[id] = ((tensor_" << fNY << "[id] > 0 )? tensor_" << fNY << "[id] : 0);\n";
                out << SP << "}\n";
             }

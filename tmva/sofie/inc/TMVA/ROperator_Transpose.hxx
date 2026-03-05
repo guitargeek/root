@@ -133,7 +133,7 @@ public:
       int dim = fShapeData.size();
       auto inStrides = UTILITY::ComputeStrideFromShape(fShapeData);
       auto outStrides = UTILITY::ComputeStrideFromShape(fShapeOutput);
-      auto length = ConvertDimShapeToLength(fShapeData);
+      auto length = ConvertDynamicShapeToLength(fShapeData);
       //assert (length == outStrides[0]*fShapeOutput[0]);
 
       std::stringstream out;
@@ -147,8 +147,8 @@ public:
       //......
       // and we have j_k = i_fAttrPerm[k]
       // since we are using consecutive writes we should find the inverse of fAttrPerm
-      out << SP << "///------- Transpose operator " << OpName << ConvertDimShapeToString(fShapeData)
-                  << " --> " << ConvertDimShapeToString(fShapeOutput) << std::endl;
+      out << SP << "///------- Transpose operator " << OpName << ConvertShapeToString(fShapeData)
+                  << " --> " << ConvertShapeToString(fShapeOutput) << std::endl;
       out << SP << "for (size_t id = 0; id < " << length << " ; id++){\n";
       out << SP << SP << "tensor_" << fNOutput << "[id] = tensor_" << fNData << "[ ";
       // compute output j indices

@@ -170,7 +170,7 @@ public:
 
       // case fIndices is not known we need to correct for negative axis indices at run-time
       if (fIndices.empty()) {
-         auto indicesLength = ConvertDimShapeToLength(fShapeIndices);
+         auto indicesLength = ConvertDynamicShapeToLength(fShapeIndices);
          out << SP << "// correct in case of negative gather indices\n";
          out << SP << "for (size_t i = 0; i < " << indicesLength << "; i++){\n";
          out << SP << SP << "if (tensor_" << fNIndices << "[i] < 0)\n";

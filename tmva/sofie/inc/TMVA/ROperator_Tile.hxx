@@ -89,7 +89,7 @@ public:
       model.AddIntermediateTensor(fNY, model.GetTensorType(fNInput), fShapeY);
 
       if (model.Verbose())
-         std::cout <<  "Tile: " << fNInput << " " << ConvertDimShapeToString(fShapeInput) << " -> " << fNY << " with shape " << ConvertDimShapeToString(fShapeY)
+         std::cout <<  "Tile: " << fNInput << " " << ConvertShapeToString(fShapeInput) << " -> " << fNY << " with shape " << ConvertShapeToString(fShapeY)
             << " given repeats " << ConvertShapeToString(repeats_vector) << std::endl;
    }
 
@@ -108,9 +108,9 @@ public:
       std::string output = "tensor_" + fNY;
       out << "///-------- Tile operator\n";
       out << "{\n"; // add scope to re-use same names
-      out << "const size_t input_shape[" << fShapeInput.size() << "] = " << ConvertDimShapeToString(fShapeInput) << ";\n";
+      out << "const size_t input_shape[" << fShapeInput.size() << "] = " << ConvertShapeToString(fShapeInput) << ";\n";
 
-      out << "int inputLength = " << ConvertDimShapeToLength(fShapeInput) << ";\n";
+      out << "int inputLength = " << ConvertDynamicShapeToLength(fShapeInput) << ";\n";
       out << "int s = 1;\n";
       // loop from inverse dim order
       out << "for (int i = " << fShapeInput.size()-1 << "; i >=0; i--) {\n";
