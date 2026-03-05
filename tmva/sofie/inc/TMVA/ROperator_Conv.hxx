@@ -302,7 +302,7 @@ public:
       std::vector<size_t> outputInts = ConvertShapeToInt(outputDims);
       Dim channelDim;
       if (outputInts.empty()) {
-         auto outputChannelSize = ConvertDimShapeToLength(outputDims); // size/channel = D * H * W
+         auto outputChannelSize = ConvertDynamicShapeToLength(outputDims); // size/channel = D * H * W
          channelDim = Dim{ outputChannelSize, static_cast<size_t>(-1)};
       } else {
          size_t outputChannelSize = ConvertShapeToLength(outputInts);
@@ -342,7 +342,7 @@ public:
          out << "//--- broadcast bias tensor " << fNB << "for Conv op if needed \n";
          // in case of dynamic tensors check needs to be done at run time
          bool isOutDynamic = ConvertShapeToInt(targetShape).empty();
-         auto length = ConvertDimShapeToLength(targetShape);
+         auto length = ConvertDynamicShapeToLength(targetShape);
          if (isOutDynamic)
             out << SP << "if (" << length << " > " << ConvertShapeToLength(shape) << ") {\n";
          else
@@ -378,11 +378,11 @@ public:
       auto oHeight = (fDim > 1) ? fShapeY[fDim] : Dim{1};  // ouput height
       auto oWidth = fShapeY[fDim+1]; // output width
       // total output size for a channel
-      auto outputChannelStride = ConvertDimShapeToLength(std::vector<Dim>{oDepth, oHeight, oWidth}); // size of channel = D * H * W
-      auto outputBatchStride =  ConvertDimShapeToLength(std::vector<Dim>{fShapeY[1] , oDepth, oHeight, oWidth}); // size of C * D * H * W
+      auto outputChannelStride = ConvertDynamicShapeToLength(std::vector<Dim>{oDepth, oHeight, oWidth}); // size of channel = D * H * W
+      auto outputBatchStride =  ConvertDynamicShapeToLength(std::vector<Dim>{fShapeY[1] , oDepth, oHeight, oWidth}); // size of C * D * H * W
       // input size
-      auto inputChannelStride = ConvertDimShapeToLength(std::vector<Dim>{iDepth, iHeight, iWidth});
-      auto inputBatchStride =  ConvertDimShapeToLength(std::vector<Dim>{fShapeX[1] , iDepth, iHeight, iWidth}); // size of C * D * H * W
+      auto inputChannelStride = ConvertDynamicShapeToLength(std::vector<Dim>{iDepth, iHeight, iWidth});
+      auto inputBatchStride =  ConvertDynamicShapeToLength(std::vector<Dim>{fShapeX[1] , iDepth, iHeight, iWidth}); // size of C * D * H * W
 
       out << "\n//----  operator Conv " << OpName << "\n";
 

@@ -104,7 +104,7 @@ public:
    std::string GenerateSessionCtorCode() override {
       if (fIsOutputConstant) return "";
       // define output value used as max non zero with max size = input shape * N
-      auto inputLength = ConvertDimShapeToLength(fShapeX);
+      auto inputLength = ConvertDynamicShapeToLength(fShapeX);
       std::stringstream out;
       out << SP << "size_t v_NonZero_" << fNX << " = " << inputLength << ";\n";
       return out.str();
@@ -122,7 +122,7 @@ public:
       std::stringstream out;
       auto intShapeX = ConvertShapeToInt(fShapeX);
       size_t inputLength = 0;
-      std::string s_inputLength = ConvertDimShapeToLength(fShapeX);
+      std::string s_inputLength = ConvertDynamicShapeToLength(fShapeX);
       if (!intShapeX.empty())
          inputLength = ConvertShapeToLength(intShapeX);
 

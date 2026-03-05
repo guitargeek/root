@@ -190,7 +190,7 @@ public:
       size_t ss = fShapeIndices.back().dim;
 
       // check for negative indices
-      auto indicesLength = ConvertDimShapeToLength(fShapeIndices);
+      auto indicesLength = ConvertDynamicShapeToLength(fShapeIndices);
       out << SP << "for (size_t i = 0; i < " << indicesLength << "; i++) {\n";
       out << SP << SP << "if (tensor_" << fNIndices << "[i] < 0 ) {\n";
       // corresponding input shape is  i % strides[N-1]

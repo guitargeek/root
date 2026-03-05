@@ -206,7 +206,7 @@ public:
          throw std::runtime_error("TMVA SOFIE BasicNary called to Generate without being initialized first");
       }
       std::stringstream out;
-      auto length = ConvertDimShapeToLength(fDimShapeY);
+      auto length = ConvertDynamicShapeToLength(fDimShapeY);
       out << SP << "\n//------ BasicNary operator\n";
 
       int nInputs = fNInputs.size();

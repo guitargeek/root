@@ -62,7 +62,7 @@ public:
       }
       std::stringstream out;
       size_t size = fShape.size();
-      auto length_str = ConvertDimShapeToLength(fShape);
+      auto length_str = ConvertDynamicShapeToLength(fShape);
       size_t axis = fAttrAxis < 0 ? size + fAttrAxis : fAttrAxis;
 
       // Check if this is the special case where memory is contiguous.

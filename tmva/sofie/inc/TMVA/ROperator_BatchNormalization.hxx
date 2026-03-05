@@ -155,7 +155,7 @@ public:
       if (fShapeX.size() > 2) {
          auto spatialShape = fShapeX;
          spatialShape.erase(spatialShape.begin(), spatialShape.begin()+2);
-         spatial_dim = ConvertDimShapeToLength( spatialShape);
+         spatial_dim = ConvertDynamicShapeToLength( spatialShape);
       }
 
       out << "\n\n//---- BatchNorm" << (fActivation == EActivationType::RELU ? " + ReLU " : " ") << opName << "\n";

@@ -124,8 +124,8 @@ public:
          throw std::runtime_error("TMVA SOFIE Reduce Op called to Generate without being initialized first");
       }
 
-      auto inputLength = TMVA::Experimental::SOFIE::ConvertDimShapeToLength(fShapeX);
-      auto outputLength = TMVA::Experimental::SOFIE::ConvertDimShapeToLength(fShapeY);
+      auto inputLength = TMVA::Experimental::SOFIE::ConvertDynamicShapeToLength(fShapeX);
+      auto outputLength = TMVA::Experimental::SOFIE::ConvertDynamicShapeToLength(fShapeY);
 
       auto inputStrides = TMVA::Experimental::SOFIE::UTILITY::ComputeStrideFromShape(fShapeX);
       // output stride (or not pruned vector)

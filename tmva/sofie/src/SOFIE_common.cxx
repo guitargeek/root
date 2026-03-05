@@ -128,7 +128,7 @@ std::string ConvertShapeToString(const std::vector<size_t> & shape) {
    return out.str();
 }
 
-std::string ConvertDimShapeToString(const std::vector<Dim> & shape) {
+std::string ConvertShapeToString(const std::vector<Dim> & shape) {
    std::stringstream out;
    out << "{ ";
    for (size_t i = 0; i < shape.size(); i++) {
@@ -139,7 +139,7 @@ std::string ConvertDimShapeToString(const std::vector<Dim> & shape) {
    return out.str();
 }
 
-std::string ConvertDimShapeToLength(const std::vector<Dim> & shape) {
+std::string ConvertDynamicShapeToLength(const std::vector<Dim> & shape) {
    // convert generic shape to a string
    // multiply all the integer specified dimensions of the shape
    std::string length;
@@ -168,12 +168,6 @@ std::string ConvertDimShapeToLength(const std::vector<Dim> & shape) {
       }
    }
    return length;
-}
-std::string ConvertShapeToString(const std::vector<Dim> & shape) {
-   return ConvertDimShapeToString(shape);
-}
-std::string ConvertDynamicShapeToLength(const std::vector<Dim> & shape) {
-   return ConvertDimShapeToLength(shape);
 }
 
 
@@ -503,7 +497,7 @@ std::pair<int, std::vector<Dim>> UTILITY::MultidirectionalBroadcastShape(std::ve
    }
    if (broadcastFlag == -1) {
       throw std::runtime_error("TMVA::SOFIE - Error multidirectional broadcasting tensors of shape " +
-                                 ConvertDimShapeToString(shapeA) + " and " + ConvertDimShapeToString(shapeB) +
+                                 ConvertShapeToString(shapeA) + " and " + ConvertShapeToString(shapeB) +
                                  " to a common shape.");
    }
 

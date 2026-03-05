@@ -102,10 +102,10 @@ public:
             if (fShape[i] == -1) {
                auto tmp = output_shape;
                tmp.erase(tmp.begin() + i);
-               auto tmp_length = ConvertDimShapeToLength(tmp);
-               auto input_length = ConvertDimShapeToLength(input_shape);
+               auto tmp_length = ConvertDynamicShapeToLength(tmp);
+               auto input_length = ConvertDynamicShapeToLength(input_shape);
                if (fVerbose)
-                  std::cout << "reshape- try simplifying " << ConvertDimShapeToString(input_shape) << " with length "
+                  std::cout << "reshape- try simplifying " << ConvertShapeToString(input_shape) << " with length "
                             << input_length << " to " << tmp_length << std::endl;
 
                if (IsInteger(tmp_length) && IsInteger(input_length))
@@ -151,7 +151,7 @@ public:
                   }
                   if (canSimplify) {
                      // if length contains * we need to add some brackets
-                     std::string res_shape = ConvertDimShapeToLength(reduced_input);
+                     std::string res_shape = ConvertDynamicShapeToLength(reduced_input);
                      if (res_shape.find('*') != std::string::npos)
                         output_shape[i] = Dim{std::string("(") + res_shape + ")", static_cast<size_t>(-1)};
                      else
@@ -170,7 +170,7 @@ public:
          if (fVerbose)
             std::cout << "Reshape: correct output shape  to " << ConvertShapeToString(output_shape) << std::endl;
 
-         if (!fDimInput && ConvertDimShapeToLength(output_shape) != ConvertDimShapeToLength(input_shape)) {
+         if (!fDimInput && ConvertDynamicShapeToLength(output_shape) != ConvertDynamicShapeToLength(input_shape)) {
             throw std::runtime_error("TMVA Reshape Op : Invalid  shapes : " + ConvertShapeToString(input_shape) +
                                      ConvertShapeToString(output_shape));
          }
@@ -182,8 +182,8 @@ public:
             fAxis += input_shape.size();
          auto s1 = std::vector<Dim>(input_shape.begin(), input_shape.begin() + fAxis);
          auto s2 = std::vector<Dim>(input_shape.begin() + fAxis, input_shape.end());
-         auto l1 = ConvertDimShapeToLength(s1);
-         auto l2 = ConvertDimShapeToLength(s2);
+         auto l1 = ConvertDynamicShapeToLength(s1);
+         auto l2 = ConvertDynamicShapeToLength(s2);
          std::vector<Dim> newShape = {Dim{l1}, Dim{l2}};
          ret.push_back(newShape);
       } else if (fOpMode == Squeeze) {
@@ -359,8 +359,8 @@ public:
       }
 
       // output of reshape is same as input
-      auto lengthOut = ConvertDimShapeToLength(fShapeOutput);
-      auto lengthIn = ConvertDimShapeToLength(fShapeInput);
+      auto lengthOut = ConvertDynamicShapeToLength(fShapeOutput);
+      auto lengthIn = ConvertDynamicShapeToLength(fShapeInput);
       if (lengthOut != lengthIn) {
          // check needs to be done at run-time
          out << SP << "if (" << lengthOut << "!=" << lengthIn << ")\n";

@@ -151,7 +151,7 @@ public:
    std::string Generate(std::string opName) override {
 
       std::stringstream out;
-      out << "\n//------ Range " << opName << "---> " << ConvertDimShapeToString(fShape) << "\n";
+      out << "\n//------ Range " << opName << "---> " << ConvertShapeToString(fShape) << "\n";
       if (fIsOutputConstant) return out.str();
 
       opName = "op_" + opName;

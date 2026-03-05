@@ -129,7 +129,7 @@ public:
       std::stringstream out;
       if (!fIsOutputConstant && fInitialized && !fInitBroadcast) {
          // shapeX and shapeY are the same in this case
-         auto length = ConvertDimShapeToLength(fShapeY);
+         auto length = ConvertDynamicShapeToLength(fShapeY);
          out << "// Copying initialized tensor " << fNX << " to " << fNY << "\n";
          out << SP << "std::copy(tensor_" << fNX << ", " << "tensor_" << fNX << " + " << length << ", tensor_" << fNY << ");\n";
       }

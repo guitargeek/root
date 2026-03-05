@@ -76,7 +76,7 @@ public:
       std::stringstream out;
 
       out << SP << "\n//---- Operator" << IsOpTraits<Op>::Name() << " " << opName << "\n";
-      auto length = ConvertDimShapeToLength(fShapeX);
+      auto length = ConvertDynamicShapeToLength(fShapeX);
       out << SP << "for (size_t i = 0; i < " << length << "; i++) {\n";
       out << SP << SP << "tensor_" << fNY << "[i] = " << IsOpTraits<Op>::Op("tensor_" + fNX + "[i]") << ";\n";
       out << SP << "}\n";

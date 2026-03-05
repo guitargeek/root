@@ -44,7 +44,7 @@ public:
       std::stringstream out;
 
       out << SP << "\n//---- Operator Not  " << opName << "\n";
-      auto length = ConvertDimShapeToLength(fShapeX);
+      auto length = ConvertDynamicShapeToLength(fShapeX);
       out << SP << "for (size_t i = 0; i < " << length << "; i++) {\n";
       out << SP << SP << "tensor_" << fNY << "[i] = !tensor_" + fNX + "[i];\n";
       out << SP << "}\n";

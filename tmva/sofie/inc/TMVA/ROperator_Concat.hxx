@@ -178,7 +178,7 @@
             }
             fOutputShape = ShapeInference(fInputShapes, model);
             if (model.Verbose())
-               std::cout << "Output of concat operator has shape " << ConvertDimShapeToString(fOutputShape) << std::endl;
+               std::cout << "Output of concat operator has shape " << ConvertShapeToString(fOutputShape) << std::endl;
 
             // check if concat has constant inputs , axis 0(concat contigous memory and type is integer)
             bool isOutputShape = false;
@@ -248,7 +248,7 @@
             if (!fIsOutputConstant) {
                model.AddIntermediateTensor(fOutput, model.GetTensorType(fInputs[0]), fOutputShape);
                if (model.Verbose()) {
-                  std::cout << "Concat ---> " << fOutput << " " <<  ConvertDimShapeToString(fOutputShape) << std::endl;
+                  std::cout << "Concat ---> " << fOutput << " " <<  ConvertShapeToString(fOutputShape) << std::endl;
                }
             }
          }
@@ -274,7 +274,7 @@
             if (fAxis == 0 || hasShapeOnes) {
                std::string offset;
                for(size_t i=0; i<fInputs.size(); ++i) {
-                  auto length = ConvertDimShapeToLength(fInputShapes[i]);
+                  auto length = ConvertDynamicShapeToLength(fInputShapes[i]);
                   out << SP << "std::copy(tensor_" <<fInputs[i] << ", tensor_" <<fInputs[i] << "+" << length <<", tensor_"<<fOutput;
                   if (i > 0)  out << offset;
                   offset += " + " + length;

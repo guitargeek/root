@@ -287,7 +287,7 @@ public:
          size_t outputSize = ConvertShapeToLength(ConvertShapeToInt(fShapeOutput));
          std::vector<int64_t> outputData(outputSize);
          std::vector<size_t> inputStride = UTILITY::ComputeStrideFromShape(ConvertShapeToInt(fShapeInput));
-         std::cout << "slice " << ConvertDimShapeToString(fShapeInput) << " output size " << outputSize << "  " << ConvertDimShapeToString(fShapeOutput) << std::endl;
+         std::cout << "slice " << ConvertShapeToString(fShapeInput) << " output size " << outputSize << "  " << ConvertShapeToString(fShapeOutput) << std::endl;
          std::cout << " start - end -steps \n";
          for (size_t ii = 0; ii< fStart.size(); ii++)
             std::cout << fStart[ii] << "  " << fEnd[ii] << "  " << fSteps[ii] << std::endl;
@@ -367,7 +367,7 @@ public:
       std::stringstream out;
 
       out << "///------- Slice operator " << opName << "---> " << fNOutput << " "
-          << ConvertDimShapeToString(fShapeOutput) << "\n" << std::endl;
+          << ConvertShapeToString(fShapeOutput) << "\n" << std::endl;
       if (fIsOutputConstant) return out.str();  //no op for constant tensors
 
       size_t ndim = fShapeInput.size();

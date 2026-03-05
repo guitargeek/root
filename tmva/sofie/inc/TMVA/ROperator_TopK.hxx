@@ -99,12 +99,12 @@ public:
       size_t axis = fAttrAxis < 0 ? size + fAttrAxis : fAttrAxis;
       out << "\n" << SP << "//------ TopK\n";
 
-      auto length=ConvertDimShapeToLength(fShapeX);
+      auto length=ConvertDynamicShapeToLength(fShapeX);
       auto strideX = UTILITY::ComputeStrideFromShape(fShapeX);
       auto strideY = UTILITY::ComputeStrideFromShape(fShapeY);
       // we perform loop on dimension before sorted axis and after sorted axis
       std::vector<Dim> shape_before(fShapeX.begin(), fShapeX.begin() + axis);   // input shape before axis
-      std::string n_before = (axis>0) ? ConvertDimShapeToLength(shape_before) : "1";
+      std::string n_before = (axis>0) ? ConvertDynamicShapeToLength(shape_before) : "1";
       std::string n_after = strideX[axis].GetVal();
       std::string n_elements = fShapeX[axis].GetVal(); // number of elements to be sorted
 

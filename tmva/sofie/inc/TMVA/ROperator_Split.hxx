@@ -128,7 +128,7 @@ public:
       out << SP << "size_t " << OpName << "_axis_offset = 0;\n";
       // unroll the loop on split outputs
       for (size_t i = 0; i < fNYs.size(); i++)  {
-         auto length = ConvertDimShapeToLength(fOutputShapes[i]);
+         auto length = ConvertDynamicShapeToLength(fOutputShapes[i]);
          auto output_strides = UTILITY::ComputeStrideFromShape(fOutputShapes[i]);
 
          out << SP << "for (int id = 0; id < " << length << " ; id++){\n";
