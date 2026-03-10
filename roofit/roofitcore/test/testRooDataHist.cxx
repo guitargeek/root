@@ -811,3 +811,81 @@ TEST(RooDataHist, SplitDataHistWithSumW2)
    EXPECT_DOUBLE_EQ(data2.weightSquared(), data1.weightSquared(1));
    EXPECT_DOUBLE_EQ(data2.weightError(), data1.weightError());
 }
+
+TEST(RooDataHist, ReduceWithMultiRange2D)
+{
+   RooRealVar x{"x", "x", -2.0, 2.0};
+   RooRealVar y{"y", "y", -2.0, 2.0};
+
+   x.setBins(2);
+   y.setBins(2);
+
+   // Define four quadrant ranges. The same range name is applied jointly
+   // to all observables, i.e. q1 means:
+   //   x in [-2, 0], y in [-2, 0]
+   // and so on.
+   x.setRange("q1", -2.0, 0.0);
+   y.setRange("q1", -2.0, 0.0);
+
+   x.setRange("q2", 0.0, 2.0);
+   y.setRange("q2", -2.0, 0.0);
+
+   x.setRange("q3", -2.0, 0.0);
+   y.setRange("q3", 0.0, 2.0);
+
+   x.setRange("q4", 0.0, 2.0);
+   y.setRange("q4", 0.0, 2.0);
+
+   RooArgSet vars{x, y};
+
+   RooDataHist data{"data", "data", vars};
+
+   // Fill one entry per quadrant with distinct weights.
+   // Use prime numbers so weights can't accidentally add up to the weight in a
+   // different quadrant.
+   double w[]{2., 3., 5., 7.};
+   x = -1.0;
+   y = -1.0;
+   data.add(vars, w[0]); // q1
+
+   x = 1.0;
+   y = -1.0;
+   data.add(vars, w[1]); // q2
+
+   x = -1.0;
+   y = 1.0;
+   data.add(vars, w[2]); // q3
+
+   x = 1.0;
+   y = 1.0;
+   data.add(vars, w[3]); // q4
+
+   EXPECT_DOUBLE_EQ(data.sumEntries(), w[0] + w[1] + w[2] + w[3]);
+
+   using namespace RooFit;
+
+   // Single-range selections.
+   std::unique_ptr<RooAbsData> q1Only{data.reduce(CutRange("q1"))};
+   ASSERT_TRUE(q1Only);
+   EXPECT_DOUBLE_EQ(q1Only->sumEntries(), w[0]);
+
+   std::unique_ptr<RooAbsData> q4Only{data.reduce(CutRange("q4"))};
+   ASSERT_TRUE(q4Only);
+   EXPECT_DOUBLE_EQ(q4Only->sumEntries(), w[3]);
+
+   // Important check: diagonal multi-range selections.
+   // If the implementation incorrectly factorizes the ranges across x and y,
+   // selecting q1,q4 could incorrectly admit all four quadrants.
+   std::unique_ptr<RooAbsData> q1q4{data.reduce(CutRange("q1,q4"))};
+   ASSERT_TRUE(q1q4);
+   EXPECT_DOUBLE_EQ(q1q4->sumEntries(), w[0] + w[3]);
+
+   std::unique_ptr<RooAbsData> q2q3{data.reduce(CutRange("q2,q3"))};
+   ASSERT_TRUE(q2q3);
+   EXPECT_DOUBLE_EQ(q2q3->sumEntries(), w[1] + w[2]);
+
+   // Also check that all ranges together reproduce the full dataset.
+   std::unique_ptr<RooAbsData> allQuads{data.reduce(CutRange("q1,q2,q3,q4"))};
+   ASSERT_TRUE(allQuads);
+   EXPECT_DOUBLE_EQ(allQuads->sumEntries(), data.sumEntries());
+}

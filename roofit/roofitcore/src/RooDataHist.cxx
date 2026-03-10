@@ -950,15 +950,31 @@ std::unique_ptr<RooAbsData> RooDataHist::reduceEng(const RooArgSet& varSubset, c
   double lo;
   double hi;
   const std::size_t nevt = nStop < static_cast<std::size_t>(numEntries()) ? nStop : static_cast<std::size_t>(numEntries());
+
+  // Also consider the composite case of multiple ranges
+  std::vector<std::string> rangeTokens;
+  if (cutRange) {
+    rangeTokens = ROOT::Split(cutRange, ",");
+  }
+
   for (auto i=nStart; i<nevt ; i++) {
     const RooArgSet* row = get(i) ;
 
     bool doSelect(true) ;
     if (cutRange) {
-      for (const auto arg : *row) {
-        if (!arg->inRange(cutRange)) {
-          doSelect = false ;
-          break ;
+      doSelect = false;
+      // A row is selected if it is inside at least one complete named range.
+      for (const auto &rangeName : rangeTokens) {
+        bool inThisRange = true;
+        for (const auto arg : *row) {
+          if (!arg->inRange(rangeName.c_str())) {
+            inThisRange = false;
+            break;
+          }
+        }
+        if (inThisRange) {
+          doSelect = true;
+          break;
         }
       }
     }
