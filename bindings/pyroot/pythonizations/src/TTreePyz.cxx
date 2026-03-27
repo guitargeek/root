@@ -12,8 +12,6 @@
 // Bindings
 #include "../../cppyy/CPyCppyy/src/CPyCppyy.h"
 #include "../../cppyy/CPyCppyy/src/CPPInstance.h"
-#include "../../cppyy/CPyCppyy/src/ProxyWrappers.h"
-#include "../../cppyy/CPyCppyy/src/Dimensions.h"
 
 #include "CPyCppyy/API.h"
 
@@ -272,7 +270,7 @@ PyObject *TryBranchLeafListOverload(int argc, PyObject *args)
             branch = tree->Branch(nameString, buf, leaflistString);
          }
 
-         return BindCppObject(branch, Cppyy::GetScope("TBranch"));
+         return CPyCppyy::Instance_FromVoidPtr(branch, "TBranch");
       }
    }
    PyErr_Clear();
@@ -355,7 +353,7 @@ PyObject *TryBranchPtrToPtrOverloads(int argc, PyObject *args)
                                   PyInt_AsLong(splitlevel));
          }
 
-         return BindCppObject(branch, Cppyy::GetScope("TBranch"));
+         return CPyCppyy::Instance_FromVoidPtr(branch, "TBranch");
       }
    }
 
