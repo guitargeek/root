@@ -441,6 +441,105 @@ TEST_P(GlobsTest, ResetDataButSourceFromModel)
    EXPECT_TRUE(res1->isIdentical(*res3));
 }
 
+TEST_P(GlobsTest, GenerateWithGlobalObservables)
+{
+   using namespace RooFit;
+
+   auto &gm = *ws().var("gm");
+   auto &gs = *ws().var("gs");
+   auto &x = *ws().var("x");
+
+   // Case 1: the global observable values are taken directly from the
+   // RooAbsReal instances passed to GlobalObservables().
+   resetParameters();
+   gm.setVal(12.5);
+   gs.setVal(0.8);
+   std::unique_ptr<RooDataSet> toy1{modelc().generate(x, 100, GlobalObservables(gm, gs))};
+
+   ASSERT_NE(toy1, nullptr);
+   EXPECT_EQ(toy1->numEntries(), 100);
+
+   // The event observables should be just x.
+   EXPECT_EQ(toy1->get()->size(), std::size_t(1));
+   EXPECT_NE(toy1->get()->find("x"), nullptr);
+   EXPECT_EQ(toy1->get()->find("gm"), nullptr);
+   EXPECT_EQ(toy1->get()->find("gs"), nullptr);
+
+   // The global observables should be stored with the current workspace
+   // values.
+   auto const *storedGlobs1 = toy1->getGlobalObservables();
+   ASSERT_NE(storedGlobs1, nullptr);
+   EXPECT_EQ(storedGlobs1->size(), std::size_t(2));
+   auto const *storedGm1 = static_cast<RooRealVar const *>(storedGlobs1->find("gm"));
+   auto const *storedGs1 = static_cast<RooRealVar const *>(storedGlobs1->find("gs"));
+   ASSERT_NE(storedGm1, nullptr);
+   ASSERT_NE(storedGs1, nullptr);
+   EXPECT_DOUBLE_EQ(storedGm1->getVal(), 12.5);
+   EXPECT_DOUBLE_EQ(storedGs1->getVal(), 0.8);
+
+   // Case 2: the global observables are also passed in the set of observables
+   // to generate, so their values are sampled once from the model.
+   resetParameters();
+   gm.setVal(12.5);
+   gs.setVal(0.8);
+   std::unique_ptr<RooDataSet> toy2{modelc().generate({x, gm, gs}, 100, GlobalObservables(gm, gs))};
+
+   ASSERT_NE(toy2, nullptr);
+   EXPECT_EQ(toy2->numEntries(), 100);
+
+   // The sampled global observables should not appear as event columns.
+   EXPECT_EQ(toy2->get()->size(), std::size_t(1));
+   EXPECT_NE(toy2->get()->find("x"), nullptr);
+   EXPECT_EQ(toy2->get()->find("gm"), nullptr);
+   EXPECT_EQ(toy2->get()->find("gs"), nullptr);
+
+   auto const *storedGlobs2 = toy2->getGlobalObservables();
+   ASSERT_NE(storedGlobs2, nullptr);
+   EXPECT_EQ(storedGlobs2->size(), std::size_t(2));
+   auto const *storedGm2 = static_cast<RooRealVar const *>(storedGlobs2->find("gm"));
+   auto const *storedGs2 = static_cast<RooRealVar const *>(storedGlobs2->find("gs"));
+   ASSERT_NE(storedGm2, nullptr);
+   ASSERT_NE(storedGs2, nullptr);
+
+   // The sampled values must be within the valid range of the variables.
+   EXPECT_GE(storedGm2->getVal(), gm.getMin());
+   EXPECT_LE(storedGm2->getVal(), gm.getMax());
+   EXPECT_GE(storedGs2->getVal(), gs.getMin());
+   EXPECT_LE(storedGs2->getVal(), gs.getMax());
+
+   // The sampled values should differ from the pre-generation values,
+   // confirming that they were actually drawn from the model rather than
+   // just snapshotted from the RooAbsReal instances.
+   EXPECT_NE(storedGm2->getVal(), 12.5)
+      << "global observable gm was not sampled when passed to the set of observables to generate";
+   EXPECT_NE(storedGs2->getVal(), 0.8)
+      << "global observable gs was not sampled when passed to the set of observables to generate";
+
+   // generate() must not mutate the pdf: the workspace global observables
+   // should still hold their pre-call values.
+   EXPECT_DOUBLE_EQ(gm.getVal(), 12.5)
+      << "generate() mutated workspace variable gm; its value should be restored after the call";
+   EXPECT_DOUBLE_EQ(gs.getVal(), 0.8)
+      << "generate() mutated workspace variable gs; its value should be restored after the call";
+
+   // The stored global observables should be usable by a fit: the fit result
+   // when feeding the toy back into the constrained model must be identical
+   // to one where the same values are passed via a GlobalObservables command
+   // argument.
+   resetParameters();
+   auto resFromData = doFit(modelc(), *toy2);
+
+   resetParameters();
+   gm.setVal(storedGm2->getVal());
+   gs.setVal(storedGs2->getVal());
+   auto resFromArgs = doFit(modelc(), *toy2, GlobalObservables(gm, gs), GlobalObservablesSource("model"));
+
+   EXPECT_TRUE(resFromData->isIdentical(*resFromArgs))
+      << "fit result using global observables stored in the generated dataset "
+         "differs from the fit result using the same values passed via "
+         "GlobalObservables() with source=model";
+}
+
 INSTANTIATE_TEST_SUITE_P(TestGlobalObservables, GlobsTest, testing::Values(ROOFIT_EVAL_BACKENDS),
                          [](testing::TestParamInfo<GlobsTest::ParamType> const &paramInfo) {
                             std::stringstream ss;

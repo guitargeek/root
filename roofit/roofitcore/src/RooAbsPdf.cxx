@@ -1140,8 +1140,6 @@ RooAbsGenContext* RooAbsPdf::autoGenContext(const RooArgSet &vars, const RooData
   return context ;
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Generate a new dataset containing the specified variables with events sampled from our distribution.
 /// Generate the specified number of events or expectedEvents() if not specified.
@@ -1162,11 +1160,13 @@ RooAbsGenContext* RooAbsPdf::autoGenContext(const RooArgSet &vars, const RooData
 /// <tr><td> `Extended()`                        <td> If no number of events to be generated is given,
 /// use expected number of events from extended likelihood term.
 /// This evidently only works for extended PDFs.
-/// <tr><td> `GenBinned(const char* tag)`        <td> Use binned generation for all component pdfs that have 'setAttribute(tag)' set
-/// <tr><td> `AutoBinned(bool flag)`           <td> Automatically deploy binned generation for binned distributions (e.g. RooHistPdf, sums and products of
+/// <tr><td> `GenBinned(const char* tag)`        <td> Use binned generation for all component pdfs that have
+/// 'setAttribute(tag)' set <tr><td> `AutoBinned(bool flag)`           <td> Automatically deploy binned generation for
+/// binned distributions (e.g. RooHistPdf, sums and products of
 ///                                                 RooHistPdfs etc)
 /// \note Datasets that are generated in binned mode are returned as weighted unbinned datasets. This means that
-/// for each bin, there will be one event in the dataset with a weight corresponding to the (possibly randomised) bin content.
+/// for each bin, there will be one event in the dataset with a weight corresponding to the (possibly randomised) bin
+/// content.
 ///
 ///
 /// <tr><td> `AllBinned()`                       <td> As above, but for all components.
@@ -1178,12 +1178,19 @@ RooAbsGenContext* RooAbsPdf::autoGenContext(const RooArgSet &vars, const RooData
 ///          <td> Use specified dataset as prototype dataset. If randOrder in ProtoData() is set to true,
 ///               the order of the events in the dataset will be read in a random order if the requested
 ///               number of events to be generated does not match the number of events in the prototype dataset.
-///               \note If ProtoData() is used, the specified existing dataset as a prototype: the new dataset will contain
-///               the same number of events as the prototype (unless otherwise specified), and any prototype variables not in
-///               whatVars will be copied into the new dataset for each generated event and also used to set our PDF parameters.
-///               The user can specify a  number of events to generate that will override the default. The result is a
-///               copy of the prototype dataset with only variables in whatVars randomized. Variables in whatVars that
-///               are not in the prototype will be added as new columns to the generated dataset.
+///               \note If ProtoData() is used, the specified existing dataset as a prototype: the new dataset will
+///               contain the same number of events as the prototype (unless otherwise specified), and any prototype
+///               variables not in whatVars will be copied into the new dataset for each generated event and also used
+///               to set our PDF parameters. The user can specify a  number of events to generate that will override the
+///               default. The result is a copy of the prototype dataset with only variables in whatVars randomized.
+///               Variables in whatVars that are not in the prototype will be added as new columns to the generated
+///               dataset.
+///
+/// <tr><td> `GlobalObservables(Args_t &&... argsOrArgSet)` <td> Attach the listed variables as global observables to
+/// the
+///               generated dataset (see RooAbsData::setGlobalObservables()). They are stored as a snapshot on the
+///               dataset and do not appear as per-event columns. If any of the global observables are also contained in
+///               `whatVars`, they are sampled once from this PDF.
 ///
 /// </table>
 ///
@@ -1214,6 +1221,7 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
   pc.defineInt("expectedData","ExpectedData",0,0) ;
   pc.defineDouble("nEventsD","NumEventsD",0,-1.) ;
   pc.defineString("binnedTag","GenBinned",0,"") ;
+  pc.defineSet("glObs", "GlobalObservables", 0, nullptr);
   pc.defineMutex("GenBinned","ProtoData") ;
   pc.defineMutex("Extended", "NumEvents");
 
@@ -1236,6 +1244,7 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
   double nEventsD = pc.getInt("nEventsD") ;
   //bool verbose = pc.getInt("verbose") ;
   bool expectedData = pc.getInt("expectedData") ;
+  RooArgSet const *globalObservables = pc.getSet("glObs");
 
   double nEvents = (nEventsD>0) ? nEventsD : double(nEventsI);
 
@@ -1258,18 +1267,70 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
            << "to randomize the set of over/undersampled prototype events for each generation cycle." << std::endl ;
   }
 
+  // Separate out global observables that are also in whatVars: they should be
+  // sampled once from the model and stored as a snapshot on the dataset,
+  // rather than appearing as per-event columns.
+  RooArgSet eventVars{whatVars};
+  RooArgSet globsToSample;
+  if (globalObservables) {
+     for (RooAbsArg *go : *globalObservables) {
+        if (RooAbsArg *matched = eventVars.find(*go)) {
+           globsToSample.add(*matched);
+           eventVars.remove(*matched);
+        }
+     }
+  }
+
+  // Snapshot the current state of the global observables to reset values in
+  // case a subset of them is resamples.
+  RooArgSet preState;
+  if (!globsToSample.empty()) {
+     globsToSample.snapshot(preState);
+  }
+
+  // Sample the global observables that appear in whatVars once from the pdf
+  // and temporariliy copy the drawn values onto the corresponding pdf
+  // variables for easier bookkeeping.
+  // Important conceptual note: it actually doesn't matter in practice which
+  // values the global observables have during the main data generation below,
+  // because the main model is independent of the global observables for their
+  // intended usecase. The global observables are only relevant for parameter
+  // constraints. But if the model would be conditional on the global
+  // observables, what we do now - temporarily setting the internal pdf
+  // variables to the sampled global obs values - would be the right thing.
+  if (!globsToSample.empty()) {
+     std::unique_ptr<RooDataSet> tmp{generate(globsToSample, 1, verbose, false, "", false, false)};
+     globsToSample.assign(*tmp->get(0));
+  }
 
   // Forward to appropriate implementation
   std::unique_ptr<RooDataSet> data;
-  if (protoData) {
-    data = std::unique_ptr<RooDataSet>{generate(whatVars,*protoData,Int_t(nEvents),verbose,randProto,resampleProto)};
+  if (eventVars.empty()) {
+     // All variables in whatVars were declared as global observables, so the
+     // main event loop has nothing to sample. Return an empty dataset with no
+     // columns but still attach the sampled global observables below.
+     data = std::make_unique<RooDataSet>("genData", "genData", eventVars);
+  } else if (protoData) {
+     data =
+        std::unique_ptr<RooDataSet>{generate(eventVars, *protoData, Int_t(nEvents), verbose, randProto, resampleProto)};
   } else {
-     data = std::unique_ptr<RooDataSet>{generate(whatVars,nEvents,verbose,autoBinned,binnedTag,expectedData, extended)};
+     data = std::unique_ptr<RooDataSet>{
+        generate(eventVars, nEvents, verbose, autoBinned, binnedTag, expectedData, extended)};
   }
 
   // Rename dataset to given name if supplied
   if (dsetName && strlen(dsetName)>0) {
     data->SetName(dsetName) ;
+  }
+
+  // Attach the global observables as a snapshot on the generated dataset.
+  if (globalObservables) {
+     data->setGlobalObservables(*globalObservables);
+  }
+
+  // Restore the pre-call values so we have now side-effect on the pdf.
+  if (!preState.empty()) {
+     globsToSample.assign(preState);
   }
 
   return RooFit::makeOwningPtr(std::move(data));
