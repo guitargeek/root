@@ -609,6 +609,7 @@ size_t SizeOf(TCppScope_t scope) {
     return INTEROP_RETURN(0);
 
   if (auto* RD = dyn_cast<RecordDecl>(static_cast<Decl*>(scope))) {
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     ASTContext& Context = RD->getASTContext();
     const ASTRecordLayout& Layout = Context.getASTRecordLayout(RD);
     return INTEROP_RETURN(Layout.getSize().getQuantity());
@@ -988,6 +989,7 @@ TCppScope_t GetScope(const std::string& name, TCppScope_t parent) {
   if (name == "")
     return INTEROP_RETURN(GetGlobalScope());
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   auto* ND = (NamedDecl*)GetNamed(name, parent);
 
   if (!ND || ND == (NamedDecl*)-1)
@@ -1061,6 +1063,8 @@ TCppIndex_t GetNumBases(TCppScope_t klass) {
   INTEROP_TRACE(klass);
   auto* D = (Decl*)klass;
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
   if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
     if (!CTSD->hasDefinition())
       compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
@@ -1074,6 +1078,9 @@ TCppIndex_t GetNumBases(TCppScope_t klass) {
 
 TCppScope_t GetBaseClass(TCppScope_t klass, TCppIndex_t ibase) {
   INTEROP_TRACE(klass, ibase);
+
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
   auto* D = (Decl*)klass;
   auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D);
   if (!CXXRD || CXXRD->getNumBases() <= ibase)
@@ -1099,6 +1106,8 @@ bool IsSubclass(TCppScope_t derived, TCppScope_t base) {
   auto* derived_D = (clang::Decl*)derived;
   auto* base_D = (clang::Decl*)base;
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
   if (!isa<CXXRecordDecl>(derived_D) || !isa<CXXRecordDecl>(base_D))
     return INTEROP_RETURN(false);
 
@@ -1115,6 +1124,9 @@ bool IsSubclass(TCppScope_t derived, TCppScope_t base) {
 static unsigned ComputeBaseOffset(const ASTContext& Context,
                                   const CXXRecordDecl* DerivedRD,
                                   const CXXBasePath& Path) {
+
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
   CharUnits NonVirtualOffset = CharUnits::Zero();
 
   unsigned NonVirtualStart = 0;
@@ -1163,6 +1175,8 @@ int64_t GetBaseClassOffset(TCppScope_t derived, TCppScope_t base) {
 
   assert(derived || base);
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
   auto* DD = (Decl*)derived;
   auto* BD = (Decl*)base;
   if (!isa<CXXRecordDecl>(DD) || !isa<CXXRecordDecl>(BD))
@@ -1198,6 +1212,8 @@ static void GetClassDecls(TCppScope_t klass,
   if (!klass)
     return;
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
   auto* D = (clang::Decl*)klass;
 
   if (auto* TD = dyn_cast<TypedefNameDecl>(D))
@@ -1207,7 +1223,6 @@ static void GetClassDecls(TCppScope_t klass,
     return;
 
   auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
-  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (CXXRD->hasDefinition())
     CXXRD = CXXRD->getDefinition();
   getSema().ForceDeclarationOfImplicitMembers(CXXRD);
@@ -1314,8 +1329,13 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
   DeclarationName DName = &getASTContext().Idents.get(name);
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         RedeclarationKind::ForVisibleRedeclaration);
-
-  CppInternal::utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
+  auto* Within = Decl::castToDeclContext(D);
+#ifdef CPPINTEROP_USE_CLING
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+  CppInternal::utils::Lookup::Named(&S, R, Within);
 
   if (R.empty())
     return INTEROP_RETURN(funcs);
@@ -1469,6 +1489,11 @@ bool ExistsFunctionTemplate(const std::string& name, TCppScope_t parent) {
     Within = llvm::dyn_cast<DeclContext>(D);
   }
 
+#ifdef CPPINTEROP_USE_CLING
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
 
   if ((intptr_t)ND == (intptr_t)0)
@@ -1517,6 +1542,11 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         RedeclarationKind::ForVisibleRedeclaration);
   auto* DC = clang::Decl::castToDeclContext(D);
+#ifdef CPPINTEROP_USE_CLING
+  if (DC)
+    DC->getPrimaryContext()->buildLookup();
+#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   CppInternal::utils::Lookup::Named(&S, R, DC);
 
   if (R.getResultKind() == clang_LookupResult_Not_Found && funcs.empty())
@@ -1850,6 +1880,11 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
 
+#ifdef CPPINTEROP_USE_CLING
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
@@ -1862,6 +1897,7 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
 
 bool IsLambdaClass(TCppType_t type) {
   INTEROP_TRACE(type);
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   QualType QT = QualType::getFromOpaquePtr(type);
   if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
     return INTEROP_RETURN(CXXRD->isLambda());
@@ -1898,6 +1934,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     return 0;
 
   auto& C = I.getSema().getASTContext();
+  compat::SynthesizingCodeRAII RAII(&getInterp());
 
   if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
     clang::RecordDecl* FieldParentRecordDecl = FD->getParent();
@@ -2144,6 +2181,8 @@ TCppType_t GetPointerType(TCppType_t type) {
 
 TCppType_t GetReferencedType(TCppType_t type, bool rvalue) {
   INTEROP_TRACE(type, rvalue);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   if (rvalue)
     return INTEROP_RETURN(
@@ -2184,7 +2223,8 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
 std::string GetTypeAsString(TCppType_t var) {
   INTEROP_TRACE(var);
   QualType QT = QualType::getFromOpaquePtr(var);
-  PrintingPolicy Policy(getASTContext().getPrintingPolicy());
+  // FIXME: Get the default printing policy from the ASTContext.
+  PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.Suppress_Elab = true;
@@ -2701,8 +2741,6 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
     else
       callbuf << "((" << class_name << "*)obj)->";
 
-    if (op_flag)
-      callbuf << class_name << "::";
   } else if (isa<NamedDecl>(get_non_transparent_decl_context(FD))) {
     // This is a namespace member.
     if (op_flag || N <= 1)
