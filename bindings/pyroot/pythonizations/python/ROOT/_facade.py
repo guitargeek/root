@@ -269,6 +269,23 @@ class ROOTFacade(types.ModuleType):
         allowing Python-only ROOT submodules to be imported with minimal
         overhead.
         """
+        # If a previous initialization attempt failed, re-raise immediately:
+        # the C++ runtime is in an undefined half-initialized state and
+        # retrying would re-run the whole setup on every attribute access
+        # (each hasattr() on the module swallows the AttributeError and
+        # triggers a new attempt, which can turn a broken installation into
+        # an unbounded retry loop instead of a clear failure).
+        prev = self.__dict__.get("_finalSetupError")
+        if prev is not None:
+            raise RuntimeError("ROOT initialization failed previously") from prev
+
+        try:
+            self._finalSetupImpl()
+        except BaseException as err:
+            self.__dict__["_finalSetupError"] = err
+            raise
+
+    def _finalSetupImpl(self):
         import cppyy
         import cppyy.ll
         import cppyy.types
