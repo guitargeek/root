@@ -419,6 +419,75 @@ class TestOPERATORS:
         with raises(AttributeError):
             coll.non_existing_method
 
+    def test18_dereference_operator_returning_self(self):
+        """operator*() returning *this should not cause an attribute loop"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace SelfDeref {
+        class MyTooSmartClass {
+        public:
+            MyTooSmartClass operator*() {
+                return *this;
+            }
+        }; }""")
+
+        a = cppyy.gbl.SelfDeref.MyTooSmartClass()
+        with raises(AttributeError):
+            a.DoesNotExist
+
+    def test19_base_index_operator_with_derived_call_operator(self):
+        """A base operator[] should not be shadowed by a derived operator()"""
+
+      # https://github.com/root-project/root/issues/7179
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace IndexAndCall {
+        struct Foo7179 {
+            float operator[](float x) {
+                return x;
+            }
+        };
+
+        struct Bar7179 : public Foo7179 {
+            float operator()(float x) {
+                return -1;
+            }
+        }; }""")
+
+        b = cppyy.gbl.IndexAndCall.Bar7179()
+        assert b[42] == 42
+        assert b(42) == -1
+
+    def test20_direct_use_of_namespaced_operator(self):
+        """A namespaced global operator== can be used directly"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace DirectOpUse {
+        class NSComparable {
+        public:
+            int m_i = 42;
+        };
+
+        bool operator==(const NSComparable& lhs, const NSComparable& rhs) {
+            return lhs.m_i == rhs.m_i;
+        } }""")
+
+        ns = cppyy.gbl.DirectOpUse
+
+        eq = getattr(ns, 'operator==')
+        ns.NSComparable.__eq__ = eq
+
+        a, b = ns.NSComparable(), ns.NSComparable()
+
+        assert a == b
+        assert b == a
+
 
 if __name__ == "__main__":
     exit(pytest.main(args=['-v', '-ra', __file__]))

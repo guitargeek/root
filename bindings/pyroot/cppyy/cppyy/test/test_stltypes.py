@@ -1596,6 +1596,76 @@ class TestSTLITERATOR:
 
         assert [x for x in m] == [1, 2, 3, 4]
 
+    def test05_iteration_with_base_iterator(self):
+        """The correct base class iterator should be picked up"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace BaseIterator {
+
+        typedef std::string Attribute;
+
+        class AttributeList {
+        public:
+            void extend(const std::string& name, const std::string&) {
+                m_data.push_back(new std::string(name));
+            }
+
+            size_t size() const { return m_data.size(); }
+
+            class iterator_base {
+            protected:
+                iterator_base() {}
+                iterator_base(std::vector<Attribute*>::const_iterator theIterator) : m_iterator(theIterator) {}
+                iterator_base(const iterator_base& rhs) : m_iterator(rhs.m_iterator) {}
+                iterator_base& operator=(const iterator_base& rhs) { m_iterator = rhs.m_iterator; return *this; }
+                virtual ~iterator_base() {}
+                std::vector<Attribute*>::const_iterator m_iterator;
+            public:
+                bool operator==(const iterator_base& rhs) const { return m_iterator == rhs.m_iterator; }
+                bool operator!=(const iterator_base& rhs) const { return m_iterator != rhs.m_iterator; }
+                void operator++() { ++m_iterator; }
+            };
+
+            class iterator : public iterator_base {
+            public:
+                ~iterator() {}
+
+                iterator(const iterator_base& rhs) : iterator_base(rhs) {}
+                iterator& operator=(const iterator_base& rhs) { iterator_base::operator=(rhs); return *this; }
+
+            private:
+                friend class AttributeList;
+                iterator(std::vector<Attribute*>::const_iterator theIterator) : iterator_base(theIterator) {}
+
+            public:
+                Attribute* operator->() { return const_cast<Attribute*>(*m_iterator); }
+                Attribute& operator*() { return const_cast<Attribute&>(**m_iterator); }
+            };
+
+            iterator begin() { return iterator(m_data.begin()); }
+            iterator end()   { return iterator(m_data.end()); }
+
+        private:
+            std::vector<Attribute*> m_data;
+        }; }""")
+
+        a = cppyy.gbl.BaseIterator.AttributeList()
+
+        a.extend("i", "int")
+        assert a.size() == 1
+        assert a.begin() == a.begin()
+        assert a.begin() != a.end()
+
+        b = a.begin()
+        e = a.end()
+        assert b != e
+
+        b.__preinc__()
+        assert b == e
+        assert b != a.begin()
+
 
 class TestSTLARRAY:
     def setup_class(cls):

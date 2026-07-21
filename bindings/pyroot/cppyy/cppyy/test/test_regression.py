@@ -1442,6 +1442,171 @@ class TestREGRESSION:
         with raises(std.runtime_error):
             cppyy.gbl.fun(std.string_view("hello world"), [])
 
+    def test50_bound_method_keeps_object_alive(self):
+        """A held bound method should keep the C++ object alive"""
+
+        import cppyy, gc
+
+        cppyy.cppdef("""\
+        namespace BoundMethodLifeline {
+        class Counted {
+        public:
+            static int s_count;
+            Counted() { ++s_count; }
+            Counted(const Counted&) { ++s_count; }
+            ~Counted() { --s_count; }
+            void dummy() {}
+        };
+        int Counted::s_count = 0;
+        }""")
+
+        Counted = cppyy.gbl.BoundMethodLifeline.Counted
+        assert Counted.s_count == 0
+
+        a = Counted()
+        assert Counted.s_count == 1
+
+        b = Counted()
+        assert Counted.s_count == 2
+
+      # tickle the objects a bit
+        a.dummy()
+        c = b.dummy         # bound method keeps b's C++ object alive
+
+        del a; gc.collect()
+        assert Counted.s_count == 1
+
+        del b; gc.collect()
+        assert Counted.s_count == 1   # kept alive through the bound method
+
+        del c; gc.collect()
+        assert Counted.s_count == 0
+
+    def test51_bound_object_hash(self):
+        """Bound C++ objects must be hashable"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace HashableObject {
+        class SomeClass {};
+        }""")
+
+        a = cppyy.gbl.HashableObject.SomeClass()
+
+        assert type(hash(a)) == int
+        assert {a: 42}[a] == 42
+
+    def test52_python_exception_from_cpp_function(self):
+        """A C++ function raising a Python error should propagate it"""
+
+        if IS_WINDOWS:
+            skip("test uses process symbol lookup of the Python C API")
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        #include "CPyCppyy/PyException.h"
+
+        extern "C" {
+            struct _object;
+            void PyErr_SetString(_object*, const char*);
+            extern _object* PyExc_SyntaxError;
+        }
+
+        namespace PyExceptionFromCpp {
+        void throw_py_exception() {
+            PyErr_SetString(PyExc_SyntaxError, "test error message");
+            throw CPyCppyy::PyException();
+        }
+
+        class MyThrowingClass {
+        public:
+            static void throw_py_exception(int) {
+                PyErr_SetString(PyExc_SyntaxError, "overloaded int test error message");
+                throw CPyCppyy::PyException();
+            }
+
+            static void throw_py_exception(double) {
+                PyErr_SetString(PyExc_SyntaxError, "overloaded double test error message");
+                throw CPyCppyy::PyException();
+            }
+        }; }""")
+
+        ns = cppyy.gbl.PyExceptionFromCpp
+
+      # not overloaded function
+        with raises(SyntaxError, match="test error message"):
+            ns.throw_py_exception()
+
+      # overloaded function
+        with raises(SyntaxError, match="overloaded int test error message"):
+            ns.MyThrowingClass.throw_py_exception(1)
+
+    def test53_pyexception_construction(self):
+        """PyException must be directly constructible from python"""
+
+        import cppyy
+
+        cppyy.cppdef('#include "CPyCppyy/PyException.h"')
+
+        e = cppyy.gbl.CPyCppyy.PyException()
+        assert e
+        assert e.what() == "python exception"
+
+    def test54_keyword_arguments_with_object_default(self):
+        """Keyword args over a C++ object default (root-project/root#16406)"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace KWArgsObjDefault {
+        class MyClass {
+        public:
+            class MyObj {
+            public:
+                MyObj(const char* in) : s(in) {}
+                std::string s;
+            };
+            std::string my_method(const MyObj& x = "hello", bool opt = false, bool opt2 = true) {
+                return x.s + (opt ? "1" : "0") + (opt2 ? "1" : "0");
+            }
+        }; }""")
+
+        m = cppyy.gbl.KWArgsObjDefault.MyClass()
+
+        assert m.my_method()                    == "hello01"
+        assert m.my_method(opt2=False, x="hi")  == "hi00"
+        assert m.my_method(opt=True)            == "hello11"
+
+    def test55_exception_bool_value(self):
+        """Boolean value of a smart pointer to an exception object (ROOT-10870)"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace ExcBoolValue {
+        template <typename T>
+        class Handle;
+
+        class Exception : public std::exception {};
+
+        template <typename T>
+        class Handle {
+        public:
+            std::shared_ptr<Exception const> returnsNull() const noexcept {
+                return std::shared_ptr<Exception>();
+            }
+            std::shared_ptr<Exception const> returnsNotNull() const noexcept {
+                return std::shared_ptr<Exception>(new Exception());
+            }
+        }; }""")
+
+        handle = cppyy.gbl.ExcBoolValue.Handle('int')()
+
+        assert not handle.returnsNull()
+        assert handle.returnsNotNull()
+
 
 if __name__ == "__main__":
     exit(pytest.main(args=['-v', '-ra', __file__]))

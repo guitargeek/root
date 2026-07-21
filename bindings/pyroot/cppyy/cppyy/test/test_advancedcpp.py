@@ -959,6 +959,147 @@ class TestADVANCEDCPP:
         for norm in [ns.norm_cr, ns.norm_m, ns.norm_v]:
             assert round(norm(p3) - pynorm, 8) == 0
 
+    def test30_by_ref_assign_error_message(self):
+        """Want nice error message of failing assign by reference"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace ByRefAssign {
+        class RefTesterNoAssign {
+        public:
+            RefTesterNoAssign& operator[](int) { return *this; }
+
+        private:
+            RefTesterNoAssign& operator=(const RefTesterNoAssign&) { return *this; }
+        }; }""")
+
+        ns = cppyy.gbl.ByRefAssign
+
+        a = ns.RefTesterNoAssign()
+        assert type(a) == type(a[0])
+
+        raises(TypeError, a.__setitem__, 0, ns.RefTesterNoAssign())
+        try:
+            a[0] = ns.RefTesterNoAssign()
+        except TypeError as e:
+            assert 'cannot assign' in str(e)
+
+    def test31_copy_constructor_ordering(self):
+        """Ordering of copy ctor and ctor with defaults should not matter"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace CopyCtorOrdering {
+        class MyCopyingClass1 {
+        public:
+            MyCopyingClass1() : m_d1(-1.), m_d2(-1) {}
+            MyCopyingClass1(const double d1, const double d2 = 42.) : m_d1(d1), m_d2(d2) {}
+        // no user-provided cctor
+            operator double() { return m_d1+m_d2; }
+            double m_d1, m_d2;
+        };
+
+        class MyCopyingClass2 {
+        public:
+            MyCopyingClass2() : m_d1(-1.), m_d2(-1) {}
+        // cctor after ctor with default
+            MyCopyingClass2(const double d1, const double d2 = 42.) : m_d1(d1), m_d2(d2) {}
+            MyCopyingClass2(const MyCopyingClass2& s) : m_d1(s.m_d1), m_d2(s.m_d2) {}
+            operator double() { return m_d1+m_d2; }
+            double m_d1, m_d2;
+        };
+
+        class MyCopyingClass3 {
+        public:
+            MyCopyingClass3() : m_d1(-1.), m_d2(-1) {}
+        // cctor before ctor with default
+            MyCopyingClass3(const MyCopyingClass3& s) : m_d1(s.m_d1), m_d2(s.m_d2) {}
+            MyCopyingClass3(const double d1, const double d2 = 42.) : m_d1(d1), m_d2(d2) {}
+            operator double() { return m_d1+m_d2; }
+            double m_d1, m_d2;
+        }; }""")
+
+        ns = cppyy.gbl.CopyCtorOrdering
+
+        for name in ('MyCopyingClass1', 'MyCopyingClass2', 'MyCopyingClass3'):
+            klass = getattr(ns, name)
+
+            m1 = klass()
+            m2 = klass(2, 2)
+
+            assert float(m1) == -2.
+            assert float(m2) ==  4.
+
+            m3 = klass(m2)
+            assert m3.m_d1 == m2.m_d1
+            assert m3.m_d2 == m2.m_d2
+
+    def test32_temporary_with_custom_operator_new(self):
+        """Handling of a temporary of a class with a user defined operator new"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace CustomOperatorNew {
+        class MuonTileID {
+        public:
+            MuonTileID() : m_id(0) {}
+            virtual ~MuonTileID() {}
+
+            void setID(unsigned int id) { m_id = id; }
+
+        #ifndef _WIN32
+            static void* operator new(size_t) {
+                static size_t i = 0;
+                static std::vector<unsigned int> array(100);
+                return &array[i++];
+            }
+
+            static void* operator new(size_t size, void* pObj) {
+                return ::operator new(size, pObj);
+            }
+
+            static void operator delete(void*) {}
+
+            static void operator delete(void* p, void* pObj) {
+                ::operator delete(p, pObj);
+            }
+        #endif
+
+        private:
+            unsigned int m_id;
+        };
+
+        MuonTileID getID() { return MuonTileID(); }
+        }""")
+
+        ns = cppyy.gbl.CustomOperatorNew
+
+        ns.getID()
+        ns.getID()                 # used to crash
+
+    def test33_using_of_base_operator_call(self):
+        """Derived class using a base operator() next to a templated operator()"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace UsingOperatorCall {
+        struct DCBase
+        {
+            double& operator()();
+        };
+        struct DenseBase : public DCBase
+        {
+            using DCBase::operator();
+            template <typename T> int operator()() const;
+        }; }""")
+
+      # used to fail to build the class proxy
+        assert cppyy.gbl.UsingOperatorCall.DenseBase
+
 
 if __name__ == "__main__":
     exit(pytest.main(args=['-sv', '-ra', __file__]))

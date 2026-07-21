@@ -396,6 +396,29 @@ class TestClassPYTHONIZATION:
         assert hasattr(obj_inherited, "__len__")
         assert len(obj_inherited) == 2
 
+    def test12_namespaced_class_with_iterators(self):
+        """Iterator pythonization of a class with iterators in a namespace"""
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace NSWithIterators {
+        class MyClass {
+        public:
+            MyClass() {}
+
+            class iterator {
+            public:
+                iterator() {}
+            };
+
+            iterator begin() { return iterator(); }
+            iterator end()   { return iterator(); }
+        }; }""")
+
+        # class proxy creation (with iterator pythonization) should not fail
+        assert cppyy.gbl.NSWithIterators.MyClass
+
 
 ## actual test run
 if __name__ == "__main__":

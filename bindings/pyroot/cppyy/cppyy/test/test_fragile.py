@@ -742,6 +742,48 @@ class TestFRAGILE:
                         (cppyy.gbl.ClassEnumNS, 37)]:
             assert ns.EnumTemplate[ns.ClassEnumA.A]().foo() == val
 
+    def test32_lazy_namespace_functions(self):
+        """Lazy lookup of late created functions in a namespace"""
+
+        import cppyy
+
+        cppyy.cppdef('namespace lazy_ns_test1 {}')
+        cppyy.cppdef(
+            'namespace lazy_ns_test1 { class LazyA {}; int lazy_f() { return 32; } }')
+
+        assert cppyy.gbl.lazy_ns_test1.LazyA()
+        assert cppyy.gbl.lazy_ns_test1.lazy_f() == 32
+
+    def test33_lazy_namespace_overloaded_functions(self):
+        """Lazy lookup of late created overloaded functions in a namespace"""
+
+        import cppyy
+
+        cppyy.cppdef('namespace lazy_ns_test2 {}')
+        cppyy.cppdef(
+            'namespace lazy_ns_test2 { class LazyA {}; \
+             int lazy_f(int n) { return 32*n; } \
+             int lazy_f() { return 32; } }')
+
+        assert cppyy.gbl.lazy_ns_test2.LazyA()
+        assert cppyy.gbl.lazy_ns_test2.lazy_f(2) == 64
+        assert cppyy.gbl.lazy_ns_test2.lazy_f()  == 32
+
+        cppyy.cppdef(
+            'namespace lazy_ns_test2 { \
+             int lazy_g(const std::string&) { return 42; } \
+             int lazy_g() { return 13; } }')
+
+        assert cppyy.gbl.lazy_ns_test2.lazy_g('') == 42
+        assert cppyy.gbl.lazy_ns_test2.lazy_g()   == 13
+
+    def test34_meta_class_attribute_lookup(self):
+        """Direct access on the meta class should raise AttributeError"""
+
+        import cppyy
+
+        raises(AttributeError, getattr, cppyy.gbl.fragile.A.__class__, "nosuch")
+
 
 class TestSIGNALS:
     def setup_class(cls):

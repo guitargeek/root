@@ -2463,5 +2463,23 @@ class TestDATATYPES:
         for i, v in enumerate(a2):
             assert v == a2[i]
 
+    def test54_wrap_buffer_with_numpy_array(self):
+        """Wrap a buffer return with a NumPy array"""
+
+        np = pytest.importorskip("numpy")
+
+        import cppyy
+
+        c = cppyy.gbl.CppyyTestData()
+        N = cppyy.gbl.N
+
+        arr = c.get_double_array()
+        np_arr = np.frombuffer(arr, 'f8', N)
+        assert len(np_arr) == N
+
+        val = 1.0
+        arr[N-1] = val
+        assert arr[N-1] == np_arr[N-1] == val
+
 if __name__ == "__main__":
     exit(pytest.main(args=['-v', '-ra', __file__]))

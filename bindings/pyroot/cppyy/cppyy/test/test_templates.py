@@ -1228,6 +1228,58 @@ class TestTEMPLATES:
         assert a.m([1, 2, 3])
         assert not a.m(42)
 
+    def test38_namespaces_in_template_arguments(self):
+        """Instantiated templates need to retain namespaces of their arguments"""
+
+        import cppyy
+        std = cppyy.gbl.std
+
+        cppyy.cppdef("""\
+        namespace NSRetention {
+        struct StructA {};
+        namespace Inner {
+            struct StructB {};
+        } }""")
+
+        ns = cppyy.gbl.NSRetention
+
+        p = std.pair(std.vector(ns.StructA), std.vector(ns.Inner.StructB))()
+        assert "vector<NSRetention::StructA>"        in type(p.first).__name__
+        assert "vector<NSRetention::Inner::StructB>" in type(p.second).__name__
+
+    def test39_builtin_array_template_argument(self):
+        """Usage of a template instantiated with a builtin array type"""
+
+      # https://its.cern.ch/jira/browse/ROOT-6023
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace ArrayTemplateArg {
+        template <class T>
+        struct C {
+            C() {}
+            T& value() { return data; }
+            T data;
+        };
+
+        C<std::string[2]> instance() {
+            C<std::string[2]> c;
+            c.data[0] = "aap";
+            c.data[1] = "noot";
+            return c;
+        } }""")
+
+        c = cppyy.gbl.ArrayTemplateArg.instance()
+
+      # both accesses used to fail at the type-lookup level
+        a = c.data
+        assert a[0] == "aap"
+        assert a[1] == "noot"
+
+        b = c.value()
+        assert b is not None
+
 
 class TestTEMPLATED_TYPEDEFS:
     def setup_class(cls):

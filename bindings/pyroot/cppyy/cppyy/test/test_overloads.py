@@ -466,6 +466,40 @@ class TestOVERLOADS:
 
         raises(TypeError, cppyy.gbl.changePtr, ptr)
 
+    def test16_ambiguous_overload_selects_by_priority(self):
+        """Selection in a scenario that would be ambiguous in C++
+
+        The overload with the highest priority in the overload resolution is
+        called (it would be nicer to raise an error in this kind of scenario,
+        but this test documents the current, stable, behavior).
+        """
+
+        import cppyy
+
+        cppyy.cppdef("""\
+        namespace AmbiguousOverload {
+            class A {};
+            class B: public A {};
+            class C: public B {};
+
+            class X {};
+            class Y: public X {};
+            class Z: public Y {};
+
+            int myfunc(const B &b, const Z &z){
+                return 1;
+            }
+
+            int myfunc(const C &c, const X &x){
+                return 2;
+            }
+        }""")
+
+        ns = cppyy.gbl.AmbiguousOverload
+
+      # calling myfunc(C(), Z()) in C++ gives: call to 'myfunc' is ambiguous
+        assert ns.myfunc(ns.C(), ns.Z()) == 1
+
 
 if __name__ == "__main__":
     exit(pytest.main(args=['-sv', '-ra', __file__]))
