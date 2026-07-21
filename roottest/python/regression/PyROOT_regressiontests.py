@@ -17,7 +17,7 @@ import platform
 import sys, os, unittest
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-if not os.path.exists('ScottCppyy.C'):
+if not os.path.exists('Amir.py'):
     os.chdir(os.path.dirname(__file__))
 
 try:
@@ -31,10 +31,9 @@ original_preload = os.environ.get('LD_PRELOAD', None)
 
 import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = False
-from ROOT import gROOT, gInterpreter
-from ROOT import TClass, TObject, TFile
+from ROOT import gROOT
+from ROOT import TClass, TFile
 from ROOT import TVector3, TGraph, TMatrixD
-import cppyy
 
 cleaned_preload = os.environ.get('LD_PRELOAD', None)
 
@@ -42,14 +41,11 @@ from common import *
 
 __all__ = [
    'Regression01TwiceImportStar',
-   'Regression02PyException',
    'Regression03OldCrashers',
    'Regression04Threading',
    'Regression09TVector3Pythonize',
-   'Regression10CoralAttributeListIterators',
    'Regression11GlobalsLookup',
    'Regression12WriteTGraph',
-   'Regression14TPyException',
    'Regression17MatrixD',
 ]
 
@@ -65,58 +61,21 @@ class Regression01TwiceImportStar( MyTestCase ):
       x = TestTChain()        # TestTChain defined in Amir.py
 
 
-# TPyException thrown from C++ code ========================================
-class Regression02PyException(MyTestCase):
-   def test1RaiseAndTrapPyException(self):
-      """Test thrown TPyException object processing"""
-      gROOT.LoadMacro("ScottCppyy.C+")
-
-      # test of not overloaded global function
-      with self.assertRaisesRegex(SyntaxError, "test error message"):
-         ROOT.ThrowPyException()
-
-      # test of overloaded function
-      with self.assertRaisesRegex(SyntaxError, "overloaded int test error message"):
-         ROOT.MyThrowingClass.ThrowPyException(1)
+# NOTE: the former Regression02PyException was migrated to the cppyy test
+# suite: test_regression.py::test52_python_exception_from_cpp_function.
 
 
 ### Several tests that used to cause crashes =================================
+# NOTE: the former tests 1, 3, 4 and 5 of this class were migrated to the
+# cppyy test suite: test_advancedcpp.py::test32_temporary_with_custom_operator_new,
+# test_pythonization.py::test12_namespaced_class_with_iterators,
+# test_operators.py::test18_dereference_operator_returning_self and
+# test_fragile.py::test34_meta_class_attribute_lookup.
 class Regression03OldCrashers( MyTestCase ):
-   def test1CreateTemporary( self ):
-      """Handling of a temporary for user defined operator new"""
-
-      gROOT.LoadMacro( "MuonTileID.C+" )
-      getID = ROOT.getID
-
-      getID()
-      getID()                 # used to crash
-
    def test2UsageOfTQClassInstance( self ):
       """Calls on a TQClass instance"""
 
       self.assertEqual( TClass.GetClass("TQClass").GetName(), "TQClass" )
-
-   def test3UseNamespaceInIteratorPythonization( self ):
-      """Classes with iterators in a namespace"""
-
-      gROOT.LoadMacro( "Marco.C" )
-      ns = ROOT.ns
-
-      self.assertTrue( ns.MyClass )
-
-   def test4VerifyNoLoop( self ):
-      """Smart class that returns itself on dereference should not loop"""
-
-      gROOT.LoadMacro( "Scott3.C+" )
-      MyTooSmartClass = ROOT.MyTooSmartClass
-
-      a = MyTooSmartClass()
-      self.assertRaises( AttributeError, getattr, a, 'DoesNotExist' )
-
-   def test5DirectMetaClassAccess( self ):
-      """Direct access on the meta class"""
-
-      self.assertRaises( AttributeError, getattr, TObject.__class__, "nosuch" )
 
 
 ### Test the condition under which to (not) start the GUI thread =============
@@ -228,28 +187,8 @@ class Regression09TVector3Pythonize( MyTestCase ):
       self.assertEqual(v*v, 14.0)
 
 
-### test pythonization coral::AttributeList iterators ========================
-class Regression10CoralAttributeListIterators( MyTestCase ):
-   def test1IterateWithBaseIterator( self ):
-      """Verify that the correct base class iterators is picked up"""
-
-      gROOT.LoadMacro( "CoralAttributeList.C+" )
-      coral_pyroot_regression = ROOT.coral_pyroot_regression
-
-      a = coral_pyroot_regression.AttributeList()
-
-      a.extend( "i", "int" )
-      self.assertEqual( a.size(), 1 )
-      self.assertEqual( a.begin(), a.begin() )
-      self.assertNotEqual( a.begin(), a.end() )
-
-      b = a.begin()
-      e = a.end()
-      self.assertNotEqual( a, e )
-
-      b.__preinc__()
-      self.assertEqual( b, e )
-      self.assertNotEqual( b, a.begin() )
+# NOTE: the former Regression10CoralAttributeListIterators was migrated to
+# the cppyy test suite: test_stltypes.py::test05_iteration_with_base_iterator.
 
 
 ### entities in the ROOT:: namespace =========================================
@@ -275,19 +214,8 @@ class Regression12WriteTGraph( MyTestCase ):
       os.remove( "test.root" )
 
 
-### TPyException had troubles due to its base class of std::exception ========
-class Regression14TPyException( MyTestCase ):
-   def test1PythonAccessToTPyException( self ):
-      """Load TPyException into python and make sure its usable"""
-
-      # In exp PyROOT, TPyException is called PyException and it belongs
-      # to the CPyCppyy namespace.
-      # Also, it is not included in the PCH, so we need to include the
-      # header first
-      ROOT.gInterpreter.Declare("#include \"CPyCppyy/PyException.h\"")
-      e = ROOT.CPyCppyy.PyException()
-      self.assertTrue( e )
-      self.assertEqual( e.what(), "python exception" )
+# NOTE: the former Regression14TPyException was migrated to the cppyy test
+# suite: test_regression.py::test53_pyexception_construction.
 
 
 ### matrix access has to go through non-const lookup =========================
@@ -402,125 +330,15 @@ class Regression24CppPythonInheritance(MyTestCase):
 
        window = pMainFrame(ROOT.gClient.GetRoot(), 200, 200)
 
-   def test11MultiInheritancePyCpp(self):
-       """Multiple inheritance from Python and Cpp classes"""
-
-       class PurePy1:
-          def foo(self): return 1
-
-       class PurePy2:
-          def bar(self): return 2
-
-       cppyy.cppdef('''
-       class MyCppClass11 {
-       public:
-          int foo() { return 3; }
-          int bar() { return 4; }
-          virtual ~MyCppClass11() {}
-       };
-       ''')
-
-       # Multiple Python classes and just one C++ class are supported
-       class PyDerived11(PurePy1, cppyy.gbl.MyCppClass11, PurePy2): pass
-
-       x = PyDerived11()
-       self.assertEqual(x.foo(), 1) # PurePy1's foo
-       self.assertEqual(x.bar(), 4) # MyCppClass11's bar
+   # NOTE: the former test11MultiInheritancePyCpp was migrated to the cppyy
+   # test suite: test_crossinheritance.py::test40_mixed_python_cpp_bases.
 
 
-class Regression25MapGetItemToCall(MyTestCase):
-   def test01MapGetItemToCall(self):
-       """Test reduction of range of mapping __getitem__ to __call__"""
-       # 7179
-
-       cppyy.cppdef('''
-       struct Foo7179 {
-          float operator[](float x) {
-             return x;
-          }
-       };
-
-       struct Bar7179 : public Foo7179 {
-          float operator()(float x) {
-             return -1;
-          }
-       };
-       ''')
-
-       b = cppyy.gbl.Bar7179()
-       self.assertEqual(b[42], 42)
-
-class Regression26OverloadedOperator( MyTestCase ):
-   def test1CheckOverloadedOperator( self ):
-      """Test accessibility of derived class in presence of an overloaded operator()"""
-
-      code = """
-      namespace Regression26 {
-         struct DCBase
-         {
-            double& operator()();
-         };
-         struct DenseBase : public DCBase
-         {
-         using DCBase::operator();
-         template <typename T> int operator()() const;
-         };
-      }
-      """
-      gInterpreter.LoadText(code)
-      foo = ROOT.Regression26.DenseBase
-
-
-class Regression27ImplicitSmartPtrOverload(MyTestCase):
-    def test1CheckImplicitSmartPtrOverload(self):
-        """Implicit smart pointer conversion should not cause wrong overload choice.
-
-        Test that if there are both smart pointer and rvalue reference overloads,
-        the smart pointer overload is not chosen by accident.
-
-        Covers GitHub issue https://github.com/root-project/root/issues/15117."""
-
-        ROOT.gInterpreter.LoadText(
-            """
-        namespace regression27 {
-
-        struct Base {
-           virtual ~Base() = default;
-           virtual int func() const = 0;
-        };
-
-        struct Derived : public Base {
-           Derived(int i) : m_i(i) {}
-           ~Derived() = default;
-           Derived(const Derived &) = delete;
-           Derived &operator=(const Derived &) = delete;
-           Derived(Derived &&) = default;
-           Derived &operator=(Derived &&) = default;
-
-           int func() const final { return m_i; }
-
-        private:
-           int m_i{42};
-        };
-
-        int foo(std::unique_ptr<Base> basePtr)
-        {
-           return 1;
-        }
-
-        template <typename T,
-                  typename = std::enable_if_t<std::is_base_of_v<Base, T> && !std::is_lvalue_reference_v<T>>>
-        int foo(T &&t)
-        {
-           return 2;
-        }
-
-        } // namespace regression27
-        """
-        )
-
-        c = ROOT.regression27.Derived(123)
-        self.assertEqual(ROOT.regression27.foo(ROOT.std.move(c)), 2)  # we expect the second overload
+# NOTE: the former Regression25MapGetItemToCall, Regression26OverloadedOperator
+# and Regression27ImplicitSmartPtrOverload were migrated to the cppyy test
+# suite: test_operators.py::test19_base_index_operator_with_derived_call_operator,
+# test_advancedcpp.py::test33_using_of_base_operator_call and
+# test_cpp11features.py::test22_smart_ptr_overload_and_rvalue_ref.
 
 
 ## actual test run

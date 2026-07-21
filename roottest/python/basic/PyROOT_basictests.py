@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import ROOT
 from ROOT import gROOT, gApplication, gSystem, gInterpreter, gDirectory
-from ROOT import TLorentzVector, TString, TList, TH1D, TObjArray, TVectorF, TObjString
+from ROOT import TLorentzVector, TString, TList, TObjArray, TVectorF, TObjString
 from common import *
 
 __all__ = [
@@ -257,11 +257,8 @@ class Basic5PythonizationTestCase( MyTestCase ):
 
       self.assertEqual( b, [] )
 
-   def test5Hashing( self ):
-      """C++ objects must be hashable"""
-
-      a = TH1D("asd", "asd", 10, 0, 1)
-      self.assertTrue( hash(a) )
+   # NOTE: the former test5Hashing was migrated to the cppyy test suite:
+   # test_regression.py::test51_bound_object_hash.
 
 
 ## actual test run

@@ -22,15 +22,13 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from sys import maxsize
 
 import ROOT
-from ROOT import TObject, TLorentzVector, TVectorF, TROOT, gROOT, TMatrixD, TString, std
+from ROOT import TObject, TLorentzVector, TVectorF, TROOT, gROOT, TMatrixD, TString
 from ROOT import MakeNullPointer, AsCObject, BindObject, AddressOf, addressof
 from common import *
 
 __all__ = [
    'Cpp1LanguageFeatureTestCase',
-   'Cpp2ClassNamingTestCase',
    'Cpp3UsingDeclarations',
-   'Cpp4InheritanceTreeOverloadResolution',
 ]
 
 ### C++ language constructs test cases =======================================
@@ -179,17 +177,9 @@ class Cpp1LanguageFeatureTestCase( MyTestCase ):
       self.assertEqual(addr_as_int, addr_as_buffer[0])
 
 
-### C++ language naming of classes ===========================================
-class Cpp2ClassNamingTestCase( MyTestCase ):
-   def test03NamespaceInTemplates( self ):
-      """Templated data members need to retain namespaces of arguments"""
-
-      gROOT.LoadMacro( "Namespace.C+" )
-      PR_NS_A = ROOT.PR_NS_A
-
-      p = std.pair( std.vector( PR_NS_A.PR_ST_B ), std.vector( PR_NS_A.PR_NS_D.PR_ST_E ) )()
-      self.assertTrue( "vector<PR_NS_A::PR_ST_B>" in type(p.first).__name__ )
-      self.assertTrue( "vector<PR_NS_A::PR_NS_D::PR_ST_E>" in type(p.second).__name__ )
+# NOTE: the former Cpp2ClassNamingTestCase.test03NamespaceInTemplates was
+# migrated to the cppyy test suite:
+# test_templates.py::test38_namespaces_in_template_arguments.
 
 
 ### C++ language using declarations ===========================================
@@ -216,56 +206,9 @@ class Cpp3UsingDeclarations( MyTestCase ):
         h = ROOT.MyTH1F("name", "title", 100, 0, 100)
 
 
-class Cpp4InheritanceTreeOverloadResolution(MyTestCase):
-    """
-    Tests correct overload resolution of functions accepting classes part of
-    the same inheritance tree.
-    """
-
-    @classmethod
-    def setUpClass(cls):
-        """Declare the classes and functions needed for the tests"""
-        ROOT.gInterpreter.Declare(
-        """
-        namespace Cpp4 {
-            class A {};
-            class B: public A {};
-            class C: public B {};
-
-            class X {};
-            class Y: public X {};
-            class Z: public Y {};
-
-            int myfunc(const B &b){
-                return 1;
-            }
-
-            int myfunc(const C &c){
-                return 2;
-            }
-
-            int myfunc(const B &b, const Z &z){
-                return 1;
-            }
-
-            int myfunc(const C &c, const X &x){
-                return 2;
-            }
-
-        } // end namespace
-        """)
-
-    def test2TwoArgumentFunctionAmbiguous(self):
-        """
-        Test the behaviour of a scenario that would be ambiguous in C++.
-
-        In PyROOT, the function with the highest priority in the overload
-        resolution will be called. Would be nice to throw an error in this kind
-        of scenario.
-        """
-        # In C++ calling myfunc(C(), Z()) would throw
-        # error: call to 'myfunc' is ambiguous
-        self.assertEqual(ROOT.Cpp4.myfunc(ROOT.Cpp4.C(), ROOT.Cpp4.Z()), 1)
+# NOTE: the former Cpp4InheritanceTreeOverloadResolution tests were migrated
+# to the cppyy test suite: test_overloads.py::test11_deep_inheritance and
+# test16_ambiguous_overload_selects_by_priority.
 
 
 ## actual test run
