@@ -174,6 +174,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooMsgService.h
     RooMultiCategory.h
     RooMultiPdf.h
+    RooMultiPdfGenContext.h
     RooMultiReal.h
     RooMultiVarGaussian.h
     RooNameReg.h
@@ -371,6 +372,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooMultiCategory.cxx
     src/RooMultiVarGaussian.cxx
     src/RooMultiPdf.cxx
+    src/RooMultiPdfGenContext.cxx
     src/RooMultiReal.cxx
     src/RooNLLVarNew.cxx
     src/RooNameReg.cxx
