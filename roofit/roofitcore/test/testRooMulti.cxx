@@ -6,6 +6,9 @@
 #include <RooRealVar.h>
 #include <RooBernstein.h>
 #include <RooExponential.h>
+#include <RooExtendPdf.h>
+#include <RooDataSet.h>
+#include <RooRandom.h>
 #include <RooMinimizer.h>
 #include <gtest/gtest.h>
 
@@ -260,6 +263,90 @@ TEST(RooMultiPdfTest, Minimization)
    EXPECT_DOUBLE_EQ(multiNllVals[0], nllVal1);
    EXPECT_DOUBLE_EQ(multiNllVals[1], nllVal2);
 }
+// When the index category is among the observables and the component pdfs are
+// extended, generating from a RooMultiPdf should sample the index category
+// according to the relative expected yields of the components, and generate the
+// observables from the selected component (like RooSimultaneous does).
+// Covers https://github.com/root-project/root/issues/22916
+TEST(RooMultiPdfTest, ExtendedGenerationSamplesIndexByYields)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   RooRealVar x("x", "x", -10, 10);
+
+   RooRealVar m1("m1", "m1", 0.0);
+   RooRealVar s1("s1", "s1", 1.0);
+   RooRealVar m2("m2", "m2", 3.0);
+   RooRealVar s2("s2", "s2", 2.0);
+   RooGaussian g1("g1", "g1", x, m1, s1);
+   RooGaussian g2("g2", "g2", x, m2, s2);
+
+   // Extend the components with different expected yields, so that the
+   // category split is expected to be 100:300, i.e. 25% : 75%.
+   RooRealVar n1("n1", "n1", 100.0);
+   RooRealVar n2("n2", "n2", 300.0);
+   RooExtendPdf e1("e1", "e1", g1, n1);
+   RooExtendPdf e2("e2", "e2", g2, n2);
+
+   RooCategory cat("cat", "cat");
+   RooMultiPdf multiPdf("multiPdf", "multiPdf", cat, RooArgList{e1, e2});
+
+   const std::string lab0 = cat.lookupName(0);
+   const std::string lab1 = cat.lookupName(1);
+
+   const int nEvents = 40000;
+   std::unique_ptr<RooDataSet> data{multiPdf.generate({x, cat}, nEvents)};
+
+   ASSERT_EQ(data->numEntries(), nEvents);
+
+   const double n0 = data->sumEntries(("cat==cat::" + lab0).c_str());
+   const double n1Obs = data->sumEntries(("cat==cat::" + lab1).c_str());
+
+   ASSERT_EQ(n0 + n1Obs, nEvents);
+
+   const double expectedFrac0 = 100. / 400.;
+   const double expectedFrac1 = 300. / 400.;
+
+   // Tolerance of 0.02 corresponds to roughly 9 sigma of the binomial
+   // fluctuation for this sample size, so this is a robust check.
+   EXPECT_NEAR(n0 / nEvents, expectedFrac0, 0.02) << "Index category not sampled proportionally to yields";
+   EXPECT_NEAR(n1Obs / nEvents, expectedFrac1, 0.02) << "Index category not sampled proportionally to yields";
+
+   // Verify that the observable values are actually generated from the
+   // component associated with each category state.
+   EXPECT_NEAR(data->mean(x, ("cat==cat::" + lab0).c_str()), m1.getVal(), 0.1);
+   EXPECT_NEAR(data->mean(x, ("cat==cat::" + lab1).c_str()), m2.getVal(), 0.1);
+}
+
+// If the index category is not requested among the observables, the RooMultiPdf
+// should generate from the currently-selected component pdf (unchanged legacy
+// behaviour).
+TEST(RooMultiPdfTest, GenerationWithoutIndexUsesCurrentPdf)
+{
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   RooRealVar x("x", "x", -10, 10);
+
+   RooRealVar m1("m1", "m1", -3.0);
+   RooRealVar s1("s1", "s1", 0.5);
+   RooRealVar m2("m2", "m2", 3.0);
+   RooRealVar s2("s2", "s2", 0.5);
+   RooGaussian g1("g1", "g1", x, m1, s1);
+   RooGaussian g2("g2", "g2", x, m2, s2);
+
+   RooCategory cat("cat", "cat");
+   RooMultiPdf multiPdf("multiPdf", "multiPdf", cat, RooArgList{g1, g2});
+
+   cat.setIndex(1); // select the second component
+
+   std::unique_ptr<RooDataSet> data{multiPdf.generate(x, 10000)};
+
+   // All events should come from the currently-selected component (g2).
+   EXPECT_NEAR(data->mean(x), m2.getVal(), 0.1);
+}
+
 TEST(RooMultiReal, SelectsCorrectModel)
 {
    RooRealVar x("x", "x", -10, 10);

@@ -20,6 +20,7 @@
    by setting their associated indices.*/
 
 #include <RooMultiPdf.h>
+#include <RooMultiPdfGenContext.h>
 #include <RooFit/Detail/MathFuncs.h>
 #include <RooConstVar.h>
 
@@ -87,4 +88,30 @@ void RooMultiPdf::getParametersHook(const RooArgSet *nset, RooArgSet *list, bool
    list->removeAll();
    getCurrentPdf()->getParameters(nset, *list, stripDisconnected);
    list->add(*x);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return the generator context for the RooMultiPdf.
+///
+/// If the index category is among the observables to be generated, a
+/// specialized RooMultiPdfGenContext is returned that treats the RooMultiPdf as
+/// a mixture: the index category is sampled according to the relative expected
+/// yields of the (extended) component pdfs, and the observables are generated
+/// from the selected component. This mirrors the behaviour of RooSimultaneous.
+///
+/// If the index category is not requested, the standard accept-reject context
+/// is returned, which generates from the currently-selected component pdf.
+
+RooAbsGenContext *RooMultiPdf::genContext(const RooArgSet &vars, const RooDataSet *prototype, const RooArgSet *auxProto,
+                                          bool verbose) const
+{
+   RooArgSet allVars{vars};
+   if (prototype)
+      allVars.add(*prototype->get(), true);
+
+   if (allVars.find(x->GetName())) {
+      return new RooMultiPdfGenContext(*this, vars, prototype, auxProto, verbose);
+   }
+
+   return RooAbsPdf::genContext(vars, prototype, auxProto, verbose);
 }
