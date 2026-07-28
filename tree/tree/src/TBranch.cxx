@@ -1409,8 +1409,11 @@ Int_t TBranch::GetBasketAndFirst(TBasket *&basket, Long64_t &first,
             // Disassociate basket from memory buffer for bulk IO
             // When the user provides a memory buffer (i.e., for bulk IO), we should
             // make sure to drop all references to that buffer in the TTree afterward.
+            // Use RemoveAt (rather than a plain slot assignment) so that the array's
+            // fLast bookkeeping is updated; otherwise the branch would be streamed with
+            // an extra (empty) basket slot, spuriously increasing its reported size.
             fCurrentBasket = nullptr;
-            fBaskets[fReadBasket] = nullptr;
+            fBaskets.RemoveAt(fReadBasket);
          } else {
             fCurrentBasket = basket;
          }
@@ -1515,7 +1518,10 @@ Int_t TBranch::GetBulkEntries(Long64_t entry, TBuffer &user_buf)
          user_buf.SetBuffer(buf->Buffer(), buf->BufferSize());
          buf->ResetBit(TBufferIO::kIsOwner);
          fCurrentBasket = nullptr;
-         fBaskets[fReadBasket] = nullptr;
+         // Use RemoveAt so the array's fLast bookkeeping is updated; a plain slot
+         // assignment would leave the branch streaming an extra (empty) basket slot,
+         // spuriously increasing its reported size (see issue #8961).
+         fBaskets.RemoveAt(fReadBasket);
       } else {
          // This is the only copy, we can't return it as is to the user, just make a copy.
          if (user_buf.BufferSize() < buf->BufferSize()) {
@@ -1633,7 +1639,10 @@ Int_t TBranch::GetEntriesSerialized(Long64_t entry, TBuffer &user_buf, TBuffer *
          user_buf.SetBuffer(buf->Buffer(), buf->BufferSize());
          buf->ResetBit(TBufferIO::kIsOwner);
          fCurrentBasket = nullptr;
-         fBaskets[fReadBasket] = nullptr;
+         // Use RemoveAt so the array's fLast bookkeeping is updated; a plain slot
+         // assignment would leave the branch streaming an extra (empty) basket slot,
+         // spuriously increasing its reported size (see issue #8961).
+         fBaskets.RemoveAt(fReadBasket);
       } else {
          // This is the only copy, we can't return it as is to the user, just make a copy.
          if (user_buf.BufferSize() < buf->BufferSize()) {
