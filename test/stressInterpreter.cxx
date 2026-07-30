@@ -223,14 +223,18 @@ bool InterpreterStress::stressSTLDict() {
    for (Int_t i = 0; i < fNtimes; ++i) {
       int res = 3;
       TInterpreter::EErrorCode interpError = TInterpreter::kNoError;
+      // Use a unique forward-declared class per iteration. Reusing the same
+      // class name (and therefore the same std::vector<MyClass*> instantiation)
+      // across subsequent .X calls trips cling's ORC JIT, which then fails to
+      // materialize the vector symbols on the second and later iterations.
       TString cmd
-         = TString::Format("class MyClass;\n"
-                           "typedef MyClass* Klass%d_t;\n"
+         = TString::Format("class MyClass%d;\n"
+                           "typedef MyClass%d* Klass%d_t;\n"
                            "std::vector<Klass%d_t> v%d;\n"
                            "void stressInterpreter_tmp%d() {\n"
                            "   v%d.push_back((Klass%d_t)0x12);\n"
                            "   *((int*)0x%zx) = 17;}",
-                           i, i, i, i, i, i, (size_t) &res);
+                           i, i, i, i, i, i, i, i, (size_t) &res);
       TString tmpfilename = TString::Format("stressInterpreter_tmp%d.C", i);
       {
          std::ofstream otmp(tmpfilename.Data());
