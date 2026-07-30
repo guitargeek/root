@@ -19,11 +19,10 @@
 /// \f[
 ///       f(x) * g(x) \rightarrow F(k_i) \cdot G(k_i)
 /// \f]
-/// to calculate the convolution by calculating a Real->Complex FFT of both input PDFs,
-/// multiplying the complex coefficients and performing the reverse Complex->Real FFT
-/// to get the result in the input space. This class uses the ROOT FFT interface to
-/// the (free) FFTW3 package (www.fftw.org), and requires that your ROOT installation is
-/// compiled with the `fftw3=ON` (default). Instructions for manually installing fftw below.
+/// to calculate the convolution by calculating a forward FFT of both input PDFs,
+/// multiplying the complex coefficients and performing the inverse FFT to get the
+/// result in the input space. The FFT is implemented internally so that no external
+/// FFT library (e.g. FFTW3) is required.
 ///
 /// Note that the performance in terms of speed and stability of RooFFTConvPdf is
 /// vastly superior to that of RooNumConvPdf.
@@ -75,38 +74,6 @@
 ///
 /// Multi-dimensional convolutions are not supported at the moment.
 ///
-/// ---
-///
-/// Installing an external version of FFTW on Linux and compiling ROOT to use it
-/// -------
-///
-/// You have two options:
-/// * **Recommended**: ROOT can automatically install FFTW for itself, see `builtin_fftw3` at https://root.cern/building-root
-/// * Install FFTW and let ROOT discover it. `fftw3` is on by default (see https://root.cern/building-root)
-///
-/// 1) Go to www.fftw.org and download the latest stable version (a .tar.gz file)
-///
-/// If you have root access to your machine and want to make a system installation of FFTW
-///
-///   2) Untar fftw-XXX.tar.gz in /tmp, cd into the untarred directory
-///       and type './configure' followed by 'make install'.
-///       This will install fftw in /usr/local/bin,lib etc...
-///
-///   3) Start from a source installation of ROOT. ROOT should discover it. See https://root.cern/building-root
-///
-///
-/// If you do not have root access and want to make a private installation of FFTW
-///
-///   2) Make a private install area for FFTW, e.g. /home/myself/fftw
-///
-///   3) Untar fftw-XXX.tar.gz in /tmp, cd into the untarred directory
-///       and type './configure --prefix=/home/myself/fftw' followed by 'make install'.
-///       Substitute /home/myself/fftw with a directory of your choice. This
-///       procedure will install FFTW in the location designated by you
-///
-///   4) Start from a source installation of ROOT.
-///      Look up and set the proper paths for ROOT to discover FFTW. See https://root.cern/building-root
-///
 
 #include "RooFFTConvPdf.h"
 
@@ -126,85 +93,142 @@
 #include "RooFitImplHelpers.h"
 
 #include "TClass.h"
-#include "TComplex.h"
-#include "TVirtualFFT.h"
 
+#include <cmath>
+#include <complex>
 #include <iostream>
 #include <stdexcept>
-
-#ifndef ROOFIT_MATH_FFTW3
-#include "TInterpreter.h"
+#include <vector>
 
 namespace {
 
-auto declareDoFFT()
+using FFTComplex = std::complex<double>;
+
+// Iterative in-place radix-2 Cooley-Tukey FFT. The length of `a` must be a power
+// of two. `sign` is -1 for the forward DFT and +1 for the backward DFT (no
+// normalization is applied in either direction, matching the FFTW convention).
+void fftRadix2(std::vector<FFTComplex> &a, int sign)
 {
-   static void (*doFFT)(int, double *, double *, double *) = nullptr;
+   const std::size_t n = a.size();
+   if (n < 2)
+      return;
 
-   if (doFFT)
-      return doFFT;
-
-   bool success = gInterpreter->Declare("#include \"fftw3.h\"");
-
-   if (!success) {
-      std::stringstream ss;
-      ss << "RooFFTConvPdf evaluation Failed! The interpreter could not find the fftw3.h header.\n";
-      ss << "You have three options to fix this problem:\n";
-      ss << "    1) Install fftw3 on your system so that the interpreter can find it\n";
-      ss << "    2) In case fftw3.h is installed somewhere else,\n"
-         << "       tell ROOT with gInterpreter->AddIncludePath() where to find it\n";
-      ss << "    3) Compile ROOT with the -Dfftw3=ON in the CMake configuration,\n"
-         << "       such that ROOT comes with built-in fftw3 convolution routines\n";
-      oocoutE(nullptr, Eval) << ss.str() << std::endl;
-      throw std::runtime_error("RooFFTConvPdf evaluation Failed! The interpreter could not find the fftw3.h header");
+   // Bit-reversal permutation.
+   for (std::size_t i = 1, j = 0; i < n; ++i) {
+      std::size_t bit = n >> 1;
+      for (; j & bit; bit >>= 1) {
+         j ^= bit;
+      }
+      j ^= bit;
+      if (i < j) {
+         std::swap(a[i], a[j]);
+      }
    }
 
-   gInterpreter->Declare(R"(
-void RooFFTConvPdf_doFFT(int n, double *input1, double *input2, double *output)
-{
-   auto fftr2c1_Out = reinterpret_cast<fftw_complex *>(fftw_malloc(sizeof(fftw_complex) * (n / 2 + 1)));
-   auto fftr2c2_Out = reinterpret_cast<fftw_complex *>(fftw_malloc(sizeof(fftw_complex) * (n / 2 + 1)));
-   auto fftc2r_In = reinterpret_cast<fftw_complex *>(fftw_malloc(sizeof(fftw_complex) * (n / 2 + 1)));
-
-   fftw_plan fftr2c1_plan = fftw_plan_dft_r2c(1, &n, input1, fftr2c1_Out, FFTW_ESTIMATE);
-   fftw_plan fftr2c2_plan = fftw_plan_dft_r2c(1, &n, input2, fftr2c2_Out, FFTW_ESTIMATE);
-   fftw_plan fftc2r_plan = fftw_plan_dft_c2r(1, &n, fftc2r_In, output, FFTW_ESTIMATE);
-
-   // Real->Complex FFT Transform on p.d.f. samplings
-   fftw_execute(fftr2c1_plan);
-   fftw_execute(fftr2c2_plan);
-
-   // Loop over first half +1 of complex output results, multiply
-   // and set as input of reverse transform
-   for (Int_t i = 0; i < n / 2 + 1; i++) {
-      double re1 = fftr2c1_Out[i][0];
-      double re2 = fftr2c2_Out[i][0];
-      double im1 = fftr2c1_Out[i][1];
-      double im2 = fftr2c2_Out[i][1];
-      fftc2r_In[i][0] = re1 * re2 - im1 * im2;
-      fftc2r_In[i][1] = re1 * im2 + re2 * im1;
+   // Butterfly stages.
+   for (std::size_t len = 2; len <= n; len <<= 1) {
+      const double angle = sign * 2.0 * M_PI / static_cast<double>(len);
+      const FFTComplex wlen(std::cos(angle), std::sin(angle));
+      const std::size_t half = len >> 1;
+      for (std::size_t i = 0; i < n; i += len) {
+         FFTComplex w(1.0, 0.0);
+         for (std::size_t k = 0; k < half; ++k) {
+            const FFTComplex u = a[i + k];
+            const FFTComplex v = a[i + k + half] * w;
+            a[i + k] = u + v;
+            a[i + k + half] = u - v;
+            w *= wlen;
+         }
+      }
    }
-
-   // Reverse Complex->Real FFT transform product
-   fftw_execute(fftc2r_plan);
-
-   fftw_destroy_plan(fftr2c1_plan);
-   fftw_destroy_plan(fftr2c2_plan);
-   fftw_destroy_plan(fftc2r_plan);
-
-   fftw_free(fftr2c1_Out);
-   fftw_free(fftr2c2_Out);
-   fftw_free(fftc2r_In);
 }
-)");
 
-   doFFT = reinterpret_cast<void(*)(int, double*, double*, double*)>(gInterpreter->ProcessLine("RooFFTConvPdf_doFFT;"));
-   return doFFT;
+// Bluestein's chirp z-transform for an arbitrary-length DFT. Computes the
+// DFT in place using a power-of-two radix-2 FFT, so it works for any size.
+// `sign` follows the same convention as fftRadix2().
+void fftBluestein(std::vector<FFTComplex> &a, int sign)
+{
+   const std::size_t n = a.size();
+   if (n < 2)
+      return;
+
+   // For power-of-two sizes the radix-2 FFT is exact and faster.
+   if ((n & (n - 1)) == 0) {
+      fftRadix2(a, sign);
+      return;
+   }
+
+   // Smallest power of two >= 2n - 1.
+   std::size_t m = 1;
+   while (m < 2 * n - 1) {
+      m <<= 1;
+   }
+
+   // Chirp w[k] = exp(sign * i * pi * k^2 / n). Use k^2 mod (2n) to keep the
+   // angle small for large k and preserve trig accuracy.
+   std::vector<FFTComplex> chirp(n);
+   const long long twoN = 2LL * static_cast<long long>(n);
+   for (std::size_t k = 0; k < n; ++k) {
+      const long long kk = static_cast<long long>(k) * static_cast<long long>(k);
+      const long long mod = kk % twoN;
+      const double angle = sign * M_PI * static_cast<double>(mod) / static_cast<double>(n);
+      chirp[k] = FFTComplex(std::cos(angle), std::sin(angle));
+   }
+
+   // a_padded[k] = a[k] * chirp[k]; b_padded is the periodically extended
+   // conjugate chirp on [-(n-1), n-1].
+   std::vector<FFTComplex> A(m, FFTComplex(0.0, 0.0));
+   std::vector<FFTComplex> B(m, FFTComplex(0.0, 0.0));
+   for (std::size_t k = 0; k < n; ++k) {
+      A[k] = a[k] * chirp[k];
+   }
+   B[0] = std::conj(chirp[0]);
+   for (std::size_t k = 1; k < n; ++k) {
+      const FFTComplex c = std::conj(chirp[k]);
+      B[k] = c;
+      B[m - k] = c;
+   }
+
+   // Linear convolution via FFTs. fftRadix2(.,+1) is the unnormalized inverse,
+   // so we divide by m at the end.
+   fftRadix2(A, -1);
+   fftRadix2(B, -1);
+   for (std::size_t k = 0; k < m; ++k) {
+      A[k] *= B[k];
+   }
+   fftRadix2(A, +1);
+
+   const double invM = 1.0 / static_cast<double>(m);
+   for (std::size_t k = 0; k < n; ++k) {
+      a[k] = chirp[k] * A[k] * invM;
+   }
+}
+
+// Replicates the FFTW r2c -> multiply -> c2r pipeline used by RooFFTConvPdf.
+// The convention is unnormalized (matching FFTW), so the output equals
+// n * (input1 ⊛ input2) where ⊛ denotes circular convolution. The absolute
+// scale does not matter since RooHistPdf renormalizes the cached histogram.
+void doFFT(int n, double const *input1, double const *input2, double *output)
+{
+   const std::size_t N = static_cast<std::size_t>(n);
+   std::vector<FFTComplex> a(N);
+   std::vector<FFTComplex> b(N);
+   for (std::size_t k = 0; k < N; ++k) {
+      a[k] = FFTComplex(input1[k], 0.0);
+      b[k] = FFTComplex(input2[k], 0.0);
+   }
+   fftBluestein(a, -1);
+   fftBluestein(b, -1);
+   for (std::size_t k = 0; k < N; ++k) {
+      a[k] *= b[k];
+   }
+   fftBluestein(a, +1);
+   for (std::size_t k = 0; k < N; ++k) {
+      output[k] = a[k].real();
+   }
 }
 
 } // namespace
-
-#endif
 
 using std::endl, std::string, std::ostream;
 
@@ -592,56 +616,8 @@ void RooFFTConvPdf::fillCacheSlice(FFTCacheElem& aux, const RooArgSet& slicePos)
   std::vector<double> input2 = scanPdf(xVar,*aux.pdf2Clone,aux.normVal2,cacheHist,slicePos,N,N2,binShift2,_shift2) ;
   if (_bufStrat==Extend) histX->setBinning(*aux.histBinning) ;
 
-#ifndef ROOFIT_MATH_FFTW3
-  // If ROOT was NOT built with the fftw3 interface, we try to include fftw3.h
-  // with the interpreter and run the concolution in the interpreter.
   std::vector<double> output(N2);
-
-   auto doFFT = declareDoFFT();
-   doFFT(N2, input1.data(), input2.data(), output.data());
-#else
-  // If ROOT was built with the fftw3 interface, we can use it as a TVirtualFFT
-  // plugin. The advantage here is that nothing can go wrong if fftw3.h wahs
-  // not istalled by the user separately.
-
-  // Retrieve previously defined FFT transformation plans
-  if (!aux.fftr2c1) {
-    aux.fftr2c1.reset(TVirtualFFT::FFT(1, &N2, "R2CK"));
-    aux.fftr2c2.reset(TVirtualFFT::FFT(1, &N2, "R2CK"));
-    aux.fftc2r.reset(TVirtualFFT::FFT(1, &N2, "C2RK"));
-
-    if (aux.fftr2c1 == nullptr || aux.fftr2c2 == nullptr || aux.fftc2r == nullptr) {
-      coutF(Eval) << "RooFFTConvPdf::fillCacheSlice(" << GetName() << "Cannot get a handle to fftw. Maybe ROOT was built without it?" << std::endl;
-      throw std::runtime_error("Cannot get a handle to fftw.");
-    }
-  }
-
-  // Real->Complex FFT Transform on p.d.f. 1 sampling
-  aux.fftr2c1->SetPoints(input1.data());
-  aux.fftr2c1->Transform();
-
-  // Real->Complex FFT Transform on p.d.f 2 sampling
-  aux.fftr2c2->SetPoints(input2.data());
-  aux.fftr2c2->Transform();
-
-  // Loop over first half +1 of complex output results, multiply
-  // and set as input of reverse transform
-  for (Int_t i=0 ; i<N2/2+1 ; i++) {
-    double re1;
-    double re2;
-    double im1;
-    double im2;
-    aux.fftr2c1->GetPointComplex(i,re1,im1) ;
-    aux.fftr2c2->GetPointComplex(i,re2,im2) ;
-    double re = re1*re2 - im1*im2 ;
-    double im = re1*im2 + re2*im1 ;
-    TComplex t(re,im) ;
-    aux.fftc2r->SetPointComplex(i,t) ;
-  }
-
-  // Reverse Complex->Real FFT transform product
-  aux.fftc2r->Transform() ;
-#endif
+  doFFT(N2, input1.data(), input2.data(), output.data());
 
   Int_t totalShift = binShift1 + (N2-N)/2 ;
 
@@ -657,11 +633,7 @@ void RooFFTConvPdf::fillCacheSlice(FFTCacheElem& aux, const RooArgSet& slicePos)
 
     iter->Next() ;
     const std::size_t binIdx = cacheHist.getIndex(*cacheHist.get(), /*fast=*/true);
-#ifndef ROOFIT_MATH_FFTW3
     cacheHist.set(binIdx, output[j], -1.);
-#else
-    cacheHist.set(binIdx, aux.fftc2r->GetPointReal(j), -1.);
-#endif
   }
 }
 
