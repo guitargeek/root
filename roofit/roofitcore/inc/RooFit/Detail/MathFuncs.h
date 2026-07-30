@@ -192,7 +192,12 @@ double constraintSum(DoubleArray comp, unsigned int compSize)
 inline unsigned int uniformBinNumber(double low, double high, double val, unsigned int numBins, double coef)
 {
    double binWidth = (high - low) / numBins;
-   return coef * (val >= high ? numBins - 1 : std::abs((val - low) / binWidth));
+   // Compute the integer bin index first, then scale by coef. Doing the
+   // multiplication before truncation gives a wrong result whenever coef != 1
+   // (i.e. multi-dimensional lookups), because the fractional position within
+   // the bin gets amplified by coef before being cast to int.
+   unsigned int binIdx = val >= high ? numBins - 1 : static_cast<unsigned int>(std::abs((val - low) / binWidth));
+   return coef * binIdx;
 }
 
 template <typename DoubleArray>

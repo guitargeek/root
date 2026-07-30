@@ -101,7 +101,9 @@ void rooHistTranslateImpl(RooAbsArg const &arg, CodegenContext &ctx, int intOrde
                                         binning.numBins(), weightArr));
       return;
    }
-   std::string const &offset = dataHist.calculateTreeIndexForCodeSquash(ctx, obs);
+   // Use reverse=true so the emitted index matches the RooDataHist master-index
+   // storage layout (position 0 of `obs` is the slowest-varying dimension).
+   std::string const &offset = dataHist.calculateTreeIndexForCodeSquash(ctx, obs, /*reverse=*/true);
    std::string weightArr = dataHist.declWeightArrayForCodeSquash(ctx, correctForBinSize);
    ctx.addResult(&arg, "(" + weightArr + ")[" + offset + "]");
 }
@@ -205,10 +207,10 @@ void codegenImpl(PiecewiseInterpolation &arg, CodegenContext &ctx)
    std::string lowName = ctx.getTmpVarName();
    std::string highName = ctx.getTmpVarName();
    std::string nominalName = ctx.getTmpVarName();
-   code +=
-      "unsigned int " + idxName + " = " +
-      nomHist.calculateTreeIndexForCodeSquash(ctx, dynamic_cast<RooHistFunc const &>(*arg.nominalHist()).variables()) +
-      ";\n";
+   code += "unsigned int " + idxName + " = " +
+           nomHist.calculateTreeIndexForCodeSquash(
+              ctx, dynamic_cast<RooHistFunc const &>(*arg.nominalHist()).variables(), /*reverse=*/true) +
+           ";\n";
    code += "double const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
    code += "double const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
    code += "double " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
@@ -740,6 +742,21 @@ std::string codegenIntegral(RooAbsReal &arg, int code, const char *rangeName, Co
 void codegenImpl(RooRealIntegral &arg, CodegenContext &ctx)
 {
    if (arg.numIntCatVars().empty() && arg.numIntRealVars().empty()) {
+      // An analytical integral can still vary per event when its integrand
+      // depends on data observables that are not being integrated (slice
+      // observables). Detect this structurally so the framework places the
+      // result expression inside the event loop. Cached integrals built by
+      // RooRealSumPdf and friends are not reached by the regular dependsOnData
+      // traversal, so we need to handle it here.
+      RooArgSet leafs;
+      arg.integrand().leafNodeServerList(&leafs, nullptr);
+      auto const &deps = ctx.dependsOnData();
+      for (RooAbsArg *leaf : leafs) {
+         if (deps.find(leaf) != deps.end() && !arg.intVars().find(*leaf)) {
+            ctx.markDependsOnData(arg);
+            break;
+         }
+      }
       ctx.addResult(&arg, codegenIntegral(const_cast<RooAbsReal &>(arg.integrand()), arg.mode(), arg.intRange(), ctx));
       return;
    }
@@ -950,28 +967,147 @@ std::string codegenIntegralImpl(RooGaussian &arg, int code, const char *rangeNam
 
 namespace {
 
-std::string rooHistIntegralTranslateImpl(int code, RooAbsArg const &arg, RooDataHist const &dataHist,
-                                         const RooArgSet &obs, bool histFuncMode)
+// Implements analytical integration of a RooHistFunc/RooHistPdf via codegen,
+// covering both partial integration over a subset of observables and
+// integration over a sub-range. The encoding of `code` matches
+// RooHistPdf::getAnalyticalIntegral: bit (2 << n) marks obs[n] as integrated,
+// bit 0 marks "full range over all integrated observables".
+std::string rooHistIntegralTranslateImpl(int code, const char *rangeName, RooDataHist const &dataHist,
+                                         const RooArgSet &obs, bool histFuncMode, CodegenContext &ctx)
 {
-   if (((2 << obs.size()) - 1) != code) {
-      oocoutE(&arg, InputArguments) << "RooHistPdf::integral(" << arg.GetName()
-                                    << ") ERROR: AD currently only supports integrating over all histogram observables."
-                                    << std::endl;
-      return "";
+   const std::size_t nObs = obs.size();
+
+   // Fast path: full integration over all observables, full range. The integral
+   // is a compile-time constant.
+   if (((2 << nObs) - 1) == code) {
+      return doubleToString(dataHist.sum(histFuncMode));
    }
-   return doubleToString(dataHist.sum(histFuncMode));
+
+   // For each obs[n], decide whether it's being integrated (sum) or held as a
+   // slice variable that indexes the precomputed partial-sum table.
+   std::vector<bool> isSum(nObs);
+   for (std::size_t n = 0; n < nObs; ++n) {
+      isSum[n] = (code & (2 << n)) != 0;
+   }
+
+   const RooArgSet &histObs = *dataHist.get();
+   std::vector<int> numBins(nObs);
+   for (std::size_t i = 0; i < nObs; ++i) {
+      numBins[i] = dynamic_cast<RooAbsLValue const *>(histObs[i])->numBins();
+   }
+
+   // Recompute the RooDataHist master-index strides locally (the member
+   // `_idxMult` is private): the last variable is fastest-varying in storage,
+   // so the stride of position i is the product of numBins[j] for j > i.
+   std::vector<int> idxMult(nObs, 1);
+   for (int i = int(nObs) - 2; i >= 0; --i) {
+      idxMult[i] = idxMult[i + 1] * numBins[i + 1];
+   }
+   const int arrSize = nObs > 0 ? idxMult[0] * numBins[0] : 1;
+
+   // Look up range limits for integrated observables; only used when bit 0 is
+   // not set (i.e. some range is not full).
+   const bool useRanges = (code & 1) == 0;
+   std::vector<double> rangeLo(nObs, -std::numeric_limits<double>::infinity());
+   std::vector<double> rangeHi(nObs, +std::numeric_limits<double>::infinity());
+   if (useRanges) {
+      for (std::size_t i = 0; i < nObs; ++i) {
+         if (!isSum[i])
+            continue;
+         auto range = RooHelpers::getRangeOrBinningInterval(obs[i], rangeName);
+         rangeLo[i] = range.first;
+         rangeHi[i] = range.second;
+      }
+   }
+
+   // Layout of the slice-index space: matches the RooDataHist master-index
+   // storage convention, where position 0 is the slowest-varying dimension. We
+   // iterate from the last variable to the first so the codegen index
+   // expression below stays consistent with that layout.
+   std::vector<int> sliceStride(nObs, 0);
+   int sliceSize = 1;
+   for (int i = int(nObs) - 1; i >= 0; --i) {
+      if (isSum[i])
+         continue;
+      sliceStride[i] = sliceSize;
+      sliceSize *= numBins[i];
+   }
+
+   // Accumulate the partial-sum table by enumerating all histogram bins. The
+   // per-bin contribution mirrors `RooDataHist::sum(sumSet, sliceSet, true,
+   // !histFuncMode, ranges)` with a unified formula that reduces to the
+   // non-ranged variant when all integration ranges are infinite:
+   //   factor = histFuncMode ? binVolInRange : binVolInRange / _binv[ibin]
+   std::vector<double> table(sliceSize, 0.0);
+   for (int ibin = 0; ibin < arrSize; ++ibin) {
+      int tmp = ibin;
+      int sliceIdx = 0;
+      double binVolInRange = 1.0;
+      bool skip = false;
+      for (std::size_t i = 0; i < nObs; ++i) {
+         const int idx = tmp / idxMult[i];
+         tmp -= idx * idxMult[i];
+         if (isSum[i]) {
+            if (useRanges) {
+               const RooAbsBinning &binning = *dataHist.getBinnings()[i];
+               const double binLo = binning.binLow(idx);
+               const double binHi = binning.binHigh(idx);
+               const double widthInRange =
+                  std::min(rangeHi[i], binHi) - std::max(rangeLo[i], binLo);
+               if (widthInRange <= 0.0) {
+                  skip = true;
+                  break;
+               }
+               binVolInRange *= widthInRange;
+            } else {
+               binVolInRange *= dataHist.getBinnings()[i]->binWidth(idx);
+            }
+         } else {
+            sliceIdx += idx * sliceStride[i];
+         }
+      }
+      if (skip)
+         continue;
+
+      const double factor = histFuncMode ? binVolInRange : binVolInRange / dataHist.binVolume(ibin);
+      table[sliceIdx] += dataHist.weight(ibin) * factor;
+   }
+
+   // If there are no slice variables left (integral over all observables but
+   // in a sub-range), the result is again a single constant.
+   if (sliceSize == 1) {
+      return doubleToString(table[0]);
+   }
+
+   // Otherwise emit a table lookup indexed by the slice observables. The index
+   // expression matches the convention used to build the table (storage-order,
+   // i.e. position 0 of `obs` is the slowest-varying dimension).
+   std::string tableName = ctx.buildArg(std::span<const double>{table});
+   std::string idxExpr;
+   int strideForCodegen = 1;
+   for (int i = int(nObs) - 1; i >= 0; --i) {
+      if (isSum[i])
+         continue;
+      const RooAbsBinning &binning = *dataHist.getBinnings()[i];
+      if (!idxExpr.empty())
+         idxExpr = binning.translateBinNumber(ctx, *obs[i], strideForCodegen) + " + " + idxExpr;
+      else
+         idxExpr = binning.translateBinNumber(ctx, *obs[i], strideForCodegen);
+      strideForCodegen *= numBins[i];
+   }
+   return "(" + tableName + ")[" + idxExpr + "]";
 }
 
 } // namespace
 
-std::string codegenIntegralImpl(RooHistFunc &arg, int code, const char *, CodegenContext &)
+std::string codegenIntegralImpl(RooHistFunc &arg, int code, const char *rangeName, CodegenContext &ctx)
 {
-   return rooHistIntegralTranslateImpl(code, arg, arg.dataHist(), arg.variables(), true);
+   return rooHistIntegralTranslateImpl(code, rangeName, arg.dataHist(), arg.variables(), true, ctx);
 }
 
-std::string codegenIntegralImpl(RooHistPdf &arg, int code, const char *, CodegenContext &)
+std::string codegenIntegralImpl(RooHistPdf &arg, int code, const char *rangeName, CodegenContext &ctx)
 {
-   return rooHistIntegralTranslateImpl(code, arg, arg.dataHist(), arg.variables(), false);
+   return rooHistIntegralTranslateImpl(code, rangeName, arg.dataHist(), arg.variables(), false, ctx);
 }
 
 std::string codegenIntegralImpl(RooLandau &arg, int, const char *rangeName, CodegenContext &ctx)

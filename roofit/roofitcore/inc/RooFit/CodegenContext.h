@@ -109,6 +109,11 @@ public:
    std::vector<std::string> const &collectedFunctions() { return _collectedFunctions; }
 
    auto const &dependsOnData() const { return _dependsOnData; }
+   /// Mark a node as data-dependent so its result is treated as scope-dependent
+   /// during code emission. Useful for nodes whose data dependence is only
+   /// established at codegen time (e.g. analytical integrals that reduce to a
+   /// per-event lookup).
+   void markDependsOnData(RooAbsArg const &arg) { _dependsOnData.insert(&arg); }
    std::string
    buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::Detail::DataKey> const &dependsOnData = {});
 

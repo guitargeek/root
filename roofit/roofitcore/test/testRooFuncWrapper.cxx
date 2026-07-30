@@ -23,6 +23,7 @@
 #include <RooFunctor1DBinding.h>
 #include <RooFunctorBinding.h>
 #include <RooGaussian.h>
+#include <RooGenericPdf.h>
 #include <RooHelpers.h>
 #include <RooHistFunc.h>
 #include <RooHistPdf.h>
@@ -30,6 +31,8 @@
 #include <RooMultiVarGaussian.h>
 #include <RooPoisson.h>
 #include <RooPolynomial.h>
+#include <RooProdPdf.h>
+#include <RooRandom.h>
 #include <RooRealSumPdf.h>
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>
@@ -385,6 +388,7 @@ void getDataHistModel(RooWorkspace &ws)
    ws.import(model);
    ws.defineSet("observables", {x});
 }
+
 } // namespace
 
 /// Test based on rf706 tutorial
@@ -394,6 +398,7 @@ FactoryTestParams param7{"HistPdf", getDataHistModel,
                          },
                          1e-4,
                          /*randomizeParameters=*/true};
+
 
 FactoryTestParams param8{"Lognormal",
                          [](RooWorkspace &ws) {
@@ -661,3 +666,110 @@ INSTANTIATE_TEST_SUITE_P(RooFuncWrapper, FactoryTest, testValues,
                          [](testing::TestParamInfo<FactoryTest::ParamType> const &paramInfo) {
                             return paramInfo.param._name;
                          });
+
+namespace {
+
+// Build the codegen NLL with the JIT'd function actually being used and
+// compare it against the reference CPU NLL value. These tests cover the
+// codegen path for analytical integrals of RooHistPdf / RooHistFunc beyond
+// the "full integral over all observables, full range" case that was the
+// only one previously supported.
+void compareNLL(RooAbsPdf &pdf, RooAbsData &data, RooCmdArg const &extraArg1,
+                RooCmdArg const &extraArg2 = RooCmdArg::none(), double tol = 1e-9)
+{
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   std::unique_ptr<RooAbsReal> nllRef{pdf.createNLL(data, extraArg1, extraArg2, RooFit::EvalBackend::Cpu())};
+   std::unique_ptr<RooAbsReal> nllFunc{pdf.createNLL(data, extraArg1, extraArg2, RooFit::EvalBackend::Codegen())};
+   static_cast<RooFit::Experimental::RooEvaluatorWrapper &>(*nllFunc).setUseGeneratedFunctionCode(true);
+
+   EXPECT_NEAR(nllRef->getVal(), nllFunc->getVal(), tol);
+}
+
+// Fix the random generator seed for the duration of the test so that data
+// generation does not perturb process-wide RNG state seen by other tests in
+// the same binary.
+struct ScopedSeed {
+   ScopedSeed(UInt_t seed) : _savedSeed{RooRandom::randomGenerator()->GetSeed()}
+   {
+      RooRandom::randomGenerator()->SetSeed(seed);
+   }
+   ~ScopedSeed() { RooRandom::randomGenerator()->SetSeed(_savedSeed); }
+   UInt_t _savedSeed;
+};
+
+} // namespace
+
+// Partial integration of a 2D RooHistPdf: with ConditionalObservables(y),
+// the normalization integral is taken over x only and the codegen has to
+// emit a per-event lookup indexed by the slice variable y.
+TEST(RooHistPartialIntegralCodegen, HistPdfConditional2D)
+{
+   using namespace RooFit;
+
+   ScopedSeed seed{1337};
+
+   RooRealVar x("x", "x", 0, 20);
+   RooRealVar y("y", "y", -5, 5);
+   x.setBins(8);
+   y.setBins(4);
+
+   RooGenericPdf shape("shape", "shape", "1.0 + 0.05*x + 0.1*y + 0.005*x*y", {x, y});
+   std::unique_ptr<RooDataHist> hist{shape.generateBinned({x, y}, 2000)};
+   RooHistPdf pdf("histpdf", "histpdf", {x, y}, *hist, 0);
+
+   std::unique_ptr<RooDataSet> raw{pdf.generate({x, y}, 100)};
+   std::unique_ptr<RooAbsData> data{raw->binnedClone()};
+
+   compareNLL(pdf, *data, ConditionalObservables(y));
+}
+
+// Sub-range integration of a 1D RooHistPdf: the analytical integral is
+// taken over a sub-range of the only observable (no slice variables).
+TEST(RooHistPartialIntegralCodegen, HistPdfRanged1D)
+{
+   using namespace RooFit;
+
+   ScopedSeed seed{1337};
+
+   RooRealVar x("x", "x", 0, 20);
+   x.setBins(10);
+   x.setRange("fit", 2.0, 16.0);
+
+   RooPolynomial shape("shape", "shape", x, RooArgList(0.01, -0.01, 0.0004));
+   std::unique_ptr<RooDataHist> hist{shape.generateBinned(x, 500)};
+   RooHistPdf pdf("histpdf", "histpdf", x, *hist, 0);
+
+   std::unique_ptr<RooDataSet> raw{pdf.generate(x, 200)};
+   std::unique_ptr<RooAbsData> data{raw->binnedClone()};
+
+   compareNLL(pdf, *data, Range("fit"));
+}
+
+// Sub-range AND partial integration of a 2D RooHistPdf: x is integrated over
+// a sub-range while y is held as a slice variable.
+TEST(RooHistPartialIntegralCodegen, HistPdfConditional2DRanged)
+{
+   using namespace RooFit;
+
+   ScopedSeed seed{1337};
+
+   RooRealVar x("x", "x", 0, 20);
+   RooRealVar y("y", "y", -5, 5);
+   x.setBins(8);
+   y.setBins(4);
+   x.setRange("fit", 2.5, 17.5);
+
+   RooGenericPdf shape("shape", "shape", "1.0 + 0.05*x + 0.1*y + 0.005*x*y", {x, y});
+   std::unique_ptr<RooDataHist> hist{shape.generateBinned({x, y}, 2000)};
+   RooHistPdf pdf("histpdf", "histpdf", {x, y}, *hist, 0);
+
+   // Generate inside the fit range so all events have a non-zero ranged norm.
+   x.setRange(2.5, 17.5);
+   std::unique_ptr<RooDataSet> raw{pdf.generate({x, y}, 100)};
+   std::unique_ptr<RooAbsData> data{raw->binnedClone()};
+   x.setRange(0, 20);
+
+   compareNLL(pdf, *data, ConditionalObservables(y), Range("fit"));
+}
+
