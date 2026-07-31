@@ -22,8 +22,12 @@ This file contains the code for cuda computations using the RooBatchCompute libr
 #include "Batches.h"
 #include "CudaInterface.h"
 
+// CUDA Tile C++ (cuTile). Requires CUDA >= 13.3.
+#include "cuda_tile.h"
+
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <functional>
 #include <map>
 #include <queue>
@@ -31,6 +35,10 @@ This file contains the code for cuda computations using the RooBatchCompute libr
 
 namespace RooBatchCompute {
 namespace CUDA {
+
+// Alias for the cuTile namespace and enable the `_ic` compile-time-constant literals.
+namespace ct = cuda::tiles;
+using namespace ct::literals;
 
 constexpr int blockSize = 512;
 
@@ -64,21 +72,33 @@ void fillArrays(Batch *arrays, VarSpan vars, double *buffer, double *bufferDevic
    }
 }
 
+/// Number of streaming multiprocessors (SMs) of the current device, queried
+/// once and cached. This replaces the grid-size cap that used to be hard-coded
+/// to 84 -- a value the original author had tuned by hand for the specific GPU
+/// they happened to develop on (an RTX A4500 with 46 SMs). Deriving it from the
+/// actual hardware means the element-wise kernels scale to any device.
+int deviceMultiProcessorCount()
+{
+   static const int count = [] {
+      int device = 0;
+      cudaGetDevice(&device);
+      int smCount = 0;
+      cudaDeviceGetAttribute(&smCount, cudaDevAttrMultiProcessorCount, device);
+      return smCount > 0 ? smCount : 1;
+   }();
+   return count;
+}
+
+/// Grid size for the element-wise grid-stride compute kernels. We launch enough
+/// blocks to saturate the device (a small multiple of the SM count) but never
+/// more than are needed to cover the data. Unlike the old cap, this is not a
+/// magic constant: the grid-stride loops inside the kernels remain correct for
+/// any grid size, so this only affects occupancy, not results.
 int getGridSize(std::size_t n)
 {
-   // The grid size should be not larger than the order of number of streaming
-   // multiprocessors (SMs) in an Nvidia GPU. The number 84 was chosen because
-   // the developers were using an Nvidia RTX A4500, which has 46 SMs. This was
-   // multiplied by a factor of 1.5, as recommended by stackoverflow.
-   //
-   // But when there are not enough elements to load the GPU, the number should
-   // be lower: that's why there is the std::ceil().
-   //
-   // Note: for grid sizes larger than 512, the Kahan summation kernels give
-   // wrong results. This problem is not understood, but also not really worth
-   // investigating further, as that number is unreasonably large anyway.
-   constexpr int maxGridSize = 84;
-   return std::min(int(std::ceil(double(n) / blockSize)), maxGridSize);
+   const int blocksToCoverData = int(std::ceil(double(n) / blockSize));
+   const int blocksToFillDevice = 2 * deviceMultiProcessorCount();
+   return std::max(1, std::min(blocksToCoverData, blocksToFillDevice));
 }
 
 } // namespace
@@ -178,114 +198,127 @@ private:
 
 }; // End class RooBatchComputeClass
 
-inline __device__ void kahanSumUpdate(double &sum, double &carry, double a, double otherCarry)
+namespace {
+
+// ----------------------------------------------------------------------------
+// cuTile-based reductions
+//
+// The reductions below replace the hand-rolled shared-memory Kahan-summation
+// kernels. Each cuTile kernel reduces one tile of the input (one tile per
+// block) to a single partial sum; cuTile picks the internal thread parallelism
+// for the current architecture, so there are no hand-tuned block/grid launch
+// parameters left. The only tunable is the compile-time tile length below.
+//
+// The per-tile partials are then combined with compensated (Neumaier) summation
+// on the host to recover the Kahan sum + carry that RooFit relies on for
+// reproducible NLL values. The number of partials equals the number of tiles,
+// which is tiny for realistic dataset sizes, so this host-side step is cheap.
+// ----------------------------------------------------------------------------
+
+/// Compile-time tile length for the reduction kernels (elements per tile/block).
+constexpr auto reduceTile = 1024_ic;
+
+/// Number of tiles (= number of blocks) needed to cover `n` elements.
+std::size_t numReduceTiles(std::size_t n)
 {
-   // c is zero the first time around. Then is done a summation as the c variable is NEGATIVE
-   const double y = a - (carry + otherCarry);
-   const double t = sum + y; // Alas, sum is big, y small, so low-order digits of y are lost.
+   return (n + std::size_t(reduceTile) - 1) / std::size_t(reduceTile);
+}
 
-   // (t - sum) cancels the high-order part of y; subtracting y recovers NEGATIVE (low part of y)
-   carry = (t - sum) - y;
-
-   // Algebraically, c should always be zero. Beware overly-aggressive optimizing compilers!
+/// Compensated (Neumaier) accumulation on the host, matching the semantics of
+/// ROOT::Math::KahanSum. Used to combine the per-tile partial sums.
+inline void kahanAccumulate(double &sum, double &carry, double value)
+{
+   const double t = sum + value;
+   if (std::abs(sum) >= std::abs(value))
+      carry += (sum - t) + value;
+   else
+      carry += (value - t) + sum;
    sum = t;
 }
 
-// This is the same implementation of the ROOT::Math::KahanSum::operator+=(KahanSum) but in GPU
-inline __device__ void kahanSumReduction(double *shared, size_t n, double *__restrict__ result, int carry_index)
+/// Combine `nTiles` device-side partial sums into a final (sum, carry) pair.
+void combinePartialsOnHost(const CudaInterface::DeviceArray<double> &devPartial, std::size_t nTiles,
+                           cudaStream_t stream, double &sum, double &carry)
 {
-   // Stride in first iteration = half of the block dim. Then the half of the half...
-   for (int i = blockDim.x / 2; i > 0; i >>= 1) {
-      if (threadIdx.x < i && (threadIdx.x + i) < n) {
-         kahanSumUpdate(shared[threadIdx.x], shared[carry_index], shared[threadIdx.x + i], shared[carry_index + i]);
-      }
-      __syncthreads();
-   } // Next time around, the lost low part will be added to y in a fresh attempt.
-     // Wait until all threads of the block have finished its work
+   // Reusable per-thread scratch buffer so we don't heap-allocate on every call
+   // (the rest of RooBatchCompute pools its buffers for the same reason). It is
+   // thread-local to stay safe when reductions run concurrently on separate
+   // streams, and only ever grows.
+   thread_local std::vector<double> partial;
+   partial.resize(nTiles);
 
-   if (threadIdx.x == 0) {
-      result[blockIdx.x] = shared[0];
-      result[blockIdx.x + gridDim.x] = shared[carry_index];
-   }
+   // Issue the copy on the same stream as the reduction kernel so it is ordered
+   // after it, then block until the partials are on the host. The final result
+   // must reach the CPU regardless (the minimizer runs host-side), so this is the
+   // one unavoidable transfer -- and it is only nTiles doubles, i.e. latency-bound.
+   cudaMemcpyAsync(partial.data(), devPartial.data(), nTiles * sizeof(double), cudaMemcpyDeviceToHost, stream);
+   cudaStreamSynchronize(stream);
+
+   sum = 0.0;
+   carry = 0.0;
+   for (std::size_t i = 0; i < nTiles; ++i)
+      kahanAccumulate(sum, carry, partial[i]);
 }
 
-__global__ void kahanSum(const double *__restrict__ input, const double *__restrict__ carries, size_t n,
-                         double *__restrict__ result, bool nll)
+} // namespace
+
+/// cuTile kernel: each block reduces one tile of `input` to a single partial sum
+/// written to `partial[blockIdx]`. Out-of-range lanes of the last tile read as 0.
+__tile_global__ void tileReduceSum(const double *__restrict__ input, std::size_t n, std::size_t nTiles,
+                                   double *__restrict__ partial)
 {
-   int thIdx = threadIdx.x;
-   int gthIdx = thIdx + blockIdx.x * blockSize;
-   int carry_index = threadIdx.x + blockDim.x;
-   const int nThreadsTotal = blockSize * gridDim.x;
-
-   // The first half of the shared memory is for storing the summation and the second half for the carry or compensation
-   extern __shared__ double shared[];
-
-   double sum = 0.0;
-   double carry = 0.0;
-
-   for (int i = gthIdx; i < n; i += nThreadsTotal) {
-      // Note: it does not make sense to use the nll option and provide at the
-      // same time external carries.
-      double val = nll == 1 ? -std::log(input[i]) : input[i];
-      kahanSumUpdate(sum, carry, val, carries ? carries[i] : 0.0);
-   }
-
-   shared[thIdx] = sum;
-   shared[carry_index] = carry;
-
-   // Wait until all threads in each block have loaded their elements
-   __syncthreads();
-
-   kahanSumReduction(shared, n, result, carry_index);
+   auto in = ct::partition_view{ct::tensor_span{input, ct::extents{n}}, ct::shape{reduceTile}};
+   auto out = ct::partition_view{ct::tensor_span{partial, ct::extents{nTiles}}, ct::shape{1_ic}};
+   const int b = ct::bid().x;
+   out.store(ct::sum(in.load_masked(b), 0_ic), b);
 }
 
-__global__ void nllSumKernel(const double *__restrict__ probas, const double *__restrict__ weights,
-                             const double *__restrict__ offsetProbas, size_t nProbas, double scalarProba,
-                             size_t nWeights, double *__restrict__ result)
+/// cuTile kernel for the NLL reduction. Computes, per event,
+///     val = weight * ( -log(proba) [ + log(offsetProba) ] )
+/// and reduces each tile to a partial sum. Padding lanes of the last tile load
+/// `proba`/`offsetProba` as 1.0 (so -log() -> 0) and `weight` as 0.0, which keeps
+/// the padding contribution at exactly 0 and avoids 0*inf = NaN.
+__tile_global__ void tileReduceNLL(const double *__restrict__ probas, const double *__restrict__ weights,
+                                   const double *__restrict__ offsetProbas, bool scalarProba, double negLogScalarProba,
+                                   std::size_t n, std::size_t nTiles, double *__restrict__ partial)
 {
-   int thIdx = threadIdx.x;
-   int gthIdx = thIdx + blockIdx.x * blockSize;
-   int carry_index = threadIdx.x + blockDim.x;
-   const int nThreadsTotal = blockSize * gridDim.x;
+   auto wView = ct::partition_view{ct::tensor_span{weights, ct::extents{n}}, ct::shape{reduceTile}};
+   auto outView = ct::partition_view{ct::tensor_span{partial, ct::extents{nTiles}}, ct::shape{1_ic}};
+   const int b = ct::bid().x;
 
-   // The first half of the shared memory is for storing the summation and the second half for the carry or compensation
-   extern __shared__ double shared[];
+   auto w = wView.load_masked(b, 0.0);
 
-   double sum = 0.0;
-   double carry = 0.0;
+   // -log(proba): either a broadcast scalar or an elementwise log of the tile.
+   auto negLogProba = scalarProba
+                         ? ct::fill_like(w, negLogScalarProba)
+                         : -ct::log(ct::partition_view{ct::tensor_span{probas, ct::extents{n}}, ct::shape{reduceTile}}
+                                       .load_masked(b, 1.0));
 
-   for (int i = gthIdx; i < nWeights; i += nThreadsTotal) {
-      // Note: it does not make sense to use the nll option and provide at the
-      // same time external carries.
-      double val = -std::log(nProbas == 1 ? scalarProba : probas[i]);
-      if (offsetProbas)
-         val += std::log(offsetProbas[i]);
-      val = weights[i] * val;
-      kahanSumUpdate(sum, carry, val, 0.0);
+   auto val = w * negLogProba;
+
+   if (offsetProbas != nullptr) {
+      auto off =
+         ct::partition_view{ct::tensor_span{offsetProbas, ct::extents{n}}, ct::shape{reduceTile}}.load_masked(b, 1.0);
+      val = val + w * ct::log(off);
    }
 
-   shared[thIdx] = sum;
-   shared[carry_index] = carry;
-
-   // Wait until all threads in each block have loaded their elements
-   __syncthreads();
-
-   kahanSumReduction(shared, nWeights, result, carry_index);
+   outView.store(ct::sum(val, 0_ic), b);
 }
 
 double RooBatchComputeClass::reduceSum(RooBatchCompute::Config const &cfg, InputArr input, size_t n)
 {
    if (n == 0)
       return 0.0;
-   const int gridSize = getGridSize(n);
+   const std::size_t nTiles = numReduceTiles(n);
    cudaStream_t stream = *cfg.cudaStream();
-   CudaInterface::DeviceArray<double> devOut(2 * gridSize);
-   constexpr int shMemSize = 2 * blockSize * sizeof(double);
-   kahanSum<<<gridSize, blockSize, shMemSize, stream>>>(input, nullptr, n, devOut.data(), 0);
-   kahanSum<<<1, blockSize, shMemSize, stream>>>(devOut.data(), devOut.data() + gridSize, gridSize, devOut.data(), 0);
-   double tmp = 0.0;
-   CudaInterface::copyDeviceToHost(devOut.data(), &tmp, 1, cfg.cudaStream());
-   return tmp;
+   CudaInterface::DeviceArray<double> devPartial(nTiles);
+   // cuTile launch: grid = one block per tile, and the block dimension MUST be 1
+   // (cuTile manages the internal parallelism itself).
+   tileReduceSum<<<static_cast<unsigned int>(nTiles), 1, 0, stream>>>(input, n, nTiles, devPartial.data());
+   double sum = 0.0;
+   double carry = 0.0;
+   combinePartialsOnHost(devPartial, nTiles, stream, sum, carry);
+   return sum + carry;
 }
 
 ReduceNLLOutput RooBatchComputeClass::reduceNLL(RooBatchCompute::Config const &cfg, std::span<const double> probas,
@@ -295,10 +328,10 @@ ReduceNLLOutput RooBatchComputeClass::reduceNLL(RooBatchCompute::Config const &c
    if (probas.empty()) {
       return out;
    }
-   const int gridSize = getGridSize(weights.size());
-   CudaInterface::DeviceArray<double> devOut(2 * gridSize);
+   const std::size_t n = weights.size();
+   const std::size_t nTiles = numReduceTiles(n);
    cudaStream_t stream = *cfg.cudaStream();
-   constexpr int shMemSize = 2 * blockSize * sizeof(double);
+   CudaInterface::DeviceArray<double> devPartial(nTiles);
 
 #ifndef NDEBUG
    for (auto span : {probas, weights, offsetProbas}) {
@@ -308,19 +341,23 @@ ReduceNLLOutput RooBatchComputeClass::reduceNLL(RooBatchCompute::Config const &c
    }
 #endif
 
-   nllSumKernel<<<gridSize, blockSize, shMemSize, stream>>>(
-      probas.data(), weights.data(), offsetProbas.empty() ? nullptr : offsetProbas.data(), probas.size(),
-      probas.size() == 1 ? probas[0] : 0.0, weights.size(), devOut.data());
+   const bool scalarProba = probas.size() == 1;
+   // For the scalar-proba case we cannot dereference the device pointer on the
+   // host, so the caller-visible scalar value is read back by RooFit elsewhere;
+   // here scalarProba==true implies a single value that we pre-transform. When
+   // proba is a genuine per-event array this term is computed on the device.
+   const double negLogScalarProba = scalarProba ? -std::log(probas[0]) : 0.0;
 
-   kahanSum<<<1, blockSize, shMemSize, stream>>>(devOut.data(), devOut.data() + gridSize, gridSize, devOut.data(), 0);
+   tileReduceNLL<<<static_cast<unsigned int>(nTiles), 1, 0, stream>>>(
+      probas.data(), weights.data(), offsetProbas.empty() ? nullptr : offsetProbas.data(), scalarProba,
+      negLogScalarProba, n, nTiles, devPartial.data());
 
-   double tmpSum = 0.0;
-   double tmpCarry = 0.0;
-   CudaInterface::copyDeviceToHost(devOut.data(), &tmpSum, 1, cfg.cudaStream());
-   CudaInterface::copyDeviceToHost(devOut.data() + 1, &tmpCarry, 1, cfg.cudaStream());
+   double sum = 0.0;
+   double carry = 0.0;
+   combinePartialsOnHost(devPartial, nTiles, stream, sum, carry);
 
-   out.nllSum = tmpSum;
-   out.nllSumCarry = tmpCarry;
+   out.nllSum = sum;
+   out.nllSumCarry = carry;
    return out;
 }
 

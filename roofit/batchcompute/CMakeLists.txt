@@ -40,9 +40,19 @@ if (ROOT_PLATFORM MATCHES "linux|macosx" AND CMAKE_SYSTEM_PROCESSOR MATCHES x86_
 endif() # vector versions of library
 
 if (cuda)
+  # The reductions in RooBatchCompute.cu are implemented with CUDA Tile C++
+  # (cuTile), which is only available from CUDA 13.3 onwards and needs at least
+  # C++20 in the nvcc tile front-end.
+  if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 13.3)
+    message(FATAL_ERROR
+      "RooFit GPU support requires CUDA >= 13.3 for the cuTile-based reductions, "
+      "but found CUDA ${CMAKE_CUDA_COMPILER_VERSION}.")
+  endif()
+
   set(shared_object_sources_cu src/RooBatchCompute.cu src/ComputeFunctions.cu src/CudaInterface.cu)
   ROOT_LINKER_LIBRARY(RooBatchCompute_CUDA  ${shared_object_sources_cu} TYPE SHARED DEPENDENCIES RooBatchCompute)
   target_compile_options(RooBatchCompute_CUDA  PRIVATE -lineinfo --expt-relaxed-constexpr)
+  set_target_properties(RooBatchCompute_CUDA PROPERTIES CUDA_STANDARD 20 CUDA_STANDARD_REQUIRED ON)
 endif()
 
 if(vdt OR builtin_vdt)
