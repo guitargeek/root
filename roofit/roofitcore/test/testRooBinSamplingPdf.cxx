@@ -12,6 +12,10 @@
 #include <RooRandom.h>
 #include <RooRealVar.h>
 
+#include <Math/Integrator.h>
+
+#include <ROOT/TestSupport.hxx>
+
 #include "gtest_wrapper.h"
 
 #include <memory>
@@ -163,6 +167,50 @@ TEST(RooBinSamplingPdf, AnalyticalMatchesNumeric)
       EXPECT_NEAR(nllAna->getVal(), nllNum->getVal(), 1e-5 * std::abs(nllNum->getVal()))
          << "NLL mismatch for backend " << backend.name();
    }
+}
+
+// The integrator used to sample the bins can be configured via integrator().
+// This test verifies that such configuration changes are actually honoured.
+TEST(RooBinSamplingPdf, IntegratorSettingsAreHonoured)
+{
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   RooRealVar x("x", "x", -10, 10);
+   x.setBins(2); // two wide bins
+   RooRealVar mu("mu", "mu", 5.0);
+   RooRealVar sigma("sigma", "sigma", 0.3); // peak much narrower than the bin
+
+   // RooGenericPdf has no analytical integral, so the numeric integrator (and
+   // hence its settings) is actually used to sample the bins.
+   RooGenericPdf gen("gen", "gen", "std::exp(-0.5*(x-mu)*(x-mu)/(sigma*sigma))", {x, mu, sigma});
+   RooBinSamplingPdf bs("bs", "bs", x, gen);
+
+   x.setBin(1); // upper bin [0, 10], which contains the sharp peak
+
+   // Accurate default integrator (adaptive 21-point Gauss-Kronrod rule).
+   const double valDefault = bs.getVal();
+
+   // Reconfigure the integrator to a single low-order rule without adaptive
+   // subdivision, which cannot resolve the sharp peak.
+   ROOT::Math::IntegratorOneDimOptions options = bs.integrator()->Options();
+   options.SetNPoints(1);         // 15-point rule
+   options.SetWKSize(1);          // no adaptive subdivision
+   options.SetRelTolerance(1e-1); // loose tolerance
+   bs.integrator()->SetOptions(options);
+   bs.setValueDirty(); // the cached value does not know about the new settings
+
+   double valCoarse = 0.;
+   {
+      // Without adaptive subdivision, GSL cannot reach its tolerance and warns.
+      // This is the expected consequence of the deliberate misconfiguration.
+      ROOT::TestSupport::CheckDiagsRAII diags;
+      diags.optionalDiag(kError, "GSLError", "a maximum of one iteration was insufficient", false);
+      valCoarse = bs.getVal();
+   }
+
+   // If the settings were ignored, the two values would be identical.
+   EXPECT_GT(std::abs(valCoarse - valDefault) / valDefault, 0.05)
+      << "changing the integrator settings had no effect on the sampled value";
 }
 
 INSTANTIATE_TEST_SUITE_P(RooBinSamplingPdf, ParamTest, testing::Values("Off", "Cpu"),
