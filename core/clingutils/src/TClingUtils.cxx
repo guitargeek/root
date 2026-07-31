@@ -404,9 +404,7 @@ AnnotatedRecordDecl::AnnotatedRecordDecl(long index,
      fRequestedRNTupleSoARecord(rRequestedRNTupleSoARecord)
 // clang-format on
 {
-   // For comparison purposes.
-   TClassEdit::TSplitType splitname1(requestName,(TClassEdit::EModType)(TClassEdit::kLong64 | TClassEdit::kDropStd));
-   splitname1.ShortType(fRequestedName, 0);
+   TClassEdit::Internal::GetUnresolvedNormalizedName(fRequestedName, requestName);
 
    TMetaUtils::GetNormalizedName( fNormalizedName, clang::QualType(requestedType,0), interpreter, normCtxt);
    if ( 0!=TMetaUtils::RemoveTemplateArgsFromName( fNormalizedName, nTemplateArgsToSkip) ){
@@ -445,9 +443,7 @@ AnnotatedRecordDecl::AnnotatedRecordDecl(long index,
      fRequestedRNTupleSoARecord(rRequestedRNTupleSoARecord)
 // clang-format on
 {
-   // For comparison purposes.
-   TClassEdit::TSplitType splitname1(requestName,(TClassEdit::EModType)(TClassEdit::kLong64 | TClassEdit::kDropStd));
-   splitname1.ShortType(fRequestedName, 0);
+   TClassEdit::Internal::GetUnresolvedNormalizedName(fRequestedName, requestName);
 
    TMetaUtils::GetNormalizedName( fNormalizedName, clang::QualType(requestedType,0), interpreter, normCtxt);
    fDemangledTypeInfo = BuildDemangledTypeInfo(decl, fNormalizedName);
@@ -3637,9 +3633,7 @@ void ROOT::TMetaUtils::GetFullyQualifiedTypeName(std::string &typenamestr,
                                                  const clang::ASTContext &astContext)
 {
    std::string fqname = cling::utils::TypeName::GetFullyQualifiedName(qtype, astContext);
-   TClassEdit::TSplitType splitname(fqname.c_str(),
-                                    (TClassEdit::EModType)(TClassEdit::kLong64 | TClassEdit::kDropStd | TClassEdit::kDropStlDefault | TClassEdit::kKeepOuterConst));
-   splitname.ShortType(typenamestr,TClassEdit::kDropStd | TClassEdit::kDropStlDefault | TClassEdit::kKeepOuterConst);
+   TClassEdit::Internal::GetUnresolvedNormalizedName(typenamestr, fqname.c_str());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4228,7 +4222,7 @@ void ROOT::TMetaUtils::GetNormalizedName(std::string &norm_name, const clang::Qu
 
    // Still remove the std:: and default template argument for STL container and
    // normalize the location and amount of white spaces.
-   TClassEdit::TSplitType splitname(normalizedNameStep1.c_str(),(TClassEdit::EModType)(TClassEdit::kLong64 | TClassEdit::kDropStd | TClassEdit::kDropStlDefault | TClassEdit::kKeepOuterConst));
+   TClassEdit::TSplitType splitname(normalizedNameStep1.c_str(),TClassEdit::Internal::kNormalizedNameSplitModes);
    splitname.ShortType(norm_name,TClassEdit::kDropStd | TClassEdit::kDropStlDefault );
 
    TClassEdit::AtomicTypeNameHandlerRAII atomicTypeNameHandler_norm_name(

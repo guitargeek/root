@@ -91,6 +91,19 @@ namespace TClassEdit {
       kDropHash         = 1<<13 /* Drop the hash if applies to the collection */
    };
 
+   namespace Internal {
+      /* Combination of modes used to compute the normalized name of a class.
+         GetNormalizedName additionally resolves typedefs (kResolveTypedef); the
+         registration of the requested class name in rootcling deliberately does
+         not, but must otherwise apply the same transformations so that the
+         registered autoload/autoparse keys match the lookup name computed by
+         TClass::GetClass when typedefs cannot be resolved yet. */
+      constexpr int kNormalizedNameModes = kDropStd | kDropStlDefault | kKeepOuterConst;
+      /* The same modes for splitting a name into its components with TSplitType,
+         where also the Long64_t replacement is applied. */
+      constexpr EModType kNormalizedNameSplitModes = static_cast<EModType>(kLong64 | kNormalizedNameModes);
+   }
+
    enum class EComplexType : short {
       kNone,
       kDouble,
@@ -136,6 +149,16 @@ namespace TClassEdit {
       TSplitType(const TSplitType&) = delete;
       TSplitType &operator=(const TSplitType &) = delete;
    };
+
+   namespace Internal {
+      /// String-based normalization of the name as in
+      /// TClassEdit::GetNormalizedName, but without resolving typedefs.
+      inline void GetUnresolvedNormalizedName(std::string &out, const char *in)
+      {
+         TSplitType split(in, kNormalizedNameSplitModes);
+         split.ShortType(out, kNormalizedNameModes);
+      }
+   }
 
    /// A RAII helper to remove and readd enclosing _Atomic()
    /// It expects no spaces at the beginning or end of the string
