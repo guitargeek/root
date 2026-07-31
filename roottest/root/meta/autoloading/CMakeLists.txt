@@ -16,10 +16,20 @@ ROOTTEST_GENERATE_REFLEX_DICTIONARY(TriggerTypeDefs
                                     SELECTION TriggerTypeDefs_selection.xml
                                     FIXTURES_SETUP root-meta-autoloading-TriggerTypeDefs-fixture)
 
+ROOTTEST_GENERATE_REFLEX_DICTIONARY(TypedefInName
+                                    TypedefInName.h
+                                    SELECTION TypedefInName_selection.xml
+                                    FIXTURES_SETUP root-meta-autoloading-TypedefInName-fixture)
+
 ROOTTEST_ADD_TEST(ROOT7114
                   MACRO assertROOT7114.C
                   OUTREF assertROOT7114.ref
                   FIXTURES_REQUIRED root-meta-autoloading-ROOT7114classes-fixture)
+
+ROOTTEST_ADD_TEST(TypedefInName
+                  MACRO execTypedefInName.C
+                  OUTREF execTypedefInName.ref
+                  FIXTURES_REQUIRED root-meta-autoloading-TypedefInName-fixture)
 
 ROOTTEST_ADD_TEST(AutoLoadEntriesAsSelected
                   MACRO execAutoLoadEntriesAsSelected.C
