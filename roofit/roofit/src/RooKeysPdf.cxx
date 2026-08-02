@@ -356,7 +356,13 @@ double RooKeysPdf::maxVal(Int_t code) const
   double max = -std::numeric_limits<double>::max();
   for (Int_t i = 0; i <= _nPoints; ++i)
     if (max < _lookupTable[i]) max = _lookupTable[i];
-  return max;
+  // Match the normalization that getVal() applies: evaluate() returns a
+  // linear interpolation of _lookupTable, and getVal(nset) divides it by
+  // analyticalIntegral(). The lookup table is not guaranteed to integrate
+  // to exactly 1 (discretization error), so rescale here accordingly, and
+  // add a small safety margin on top.
+  const double integ = analyticalIntegral(1, nullptr);
+  return (integ > 0. ? max / integ : max) * 1.05;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

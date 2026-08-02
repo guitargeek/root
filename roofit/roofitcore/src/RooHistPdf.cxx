@@ -529,18 +529,28 @@ Int_t RooHistPdf::getMaxVal(const RooArgSet& vars) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Return an upper bound on the *normalized* PDF value. Matches the semantic
+/// of getVal(nset) for nset = all observables: max over bins of the density
+/// (weight/binVolume, or raw weight if unitNorm) divided by the integral,
+/// with a small safety margin for numerical robustness.
 
 double RooHistPdf::maxVal(Int_t code) const
 {
   R__ASSERT(code==1) ;
 
-  double max(-1) ;
-  for (Int_t i=0 ; i<_dataHist->numEntries() ; i++) {
-    double wgt = _dataHist->weight(i) ;
-    if (wgt>max) max=wgt ;
+  double evalMax = 0.;
+  const Int_t nBins = _dataHist->numEntries();
+  for (Int_t i = 0; i < nBins; ++i) {
+    const double wgt = _dataHist->weight(static_cast<std::size_t>(i));
+    const double bv = _dataHist->binVolume(static_cast<std::size_t>(i));
+    const double val = _unitNorm ? wgt : (bv > 0. ? wgt / bv : 0.);
+    if (val > evalMax) evalMax = val;
   }
 
-  return max*1.05 ;
+  const double integral = _dataHist->sum(false);
+  const double normMax = integral > 0. ? evalMax / integral : evalMax;
+
+  return normMax * 1.05;
 }
 
 

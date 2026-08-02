@@ -3273,11 +3273,23 @@ void RooAbsReal::selectNormalization(const RooArgSet *, bool) {}
 void RooAbsReal::selectNormalizationRange(const char *, bool) {}
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Advertise capability to determine maximum value of function for given set of
-/// observables. If no direct generator method is provided, this information
-/// will assist the accept/reject generator to operate more efficiently as
-/// it can skip the initial trial sampling phase to empirically find the function
-/// maximum
+/// Advertise capability to determine the maximum value of this object for the
+/// given set of observables. If no direct generator method is provided, this
+/// information will assist the accept/reject generator to operate more
+/// efficiently as it can skip the initial trial sampling phase to empirically
+/// find the function maximum.
+///
+/// Returns a non-zero identifier code on success that is passed back to
+/// maxVal() to retrieve the actual maximum. Returns zero if the maximum
+/// cannot be determined analytically for the given set of observables; in
+/// that case the accept/reject generator will fall back to empirical maximum
+/// finding.
+///
+/// The maximum reported by maxVal() must be consistent with the value
+/// returned by getVal(vars): for RooAbsPdf this is the *normalized* PDF
+/// value (an upper bound on getVal(vars)), while for a plain RooAbsReal it
+/// is simply an upper bound on the function value. Implementations may
+/// return a value slightly above the true maximum for numerical safety.
 
 Int_t RooAbsReal::getMaxVal(const RooArgSet & /*vars*/) const
 {
@@ -3285,8 +3297,9 @@ Int_t RooAbsReal::getMaxVal(const RooArgSet & /*vars*/) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return maximum value for set of observables identified by code assigned
-/// in getMaxVal
+/// Return the maximum value for the set of observables identified by the
+/// code previously assigned by getMaxVal(). See getMaxVal() for the
+/// normalization conventions of the returned value.
 
 double RooAbsReal::maxVal(Int_t /*code*/) const
 {

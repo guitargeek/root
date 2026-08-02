@@ -200,12 +200,14 @@ RooGenContext::RooGenContext(const RooAbsPdf &model, const RooArgSet &vars,
     if(depList.empty()) {
       // All variable are generated with accept-reject
 
-      // Check if PDF supports maximum finding
+      // Check if PDF supports maximum finding. maxVal() returns an upper
+      // bound on the normalized PDF value directly (see RooAbsReal::getMaxVal),
+      // so no extra normalization is applied here.
       Int_t maxFindCode = _pdfClone->getMaxVal(_otherVars) ;
       if (maxFindCode != 0) {
    coutI(Generation) << "RooGenContext::ctor() no prototype data provided, all observables are generated with numerically and "
                << "model supports analytical maximum findin:, can provide analytical pdf maximum to numeric generator" << std::endl ;
-   double maxVal = _pdfClone->maxVal(maxFindCode) / _pdfClone->getNorm(&_theEvent) ;
+   double maxVal = _pdfClone->maxVal(maxFindCode) ;
    _maxVar = std::make_unique<RooRealVar>("funcMax","function maximum",maxVal) ;
    cxcoutD(Generation) << "RooGenContext::ctor() maximum value returned by RooAbsPdf::maxVal() is " << maxVal << std::endl ;
       }
@@ -231,11 +233,12 @@ RooGenContext::RooGenContext(const RooAbsPdf &model, const RooArgSet &vars,
     allVars.add(_directVars);
     Int_t maxFindCode = _pdfClone->getMaxVal(allVars) ;
     if (maxFindCode != 0) {
-      // Special case: PDF supports max-finding in otherVars, no need to scan other+proto space for maximum
+      // Special case: PDF supports max-finding in otherVars, no need to scan other+proto space for maximum.
+      // maxVal() already returns the normalized max, so no division by getNorm.
       coutI(Generation) << "RooGenContext::ctor() prototype data provided, and "
                         << "model supports analytical maximum finding in the full phase space: "
                         << "can provide analytical pdf maximum to numeric generator" << std::endl ;
-       double maxVal = _pdfClone->maxVal(maxFindCode) / _pdfClone->getNorm(&allVars);
+       double maxVal = _pdfClone->maxVal(maxFindCode);
       _maxVar = std::make_unique<RooRealVar>("funcMax", "function maximum", maxVal);
     } else {
       maxFindCode = _pdfClone->getMaxVal(_otherVars) ;
@@ -344,7 +347,7 @@ void RooGenContext::generateEvent(RooArgSet &theEvent, Int_t remaining)
     // call the accept-reject generator to generate its variables
 
     if (_updateFMaxPerEvent!=0) {
-      double max = _pdfClone->maxVal(_updateFMaxPerEvent)/_pdfClone->getNorm(_otherVars) ;
+      double max = _pdfClone->maxVal(_updateFMaxPerEvent);
       cxcoutD(Generation) << "RooGenContext::initGenerator() reevaluation of maximum function value is required for each event, new value is  " << max << std::endl ;
       _maxVar->setVal(max) ;
     }

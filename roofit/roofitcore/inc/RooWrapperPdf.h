@@ -85,13 +85,12 @@ public:
 //  bool isDirectGenSafe(const RooAbsArg& /*arg*/) const override { return false; }
 
 
-  // Hints for optimized brute-force sampling
-  Int_t getMaxVal(const RooArgSet& vars) const override {
-    return _func.arg().getMaxVal(vars);
-  }
-  double maxVal(Int_t code) const override {
-    return _func.arg().maxVal(code);
-  }
+  // Hints for optimized brute-force sampling. getMaxVal/maxVal are not
+  // overridden: the wrapped RooAbsReal reports an un-normalized maximum,
+  // but a RooAbsPdf::maxVal must bound the *normalized* PDF value, and
+  // the wrapped function's integral over the (variable) normalization set
+  // is not cheaply available here. Accept/reject will fall back to
+  // empirical maximum finding. See issue #12317.
   Int_t minTrialSamples(const RooArgSet& arGenObs) const override {
     return _func.arg().minTrialSamples(arGenObs);
   }

@@ -91,9 +91,10 @@ public:
   bool isDirectGenSafe(const RooAbsArg& arg) const override { return _pdf->isDirectGenSafe(arg); }
 
 
-  // Hints for optimized brute-force sampling
-  Int_t getMaxVal(const RooArgSet& vars) const override { return _pdf->getMaxVal(vars); }
-  double maxVal(Int_t code) const override { return _pdf->maxVal(code); }
+  // Hints for optimized brute-force sampling. getMaxVal/maxVal are not
+  // overridden: generation is always forwarded to the inner PDF via
+  // initGenerator/generateEvent, so the accept/reject path that consults
+  // these never runs on this wrapper. See issue #12317.
   Int_t minTrialSamples(const RooArgSet& arGenObs) const override { return _pdf->minTrialSamples(arGenObs); }
 
   // Plotting and binning hints
