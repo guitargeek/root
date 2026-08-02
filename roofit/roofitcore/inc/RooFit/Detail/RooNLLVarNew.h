@@ -18,6 +18,7 @@
 
 #include <RooAbsPdf.h>
 #include <RooAbsReal.h>
+#include <RooAbsRealLValue.h>
 #include <RooDataHist.h>
 #include <RooGlobalFunc.h>
 #include <RooTemplateProxy.h>
@@ -109,10 +110,12 @@ private:
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _binVolumes;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _weightErrLo;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _weightErrHi;
+   std::unique_ptr<RooTemplateProxy<RooAbsRealLValue>> _binnedObs; ///<! observable for the binned-likelihood optimization
    bool _weightSquared = false;
    bool _binnedL = false;
    bool _doOffset = false;
    bool _doBinOffset = false;
+   bool _predsAreYields = false;
    Statistic _statistic = Statistic::NLL;
    FuncMode _funcMode = FuncMode::Pdf;
    RooDataHist::ErrorType _chi2ErrorType = RooDataHist::Expected;

@@ -25,6 +25,7 @@ computation times.
 
 #include "RooFit/Detail/RooNLLVarNew.h"
 
+#include <RooAbsBinning.h>
 #include <RooHistPdf.h>
 #include <RooBatchCompute.h>
 #include <RooDataHist.h>
@@ -42,6 +43,7 @@ computation times.
 #include <TMath.h>
 #include <Math/Util.h>
 
+#include <algorithm>
 #include <numeric>
 #include <stdexcept>
 #include <vector>
@@ -168,10 +170,17 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
    if (_statistic == Statistic::NLL) {
       // In the "BinnedLikelihoodActiveYields" mode, the pdf values can
       // directly be interpreted as yields and don't need to be multiplied by
-      // the bin widths. That's why we don't need to even fill them in this
-      // case.
-      if (_binnedL && !pdf->getAttribute("BinnedLikelihoodActiveYields")) {
+      // the bin widths. But we still need to know the bin count and boundaries
+      // so that, at eval time, we can aggregate per bin if the dataset is not
+      // already binned to match the pdf (see doEvalBinnedL()).
+      if (_binnedL) {
+         _predsAreYields = pdf->getAttribute("BinnedLikelihoodActiveYields");
          fillBinWidthsFromPdfBoundaries(*pdf, obs);
+         if (!obs.empty()) {
+            if (auto *lval = dynamic_cast<RooAbsRealLValue *>(obs.first())) {
+               _binnedObs = std::make_unique<RooTemplateProxy<RooAbsRealLValue>>("binnedObs", "binnedObs", this, *lval);
+            }
+         }
       }
 
       enableOffsetting(cfg.offsetMode == RooFit::OffsetMode::Initial);
@@ -216,6 +225,7 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
      _binnedL{other._binnedL},
      _doOffset{other._doOffset},
      _doBinOffset{other._doBinOffset},
+     _predsAreYields{other._predsAreYields},
      _statistic{other._statistic},
      _funcMode{other._funcMode},
      _chi2ErrorType{other._chi2ErrorType},
@@ -231,6 +241,9 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
    }
    if (other._weightErrLo) {
       _weightErrLo = std::make_unique<RooTemplateProxy<RooAbsReal>>(weightErrorLoVarName, this, *other._weightErrLo);
+   }
+   if (other._binnedObs) {
+      _binnedObs = std::make_unique<RooTemplateProxy<RooAbsRealLValue>>("binnedObs", this, *other._binnedObs);
    }
    if (other._weightErrHi) {
       _weightErrHi = std::make_unique<RooTemplateProxy<RooAbsReal>>(weightErrorHiVarName, this, *other._weightErrHi);
@@ -269,24 +282,93 @@ void RooNLLVarNew::doEvalBinnedL(RooFit::EvalContext &ctx, std::span<const doubl
    ROOT::Math::KahanSum<double> result{0.0};
    ROOT::Math::KahanSum<double> sumWeightKahanSum{0.0};
 
-   const bool predsAreYields = _binw.empty();
-
-   for (std::size_t i = 0; i < preds.size(); ++i) {
-
-      // Calculate log(Poisson(N|mu) for this bin
-      double N = weights[i];
-      double mu = preds[i];
-      if (!predsAreYields) {
-         mu *= _binw[i];
-      }
-
+   auto addBinTerm = [&](double mu, double N, std::size_t binIdx) {
       if (mu <= 0 && N > 0) {
          // Catch error condition: data present where zero events are predicted
-         logEvalError(Form("Observed %f events in bin %lu with zero event yield", N, (unsigned long)i));
+         logEvalError(Form("Observed %f events in bin %lu with zero event yield", N, (unsigned long)binIdx));
       } else {
          result += RooFit::Detail::MathFuncs::nll(mu, N, true, _doBinOffset);
          sumWeightKahanSum += N;
       }
+   };
+
+   // Fast path: the data already has one entry per bin (i.e. it is a
+   // RooDataHist matching the pdf). Iterate per entry, which is the same as
+   // per bin.
+   if (preds.size() == _binw.size()) {
+      for (std::size_t i = 0; i < preds.size(); ++i) {
+         double mu = preds[i];
+         if (!_predsAreYields) {
+            mu *= _binw[i];
+         }
+         addBinTerm(mu, weights[i], i);
+      }
+      finalizeResult(ctx, result, sumWeightKahanSum.Sum());
+      return;
+   }
+
+   // Slow path: the data has more (or fewer) entries than the pdf has bins -
+   // typically a RooDataSet whose per-event layout doesn't match the pdf's
+   // binning. Aggregate event weights into the pdf's bins on the fly using
+   // the observable's binning. This keeps memory at O(n_bins) - no
+   // intermediate RooDataHist is built.
+   if (!_binnedObs) {
+      // Shouldn't happen: _binnedL implies we have 1D observables and
+      // populated _binw. Fall back to the per-entry path so we don't
+      // silently produce garbage.
+      for (std::size_t i = 0; i < preds.size(); ++i) {
+         double mu = preds[i];
+         if (!_predsAreYields && i < _binw.size()) {
+            mu *= _binw[i];
+         }
+         addBinTerm(mu, weights[i], i);
+      }
+      finalizeResult(ctx, result, sumWeightKahanSum.Sum());
+      return;
+   }
+
+   auto obsSpan = ctx.at(*_binnedObs);
+   RooAbsBinning const &binning = (*_binnedObs)->getBinning();
+   const std::size_t nBins = _binw.size();
+
+   std::vector<double> binWeights(nBins, 0.0);
+   std::vector<double> binPreds(nBins, 0.0);
+   std::vector<bool> observed(nBins, false);
+
+   for (std::size_t i = 0; i < preds.size(); ++i) {
+      int b = binning.binNumber(obsSpan[i]);
+      if (b < 0 || b >= static_cast<int>(nBins)) {
+         continue;
+      }
+      binWeights[b] += weights[i];
+      if (!observed[b]) {
+         binPreds[b] = preds[i];
+         observed[b] = true;
+      }
+   }
+
+   // For any bin the data didn't touch, evaluate the func at the bin centre
+   // so its mu contribution is still included in the NLL (empty bins
+   // contribute just `mu`). Save and restore the observable state to stay
+   // inert for the rest of the evaluator graph.
+   std::size_t nMissing = std::count(observed.begin(), observed.end(), false);
+   if (nMissing > 0) {
+      double savedObsVal = (*_binnedObs)->getVal();
+      for (std::size_t b = 0; b < nBins; ++b) {
+         if (observed[b])
+            continue;
+         (*_binnedObs)->setVal(binning.binCenter(b));
+         binPreds[b] = _func->getVal();
+      }
+      (*_binnedObs)->setVal(savedObsVal);
+   }
+
+   for (std::size_t b = 0; b < nBins; ++b) {
+      double mu = binPreds[b];
+      if (!_predsAreYields) {
+         mu *= _binw[b];
+      }
+      addBinTerm(mu, binWeights[b], b);
    }
 
    finalizeResult(ctx, result, sumWeightKahanSum.Sum());

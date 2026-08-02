@@ -796,6 +796,175 @@ TEST_P(TestStatisticTest, BinnedLikelihood)
    EXPECT_DOUBLE_EQ(prodNllVal, simNllVal);
 }
 
+namespace {
+
+// Build a RooDataSet that is observationally equivalent to the given
+// RooDataHist: for every filled bin, add as many (unweighted) events at the
+// bin centre as there are counts in the bin.
+std::unique_ptr<RooDataSet> dataHistToDataSet(RooDataHist const &dh, RooRealVar &x)
+{
+   auto ds = std::make_unique<RooDataSet>("data_set", "data_set", RooArgSet{x});
+   RooAbsBinning const &xBinning = x.getBinning();
+   for (int iBin = 0; iBin < x.numBins(); ++iBin) {
+      dh.get(iBin);
+      const int weight = static_cast<int>(std::round(dh.weight()));
+      x.setVal(xBinning.binCenter(iBin));
+      for (int j = 0; j < weight; ++j) {
+         ds->add(RooArgSet{x});
+      }
+   }
+   return ds;
+}
+
+} // namespace
+
+// Verify that a RooRealSumPdf with the BinnedLikelihood optimization gives
+// the same NLL whether the dataset is passed as a RooDataHist or as a
+// RooDataSet with events at the bin centres. Previously the per-entry loop
+// in the binned-L code path assumed one data entry per pdf bin, which is
+// only true for a RooDataHist - feeding a RooDataSet would cause the legacy
+// backend to read past its bin-width vector (NaN through UB) and the CPU
+// backend to silently compute a wrong but finite value.
+TEST_P(TestStatisticTest, BinnedLikelihoodRooDataSet)
+{
+   using namespace RooFit;
+
+   int nEvents = 1000;
+   int numBins = 5;
+
+   RooWorkspace ws;
+   ws.factory("x[0, 0, " + std::to_string(numBins) + "]");
+
+   auto &x = *ws.var("x");
+   x.setBins(numBins);
+
+   {
+      // Uniform RooDataHist - every bin is filled so the on-the-fly per-bin
+      // aggregation never has to synthesise pdf values for empty bins.
+      RooDataHist templateHist{"template_hist", "template_hist", x};
+      for (int iBin = 0; iBin < numBins; ++iBin) {
+         templateHist.set(iBin, nEvents / numBins, -1);
+      }
+
+      RooHistFunc histFunc{"hist_func", "hist_func", x, templateHist};
+      RooRealSumPdf pdf{"pdf", "pdf", histFunc, RooArgList{1.0}};
+      pdf.setAttribute("BinnedLikelihood");
+      ws.import(pdf);
+   }
+
+   auto &pdf = *ws.pdf("pdf");
+
+   // Generate the reference binned dataset, and an equivalent unbinned one.
+   std::unique_ptr<RooDataHist> dataHist{pdf.generateBinned(x, nEvents)};
+   std::unique_ptr<RooDataSet> dataSet = dataHistToDataSet(*dataHist, x);
+
+   // Sanity check: both datasets have the same total weight.
+   ASSERT_DOUBLE_EQ(dataHist->sumEntries(), dataSet->sumEntries());
+
+   std::unique_ptr<RooAbsReal> nllHist{pdf.createNLL(*dataHist, _evalBackend)};
+   std::unique_ptr<RooAbsReal> nllSet{pdf.createNLL(*dataSet, _evalBackend)};
+
+   EXPECT_DOUBLE_EQ(nllHist->getVal(), nllSet->getVal());
+}
+
+// Same as above, but the RooDataHist - and therefore the RooDataSet derived
+// from it - has some empty bins. This exercises the slow-path branch that
+// evaluates the pdf at the bin centre for bins that were not touched by
+// any event in the dataset, so their `mu` contribution is still added.
+TEST_P(TestStatisticTest, BinnedLikelihoodRooDataSetEmptyBins)
+{
+   using namespace RooFit;
+
+   int nEvents = 1000;
+   int numBins = 5;
+
+   RooWorkspace ws;
+   ws.factory("x[0, 0, " + std::to_string(numBins) + "]");
+
+   auto &x = *ws.var("x");
+   x.setBins(numBins);
+
+   {
+      // Template with some empty bins (the first two bins are zero, the
+      // rest have equal counts). The channel pdf will also be zero in
+      // those bins; the dataset below has no events in them.
+      RooDataHist templateHist{"template_hist", "template_hist", x};
+      for (int iBin = 2; iBin < numBins; ++iBin) {
+         templateHist.set(iBin, nEvents / (numBins - 2), -1);
+      }
+
+      RooHistFunc histFunc{"hist_func", "hist_func", x, templateHist};
+      RooRealSumPdf pdf{"pdf", "pdf", histFunc, RooArgList{1.0}};
+      pdf.setAttribute("BinnedLikelihood");
+      ws.import(pdf);
+   }
+
+   auto &pdf = *ws.pdf("pdf");
+
+   std::unique_ptr<RooDataHist> dataHist{pdf.generateBinned(x, nEvents)};
+   std::unique_ptr<RooDataSet> dataSet = dataHistToDataSet(*dataHist, x);
+
+   std::unique_ptr<RooAbsReal> nllHist{pdf.createNLL(*dataHist, _evalBackend)};
+   std::unique_ptr<RooAbsReal> nllSet{pdf.createNLL(*dataSet, _evalBackend)};
+
+   EXPECT_DOUBLE_EQ(nllHist->getVal(), nllSet->getVal());
+}
+
+// Verify that the per-bin aggregation also works when the dataset events
+// are spread across a bin rather than sitting exactly at the bin centre.
+// A binned-likelihood pdf is piecewise constant within a bin, so the NLL
+// must not depend on where inside the bin each individual event falls.
+TEST_P(TestStatisticTest, BinnedLikelihoodRooDataSetOffCentreEvents)
+{
+   using namespace RooFit;
+
+   int nEvents = 1000;
+   int numBins = 5;
+
+   RooWorkspace ws;
+   ws.factory("x[0, 0, " + std::to_string(numBins) + "]");
+
+   auto &x = *ws.var("x");
+   x.setBins(numBins);
+
+   {
+      RooDataHist templateHist{"template_hist", "template_hist", x};
+      for (int iBin = 0; iBin < numBins; ++iBin) {
+         templateHist.set(iBin, nEvents / numBins, -1);
+      }
+      RooHistFunc histFunc{"hist_func", "hist_func", x, templateHist};
+      RooRealSumPdf pdf{"pdf", "pdf", histFunc, RooArgList{1.0}};
+      pdf.setAttribute("BinnedLikelihood");
+      ws.import(pdf);
+   }
+
+   auto &pdf = *ws.pdf("pdf");
+
+   std::unique_ptr<RooDataHist> dataHist{pdf.generateBinned(x, nEvents)};
+
+   // Build a RooDataSet where events are placed at different positions inside
+   // each bin (not at the centre). The binned-L NLL must still equal the one
+   // computed from the RooDataHist.
+   RooAbsBinning const &xBinning = x.getBinning();
+   RooDataSet dataSet{"data_set", "data_set", RooArgSet{x}};
+   for (int iBin = 0; iBin < numBins; ++iBin) {
+      dataHist->get(iBin);
+      const int weight = static_cast<int>(std::round(dataHist->weight()));
+      const double lo = xBinning.binLow(iBin);
+      const double hi = xBinning.binHigh(iBin);
+      for (int j = 0; j < weight; ++j) {
+         // Spread events uniformly inside the bin, avoiding the edges.
+         x.setVal(lo + (hi - lo) * (j + 0.5) / std::max(1, weight));
+         dataSet.add(RooArgSet{x});
+      }
+   }
+
+   std::unique_ptr<RooAbsReal> nllHist{pdf.createNLL(*dataHist, _evalBackend)};
+   std::unique_ptr<RooAbsReal> nllSet{pdf.createNLL(dataSet, _evalBackend)};
+
+   EXPECT_DOUBLE_EQ(nllHist->getVal(), nllSet->getVal());
+}
+
 // Make sure that the offset is correctly hidden for the likelihoods, even if
 // we evaluated the same likelihood without hiding before. This is tested
 // because it was fragile before: a change in offset hiding was not considered

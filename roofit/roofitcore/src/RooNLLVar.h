@@ -19,6 +19,8 @@
 #include <vector>
 #include <utility>
 
+class RooAbsRealLValue;
+
 class RooNLLVar : public RooAbsOptTestStatistic {
 public:
 
@@ -71,6 +73,7 @@ private:
 
   mutable std::vector<double> _binw ; ///<!
   mutable RooAbsPdf* _binnedPdf{nullptr}; ///<!
+  mutable RooAbsRealLValue* _binnedObs{nullptr}; ///<! observable for binned-likelihood aggregation
   std::unique_ptr<RooAbsPdf> _offsetPdf; ///<! An optional per-bin likelihood offset
 };
 

@@ -32,6 +32,7 @@ In extended mode, a
 
 #include "RooNLLVar.h"
 
+#include <RooAbsBinning.h>
 #include <RooAbsData.h>
 #include <RooAbsDataStore.h>
 #include <RooAbsPdf.h>
@@ -87,6 +88,7 @@ RooNLLVar::RooNLLVar(const char *name, const char *title, RooAbsPdf &pdf, RooAbs
       _binnedPdf = nullptr;
     } else {
       auto* var = static_cast<RooRealVar*>(obs.first());
+      _binnedObs = var;
       std::unique_ptr<std::list<double>> boundaries{_binnedPdf->binBoundaries(*var,var->getMin(),var->getMax())};
       auto biter = boundaries->begin() ;
       _binw.reserve(boundaries->size()-1) ;
@@ -116,7 +118,8 @@ RooNLLVar::RooNLLVar(const RooNLLVar& other, const char* name) :
   _weightSq(other._weightSq),
   _offsetSaveW2(other._offsetSaveW2),
   _binw(other._binw),
-  _binnedPdf{other._binnedPdf}
+  _binnedPdf{other._binnedPdf},
+  _binnedObs{other._binnedObs}
 {
 }
 
@@ -180,30 +183,15 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
   // If pdf is marked as binned - do a binned likelihood calculation here (sum of log-Poisson for each bin)
   if (_binnedPdf) {
     ROOT::Math::KahanSum<double> sumWeightKahanSum{0.0};
-    for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
 
-      _dataClone->get(i) ;
-
-      double eventWeight = _dataClone->weight();
-
-
-      // Calculate log(Poisson(N|mu) for this bin
-      double N = eventWeight ;
-      double mu = _binnedPdf->getVal()*_binw[i] ;
-      //cout << "RooNLLVar::binnedL(" << GetName() << ") N=" << N << " mu = " << mu << std::endl ;
-
+    auto addBinTerm = [&](double mu, double N, std::size_t binIdx) {
       if (mu<=0 && N>0) {
-
         // Catch error condition: data present where zero events are predicted
-        logEvalError(Form("Observed %f events in bin %lu with zero event yield",N,(unsigned long)i)) ;
-
+        logEvalError(Form("Observed %f events in bin %lu with zero event yield",N,(unsigned long)binIdx)) ;
       } else if (std::abs(mu)<1e-10 && std::abs(N)<1e-10) {
-
         // Special handling of this case since log(Poisson(0,0)=0 but can't be calculated with usual log-formula
         // since log(mu)=0. No update of result is required since term=0.
-
       } else {
-
         double term = 0.0;
         if(_doBinOffset) {
           term -= -mu + N + N * (std::log(mu) - std::log(N));
@@ -211,8 +199,68 @@ double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEven
           term -= -mu + N * std::log(mu) - TMath::LnGamma(N+1);
         }
         result += term;
-        sumWeightKahanSum += eventWeight;
+        sumWeightKahanSum += N;
+      }
+    };
 
+    const std::size_t nBins = _binw.size();
+    const std::size_t nEntries = lastEvent - firstEvent;
+
+    if (nEntries == nBins) {
+      // Fast path: the data already has one entry per bin (RooDataHist matching
+      // the pdf's binning). Entry i corresponds to bin i.
+      for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
+        _dataClone->get(i) ;
+        double eventWeight = _dataClone->weight();
+        double mu = _binnedPdf->getVal() * _binw[i];
+        addBinTerm(mu, eventWeight, i);
+      }
+    } else if (_binnedObs) {
+      // Slow path: the data has more (or fewer) entries than the pdf has bins -
+      // typically a RooDataSet whose per-event layout doesn't match the pdf's
+      // binning. Aggregate event weights per pdf bin on the fly using the
+      // observable's binning. Memory use is O(nBins), no RooDataHist is built.
+      RooAbsBinning const &binning = _binnedObs->getBinning();
+      std::vector<double> binWeights(nBins, 0.0);
+      std::vector<double> binPreds(nBins, 0.0);
+      std::vector<bool> observed(nBins, false);
+
+      for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
+        _dataClone->get(i);
+        double eventWeight = _dataClone->weight();
+        int b = binning.binNumber(_binnedObs->getVal());
+        if (b < 0 || b >= static_cast<int>(nBins)) continue;
+        binWeights[b] += eventWeight;
+        if (!observed[b]) {
+          binPreds[b] = _binnedPdf->getVal();
+          observed[b] = true;
+        }
+      }
+
+      // Fill in empty bins by evaluating the pdf at the bin centre.
+      std::size_t nMissing = std::count(observed.begin(), observed.end(), false);
+      if (nMissing > 0) {
+        const double savedObsVal = _binnedObs->getVal();
+        for (std::size_t b = 0; b < nBins; ++b) {
+          if (observed[b]) continue;
+          _binnedObs->setVal(binning.binCenter(b));
+          binPreds[b] = _binnedPdf->getVal();
+        }
+        _binnedObs->setVal(savedObsVal);
+      }
+
+      for (std::size_t b = 0; b < nBins; ++b) {
+        double mu = binPreds[b] * _binw[b];
+        addBinTerm(mu, binWeights[b], b);
+      }
+    } else {
+      // Fallback: iterate per entry and hope the layout matches. Should not
+      // normally be reached because _binnedObs is set whenever _binnedPdf is.
+      for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
+        _dataClone->get(i) ;
+        double eventWeight = _dataClone->weight();
+        double mu = _binnedPdf->getVal() * (i < nBins ? _binw[i] : 0.0);
+        addBinTerm(mu, eventWeight, i);
       }
     }
 
