@@ -32,6 +32,8 @@ ROOT_ADD_GTEST(
 
 ROOT_ADD_GTEST(TClingLoadUnloadFile TClingLoadUnloadFileTests.cxx LIBRARIES Core RIO)
 
+ROOT_ADD_GTEST(TClingLoadLibraryPragma TClingLoadLibraryPragmaTests.cxx LIBRARIES Core RIO)
+
 if(pyroot)
   ROOT_ADD_PYUNITTEST(MetaClingTests MetaClingTests.py)
 endif()

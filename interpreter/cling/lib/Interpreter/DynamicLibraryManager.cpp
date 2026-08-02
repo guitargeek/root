@@ -124,6 +124,37 @@ namespace cling {
 #endif
   }
 
+  /// Invoke \c found on \c libStem as given, then on \c libStem with each
+  /// platform shared-library extension appended (e.g. ".so", ".dylib"),
+  /// returning the first non-empty result (typically the resolved path).
+  /// Returns an empty string if none match.
+  template <class Found>
+  static std::string tryWithSharedLibExtensions(llvm::StringRef libStem,
+                                                Found found) {
+#if defined(LLVM_ON_UNIX)
+#ifdef __APPLE__
+    static const char* const Exts[] = {".so", ".dylib"};
+#else
+    static const char* const Exts[] = {".so"};
+#endif
+#elif defined(_WIN32)
+    static const char* const Exts[] = {".dll"};
+#else
+# error "Unsupported platform."
+#endif
+
+    if (std::string result = found(libStem); !result.empty())
+      return result;
+    llvm::SmallString<512> withExt;
+    for (const char* Ext : Exts) {
+      withExt.assign(libStem);
+      withExt += Ext;
+      if (std::string result = found(withExt.str()); !result.empty())
+        return result;
+    }
+    return std::string();
+  }
+
   std::string
   DynamicLibraryManager::lookupLibInPaths(llvm::StringRef libStem,
                                           llvm::SmallVector<llvm::StringRef,2> RPath /*={}*/,
@@ -222,31 +253,10 @@ namespace cling {
         ", ..., libLoader=" << libLoader << "\n";
     }
 
-    std::string foundDyLib = lookupLibInPaths(libStem, RPath, RunPath, libLoader);
-
-    if (foundDyLib.empty()) {
-      // Add DyLib extension:
-      llvm::SmallString<512> filenameWithExt(libStem);
-#if defined(LLVM_ON_UNIX)
-#ifdef __APPLE__
-      llvm::SmallString<512>::iterator IStemEnd = filenameWithExt.end() - 1;
-#endif
-      static const char* DyLibExt = ".so";
-#elif defined(_WIN32)
-      static const char* DyLibExt = ".dll";
-#else
-# error "Unsupported platform."
-#endif
-      filenameWithExt += DyLibExt;
-      foundDyLib = lookupLibInPaths(filenameWithExt, RPath, RunPath, libLoader);
-#ifdef __APPLE__
-      if (foundDyLib.empty()) {
-        filenameWithExt.erase(IStemEnd + 1, filenameWithExt.end());
-        filenameWithExt += ".dylib";
-        foundDyLib = lookupLibInPaths(filenameWithExt, RPath, RunPath, libLoader);
-      }
-#endif
-    }
+    std::string foundDyLib =
+        tryWithSharedLibExtensions(libStem, [&](llvm::StringRef stem) {
+          return lookupLibInPaths(stem, RPath, RunPath, libLoader);
+        });
 
     if (foundDyLib.empty())
       return std::string();
@@ -296,12 +306,14 @@ namespace cling {
         RPathToStr2(RPath) << ", " << RPathToStr2(RunPath) << ", " << libLoader.str() << "\n";
     }
 
-    // If it is an absolute path, don't try iterate over the paths.
+    // If it is an absolute path, don't try iterate over the paths. The
+    // extension might still be missing though (e.g.
+    // R__LOAD_LIBRARY(/path/libEvent)), so let tryWithSharedLibExtensions add
+    // the platform's shared library extension(s) as needed.
     if (llvm::sys::path::is_absolute(libStem)) {
-      if (isSharedLibrary(libStem))
-        return normalizePath(libStem);
-      else
-        return std::string();
+      return tryWithSharedLibExtensions(libStem, [this](llvm::StringRef p) {
+        return isSharedLibrary(p) ? normalizePath(p) : std::string();
+      });
     }
 
     // Subst all known linker variables ($origin, @rpath, etc.)
