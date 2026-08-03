@@ -182,7 +182,7 @@
       INCLUDE 'mzcc.inc'
       INCLUDE 'mzcwk.inc'
 *
-      DIMENSION    IXSTOR(9),IFENCE(9)
+      DIMENSION    IXSTOR(9),IFENCE(*)
       DIMENSION    LV(9),LLR(9),LLD(9),LIMIT(9),LAST(9)
       DIMENSION    MMSYSL(5), NAMELA(2), NAMESY(2)
       CHARACTER    *(*) CHNAME,CHOPT
@@ -797,7 +797,7 @@
       INCLUDE 'jauioc.inc'
       INCLUDE 'fzc.inc'
       INCLUDE 'rzclun.inc'
-      DIMENSION    IXDIVP(9),LSUPP(9),JBIASP(9),IDUM(3)
+      DIMENSION    IXDIVP(9),LSUPP(*),JBIASP(*),IDUM(3)
       EQUIVALENCE (IOPTR,IQUEST(95))
       JBYT(IZW,IZP,NZB) = ISHFT(ISHFT(IZW,33-IZP-NZB),-(32-NZB))
       IXDIVI = IXDIVP(1)
@@ -918,7 +918,7 @@
       SUBROUTINE ZITOH (INTV,IHOLL,NP)
       INCLUDE 'zbcd.inc'
       INCLUDE 'slate.inc'
-      DIMENSION    INTV(99), IHOLL(99), NP(9)
+      DIMENSION    INTV(*), IHOLL(*), NP(9)
       DIMENSION    MPAK(2)
       DATA  MPAK   /6,4/
       N = NP(1)
@@ -1376,7 +1376,7 @@
       INCLUDE 'mzabq.inc'
       INCLUDE 'mzcc.inc'
       INCLUDE 'mzcl.inc'
-      DIMENSION    IXP(9),LP(9),LSUPP(9),JBP(9),NIOP(9),NZP(9)
+      DIMENSION    IXP(9),LP(9),LSUPP(*),JBP(*),NIOP(9),NZP(9)
       CHARACTER    CHIDH*(*)
       DIMENSION    NAMESR(2)
       DATA  NAMESR / 4HMZBO, 4HOK   /
@@ -1420,7 +1420,7 @@
       INCLUDE 'mzcl.inc'
       INCLUDE 'mzcn.inc'
       INCLUDE 'mzct.inc'
-      DIMENSION    IXDIV(9), LP(9), LSUPP(9), NAME(9)
+      DIMENSION    IXDIV(9), LP(9), LSUPP(*), NAME(*)
       DIMENSION    NAMESR(2)
       DATA  NAMESR / 4HMZLI, 4HFT   /
       JBIT(IZW,IZP)     = IAND(ISHFT(IZW,-(IZP-1)),1)
@@ -2803,7 +2803,7 @@
 *-------------------------------------------------------------------------------
 
       SUBROUTINE IZHNUM (HOLL,INTV,NP)
-      INTEGER INTV(99), HOLL(99)
+      INTEGER INTV(*), HOLL(*)
       DO 39 JWH=1,NP
    39 INTV(JWH) = IAND (HOLL(JWH), 255)
       RETURN
@@ -2827,7 +2827,7 @@
       INCLUDE 'quest.inc'
       INCLUDE 'zceta.inc'
       INCLUDE 'zkrakc.inc'
-      DIMENSION NP(9), ITABT(99)
+      DIMENSION NP(9), ITABT(*)
       N = NP(1)
       LIM = ITABT(1)
       JGOOD = 0
@@ -4819,7 +4819,7 @@
       DIMENSION MU(99)
       EQUIVALENCE (MU(1),IQHOLK(1))
       EQUIVALENCE (NGR,IQUEST(1)), (NGRU,IQUEST(2))
-      DIMENSION JUP(9), MXVAL(9)
+      DIMENSION JUP(9), MXVAL(*)
       JU = JUP(1)
       MXC = MU(JU+2)
       DO 24 JL=2,NGR
@@ -5305,7 +5305,7 @@
       INCLUDE 'mzcc.inc'
       INCLUDE 'mzcn.inc'
       INCLUDE 'mzct.inc'
-      DIMENSION MDESV(99)
+      DIMENSION MDESV(*)
       DIMENSION NAMESR(2)
       DATA NAMESR / 4HMZRE, 4HLL  /
       JBIT(IZW,IZP) = IAND(ISHFT(IZW,-(IZP-1)),1)
@@ -5509,7 +5509,7 @@
       INCLUDE 'mzabq.inc'
       INCLUDE 'mzcc.inc'
       INCLUDE 'mzcn.inc'
-      DIMENSION LSHP(9),LSUPP(9),JBIASP(9),IFLAGP(9)
+      DIMENSION LSHP(9),LSUPP(*),JBIASP(*),IFLAGP(9)
       DIMENSION NAMESR(2)
       DATA NAMESR / 4HZSHU, 4HNT  /
       JBYT(IZW,IZP,NZB) = ISHFT(ISHFT(IZW,33-IZP-NZB),-(32-NZB))
@@ -5628,7 +5628,7 @@
 
       SUBROUTINE ZHTOI (HOLL,INTV,NP)
       INCLUDE 'zceta.inc'
-      INTEGER INTV(99), HOLL(99)
+      INTEGER INTV(*), HOLL(*)
       DO 39 JWH=1,NP
       MWH = HOLL(JWH)
       INTW = 0

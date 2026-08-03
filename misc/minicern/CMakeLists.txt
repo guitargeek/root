@@ -14,6 +14,14 @@ target_link_libraries(minicern ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
 
 # Disable warnings, since what has worked for 40 years...
 # (see https://sft.its.cern.ch/jira/browse/ROOT-9179 for the warnings)
+#
+# All remaining warnings are legacy F77 argument rank mismatches, where a scalar
+# (often a literal like 0) is passed to a routine that declares the dummy as an
+# array but only ever touches element (1) -- harmless storage association.
+# gfortran offers no granular way to silence just this class (-Wno-argument-mismatch
+# has no effect), so the blanket -w stays. The related "actual argument contains too
+# few elements" warnings *were* fixed by giving those dummy arguments assumed-size
+# (*) declarations, which is behaviour-preserving for the element-wise access here.
 target_compile_options(minicern PRIVATE "$<$<COMPILE_LANGUAGE:Fortran>:-w>")
 
 # The offset computations between common blocks go wrong an arm64 with -O2.
