@@ -934,3 +934,108 @@ TEST(HistFactory, ShapeFactorValueAndRange)
       }
    }
 }
+
+// A ShapeFactor can also carry an *initial shape*, configured via the
+// InputFile / HistoName / HistoPath attributes (HistogramUncertaintyBase). When
+// it does, Measurement::PrintXML emits those attributes on the <ShapeFactor>
+// element, so they have to be declared in the HistFactorySchema.dtd; otherwise
+// the XML that HistFactory writes does not validate against its own schema and
+// reading it back (e.g. with hist2workspace) fails.
+//
+// This is the scenario from the GitHub issue that came out of scikit-hep/pyhf
+// #2247: writing such a model produced XML that the validating parser rejected
+// with "No declaration for attribute InputFile/HistoName/HistoPath of element
+// ShapeFactor". This test guards the full XML round trip for that case.
+TEST(HistFactory, ShapeFactorInitialShapeXML)
+{
+   using namespace RooStats::HistFactory;
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   const std::string inputFileName = "TestShapeFactorInitialShape_input.root";
+   const std::string initsHistName = "inits_bkgShape";
+   {
+      TFile f(inputFileName.c_str(), "RECREATE");
+      auto *data = new TH1D("data", "data", 2, 1, 2);
+      auto *signal = new TH1D("signal", "signal", 2, 1, 2);
+      auto *bkg = new TH1D("background", "background", 2, 1, 2);
+      // The initial shape for the ShapeFactor gammas.
+      auto *inits = new TH1D(initsHistName.c_str(), "inits", 2, 1, 2);
+      data->SetBinContent(1, 220);
+      data->SetBinContent(2, 230);
+      signal->SetBinContent(1, 10);
+      signal->SetBinContent(2, 20);
+      bkg->SetBinContent(1, 200);
+      bkg->SetBinContent(2, 200);
+      inits->SetBinContent(1, 1.5);
+      inits->SetBinContent(2, 0.5);
+      for (auto *h : {data, signal, bkg, inits})
+         f.WriteTObject(h);
+   }
+
+   auto makeMeasurement = [&]() {
+      Measurement meas("meas", "meas");
+      meas.SetOutputFilePrefix("TestShapeFactorInitialShape");
+      meas.SetPOI("SigXsecOverSM");
+      meas.AddConstantParam("Lumi");
+      meas.SetLumi(1.0);
+      meas.SetLumiRelErr(0.10);
+
+      Channel chan("channel1");
+      chan.SetData("data", inputFileName);
+
+      Sample sig("signal", "signal", inputFileName);
+      sig.AddNormFactor("SigXsecOverSM", 1, 0, 3);
+      chan.AddSample(sig);
+
+      // ShapeFactor with an initial shape read from a histogram, mirroring the
+      // reproducer from the issue.
+      Sample bkg("background", "background", inputFileName);
+      bkg.AddShapeFactor("bkgShape");
+      ShapeFactor &sf = bkg.GetShapeFactorList().front();
+      sf.SetInputFile(inputFileName);
+      sf.SetHistoName(initsHistName);
+      chan.AddSample(bkg);
+
+      meas.AddChannel(chan);
+      meas.CollectHistograms();
+      return meas;
+   };
+
+   auto getShapeFactor = [](Measurement &meas) -> ShapeFactor & {
+      Channel &chan = meas.GetChannel("channel1");
+      for (Sample &sample : chan.GetSamples()) {
+         if (!sample.GetShapeFactorList().empty())
+            return sample.GetShapeFactorList().front();
+      }
+      throw std::runtime_error("ShapeFactor not found in measurement");
+   };
+
+   // Sanity check on the in-memory measurement.
+   {
+      Measurement meas = makeMeasurement();
+      ShapeFactor &sf = getShapeFactor(meas);
+      EXPECT_TRUE(sf.HasInitialShape());
+      EXPECT_EQ(sf.GetHistoName(), initsHistName);
+   }
+
+   // XML file round trip. This is the part that used to fail: the generated XML
+   // did not validate against the DTD because the ShapeFactor element did not
+   // declare the InputFile / HistoName / HistoPath attributes.
+   {
+      Measurement meas = makeMeasurement();
+      const std::string xmlDir = "TestShapeFactorInitialShapeXML";
+      meas.PrintXML(xmlDir);
+
+      // The generated XML files refer to the DTD by relative path, so it has to
+      // be available next to them for the validating parser to find it.
+      gSystem->CopyFile(TString::Format("%s/HistFactorySchema.dtd", TROOT::GetEtcDir().Data()),
+                        TString::Format("%s/HistFactorySchema.dtd", xmlDir.c_str()), true);
+
+      ConfigParser parser;
+      std::vector<Measurement> measFromXML = parser.GetMeasurementsFromXML(xmlDir + "/meas.xml");
+      ASSERT_EQ(measFromXML.size(), 1u);
+      ShapeFactor &sf = getShapeFactor(measFromXML.front());
+      EXPECT_TRUE(sf.HasInitialShape());
+      EXPECT_EQ(sf.GetHistoName(), initsHistName);
+   }
+}
