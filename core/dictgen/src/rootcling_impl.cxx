@@ -23,6 +23,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 
 #include <cerrno>
 #include <string>
@@ -4070,6 +4071,42 @@ int RootClingMain(int argc,
           == gOptCompDefaultIncludePaths.end()) {
          clingArgs.push_back("-isystem");
          clingArgs.push_back(llvm::sys::path::convert_to_slash(IncludePath));
+      }
+   }
+
+   // Point cling at the C++ standard library of the build compiler, whose
+   // implicit include dirs we get via `-compilerI` (CMAKE_CXX_IMPLICIT_INCLUDE_-
+   // DIRECTORIES in RootMacros.cmake). Otherwise cling queries whatever `g++` is
+   // first on $PATH (ReadCompilerIncludePaths() in CIFactory.cpp), which picks
+   // an unrelated, often too old standard library when the build compiler is not
+   // on $PATH (e.g. relocatable /cvmfs toolchains). The CLING_CPPSYSINCL hook
+   // makes cling use these as `-cxx-isystem` and skip the $PATH query; a
+   // user-set CLING_CPPSYSINCL wins.
+   if (!std::getenv("CLING_CPPSYSINCL")) {
+      std::string cppSysIncl;
+      for (const std::string &implinc : gOptCompDefaultIncludePaths) {
+         // Keep only the C++ stdlib dirs (mirroring the `++` filter cling applies
+         // to the compiler's `-v` output), so the compiler's builtin and C dirs
+         // stay under clang's control and don't shadow its intrinsics/<stddef.h>.
+         if (implinc.find("c++") == std::string::npos)
+            continue;
+         if (!llvm::sys::fs::is_directory(implinc))
+            continue;
+         if (!cppSysIncl.empty())
+            cppSysIncl += ':';
+         cppSysIncl += implinc;
+      }
+      if (!cppSysIncl.empty()) {
+#ifdef _WIN32
+         _putenv_s("CLING_CPPSYSINCL", cppSysIncl.c_str());
+#else
+         setenv("CLING_CPPSYSINCL", cppSysIncl.c_str(), /*overwrite=*/0);
+#endif
+         if (gOptVerboseLevel.getValue() >= v4)
+            ROOT::TMetaUtils::Info(nullptr,
+                                   "Using the project compiler's C++ standard library headers "
+                                   "for dictionary generation: %s\n",
+                                   cppSysIncl.c_str());
       }
    }
 
