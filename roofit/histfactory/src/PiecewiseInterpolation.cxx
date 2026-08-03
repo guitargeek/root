@@ -38,6 +38,7 @@
 
 #include "RooStats/HistFactory/PiecewiseInterpolation.h"
 
+#include <RooBatchCompute.h>
 #include <RooFit/Detail/MathFuncs.h>
 
 #include "HistFactoryInterpolationCodeUtils.h"
@@ -59,6 +60,7 @@
 #include <exception>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -220,46 +222,25 @@ double PiecewiseInterpolation::evaluate() const
 
 }
 
-namespace {
-
-inline double broadcast(std::span<const double> const &s, std::size_t i)
-{
-   return s.size() > 1 ? s[i] : s[0];
-}
-
-} // namespace
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Interpolate between input distributions for all values of the observable in `evalData`.
 /// \param[in,out] ctx Struct holding spans pointing to input data. The results of this function will be stored here.
 void PiecewiseInterpolation::doEval(RooFit::EvalContext &ctx) const
 {
-   std::span<double> sum = ctx.output();
+   std::vector<std::span<const double>> inputs;
+   inputs.reserve(1 + 3 * _paramSet.size());
+   std::vector<double> extra(_paramSet.size() + 1);
 
-   auto nominal = ctx.at(_nominal);
-
-   for (std::size_t j = 0; j < sum.size(); ++j) {
-      sum[j] = broadcast(nominal, j);
+   inputs.push_back(ctx.at(_nominal));
+   for (std::size_t i = 0; i < _paramSet.size(); ++i) {
+      inputs.push_back(ctx.at(_paramSet.at(i)));
+      inputs.push_back(ctx.at(_lowSet.at(i)));
+      inputs.push_back(ctx.at(_highSet.at(i)));
+      extra[i] = _interpCode[i];
    }
+   extra.back() = _positiveDefinite;
 
-   for (unsigned int i = 0; i < _paramSet.size(); ++i) {
-      auto param = ctx.at(_paramSet.at(i));
-      auto low = ctx.at(_lowSet.at(i));
-      auto high = ctx.at(_highSet.at(i));
-
-      for (std::size_t j = 0; j < sum.size(); ++j) {
-         using RooFit::Detail::MathFuncs::flexibleInterpSingle;
-         sum[j] += flexibleInterpSingle(_interpCode[i], broadcast(low, j), broadcast(high, j), 1.0, broadcast(nominal, j),
-                                        broadcast(param, j), sum[j]);
-      }
-   }
-
-   if (_positiveDefinite) {
-      for (std::size_t j = 0; j < sum.size(); ++j) {
-         if (sum[j] < 0.)
-            sum[j] = 0.;
-      }
-   }
+   RooBatchCompute::compute(ctx.config(this), RooBatchCompute::PiecewiseInterpolation, ctx.output(), inputs, extra);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

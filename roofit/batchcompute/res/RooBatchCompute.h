@@ -98,6 +98,7 @@ enum Computer {
    NegativeLogarithms,
    NormalizedPdf,
    Novosibirsk,
+   PiecewiseInterpolation,
    Poisson,
    Polynomial,
    Power,

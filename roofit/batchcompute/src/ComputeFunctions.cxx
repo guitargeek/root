@@ -704,6 +704,146 @@ __rooglobal__ void computeNovosibirsk(Batches &batches)
       batches.output[i] = fast_exp(batches.output[i]);
 }
 
+// Mirrors RooFit::Detail::MathFuncs::flexibleInterpSingle(). Duplicated here
+// instead of shared because RooBatchCompute is a lower-level library that
+// RooFitCore depends on, so it cannot include RooFitCore headers.
+__roodevice__ __roohost__ inline double
+flexibleInterpSingle(unsigned int code, double low, double high, double boundary, double nominal, double paramVal, double res)
+{
+   if (code == 0) {
+      // piece-wise linear
+      if (paramVal > 0) {
+         return paramVal * (high - nominal);
+      } else {
+         return paramVal * (nominal - low);
+      }
+   } else if (code == 1) {
+      // piece-wise log
+      if (paramVal >= 0) {
+         return res * (std::pow(high / nominal, +paramVal) - 1);
+      } else {
+         return res * (std::pow(low / nominal, -paramVal) - 1);
+      }
+   } else if (code == 2) {
+      // parabolic with linear
+      double a = 0.5 * (high + low) - nominal;
+      double b = 0.5 * (high - low);
+      double c = 0;
+      if (paramVal > 1) {
+         return (2 * a + b) * (paramVal - 1) + high - nominal;
+      } else if (paramVal < -1) {
+         return -1 * (2 * a - b) * (paramVal + 1) + low - nominal;
+      } else {
+         return a * paramVal * paramVal + b * paramVal + c;
+      }
+   } else if (code == 4 || code == 6) {
+      double x = paramVal;
+      double mod = 1.0;
+      if (code == 6) {
+         high /= nominal;
+         low /= nominal;
+         nominal = 1;
+      }
+      if (x >= boundary) {
+         mod = x * (high - nominal);
+      } else if (x <= -boundary) {
+         mod = x * (nominal - low);
+      } else {
+         // interpolate 6th degree
+         double t = x / boundary;
+         double eps_plus = high - nominal;
+         double eps_minus = nominal - low;
+         double S = 0.5 * (eps_plus + eps_minus);
+         double A = 0.0625 * (eps_plus - eps_minus);
+
+         mod = x * (S + t * A * (15 + t * t * (-10 + t * t * 3)));
+      }
+
+      // code 6 is multiplicative version of code 4
+      if (code == 6) {
+         mod *= res;
+      }
+      return mod;
+
+   } else if (code == 5) {
+      double x = paramVal;
+      double mod = 1.0;
+      if (x >= boundary) {
+         mod = std::pow(high / nominal, +paramVal);
+      } else if (x <= -boundary) {
+         mod = std::pow(low / nominal, -paramVal);
+      } else {
+         // interpolate 6th degree exp
+         double x0 = boundary;
+
+         high /= nominal;
+         low /= nominal;
+
+         double logHi = std::log(high);
+         double logLo = std::log(low);
+         double powUp = std::exp(x0 * logHi);
+         double powDown = std::exp(x0 * logLo);
+         double powUpLog = high <= 0.0 ? 0.0 : powUp * logHi;
+         double powDownLog = low <= 0.0 ? 0.0 : -powDown * logLo;
+         double powUpLog2 = high <= 0.0 ? 0.0 : powUpLog * logHi;
+         double powDownLog2 = low <= 0.0 ? 0.0 : -powDownLog * logLo;
+
+         double S0 = 0.5 * (powUp + powDown);
+         double A0 = 0.5 * (powUp - powDown);
+         double S1 = 0.5 * (powUpLog + powDownLog);
+         double A1 = 0.5 * (powUpLog - powDownLog);
+         double S2 = 0.5 * (powUpLog2 + powDownLog2);
+         double A2 = 0.5 * (powUpLog2 - powDownLog2);
+
+         double x0Sq = x0 * x0;
+
+         double a = 1. / (8 * x0) * (15 * A0 - 7 * x0 * S1 + x0 * x0 * A2);
+         double b = 1. / (8 * x0Sq) * (-24 + 24 * S0 - 9 * x0 * A1 + x0 * x0 * S2);
+         double c = 1. / (4 * x0Sq * x0) * (-5 * A0 + 5 * x0 * S1 - x0 * x0 * A2);
+         double d = 1. / (4 * x0Sq * x0Sq) * (12 - 12 * S0 + 7 * x0 * A1 - x0 * x0 * S2);
+         double e = 1. / (8 * x0Sq * x0Sq * x0) * (+3 * A0 - 3 * x0 * S1 + x0 * x0 * A2);
+         double f = 1. / (8 * x0Sq * x0Sq * x0Sq) * (-8 + 8 * S0 - 5 * x0 * A1 + x0 * x0 * S2);
+
+         // evaluate the 6-th degree polynomial using Horner's method
+         double value = 1. + x * (a + x * (b + x * (c + x * (d + x * (e + x * f)))));
+         mod = value;
+      }
+      return res * (mod - 1.0);
+   }
+
+   return 0.0;
+}
+
+__rooglobal__ void computePiecewiseInterpolation(Batches &batches)
+{
+   Batch nominal = batches.args[0];
+   const std::size_t nParams = (batches.nBatches - 1) / 3;
+
+   for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+      batches.output[i] = nominal[i];
+   }
+
+   for (std::size_t iParam = 0; iParam < nParams; ++iParam) {
+      const std::size_t offset = 1 + 3 * iParam;
+      Batch param = batches.args[offset];
+      Batch low = batches.args[offset + 1];
+      Batch high = batches.args[offset + 2];
+      const int icode = batches.extra[iParam];
+
+      for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+         batches.output[i] += flexibleInterpSingle(icode, low[i], high[i], 1.0, nominal[i], param[i], batches.output[i]);
+      }
+   }
+
+   const bool positiveDefinite = batches.extra[nParams];
+   if (positiveDefinite) {
+      for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+         if (batches.output[i] < 0.0)
+            batches.output[i] = 0.0;
+      }
+   }
+}
+
 __rooglobal__ void computePoisson(Batches &batches)
 {
    Batch x = batches.args[0];
@@ -945,6 +1085,7 @@ std::vector<void (*)(Batches &)> getFunctions()
            computeNegativeLogarithms,
            computeNormalizedPdf,
            computeNovosibirsk,
+           computePiecewiseInterpolation,
            computePoisson,
            computePolynomial,
            computePower,
