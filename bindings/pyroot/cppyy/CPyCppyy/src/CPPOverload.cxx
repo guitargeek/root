@@ -16,6 +16,7 @@
 #include "CPPOverload.h"
 #include "CPPInstance.h"
 #include "CallContext.h"
+#include "InterpreterLock.h"
 #include "PyStrings.h"
 #include "Utility.h"
 
@@ -658,6 +659,19 @@ static PyObject* mp_call(CPPOverload* pymeth, PyObject* args, PyObject* kwds)
 #endif
 
 // Call the appropriate overload of this method.
+
+// Serialize the whole dispatch on the global interpreter lock. Besides driving
+// the (thread-hostile) interpreter on first use, this mutates state shared by
+// all threads that hold this same bound method -- the overload ordering, the
+// signature dispatch cache, the per-method converters. The GIL used to make all
+// of that safe; on a free-threaded ("GIL-less") Python build it no longer does.
+// The lock is dropped again around the actual C++ execution for methods flagged
+// __release_gil__ (see GILControl), so it mirrors exactly what the GIL provided.
+//
+// The GIL is released while blocking on the lock: a thread waiting here must
+// stay at a safe point, or it would stall a stop-the-world (e.g. a GC pause)
+// requested by whichever thread currently holds the lock and is running.
+    InterpreterLockGuard interpGuard{};
 
 // If called from a descriptor, then this could be a bound function with
 // non-zero self; otherwise pymeth->fSelf is expected to always be nullptr.

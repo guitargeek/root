@@ -12,6 +12,7 @@
 #include "CPPOperator.h"
 #include "CPPOverload.h"
 #include "CPPScope.h"
+#include "InterpreterLock.h"
 #include "MemoryRegulator.h"
 #include "PyStrings.h"
 #include "Pythonize.h"
@@ -156,6 +157,17 @@ static int BuildScopeProxyDict(Cppyy::TCppScope_t scope, PyObject* pyclass, cons
 {
 // Collect methods and data for the given scope, and add them to the given python
 // proxy object.
+
+// Introspecting the scope below drives the C++ interpreter (resolving every
+// method's argument/return types, instantiating templates, ...) and, on top of
+// that, temporarily swaps the proxy type's tp_getattro slot. Neither is safe to
+// run from several threads at once, which can happen on a free-threaded
+// ("GIL-less") Python build when a class proxy is first materialized from
+// multiple threads. Serialize on the global interpreter lock -- the same lock
+// taken when generating wrappers, so a proxy build and a wrapper compilation can
+// never be inside the interpreter simultaneously. This is one-off, per-proxy
+// work; the steady-state call path is unaffected.
+    InterpreterLockGuard backendGuard{};
 
 // some properties that'll affect building the dictionary
     bool isNamespace = Cppyy::IsNamespace(scope);
@@ -533,6 +545,13 @@ PyObject* CPyCppyy::CreateScopeProxy(PyObject*, PyObject* args)
 PyObject* CPyCppyy::CreateScopeProxy(const std::string& name, PyObject* parent, const unsigned flags)
 {
 // Build a python shadow class for the named C++ class or namespace.
+
+// Materializing a proxy resolves the scope and introspects all of its members,
+// driving the (thread-hostile) interpreter throughout; hold the global lock for
+// the whole operation so it is atomic with respect to other interpreter use on
+// a free-threaded ("GIL-less") Python build (the inner BuildScopeProxyDict takes
+// the same recursive lock). The GIL is dropped while waiting (see the guard).
+    InterpreterLockGuard interpGuard{};
 
 // determine complete scope name, if a python parent has been given
     std::string scName = "";

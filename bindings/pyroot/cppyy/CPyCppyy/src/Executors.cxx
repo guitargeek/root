@@ -35,11 +35,19 @@ namespace {
 #ifdef WITH_THREAD
     class GILControl {
     public:
-        GILControl() : fSave(PyEval_SaveThread()) { }
+    // A method flagged __release_gil__ wants its C++ body to run concurrently
+    // with other Python threads. Releasing only the GIL is not enough on a
+    // free-threaded build: those other threads would immediately block on the
+    // global interpreter lock that the dispatch is holding (see mp_call). So
+    // drop that lock here as well, and re-take it (after re-acquiring the GIL)
+    // once the call returns.
+        GILControl() : fLockDepth(Cppyy::SuspendInterpreterLock()), fSave(PyEval_SaveThread()) { }
         ~GILControl() {
             PyEval_RestoreThread(fSave);
+            Cppyy::RestoreInterpreterLock(fLockDepth);
         }
     private:
+        int fLockDepth;
         PyThreadState* fSave;
     };
 #endif

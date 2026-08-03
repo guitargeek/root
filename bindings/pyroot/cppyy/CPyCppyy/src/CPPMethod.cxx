@@ -5,6 +5,7 @@
 #include "CPPInstance.h"
 #include "Converters.h"
 #include "Executors.h"
+#include "InterpreterLock.h"
 #include "ProxyWrappers.h"
 #include "PyStrings.h"
 #include "TypeManip.h"
@@ -775,6 +776,23 @@ int CPyCppyy::CPPMethod::GetArgMatchScore(PyObject* args_tuple)
 bool CPyCppyy::CPPMethod::Initialize(CallContext* ctxt)
 {
 // done if cache is already setup
+    if (fArgsRequired != -1)
+        return true;
+
+// The lazy set-up below resolves argument/return types and creates the
+// converters and executor, which drives the C++ interpreter (e.g. to
+// instantiate templated default arguments and code-generate type names).
+// The interpreter is not thread-safe, so under a free-threaded ("GIL-less")
+// Python build several threads can reach this code concurrently and crash.
+// Serialize on the global interpreter lock -- the *same* lock used by the
+// backend when it generates/JITs wrappers and resolves scopes, so that no two
+// threads are ever inside the interpreter at once. It is only taken once per
+// method (the fArgsRequired guard makes subsequent calls a no-op), so it does
+// not penalize the steady-state, GIL-released call path.
+    InterpreterLockGuard initGuard{};
+
+// re-check now that we hold the lock: another thread may have completed the
+// set-up while we were waiting for it
     if (fArgsRequired != -1)
         return true;
 

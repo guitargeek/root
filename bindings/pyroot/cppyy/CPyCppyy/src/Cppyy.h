@@ -2,6 +2,7 @@
 #define CPYCPPYY_CPPYY_H
 
 // Standard
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
@@ -43,6 +44,22 @@ namespace Cppyy {
 
     typedef size_t      TCppIndex_t;
     typedef void*       TCppFuncAddr_t;
+
+// global lock serializing access to the (thread-hostile) C++ interpreter -----
+// The GIL used to serialize all of PyROOT's calls into ROOT; on a free-threaded
+// ("GIL-less") Python build it no longer does, so callers must take this lock
+// around any work that drives the interpreter or touches the backend's shared
+// tables. It is recursive and always on (independent of EnableThreadSafety()).
+    CPPYY_IMPORT
+    std::recursive_mutex& GetGlobalMutex();
+
+// Acquire/release the global interpreter lock, GIL-style. Lock/Unlock nest on a
+// single thread; Suspend/Restore drop and re-take it across all nesting levels
+// while a GIL-released call runs its C++ body (see GILControl in Executors.cxx).
+    CPPYY_IMPORT void LockInterpreter();
+    CPPYY_IMPORT void UnlockInterpreter();
+    CPPYY_IMPORT int  SuspendInterpreterLock();
+    CPPYY_IMPORT void RestoreInterpreterLock(int depth);
 
 // direct interpreter access -------------------------------------------------
     CPPYY_IMPORT

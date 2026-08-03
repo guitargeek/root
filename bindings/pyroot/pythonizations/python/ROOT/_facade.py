@@ -306,6 +306,15 @@ class ROOTFacade(types.ModuleType):
         # Make sure the interpreter is initialized once gROOT has been initialized
         self._cppyy.gbl.TInterpreter.Instance()
 
+        # Enable ROOT's thread-safety mode. This turns ROOT's global and
+        # interpreter mutexes (gGlobalMutex / gInterpreterMutex) into real locks,
+        # which is what serializes the otherwise thread-hostile interpreter (e.g.
+        # the lazy JIT-compilation of call wrappers in TClingCallFunc). Under a
+        # regular (GIL-enabled) Python this was implicitly guaranteed by the GIL,
+        # but a free-threaded ("GIL-less") build can now drive ROOT from several
+        # threads concurrently, so the locks must be active from the start.
+        self._cppyy.gbl.ROOT.EnableThreadSafety()
+
         # Release the GIL on the heavy TInterpreter functions. This lets
         # background Python threads make progress - in particular, JupyROOT's
         # StreamCapture polling thread can drain stdout/stderr live to the

@@ -44,6 +44,7 @@
 #include <climits>
 #include <stdexcept>
 #include <map>
+#include <mutex>
 #include <new>
 #include <set>
 #include <sstream>
@@ -118,6 +119,61 @@ const int SMALL_ARGS_N = 8;
 #define DIRECT_CALL ((size_t)1 << (8 * sizeof(size_t) - 1))
 static inline size_t CALL_NARGS(size_t nargs) {
     return nargs & ~DIRECT_CALL;
+}
+
+// Serializes cppyy's access to the (thread-hostile) C++ interpreter and to the
+// backend's shared lookup tables (g_classrefs, g_name2classrefidx, the cached
+// CallFunc wrappers, ...). The GIL used to serialize all of PyROOT's calls into
+// ROOT for free; on a free-threaded ("GIL-less") Python build it no longer does,
+// so several Python threads can now drive cling and mutate these globals at once
+// and corrupt them or crash inside the interpreter. This lock is always on,
+// independent of ROOT::EnableThreadSafety(). It is only ever taken around the
+// lazy *set-up* work (scope look-up, wrapper generation/JIT) -- never around the
+// actual execution of a JIT-ed wrapper -- so it neither serializes the steady
+// state nor risks dead-locking against C++ callbacks into Python. It is
+// recursive because these entry points can legitimately re-enter on one thread.
+static std::recursive_mutex gBackendMutex;
+
+std::recursive_mutex& Cppyy::GetGlobalMutex()
+{
+    return gBackendMutex;
+}
+
+// Number of times the calling thread currently holds the interpreter lock
+// through Lock/UnlockInterpreter (see SuspendInterpreterLock).
+static thread_local int gInterpreterLockDepth = 0;
+
+void Cppyy::LockInterpreter()
+{
+    gBackendMutex.lock();
+    ++gInterpreterLockDepth;
+}
+
+void Cppyy::UnlockInterpreter()
+{
+    --gInterpreterLockDepth;
+    gBackendMutex.unlock();
+}
+
+int Cppyy::SuspendInterpreterLock()
+{
+// Fully drop the interpreter lock held by this thread (across all recursion
+// levels) and report how many levels were released, so RestoreInterpreterLock()
+// can re-take exactly as many. Used to let a method that has released the GIL
+// run its C++ body -- and any callbacks into Python it makes -- without keeping
+// other threads out of the interpreter.
+    int depth = gInterpreterLockDepth;
+    for (int i = 0; i < depth; ++i)
+        gBackendMutex.unlock();
+    gInterpreterLockDepth = 0;
+    return depth;
+}
+
+void Cppyy::RestoreInterpreterLock(int depth)
+{
+    for (int i = 0; i < depth; ++i)
+        gBackendMutex.lock();
+    gInterpreterLockDepth = depth;
 }
 
 // data for life time management ---------------------------------------------
@@ -499,6 +555,10 @@ std::string Cppyy::ResolveName(const std::string& cppitem_name)
 {
 // Fully resolve the given name to the final type name.
 
+// Drives the interpreter (type resolution) and reads/writes the memoization
+// cache; serialize against all other interpreter use (see GetGlobalMutex).
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
 // try memoized type cache, in case seen before
     std::string memoized = find_memoized_resolved_name(cppitem_name);
     if (!memoized.empty()) return memoized;
@@ -612,6 +672,9 @@ std::string Cppyy::ResolveEnum(const std::string& enum_type)
 // The underlying type of a an enum may be any kind of integer.
 // Resolve that type via a workaround (note: this function assumes
 // that the enum_type name is a valid enum type name)
+// Drives the interpreter and the resolved_enum_types cache; serialize.
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
     auto res = resolved_enum_types.find(enum_type);
     if (res != resolved_enum_types.end())
         return res->second;
@@ -692,6 +755,11 @@ static Cppyy::TCppIndex_t ArgSimilarityScore(void *argqtp, void *reqqtp)
 
 Cppyy::TCppScope_t Cppyy::GetScope(const std::string& sname)
 {
+// Both the look-up cache (find_memoized_scope) and the slow path below read and
+// mutate the shared g_name2classrefidx / g_classrefs tables and drive the
+// interpreter (TClass auto-loading), none of which is thread-safe; serialize.
+    std::lock_guard<std::recursive_mutex> backendGuard(gBackendMutex);
+
 // First, try cache
     TCppType_t result = find_memoized_scope(sname);
     if (result) return result;
@@ -935,6 +1003,16 @@ static TInterpreter::CallFuncIFacePtr_t GetCallFunc(Cppyy::TCppMethod_t method)
 {
 // TODO: method should be a callfunc, so that no mapping would be needed.
     CallWrapper* wrap = (CallWrapper*)method;
+
+// Generating and JIT-ing the wrapper drives the interpreter and caches the
+// result in wrap->fFaceptr; serialize it so concurrent first-time calls from
+// several threads neither race on the interpreter nor on that cache. The
+// returned face pointer is *executed* by the caller without holding this lock.
+    std::lock_guard<std::recursive_mutex> backendGuard(gBackendMutex);
+
+// another thread may have generated the wrapper while we waited for the lock
+    if (wrap->fFaceptr.fGeneric)
+        return wrap->fFaceptr;
 
     CallFunc_t* callf = gInterpreter->CallFunc_Factory();
     MethodInfo_t* meth = gInterpreter->MethodInfo_Factory(wrap->fDecl);
@@ -1852,6 +1930,9 @@ std::string Cppyy::GetMethodMangledName(TCppMethod_t method)
 
 std::string Cppyy::GetMethodResultType(TCppMethod_t method)
 {
+// Normalizing the return type drives the interpreter; serialize (see GetGlobalMutex).
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
     if (method) {
         TFunction* f = m2f(method);
         if (f->ExtraProperty() & kIsConstructor)
@@ -1903,6 +1984,9 @@ Cppyy::TCppIndex_t Cppyy::GetMethodReqArgs(TCppMethod_t method)
 
 std::string Cppyy::GetMethodArgName(TCppMethod_t method, TCppIndex_t iarg)
 {
+// Materializing the argument list can drive the interpreter; serialize.
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
     if (method) {
         TFunction* f = m2f(method);
         TMethodArg* arg = (TMethodArg*)f->GetListOfMethodArgs()->At((int)iarg);
@@ -1913,6 +1997,9 @@ std::string Cppyy::GetMethodArgName(TCppMethod_t method, TCppIndex_t iarg)
 
 std::string Cppyy::GetMethodArgType(TCppMethod_t method, TCppIndex_t iarg)
 {
+// Normalizing the argument type drives the interpreter; serialize (see GetGlobalMutex).
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
     if (method) {
         TFunction* f = m2f(method);
         TMethodArg* arg = (TMethodArg*)f->GetListOfMethodArgs()->At((int)iarg);
@@ -1930,6 +2017,9 @@ std::string Cppyy::GetMethodArgType(TCppMethod_t method, TCppIndex_t iarg)
 
 Cppyy::TCppIndex_t Cppyy::CompareMethodArgType(TCppMethod_t method, TCppIndex_t iarg, const std::string &req_type)
 {
+// Uses the interpreter's type-info machinery directly; serialize (see GetGlobalMutex).
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
     if (method) {
         TFunction* f = m2f(method);
         TMethodArg* arg = (TMethodArg *)f->GetListOfMethodArgs()->At((int)iarg);
@@ -1960,6 +2050,9 @@ Cppyy::TCppIndex_t Cppyy::CompareMethodArgType(TCppMethod_t method, TCppIndex_t 
 
 std::string Cppyy::GetMethodArgDefault(TCppMethod_t method, TCppIndex_t iarg)
 {
+// Materializing the argument list can drive the interpreter; serialize.
+    std::lock_guard<std::recursive_mutex> backendGuard(GetGlobalMutex());
+
     if (method) {
         TFunction* f = m2f(method);
         TMethodArg* arg = (TMethodArg*)f->GetListOfMethodArgs()->At((int)iarg);

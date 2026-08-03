@@ -3,6 +3,7 @@
 #include "CPPInstance.h"
 #include "CPPScope.h"
 #include "CPPOverload.h"
+#include "InterpreterLock.h"
 #include "MemoryRegulator.h"
 #include "ProxyWrappers.h"
 #include "PyStrings.h"
@@ -218,6 +219,15 @@ void CPyCppyy::CPPInstance::SetDispatchPtr(void* ptr)
 //----------------------------------------------------------------------------
 void CPyCppyy::op_dealloc_nofree(CPPInstance* pyobj) {
 // Destroy the held C++ object, if owned; does not deallocate the proxy.
+
+// Hold the global interpreter lock for the whole teardown: unregistering from
+// the (process-wide) memory regulator and destroying the C++ object both touch
+// state shared between threads -- the regulator's object tables and, for the
+// destruction, the interpreter itself (the destructor wrapper is JIT-ed on first
+// use). Without this, concurrent deletions on a free-threaded ("GIL-less")
+// Python build race with each other and with object registration on the call
+// path. See InterpreterLockGuard for why the GIL is dropped while waiting.
+    InterpreterLockGuard interpGuard{};
 
     Cppyy::TCppType_t klass = pyobj->ObjectIsA(false /* check_smart */);
     void*& cppobj = pyobj->GetObjectRaw();
