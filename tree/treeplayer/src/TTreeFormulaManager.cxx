@@ -60,6 +60,41 @@ TTreeFormulaManager::~TTreeFormulaManager()
 void TTreeFormulaManager::Remove(TTreeFormula *adding)
 {
    fFormulas.Remove(adding);
+   // Compress so that the loops over fFormulas (e.g. in Sync and GetNdata),
+   // which use UncheckedAt, never encounter the null hole left by Remove.
+   fFormulas.Compress();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Replace the formula `oldForm` by `newForm`, keeping it at the same position
+/// in the list of managed formulas.  This is used when an alias sub-formula has
+/// to be rebuilt because its definition changed from one tree to the next in a
+/// TChain (see TTreeFormula::ReloadAlias): keeping the slot stable means the
+/// loops iterating over fFormulas are not disturbed and no null hole is left.
+
+void TTreeFormulaManager::Replace(TTreeFormula *oldForm, TTreeFormula *newForm)
+{
+   // Detach newForm from the manager it created in its own constructor (mirror
+   // the bookkeeping done in Add).
+   TTreeFormulaManager *old = newForm->fManager;
+   if (old && old != this) {
+      old->fFormulas.Remove(newForm);
+      old->fFormulas.Compress();
+      if (old->fFormulas.GetLast() == -1) delete old;
+   }
+
+   if (newForm->TestBit(TTreeFormula::kNeedEntries)) {
+      SetBit(TTreeFormula::kNeedEntries);
+   }
+
+   Int_t idx = fFormulas.IndexOf(oldForm);
+   if (idx >= 0) {
+      fFormulas.AddAt(newForm, idx);
+   } else {
+      fFormulas.Add(newForm);
+   }
+   newForm->fManager = this;
+   fNeedSync = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

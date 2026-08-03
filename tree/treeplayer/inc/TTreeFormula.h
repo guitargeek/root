@@ -126,6 +126,7 @@ protected:
    // Helper members and function used during the construction and parsing
    TList                    *fDimensionSetup;         ///<! list of dimension setups, for delayed creation of the dimension information.
    std::vector<std::string>  fAliasesUsed;            ///<! List of aliases used during the parsing of the expression.
+   TString                   fAliasValue;             ///<! For an alias sub-formula, the alias definition it was compiled from (used to detect changes across files in a TChain).
 
    LongDouble_t*        fConstLD;                     ///<! local version of fConsts able to store bigger numbers
 
@@ -151,6 +152,7 @@ protected:
 
    void              LoadBranches();
    bool              LoadCurrentDim();
+   TTreeFormula*     ReloadAlias(Int_t oper);
    void              ResetDimensions();
 
    virtual TClass*   EvalClass(Int_t oper) const;

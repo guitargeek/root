@@ -2945,6 +2945,12 @@ Int_t TTreeFormula::DefinedVariable(TString &name, Int_t &action)
                return -3;
             }
 
+            // Remember the alias definition this sub-formula was built from so
+            // that, when iterating over a TChain whose trees define the same
+            // alias differently, we can detect the change and rebuild it (see
+            // ReloadAlias, called from UpdateFormulaLeaves).
+            subform->fAliasValue = aliasValue;
+
             fManager->Add(subform);
             fAliases.AddAtAndExpand(subform,fNoper);
 
@@ -5318,6 +5324,63 @@ bool TTreeFormula::StringToNumber(Int_t oper)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// The alias sub-formula stored at position `oper` in fAliases was compiled
+/// from the alias definition found in the tree that was loaded at the time.
+/// When iterating over a TChain, a subsequent tree may define the same alias
+/// with a different expression (see ROOT-9480).  In that case the cached
+/// sub-formula is stale and must be rebuilt from the new definition.
+///
+/// Returns the sub-formula to use: the rebuilt one if the definition changed,
+/// otherwise the existing one (also returned unchanged if the new definition
+/// is missing or fails to compile).
+
+TTreeFormula* TTreeFormula::ReloadAlias(Int_t oper)
+{
+   TTreeFormula *subform = static_cast<TTreeFormula*>(fAliases.UncheckedAt(oper));
+   R__ASSERT(subform);
+
+   // The sub-formula's name is the alias name it stands for.
+   const char *aliasValue = fTree ? fTree->GetAlias(subform->GetName()) : nullptr;
+
+   // Nothing to do if the alias no longer exists or is unchanged.
+   if (!aliasValue || subform->fAliasValue == aliasValue)
+      return subform;
+
+   // The sub-formula was built from the alias value with a possible dimension
+   // suffix (e.g. "[2]") appended; preserve that suffix when rebuilding.
+   TString dims;
+   TString oldTitle = subform->GetTitle();
+   if (oldTitle.BeginsWith(subform->fAliasValue))
+      dims = oldTitle(subform->fAliasValue.Length(), oldTitle.Length() - subform->fAliasValue.Length());
+
+   TString subValue(aliasValue);
+   subValue += dims;
+
+   std::vector<std::string> aliasSofar = fAliasesUsed;
+   aliasSofar.push_back(subform->GetName());
+
+   TTreeFormula *newform = new TTreeFormula(subform->GetName(), subValue, fTree, aliasSofar);
+   if (newform->GetNdim() == 0) {
+      // The new definition does not compile in this tree; keep the old one.
+      delete newform;
+      return subform;
+   }
+   newform->fAliasValue = aliasValue;
+
+   // Swap the new sub-formula in, taking the old one's place both in the parent
+   // formula and in the manager's list (so iterations in progress are not
+   // disturbed), then discard the stale sub-formula.
+   fManager->Replace(subform, newform);
+   fAliases.AddAt(newform, oper);
+   delete subform;
+
+   // The dimension setup may have changed, so re-synchronize the manager.
+   fManager->Sync();
+
+   return newform;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// This function is called TTreePlayer::UpdateFormulaLeaves, itself
 /// called by TChain::LoadTree when a new Tree is loaded.
 /// Because Trees in a TChain may have a different list of leaves, one
@@ -5369,6 +5432,13 @@ void TTreeFormula::UpdateFormulaLeaves()
       switch(oper >> kTFOperShift) {
          case kAlias:
          case kAliasString:
+         {
+            // The alias definition may differ from one tree to the next in a
+            // TChain; rebuild the sub-formula if needed (ROOT-9480).
+            TTreeFormula *subform = ReloadAlias(k);
+            subform->UpdateFormulaLeaves();
+            break;
+         }
          case kAlternate:
          case kAlternateString:
          case kMinIf:

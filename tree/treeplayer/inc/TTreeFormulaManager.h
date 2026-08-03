@@ -67,6 +67,7 @@ public:
    virtual Int_t      GetNdata(bool forceLoadDim = false);
    bool               Notify() override { UpdateFormulaLeaves(); return true; }
    virtual void       Remove(TTreeFormula*);
+   virtual void       Replace(TTreeFormula *oldForm, TTreeFormula *newForm);
    virtual bool       Sync();
    virtual void       UpdateFormulaLeaves();
 

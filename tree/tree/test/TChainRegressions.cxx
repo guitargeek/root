@@ -207,6 +207,49 @@ TEST(TChain, UncommonFileExtension)
    gSystem->Unlink(dirname);
 }
 
+// https://its.cern.ch/jira/browse/ROOT-9480
+// The alias expression must be recomputed for each tree of the chain: if the
+// same alias is defined differently in successive files, evaluating it must use
+// the definition of the file the current entry belongs to (and the result must
+// not depend on the order in which the files were added to the chain).
+TEST(TChain, PerFileAliasRedefinition)
+{
+   const auto treename = "mytree";
+   const char *filenames[2] = {"tchain9480_file1.root", "tchain9480_file2.root"};
+
+   for (int i = 0; i < 2; ++i) {
+      std::unique_ptr<TFile> f(TFile::Open(filenames[i], "RECREATE"));
+      TTree t(treename, treename);
+      t.SetDirectory(f.get());
+      // Same alias name, different definition in each file.
+      t.SetAlias("myalias", TString::Format("%d * mybranch", i + 1));
+      float val = 2.f;
+      t.Branch("mybranch", &val, "mybranch/F");
+      t.Fill();
+      t.Write("", TObject::kWriteDelete);
+   }
+
+   // Evaluate the alias over the whole chain, in both file orders. The value of
+   // the alias for the entry coming from file `i` must be (i+1) * 2.
+   for (int reverse = 0; reverse < 2; ++reverse) {
+      TChain chain(treename);
+      chain.Add(filenames[reverse ? 1 : 0]);
+      chain.Add(filenames[reverse ? 0 : 1]);
+
+      const Long64_t n = chain.Draw("myalias", "", "goff");
+      ASSERT_EQ(n, 2);
+      const double *v = chain.GetV1();
+      // First added file uses factor 1 or 2 depending on the order.
+      const double firstFactor = reverse ? 2. : 1.;
+      const double secondFactor = reverse ? 1. : 2.;
+      EXPECT_FLOAT_EQ(v[0], firstFactor * 2.);
+      EXPECT_FLOAT_EQ(v[1], secondFactor * 2.);
+   }
+
+   gSystem->Unlink(filenames[0]);
+   gSystem->Unlink(filenames[1]);
+}
+
 // Originally reproducer of https://github.com/root-project/root/issues/7567
 // but see also https://github.com/root-project/root/issues/19220 for an update
 // The test parameters are
