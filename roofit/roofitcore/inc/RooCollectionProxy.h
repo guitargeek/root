@@ -84,6 +84,21 @@ public:
       _owner->registerProxy(*this);
    }
 
+   /// Copy constructor that infers the new owner from the copy target of `other`'s owner
+   /// (see RooAbsArg::copyTarget()), sparing the owning class from having to pass `this`
+   /// explicitly. Can therefore only be used while the class that owns `other` is itself
+   /// being copy-constructed, i.e. from that object's member initializer list or its
+   /// constructor body (including proxies created dynamically there, e.g. in a loop).
+   RooCollectionProxy(const RooCollectionProxy &other)
+      : RooCollection_t(other, other.GetName()), _defValueServer(other._defValueServer),
+        _defShapeServer(other._defShapeServer)
+   {
+      if (auto prevOwner = other._owner) {
+         _owner = prevOwner->copyTarget();
+         _owner->registerProxy(*this);
+      }
+   }
+
    /// Initializes this RooCollection proxy from another proxy. Should not be
    /// considered part of the public interface, only to be used by IO.
    template <class Other_t>
@@ -106,13 +121,15 @@ public:
       // Don't do _owner->registerProxy(*this) here! The proxy list will also be copied separately.
    }
 
-   // Assignment is deleted because it is not clear how it should behave.
-   // Should default assignment be used? But then, it will use the assignment
-   // operators of the RooFit collections, which actually don't do assignment,
-   // but value synchronization! Should it be re-implemented to be actual
-   // assignment? That would be inconsistent with the base class! So it's
+   // Assigning one proxy to another is defined as assigning the values of the
+   // right-hand collection's arguments to the arguments of this collection (see
+   // operator=(const RooCollection_t&) below), consistent with how the base
+   // RooFit collection classes treat assignment as value synchronization rather
+   // than as a change of contents or ownership. Move assignment is deleted
+   // because it would be indistinguishable from that value synchronization
+   // while suggesting something different (transfer of contents), so it is
    // better to not support it at all.
-   RooCollectionProxy &operator=(RooCollectionProxy const &other) = delete;
+   RooCollectionProxy &operator=(RooCollectionProxy const &other) { return operator=(static_cast<RooCollection_t const &>(other)); }
    RooCollectionProxy &operator=(RooCollectionProxy &&other) = delete;
 
    ~RooCollectionProxy() override

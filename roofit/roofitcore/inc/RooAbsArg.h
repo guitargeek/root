@@ -569,6 +569,12 @@ protected:
 
    RooRefArray _proxyList; // list of proxies
 
+   mutable RooAbsArg *_copyTarget = nullptr; ///<! Object that `this` is currently being copied into, if any. Set at
+                                              ///<! the end of the RooAbsArg copy constructor and left untouched
+                                              ///<! afterwards, so it stays valid for the entire remaining
+                                              ///<! construction of the new object (init list and constructor body),
+                                              ///<! not just the init list.
+
    std::vector<RooAbsCache *> _cacheList; ///<! list of caches
 
    // Proxy management
@@ -583,6 +589,14 @@ protected:
    void unRegisterProxy(RooArgProxy &proxy);
    void unRegisterProxy(RooSetProxy &proxy);
    void unRegisterProxy(RooListProxy &proxy);
+
+   /// Returns the object that `this` is currently being copied into, for use by owned proxies whose
+   /// simplified copy constructor needs to find their new owner. Valid for the entire duration of the
+   /// construction of that new object, from the start of its member initializer list until its
+   /// constructor body finishes running (so it also covers proxies created dynamically in the
+   /// constructor body, e.g. in a loop). Not valid outside of that window: throws if no copy of `this`
+   /// is currently in progress.
+   RooAbsArg *copyTarget() const;
 
    // Attribute list
    std::set<std::string> _boolAttrib;                // Boolean attributes

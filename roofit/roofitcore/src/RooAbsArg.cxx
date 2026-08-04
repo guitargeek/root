@@ -93,6 +93,7 @@ for single nodes.
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 bool RooAbsArg::_verboseDirty(false);
 bool RooAbsArg::_inhibitDirty(false);
@@ -162,6 +163,19 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
 
    setValueDirty();
    setShapeDirty();
+
+   other._copyTarget = this;
+}
+
+/// Returns the object that `this` is currently being copied into. See the documentation of _copyTarget
+/// for the contract that owned proxies rely on.
+
+RooAbsArg *RooAbsArg::copyTarget() const
+{
+   if (!_copyTarget) {
+      throw std::logic_error("RooAbsArg::copyTarget(): no copy of this object is currently in progress");
+   }
+   return _copyTarget;
 }
 
 /// Destructor.

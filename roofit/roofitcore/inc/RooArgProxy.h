@@ -33,11 +33,15 @@ public:
   RooArgProxy(const char* name, const char* desc, RooAbsArg* owner, RooAbsArg& arg,
          bool valueServer, bool shapeServer, bool proxyOwnsArg=false) ;
   RooArgProxy(const char* name, RooAbsArg* owner, const RooArgProxy& other) ;
+  /// Copy constructor. The new proxy is registered with the copy target of `other`'s
+  /// owner (see RooAbsArg::copyTarget()), so this only works while the object that owns
+  /// `other` is itself being copy-constructed, i.e. from that object's member initializer
+  /// list or its constructor body (including proxies created dynamically there, e.g. in a loop).
+  RooArgProxy(RooArgProxy const& other) ;
   ~RooArgProxy() override ;
 
-  // Delete copy/move construction and assignment, because it will always
+  // Delete move construction and copy/move assignment, because they will always
   // result in invalid proxies.
-  RooArgProxy(RooArgProxy const& other) = delete;
   RooArgProxy(RooArgProxy && other) = delete;
   RooArgProxy& operator=(RooArgProxy const& other) = delete;
   RooArgProxy& operator=(RooArgProxy && other) = delete;

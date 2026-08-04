@@ -90,6 +90,31 @@ RooArgProxy::RooArgProxy(const char* inName, RooAbsArg* owner, const RooArgProxy
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Copy constructor that infers the new owner from the copy target of `other`'s owner
+/// (see RooAbsArg::copyTarget()), sparing the owning class from having to pass `this`
+/// explicitly. Can therefore only be used while the class that owns `other` is itself
+/// being copy-constructed, i.e. from that object's member initializer list or its
+/// constructor body (including proxies created dynamically there, e.g. in a loop).
+
+RooArgProxy::RooArgProxy(const RooArgProxy& other) :
+  TNamed(other.GetName(),other.GetTitle()), RooAbsProxy(other),
+  _owner(other._owner ? other._owner->copyTarget() : nullptr),
+  _arg(other._arg),
+  _valueServer(other._valueServer), _shapeServer(other._shapeServer),
+  _isFund(other._isFund), _ownArg(other._ownArg)
+{
+  if (_ownArg) {
+    _arg = _arg ? static_cast<RooAbsArg*>(_arg->Clone()) : nullptr ;
+  }
+
+  if (_owner) {
+    _owner->registerProxy(*this) ;
+  }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 /// Destructor
 
 RooArgProxy::~RooArgProxy()
