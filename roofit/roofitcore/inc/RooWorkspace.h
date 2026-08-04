@@ -21,15 +21,16 @@
 #include "RooLinkedList.h"
 #include "RooCmdArg.h"
 #include "RooExpensiveObjectCache.h"
+#include "RooAbsData.h"
 #include "TUUID.h"
 #include <map>
 #include <list>
 #include <memory>
 #include <string>
+#include <vector>
 
 class TClass ;
 class RooAbsPdf ;
-class RooAbsData ;
 class RooRealVar ;
 class RooCategory ;
 class RooAbsReal ;
@@ -256,10 +257,9 @@ public:
 
     CodeRepo _classes; // Repository of embedded class code. This data member _must_ be first
 
-    RooArgSet _allOwnedNodes;                    ///< List of owned pdfs and components
-    RooLinkedList _dataList;                     ///< List of owned datasets
-    RooLinkedList _embeddedDataList;             ///< List of owned datasets that are embedded in pdfs
-    RooLinkedList _views;                        ///< List of model views
+    RooArgSet _allOwnedNodes;                                   ///< List of owned pdfs and components
+    std::vector<std::unique_ptr<RooAbsData>> _dataList;         ///< List of owned datasets
+    std::vector<std::unique_ptr<RooAbsData>> _embeddedDataList; ///< List of owned datasets that are embedded in pdfs
     RooLinkedList _snapshots;                    ///< List of parameter snapshots
     RooLinkedList _genObjects;                   ///< List of generic objects
     RooLinkedList _studyMods;                    ///< List if StudyManager modules
@@ -274,7 +274,7 @@ public:
     bool _openTrans = false; ///<! Is there a transaction open?
     RooArgSet _sandboxNodes; ///<! Sandbox for incoming objects in a transaction
 
-    ClassDefOverride(RooWorkspace, 8) // Persistable project container for (composite) pdfs, functions, variables and datasets
+    ClassDefOverride(RooWorkspace, 9) // Persistable project container for (composite) pdfs, functions, variables and datasets
 } ;
 
 #endif

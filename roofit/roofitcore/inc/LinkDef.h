@@ -257,6 +257,25 @@
 #pragma link C++ class RooMsgService::StreamConfig+ ;
 #pragma link C++ class RooProjectedPdf+ ;
 #pragma link C++ class RooWorkspace- ;
+// Schema evolution for RooWorkspace version <= 8, where the owned datasets were
+// stored in RooLinkedLists instead of std::vectors of unique pointers. The
+// datasets read from the old RooLinkedList are adopted into the new vectors
+// (the RooLinkedList destructor does not delete its elements, so this transfers
+// ownership without a double delete).
+#pragma read sourceClass="RooWorkspace" targetClass="RooWorkspace" version="[1-8]" \
+    source="RooLinkedList _dataList" target="_dataList" \
+    code="{ for (TObject *d : onfile._dataList) { _dataList.emplace_back(static_cast<RooAbsData*>(d)); } }"
+#pragma read sourceClass="RooWorkspace" targetClass="RooWorkspace" version="[1-8]" \
+    source="RooLinkedList _embeddedDataList" target="_embeddedDataList" \
+    code="{ for (TObject *d : onfile._embeddedDataList) { _embeddedDataList.emplace_back(static_cast<RooAbsData*>(d)); } }"
+// The obsolete _views member was dropped. Read (and discard) it explicitly with
+// a rule instead of letting the automatic schema evolution skip it: RooLinkedList
+// has a custom streamer that does not write a reliable byte count, so skipping it
+// by byte count would misalign the buffer. Reading it through the actual streamer
+// consumes exactly the right number of bytes.
+#pragma read sourceClass="RooWorkspace" targetClass="RooWorkspace" version="[1-8]" \
+    source="RooLinkedList _views" target="" \
+    code="{ (void)onfile._views; }"
 #pragma link C++ class RooWorkspace::CodeRepo- ;
 #pragma link C++ class RooWorkspace::WSDir+ ;
 #pragma link C++ class RooWorkspaceHandle+;

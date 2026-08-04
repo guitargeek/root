@@ -81,6 +81,7 @@ and try reading again.
 
 #include "ROOT/StringUtils.hxx"
 
+#include <algorithm>
 #include <map>
 #include <sstream>
 #include <string>
@@ -95,6 +96,28 @@ namespace {
 bool isCacheSet(std::string const& setName) {
    // Check if the setName starts with CACHE_.
    return setName.rfind("CACHE_", 0) == 0;
+}
+
+// Look up a dataset by name in a list of owned datasets, returning nullptr if
+// there is no dataset with that name.
+RooAbsData *findDataByName(std::vector<std::unique_ptr<RooAbsData>> const &dataList, const char *name)
+{
+   auto found = std::find_if(dataList.begin(), dataList.end(),
+                             [name](std::unique_ptr<RooAbsData> const &d) { return std::strcmp(name, d->GetName()) == 0; });
+   return found != dataList.end() ? found->get() : nullptr;
+}
+
+// Drop the reference to a given object from a list of owned datasets. This is
+// used in RecursiveRemove(), which is called when the object is being deleted
+// somewhere else, so ownership is released instead of deleting again.
+void removeDataByAddress(std::vector<std::unique_ptr<RooAbsData>> &dataList, TObject *obj)
+{
+   auto found = std::find_if(dataList.begin(), dataList.end(),
+                             [obj](std::unique_ptr<RooAbsData> const &d) { return d.get() == obj; });
+   if (found != dataList.end()) {
+      found->release();
+      dataList.erase(found);
+   }
 }
 
 } // namespace
@@ -196,7 +219,7 @@ RooWorkspace::RooWorkspace(const RooWorkspace& other) :
   other._allOwnedNodes.snapshot(_allOwnedNodes,true) ;
 
   // Copy datasets
-  for(TObject *data2 : other._dataList) _dataList.Add(data2->Clone());
+  for (auto const &data2 : other._dataList) _dataList.emplace_back(static_cast<RooAbsData *>(data2->Clone()));
 
   // Copy snapshots
   for(auto * snap : static_range_cast<RooArgSet*>(other._snapshots)) {
@@ -242,7 +265,6 @@ TObject *RooWorkspace::Clone(const char *newname) const
 RooWorkspace::~RooWorkspace()
 {
   // Delete contents
-  _dataList.Delete() ;
   if (_dir) {
     delete _dir ;
   }
@@ -252,8 +274,6 @@ RooWorkspace::~RooWorkspace()
 
   _genObjects.Delete() ;
 
-   _embeddedDataList.Delete();
-   _views.Delete();
    _studyMods.Delete();
 
 }
@@ -755,19 +775,12 @@ bool RooWorkspace::import(RooAbsData const& inData,
     dsetName=nullptr ;
   }
 
-  RooLinkedList& dataList = embedded ? _embeddedDataList : _dataList ;
-  if (dataList.size() > 50 && dataList.getHashTableSize() == 0) {
-    // When the workspaces get larger, traversing the linked list becomes a bottleneck:
-    dataList.setHashTableSize(200);
-  }
+  auto& dataList = embedded ? _embeddedDataList : _dataList ;
 
   // Check that no dataset with target name already exists
-  if (dsetName && dataList.FindObject(dsetName)) {
-    coutE(ObjectHandling) << "RooWorkspace::import(" << GetName() << ") ERROR dataset with name " << dsetName << " already exists in workspace, import aborted" << std::endl ;
-    return true ;
-  }
-  if (!dsetName && dataList.FindObject(inData.GetName())) {
-    coutE(ObjectHandling) << "RooWorkspace::import(" << GetName() << ") ERROR dataset with name " << inData.GetName() << " already exists in workspace, import aborted" << std::endl ;
+  const char *newDsetName = dsetName ? dsetName : inData.GetName();
+  if (findDataByName(dataList, newDsetName)) {
+    coutE(ObjectHandling) << "RooWorkspace::import(" << GetName() << ") ERROR dataset with name " << newDsetName << " already exists in workspace, import aborted" << std::endl ;
     return true ;
   }
 
@@ -803,7 +816,7 @@ bool RooWorkspace::import(RooAbsData const& inData,
     }
   }
 
-  dataList.Add(clone) ;
+  dataList.emplace_back(clone) ;
   if (_dir) {
     _dir->InternalAppend(clone) ;
   }
@@ -1294,7 +1307,7 @@ RooAbsArg* RooWorkspace::fundArg(RooStringView name) const
 
 RooAbsData* RooWorkspace::data(RooStringView name) const
 {
-  return static_cast<RooAbsData*>(_dataList.FindObject(name.c_str())) ;
+  return findDataByName(_dataList, name.c_str()) ;
 }
 
 
@@ -1303,7 +1316,7 @@ RooAbsData* RooWorkspace::data(RooStringView name) const
 
 RooAbsData* RooWorkspace::embeddedData(RooStringView name) const
 {
-  return static_cast<RooAbsData*>(_embeddedDataList.FindObject(name.c_str())) ;
+  return findDataByName(_embeddedDataList, name.c_str()) ;
 }
 
 
@@ -1430,8 +1443,8 @@ RooArgSet RooWorkspace::allPdfs() const
 std::list<RooAbsData*> RooWorkspace::allData() const
 {
   std::list<RooAbsData*> ret ;
-  for(auto * dat : static_range_cast<RooAbsData*>(_dataList)) {
-    ret.push_back(dat) ;
+  for(auto const& dat : _dataList) {
+    ret.push_back(dat.get()) ;
   }
   return ret ;
 }
@@ -1443,8 +1456,8 @@ std::list<RooAbsData*> RooWorkspace::allData() const
 std::list<RooAbsData*> RooWorkspace::allEmbeddedData() const
 {
   std::list<RooAbsData*> ret ;
-  for(auto * dat : static_range_cast<RooAbsData*>(_embeddedDataList)) {
-    ret.push_back(dat) ;
+  for(auto const& dat : _embeddedDataList) {
+    ret.push_back(dat.get()) ;
   }
   return ret ;
 }
@@ -2231,7 +2244,7 @@ void RooWorkspace::Print(Option_t* opts) const
   if (!_dataList.empty()) {
     std::cout << "datasets" << std::endl ;
     std::cout << "--------" << std::endl ;
-    for(auto * data2 : static_range_cast<RooAbsData*>(_dataList)) {
+    for(auto const& data2 : _dataList) {
       std::cout << data2->ClassName() << "::" << data2->GetName() << *data2->get() << std::endl;
     }
     std::cout << std::endl ;
@@ -2240,7 +2253,7 @@ void RooWorkspace::Print(Option_t* opts) const
   if (!_embeddedDataList.empty()) {
     std::cout << "embedded datasets (in pdfs and functions)" << std::endl ;
     std::cout << "-----------------------------------------" << std::endl ;
-    for(auto * data2 : static_range_cast<RooAbsData*>(_embeddedDataList)) {
+    for(auto const& data2 : _embeddedDataList) {
       std::cout << data2->ClassName() << "::" << data2->GetName() << *data2->get() << std::endl ;
     }
     std::cout << std::endl ;
@@ -2894,14 +2907,12 @@ void RooWorkspace::WSDir::Append(TObject* obj,bool)
 
 void RooWorkspace::RecursiveRemove(TObject *removedObj)
 {
-   _dataList.RecursiveRemove(removedObj);
    if (removedObj == _dir) _dir = nullptr;
 
    _allOwnedNodes.RecursiveRemove(removedObj); // RooArgSet
 
-   _dataList.RecursiveRemove(removedObj);
-   _embeddedDataList.RecursiveRemove(removedObj);
-   _views.RecursiveRemove(removedObj);
+   removeDataByAddress(_dataList, removedObj);
+   removeDataByAddress(_embeddedDataList, removedObj);
    _snapshots.RecursiveRemove(removedObj);
    _genObjects.RecursiveRemove(removedObj);
    _studyMods.RecursiveRemove(removedObj);
