@@ -968,6 +968,38 @@ double RooNDKeysPdf::gauss(vector<double>& x, vector<vector<double> >& weights) 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Exact analytic integral of the kernel estimate over the box [xLo, xHi].
+///
+/// Each individual kernel is a product of independent 1-dimensional
+/// Gaussians (see gauss()), so its integral over an axis-aligned box is
+/// simply the product over dimensions of the difference of the 1-d Gaussian
+/// CDFs at the box boundaries. This is only correct if the kernels are not
+/// rotated into a decorrelated eigenbasis, because a rotated kernel is no
+/// longer axis-aligned with a box that is defined in the original variable
+/// coordinates (see getAnalyticalIntegral()).
+
+double RooNDKeysPdf::analyticalIntegralBox(vector<double> const& xLo, vector<double> const& xHi) const
+{
+  const double sqrt2 = std::sqrt(2.);
+
+  double z = 0.;
+  for (std::size_t i = 0; i < _dataPts.size(); ++i) {
+     const vector<double> &point = _dataPts[i];
+     const vector<double> &weight = (*_weights)[_idx[i]];
+
+     double g = 1.;
+     for (Int_t j = 0; j < _nDim; j++) {
+        double sigma = weight[j] * sqrt2;
+        double cdfHi = 0.5 * (1. + std::erf((xHi[j] - point[j]) / sigma));
+        double cdfLo = 0.5 * (1. + std::erf((xLo[j] - point[j]) / sigma));
+        g *= (cdfHi - cdfLo);
+     }
+     z += g * _wMap.at(_idx[i]);
+  }
+  return z;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// determine closest points to x, to loop over in evaluate()
 
 void RooNDKeysPdf::loopRange(vector<double>& x, std::vector<Int_t>& ibMap) const
@@ -1103,7 +1135,11 @@ double RooNDKeysPdf::evaluate() const
 
 Int_t RooNDKeysPdf::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const
 {
-  if (rangeName) return 0 ;
+  // Integrating over a named range analytically requires each kernel to
+  // factorize into a product of independent per-variable Gaussians that are
+  // axis-aligned with the box defined by the range. This only holds when no
+  // decorrelation rotation is applied to the kernels (see analyticalIntegral()).
+  if (rangeName && _nDim > 1 && _rotate) return 0;
 
   Int_t code=0;
   if (matchArgs(allVars,analVars,RooArgSet(_varList))) { code=1; }
@@ -1124,6 +1160,26 @@ double RooNDKeysPdf::analyticalIntegral(Int_t code, const char* rangeName) const
   // determine which observables need to be integrated over ...
   Int_t nComb = 1 << (_nDim);
   R__ASSERT(code>=1 && code<nComb) ;
+
+  // Exact analytic integration over a named range, only possible if the
+  // kernels are not rotated into a decorrelated eigenbasis (see
+  // getAnalyticalIntegral(), which only hands out this code in that case).
+  if (rangeName && (_nDim == 1 || !_rotate)) {
+    if ( (_tracker && _tracker->hasChanged(true)) || (_weights != &_weights0 && _weights != &_weights1) ) {
+       updateRho(); // update internal rho parameters
+       // redetermine static and/or adaptive bandwidth
+       const_cast<RooNDKeysPdf*>(this)->calculateBandWidth();
+    }
+
+    vector<double> xLo(_nDim);
+    vector<double> xHi(_nDim);
+    for (unsigned int j = 0; j < _varList.size(); ++j) {
+       auto var = static_cast<const RooAbsRealLValue*>(_varList.at(j));
+       xLo[j] = var->getMin(rangeName);
+       xHi[j] = var->getMax(rangeName);
+    }
+    return analyticalIntegralBox(xLo, xHi);
+  }
 
   vector<bool> doInt(_nDim,true);
 

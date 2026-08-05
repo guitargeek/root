@@ -1,9 +1,12 @@
 // Tests for the RooKeysPdf and friends
 // Authors: Jonas Rembser, CERN  07/2022
 
+#include <RooArgList.h>
+#include <RooDataSet.h>
 #include <RooGenericPdf.h>
 #include <RooKeysPdf.h>
 #include <RooNDKeysPdf.h>
+#include <RooNumIntConfig.h>
 #include <RooPlot.h>
 #include <RooRealVar.h>
 
@@ -80,4 +83,93 @@ TEST(RooKeysPdf, GenerationWithProtoData)
 
    // If the dataset generation worked, the chi-square is not too terrible
    EXPECT_LE(frame->chiSquare(), 2.0);
+}
+
+// Test the analytic integral of RooNDKeysPdf over a named range, covering
+// GitHub issue #6557. Analytic integration over a range is only exact when
+// the kernels are not rotated into a decorrelated eigenbasis, so it is only
+// enabled in that case (1D, or explicitly disabling rotation).
+TEST(RooNDKeysPdf, RangedAnalyticIntegral1D)
+{
+   RooRealVar x("x", "x", -5, 15);
+
+   RooDataSet data("data", "data", x);
+   for (double xVal : {1.0, 2.5, 3.3, 4.8, 6.6, 7.8, 9.1, 10.0, 11.4, 13.2}) {
+      x.setVal(xVal);
+      data.add(x);
+   }
+
+   RooNDKeysPdf pdf("pdf", "pdf", RooArgList{x}, data, "a");
+
+   x.setRange("sub", -2, 6);
+
+   RooNDKeysPdf pdfNumInt(pdf);
+   pdfNumInt.forceNumInt(true);
+
+   std::unique_ptr<RooAbsReal> integral{pdf.createIntegral(x, "sub")};
+   std::unique_ptr<RooAbsReal> numInt{pdfNumInt.createIntegral(x, "sub")};
+
+   // getAnalyticalIntegral should have handed out the analytic code, i.e.
+   // `integral` should not just be falling back to numeric integration.
+   RooArgSet allVars{x};
+   RooArgSet analVars;
+   EXPECT_EQ(pdf.getAnalyticalIntegral(allVars, analVars, "sub"), 1);
+
+   EXPECT_NEAR(integral->getVal(), numInt->getVal(), 1e-3 * numInt->getVal());
+}
+
+TEST(RooNDKeysPdf, RangedAnalyticIntegral2DUnrotated)
+{
+   RooRealVar x("x", "x", -5, 15);
+   RooRealVar y("y", "y", -5, 15);
+   RooArgSet vars{x, y};
+
+   RooDataSet data("data", "data", vars);
+   for (auto const &p : {std::pair{1.0, 2.0}, std::pair{2.5, 1.5}, std::pair{3.3, 4.1}, std::pair{4.8, 3.0},
+                          std::pair{6.6, 5.5}, std::pair{7.8, 6.9}, std::pair{9.1, 8.0}, std::pair{10.0, 9.4},
+                          std::pair{11.4, 10.1}, std::pair{13.2, 12.0}}) {
+      x.setVal(p.first);
+      y.setVal(p.second);
+      data.add(vars);
+   }
+
+   // rotate = false: the kernels stay axis-aligned with x and y, so the
+   // analytic ranged integral is exact.
+   RooNDKeysPdf pdf("pdf", "pdf", RooArgList{x, y}, data, "a", 1.0, 3, /*rotate=*/false);
+
+   x.setRange("sub", -2, 6);
+   y.setRange("sub", -3, 5);
+
+   RooNDKeysPdf pdfNumInt(pdf);
+   pdfNumInt.forceNumInt(true);
+
+   std::unique_ptr<RooAbsReal> integral{pdf.createIntegral(vars, "sub")};
+   std::unique_ptr<RooAbsReal> numInt{pdfNumInt.createIntegral(vars, "sub")};
+
+   EXPECT_NEAR(integral->getVal(), numInt->getVal(), 1e-2 * numInt->getVal());
+}
+
+// With rotation enabled in more than 1D, there is no simple closed form for
+// the box integral, so we must keep falling back to numeric integration.
+TEST(RooNDKeysPdf, RangedAnalyticIntegral2DRotatedFallsBackToNumeric)
+{
+   RooRealVar x("x", "x", -5, 15);
+   RooRealVar y("y", "y", -5, 15);
+   RooArgSet vars{x, y};
+
+   RooDataSet data("data", "data", vars);
+   for (auto const &p : {std::pair{1.0, 2.0}, std::pair{2.5, 1.5}, std::pair{3.3, 4.1}}) {
+      x.setVal(p.first);
+      y.setVal(p.second);
+      data.add(vars);
+   }
+
+   RooNDKeysPdf pdf("pdf", "pdf", RooArgList{x, y}, data, "a", 1.0, 3, /*rotate=*/true);
+
+   x.setRange("sub", -2, 6);
+   y.setRange("sub", -3, 5);
+
+   RooArgSet allVars{x, y};
+   RooArgSet analVars;
+   EXPECT_EQ(pdf.getAnalyticalIntegral(allVars, analVars, "sub"), 0);
 }
