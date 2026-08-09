@@ -21,6 +21,7 @@
 #include <RooRealProxy.h>
 #include <RooSetProxy.h>
 
+#include <iosfwd>
 #include <memory>
 #include <stack>
 
@@ -68,6 +69,7 @@ public:
 
    void setUseGeneratedFunctionCode(bool);
    void writeDebugMacro(std::string const &) const;
+   void writeGradients(std::ostream &) const;
 
    std::unique_ptr<ChangeOperModeRAII> setOperModes(RooAbsArg::OperMode opMode);
 

@@ -43,6 +43,7 @@
 #include <TSystem.h>
 
 #include <functional>
+#include <sstream>
 
 #include "gtest_wrapper.h"
 
@@ -161,9 +162,16 @@ TEST_P(FactoryTest, NLLFit)
    std::unique_ptr<RooAbsReal> nllRef = _params._createNLL(model, *data, ws, RooFit::EvalBackend::Cpu());
    std::unique_ptr<RooAbsReal> nllFunc = _params._createNLL(model, *data, ws, RooFit::EvalBackend::Codegen());
 
+   auto &wrapper = static_cast<RooFit::Experimental::RooEvaluatorWrapper &>(*nllFunc);
+
    // We want to use the generated code also for the nominal likelihood. Like
    // this, we make sure to validate also the NLL values of the generated code.
-   static_cast<RooFit::Experimental::RooEvaluatorWrapper &>(*nllFunc).setUseGeneratedFunctionCode(true);
+   wrapper.setUseGeneratedFunctionCode(true);
+
+   // Check that writing the gradients to an output stream doesn't crash, e.g.
+   // because the expected gradient/pullback function names are incorrect.
+   std::stringstream gradientOutputStream;
+   wrapper.writeGradients(gradientOutputStream);
 
    double tol = _params._fitResultTolerance;
 

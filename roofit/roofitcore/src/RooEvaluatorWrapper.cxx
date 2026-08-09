@@ -35,6 +35,8 @@ Wraps a RooFit::Evaluator that evaluates a RooAbsReal back into a RooAbsReal.
 #include <TInterpreter.h>
 
 #include <fstream>
+#include <ostream>
+#include <string_view>
 
 namespace {
 
@@ -232,6 +234,7 @@ public:
    void createHessian();
 
    void writeDebugMacro(std::string const &) const;
+   void writeGradients(std::ostream &) const;
 
    std::vector<std::string> const &collectedFunctions() { return _collectedFunctions; }
 
@@ -406,10 +409,20 @@ void RooFuncWrapper::loadData(RooAbsData const &data, RooSimultaneous const *sim
    }
 }
 
+namespace {
+
+/// The code to get the right overload for a gradient function from the
+/// interpreter.
+std::string gradOverload(std::string const &funcName)
+{
+   return "static_cast<void (*)(double *, double const *, double const *, double *)>(" + funcName + "_grad_0)";
+}
+
+} // namespace
+
 void RooFuncWrapper::createGradient()
 {
 #ifdef ROOFIT_CLAD
-   std::string gradName = _funcName + "_grad_0";
    std::string requestName = _funcName + "_req";
 
    // Calculate gradient
@@ -442,7 +455,7 @@ void RooFuncWrapper::createGradient()
    // function pointer would be ambiguous.
    std::stringstream ss;
    ROOT::Math::Util::TimingScope timingScope(print, "Gradient IR to machine code time:");
-   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << gradName << ");";
+   ss << gradOverload(_funcName) << ";";
    _grad = reinterpret_cast<Grad>(gInterpreter->ProcessLine(ss.str().c_str()));
    _hasGradient = true;
 #else
@@ -512,25 +525,80 @@ void RooFuncWrapper::updateGradientVarBuffer() const
    });
 }
 
+namespace {
+
+/// Ask the interpreter to pretty-print the body of a previously-declared
+/// function, stripping the two header lines TInterpreterValue::ToString()
+/// prepends (the "(<functype>)" and the function signature line).
+std::string getFunctionBody(std::string const &name)
+{
+   std::unique_ptr<TInterpreterValue> v = gInterpreter->MakeInterpreterValue();
+   gInterpreter->Evaluate(name.c_str(), *v);
+   std::string s = v->ToString();
+   for (int i = 0; i < 2; ++i) {
+      s = s.erase(0, s.find("\n") + 1);
+   }
+   return s;
+}
+
+/// Return `vec` with duplicated entries removed, preserving the order of
+/// first occurrence.
+std::vector<std::string> deduplicate(std::vector<std::string> const &vec)
+{
+   std::vector<std::string> out;
+   std::set<std::string> seen;
+   for (std::string const &str : vec) {
+      if (seen.count(str) > 0) {
+         continue;
+      }
+      seen.insert(str);
+      out.push_back(str);
+   }
+   return out;
+}
+
+bool startsWith(std::string_view str, std::string_view prefix)
+{
+   return str.size() >= prefix.size() && 0 == str.compare(0, prefix.size(), prefix);
+}
+
+} // namespace
+
+/// @brief Write the generated code for the top-level function and its
+/// gradient, plus the pullbacks (i.e., the reverse-mode adjoint functions
+/// Clad generates for each `roo_codegen_*` helper collected during code
+/// generation) to an output stream. This is a lightweight alternative to
+/// writeDebugMacro() to inspect what Clad actually generated, without
+/// dumping a full standalone macro to disk.
+void RooFuncWrapper::writeGradients(std::ostream &os) const
+{
+   for (std::string name : deduplicate(_collectedFunctions)) {
+      if (name == _funcName) {
+         // Clad generates several overloads for the gradient, so we need
+         // the static_cast to resolve to the one we actually declared.
+         name = gradOverload(name);
+      } else if (startsWith(name, "roo_codegen_")) {
+         // Unlike the gradient, each pullback has a single, uniquely typed
+         // declaration, but its arity depends on how many of the forward
+         // function's arguments are actually differentiated, so we cannot
+         // predict its signature here to build a disambiguating cast like
+         // for the gradient above. Since we only need to print the
+         // declaration and not obtain a callable pointer to it, evaluating
+         // the bare name is enough and sidesteps the issue entirely.
+         name = name + "_pullback";
+      }
+      os << getFunctionBody(name) << std::endl;
+   }
+}
+
 /// @brief Dumps a macro "filename.C" that can be used to test and debug the generated code and gradient.
 void RooFuncWrapper::writeDebugMacro(std::string const &filename) const
 {
    std::stringstream allCode;
-   std::set<std::string> seenFunctions;
 
    // Remove duplicated declared functions
-   for (std::string const &name : _collectedFunctions) {
-      if (seenFunctions.count(name) > 0) {
-         continue;
-      }
-      seenFunctions.insert(name);
-      std::unique_ptr<TInterpreterValue> v = gInterpreter->MakeInterpreterValue();
-      gInterpreter->Evaluate(name.c_str(), *v);
-      std::string s = v->ToString();
-      for (int i = 0; i < 2; ++i) {
-         s = s.erase(0, s.find("\n") + 1);
-      }
-      allCode << s << std::endl;
+   for (std::string const &name : deduplicate(_collectedFunctions)) {
+      allCode << getFunctionBody(name) << std::endl;
    }
 
    std::ofstream outFile;
@@ -834,6 +902,12 @@ void RooEvaluatorWrapper::writeDebugMacro(std::string const &filename) const
 {
    if (_funcWrapper)
       return _funcWrapper->writeDebugMacro(filename);
+}
+
+void RooEvaluatorWrapper::writeGradients(std::ostream &os) const
+{
+   if (_funcWrapper)
+      return _funcWrapper->writeGradients(os);
 }
 
 std::unique_ptr<ChangeOperModeRAII> RooEvaluatorWrapper::setOperModes(RooAbsArg::OperMode opMode)
