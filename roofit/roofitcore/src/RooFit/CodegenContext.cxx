@@ -190,11 +190,15 @@ std::unique_ptr<CodegenContext::LoopScope> CodegenContext::beginLoop(RooAbsArg c
    addToCodeBody(in, "for(int " + idx + " = 0; " + idx + " < obs[" + std::to_string(2 * firstObsIdx + 1) + "]; " + idx +
                         "++) {\n");
 
+   _loopStack.push_back({idx, vars});
+
    return std::make_unique<LoopScope>(*this, std::move(vars));
 }
 
 void CodegenContext::endLoop(LoopScope const &scope)
 {
+   _loopStack.pop_back();
+
    addToCodeBody("}\n");
 
    // clear the results of the loop variables if they were vector observables
@@ -379,6 +383,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::D
    ctx._collectedCode = _collectedCode;
    ctx._paramIndices = _paramIndices;
    ctx._indexArrData = _indexArrData;
+   ctx._skipBinIndices = _skipBinIndices;
 
    static int iCodegen = 0;
    auto funcName = "roo_codegen_" + std::to_string(iCodegen++);

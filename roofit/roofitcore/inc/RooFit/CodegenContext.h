@@ -114,6 +114,28 @@ public:
    /// function as its `indexArr` argument.
    std::vector<int> const &indexArr() const { return _indexArrData; }
 
+   bool isScopeIndependent(RooAbsArg const *in) const;
+
+   /// @brief Enable replacing histogram bin indices by the loop index when
+   /// the loop variables match the histogram coordinates. Only valid if the
+   /// dataset that is looped over has the same binning as the histograms.
+   void setSkipBinIndices(bool flag) { _skipBinIndices = flag; }
+   bool skipBinIndices() const { return _skipBinIndices; }
+
+   /// @brief The name of the loop index variable of the innermost active
+   /// loop, or an empty string if there is no active loop scope.
+   std::string const &currentLoopIdx() const
+   {
+      static const std::string empty;
+      return _loopStack.empty() ? empty : _loopStack.back().idx;
+   }
+
+   /// @brief The variables that the innermost active loop iterates over.
+   std::vector<TNamed const *> const *currentLoopVars() const
+   {
+      return _loopStack.empty() ? nullptr : &_loopStack.back().vars;
+   }
+
    void collectFunction(std::string const &name);
    std::string const &collectedCode() { return _collectedCode; }
    std::vector<std::string> const &collectedFunctions() { return _collectedFunctions; }
@@ -138,8 +160,6 @@ private:
    void popScope();
    template <class T>
    std::string buildArgSpanImpl(std::span<const T> arr);
-
-   bool isScopeIndependent(RooAbsArg const *in) const;
 
    void endLoop(LoopScope const &scope);
 
@@ -215,6 +235,15 @@ private:
    std::size_t _nBuffer = 0;
    /// @brief The accumulated `indexArr` data for all generated functions.
    std::vector<int> _indexArrData;
+
+   struct LoopInfo {
+      std::string idx;
+      std::vector<TNamed const *> vars;
+   };
+   /// @brief Stack of active loop scopes.
+   std::vector<LoopInfo> _loopStack;
+
+   bool _skipBinIndices = false;
 };
 
 template <>

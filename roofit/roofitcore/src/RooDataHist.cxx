@@ -1012,6 +1012,20 @@ std::string RooDataHist::calculateTreeIndexForCodeSquash(RooFit::Experimental::C
 {
    assert(coords.size() == _vars.size());
 
+   // Experimental: if enabled via CodegenContext::setSkipBinIndices(), and we
+   // are inside a loop over the dataset entries whose single loop variable is
+   // exactly the coordinate of this histogram, the loop index is used
+   // directly as the bin index, skipping the arithmetic that recovers the bin
+   // number from the coordinate value. This is only valid if the dataset that
+   // is looped over has the same binning as this RooDataHist, which the
+   // caller asserts by setting the flag.
+   if (ctx.skipBinIndices() && coords.size() == 1 && !ctx.currentLoopIdx().empty()) {
+      auto const *loopVars = ctx.currentLoopVars();
+      if (loopVars && loopVars->size() == 1 && loopVars->front() == coords[0]->namePtr()) {
+         return ctx.currentLoopIdx();
+      }
+   }
+
    std::string code;
    int idxMult = 1;
 
