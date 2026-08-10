@@ -256,6 +256,40 @@ std::string CodegenContext::buildArg(RooAbsCollection const &in, std::string con
    std::string savedName = getTmpVarName();
    bool canSaveOutside = true;
 
+   // For double-valued collections, the elements are stored in the collection
+   // buffer of the generated function. Elements that are directly parameters
+   // are not assigned in the generated code: they are copied by a generic
+   // mapping loop at the top of the function, driven by the index mapping in
+   // indexArr(). This keeps the generated code short and cheap to
+   // differentiate, no matter how large the parameter collections are.
+   if (arrayType == "double") {
+      // Reserve the slot range for this collection up front: getResult() on
+      // the elements can recursively enter buildArg() for nested collections,
+      // which must not be assigned overlapping slots.
+      std::size_t offset = _nBuffer;
+      _nBuffer += in.size();
+
+      std::stringstream declStrm;
+      std::size_t i = 0;
+      for (const auto arg : in) {
+         auto foundParam = _paramIndices.find(arg);
+         if (foundParam != _paramIndices.end()) {
+            _paramMaps.emplace_back(offset + i, foundParam->second);
+         } else {
+            declStrm << "_collectionBuffer[" << (offset + i) << "] = " << getResult(*arg) << ";\n";
+         }
+         canSaveOutside = canSaveOutside && isScopeIndependent(arg);
+         ++i;
+      }
+
+      addToCodeBody(declStrm.str(), canSaveOutside);
+      addToCodeBody("double *" + savedName + " = _collectionBuffer + " + std::to_string(offset) + ";\n",
+                    canSaveOutside);
+
+      _listNames.insert({in.uniqueId().value(), savedName});
+      return savedName;
+   }
+
    std::stringstream declStrm;
    declStrm << arrayType << " " << savedName << "[]{";
    for (const auto arg : in) {
@@ -343,6 +377,8 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::D
    ctx._xlArr = _xlArr;
    ctx._collectedFunctions = _collectedFunctions;
    ctx._collectedCode = _collectedCode;
+   ctx._paramIndices = _paramIndices;
+   ctx._indexArrData = _indexArrData;
 
    static int iCodegen = 0;
    auto funcName = "roo_codegen_" + std::to_string(iCodegen++);
@@ -350,11 +386,34 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::D
    ctx.pushScope();
    std::string funcBody = ctx.getResult(arg);
    ctx.popScope();
-   funcBody = ctx._code[0] + "\n return " + funcBody + ";\n";
+
+   // If parts of collections were mapped to parameters, fill them via the
+   // index mapping. The mapping data of each generated function is appended
+   // to the shared indexArr, so the copy loop reads at this function's offset.
+   std::string prologue;
+   if (ctx._nBuffer > 0) {
+      prologue += "double _collectionBuffer[" + std::to_string(ctx._nBuffer) + "];\n";
+   }
+   if (!ctx._paramMaps.empty()) {
+      std::size_t off = ctx._indexArrData.size();
+      std::size_t n = ctx._paramMaps.size();
+      ctx._indexArrData.reserve(off + 2 * n);
+      for (auto const &item : ctx._paramMaps) {
+         ctx._indexArrData.push_back(item.first);
+      }
+      for (auto const &item : ctx._paramMaps) {
+         ctx._indexArrData.push_back(item.second);
+      }
+      prologue += "for (int i = 0; i < " + std::to_string(n) + "; i++) _collectionBuffer[indexArr[" +
+                  std::to_string(off) + " + i]] = params[indexArr[" + std::to_string(off + n) + " + i]];\n";
+   }
+
+   funcBody = prologue + ctx._code[0] + "\n return " + funcBody + ";\n";
 
    // Declare the function
    std::stringstream bodyWithSigStrm;
-   bodyWithSigStrm << "double " << funcName << "(double* params, double const* obs, double const* xlArr) {\n"
+   bodyWithSigStrm << "double " << funcName
+                   << "(double* params, double const* obs, double const* xlArr, int const* indexArr) {\n"
                    << "constexpr double inf = std::numeric_limits<double>::infinity();\n"
                    << funcBody << "\n}\n\n";
    ctx._collectedFunctions.emplace_back(funcName);
@@ -363,6 +422,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::D
    _xlArr = ctx._xlArr;
    _collectedFunctions = ctx._collectedFunctions;
    _collectedCode = ctx._collectedCode;
+   _indexArrData = ctx._indexArrData;
 
    return funcName;
 }

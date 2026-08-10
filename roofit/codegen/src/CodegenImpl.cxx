@@ -324,7 +324,7 @@ void codegenImpl(RooAddition &arg, CodegenContext &ctx)
             result += '+';
          continue;
       }
-      result += ctx.buildFunction(*component, ctx.dependsOnData()) + "(params, obs, xlArr)";
+      result += ctx.buildFunction(*component, ctx.dependsOnData()) + "(params, obs, xlArr, indexArr)";
       ++i;
       if (i < arg.list().size())
          result += '+';
@@ -778,9 +778,9 @@ void codegenImpl(RooRealIntegral &arg, CodegenContext &ctx)
       << "   #pragma clad checkpoint loop\n"
       << "   for (int i = 0; i < n; ++i) {\n"
       << "      " << obsName << "[0] = " << intVar.getMin(arg.intRange()) << " + eps * i;\n"
-      << "      double tmpA = " << funcName << "(params, " << obsName << ", xlArr);\n"
+      << "      double tmpA = " << funcName << "(params, " << obsName << ", xlArr, indexArr);\n"
       << "      " << obsName << "[0] = " << intVar.getMin(arg.intRange()) << " + eps * (i + 1);\n"
-      << "      double tmpB = " << funcName << "(params, " << obsName << ", xlArr);\n"
+      << "      double tmpB = " << funcName << "(params, " << obsName << ", xlArr, indexArr);\n"
       << "      " << resName << " += (tmpA + tmpB) * 0.5 * eps;\n"
       << "   }\n"
       << "}\n";

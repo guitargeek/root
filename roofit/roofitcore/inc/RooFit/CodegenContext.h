@@ -104,6 +104,16 @@ public:
 
    std::vector<double> const &xlArr() { return _xlArr; }
 
+   /// @brief Register the position of a parameter in the `params` array of the
+   /// generated function, such that collections of parameters can be filled
+   /// via the index mapping in indexArr() instead of emitting one assignment
+   /// per element in the generated code.
+   void setParamIndex(RooFit::Detail::DataKey key, std::size_t idx) { _paramIndices[key] = idx; }
+
+   /// @brief The index mapping data that has to be passed to the generated
+   /// function as its `indexArr` argument.
+   std::vector<int> const &indexArr() const { return _indexArrData; }
+
    void collectFunction(std::string const &name);
    std::string const &collectedCode() { return _collectedCode; }
    std::vector<std::string> const &collectedFunctions() { return _collectedFunctions; }
@@ -196,6 +206,15 @@ private:
    std::vector<double> _xlArr;
    std::vector<std::string> _collectedFunctions;
    std::string _collectedCode;
+
+   /// @brief Positions of the parameters in the `params` array of the generated function.
+   std::unordered_map<RooFit::Detail::DataKey, std::size_t> _paramIndices;
+   /// @brief Pairs of (collection buffer slot, parameter index) for the current function.
+   std::vector<std::pair<int, int>> _paramMaps;
+   /// @brief Number of collection buffer slots used by the current function.
+   std::size_t _nBuffer = 0;
+   /// @brief The accumulated `indexArr` data for all generated functions.
+   std::vector<int> _indexArrData;
 };
 
 template <>
