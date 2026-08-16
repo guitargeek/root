@@ -67,6 +67,22 @@ macro(ROOT_CHECK_CONNECTION_AND_DISABLE_OPTION option_name)
   endif()
 endmacro()
 
+#---Resolve the clad sources----------------------------------------------------------------------
+if(clad AND clad_in_tree)
+  # Deliberately not a cache entry: it must not survive into a later
+  # configuration with clad_in_tree=OFF, where the external project would
+  # apply its patches to (and run git checkout in) the checkout below.
+  if(NOT DEFINED CLAD_SOURCE_DIR)
+    set(CLAD_SOURCE_DIR ${CMAKE_SOURCE_DIR}/clad)
+  endif()
+  if(NOT EXISTS ${CLAD_SOURCE_DIR}/CMakeLists.txt)
+    message(FATAL_ERROR "clad_in_tree=ON, but there are no clad sources in '${CLAD_SOURCE_DIR}'.\n"
+      "Clone them (git clone https://github.com/vgvassilev/clad.git ${CMAKE_SOURCE_DIR}/clad) "
+      "or point -DCLAD_SOURCE_DIR=<clad_src_path> elsewhere.")
+  endif()
+  message(STATUS "Building clad from ${CLAD_SOURCE_DIR} as a part of ROOT")
+endif()
+
 # Building Clad requires an internet connection, if we're not side-loading the source directory
 if(clad AND NOT DEFINED CLAD_SOURCE_DIR)
   ROOT_CHECK_CONNECTION_AND_DISABLE_OPTION("clad")

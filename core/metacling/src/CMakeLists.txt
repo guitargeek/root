@@ -118,7 +118,11 @@ if (clad)
   if(TARGET clang AND NOT experimental_adaptivecpp)
     # Link our clad libraries to clang. If users use the clang from ROOT they will
     # also be able to use clad out of the box.
-    add_dependencies(clang clad)
+    if(TARGET clad)
+      # The external project; when clad is built in tree, the link libraries
+      # below are targets of this build and carry the dependency themselves.
+      add_dependencies(clang clad)
+    endif()
     target_link_libraries(clang PUBLIC ${CLING_PLUGIN_LINK_LIBS})
   endif()
 endif()

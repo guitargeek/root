@@ -1,6 +1,10 @@
 # rootbench has its own repo
 rootbench
 
+# clad has its own repo, and can be checked out here to build it with
+# -Dclad_in_tree=ON as a part of ROOT
+/clad/
+
 # MacOS Xcode
 xcuserdata
 project.xcworkspace
