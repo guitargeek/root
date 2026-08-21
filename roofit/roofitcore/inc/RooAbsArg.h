@@ -52,7 +52,6 @@ using RooListProxy = RooCollectionProxy<RooArgList>;
 class RooExpensiveObjectCache;
 class RooWorkspace;
 namespace RooFit {
-class Evaluator;
 namespace Experimental {
 class CodegenContext;
 }
@@ -613,12 +612,8 @@ public:
    /// Returns the token for retrieving results in the BatchMode. For internal use only.
    std::size_t dataToken() const { return _dataToken; }
    bool hasDataToken() const { return _dataToken != std::numeric_limits<std::size_t>::max(); }
-   void setDataToken(std::size_t index, RooFit::Evaluator *evaluator = nullptr);
-   void resetDataToken()
-   {
-      _dataToken = std::numeric_limits<std::size_t>::max();
-      _evaluator = nullptr;
-   }
+   void setDataToken(std::size_t index);
+   void resetDataToken() { _dataToken = std::numeric_limits<std::size_t>::max(); }
 
 protected:
    mutable bool _valueDirty = true; // Flag set if value needs recalculating because input values modified
@@ -643,7 +638,6 @@ protected:
 
    std::size_t _dataToken = std::numeric_limits<std::size_t>::max(); ///<! Set by the RooFitDriver for this arg to
                                                                      ///<! retrieve its result in the run context
-   RooFit::Evaluator *_evaluator = nullptr; ///<! The Evaluator that set the data token and resets it in its destructor
 
    /// \cond ROOFIT_INTERNAL
    // Legacy streamers need the following statics:

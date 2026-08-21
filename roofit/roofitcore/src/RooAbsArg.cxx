@@ -74,7 +74,6 @@ for single nodes.
 #include <RooArgSet.h>
 #include <RooConstVar.h>
 #include <RooExpensiveObjectCache.h>
-#include <RooFit/Evaluator.h>
 #include <RooHelpers.h>
 #include "RooFitImplHelpers.h"
 #include <RooListProxy.h>
@@ -169,12 +168,6 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
 
 RooAbsArg::~RooAbsArg()
 {
-   // If a RooFit::Evaluator still holds a data token for this arg, tell it that
-   // the arg is gone so that it doesn't reset the token in its destructor.
-   if (_evaluator) {
-      _evaluator->unregisterNode(*this);
-   }
-
    // Notify all servers that they no longer need to serve us
    while (!_serverList.empty()) {
       removeServer(*_serverList.containedObjects().back(), true);
@@ -2171,22 +2164,14 @@ RooAbsArg::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileCo
 }
 
 /// Sets the token for retrieving results in the BatchMode. For internal use only.
-/// If an `evaluator` is passed, it is the RooFit::Evaluator that resets the
-/// token in its destructor, and this arg will notify it if it gets deleted
-/// before the Evaluator.
-void RooAbsArg::setDataToken(std::size_t index, RooFit::Evaluator *evaluator)
+///
+/// The token is only valid for the RooFit::Evaluator that stamped it last:
+/// evaluators re-stamp the tokens of all their nodes whenever a different
+/// evaluator used them in the meantime (see Evaluator::syncDataTokens()).
+/// This is why setting a token unconditionally overwrites any previous value:
+/// nodes like parameters and categories can be shared by the computation
+/// graphs of several evaluators.
+void RooAbsArg::setDataToken(std::size_t index)
 {
-   if (_dataToken != index) {
-      if (hasDataToken()) {
-         std::stringstream errMsg;
-         errMsg << "The data token for \"" << GetName() << "\" is already set!"
-                << " Are you trying to evaluate the same object by multiple RooFit::Evaluator instances?"
-                << " This is not allowed.";
-         throw std::runtime_error(errMsg.str());
-      }
-      _dataToken = index;
-   }
-   if (evaluator) {
-      _evaluator = evaluator;
-   }
+   _dataToken = index;
 }

@@ -1034,8 +1034,6 @@ TEST(RooSimultaneous, ParameterIndexSwitchModeExtended)
       std::unique_ptr<RooAbsReal> refNll0{gaussExt.createNLL(*data, backend, Extended(true))};
       std::unique_ptr<RooAbsReal> refNll1{chebExt.createNLL(*data, backend, Extended(true))};
 
-      // The likelihoods are created one after the other, because the index
-      // category can't be shared by several RooFit::Evaluator instances.
       {
          cat.setIndex(0);
          std::unique_ptr<RooAbsReal> nll{sim.createNLL(*data, backend, Extended(true))};
