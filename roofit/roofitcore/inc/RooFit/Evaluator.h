@@ -19,7 +19,9 @@
 
 #include <RConfig.h>
 
+#include <cstdint>
 #include <memory>
+#include <utility>
 
 class ChangeOperModeRAII;
 class RooAbsArg;
@@ -60,6 +62,7 @@ private:
 
    std::unique_ptr<RooBatchCompute::AbsBufferManager> _bufferManager;
    RooAbsReal &_topNode;
+   const std::uint64_t _dataTokenOwnerId; // for syncDataTokens(), unique per evaluator
    const bool _useGPU = false;
    int _nEvaluations = 0;
    bool _needToUpdateOutputSizes = false;
@@ -67,6 +70,9 @@ private:
    RooFit::EvalContext _evalContextCUDA;
    std::vector<NodeInfo> _nodes;                             // the ordered computation graph
    std::unordered_map<TNamed const *, NodeInfo *> _nodesMap; // for quick lookup of nodes
+   // Server objects that got de-duplicated by name in the `_nodes` list,
+   // together with the node they are an alias of (for syncDataTokens()).
+   std::vector<std::pair<RooAbsArg *, NodeInfo const *>> _aliasedServers;
    std::unique_ptr<ChangeOperModeRAII> _operModeChanges;
 };
 

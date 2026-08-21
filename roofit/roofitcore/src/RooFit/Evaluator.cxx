@@ -142,6 +142,31 @@ struct NodeInfo {
    }
 };
 
+namespace {
+
+/// A unique id per Evaluator instance to track which evaluator last stamped
+/// its data tokens on the RooAbsArg objects (see the comment on
+/// Evaluator::syncDataTokens() for the ownership mechanism). A monotonically
+/// increasing counter is used instead of the `this` pointer, because a new
+/// evaluator can get allocated at the address of a deleted one. The state is
+/// thread_local because data tokens are stored on RooAbsArg objects that can
+/// be shared between the computation graphs of evaluators on the same thread.
+std::uint64_t nextDataTokenOwnerId()
+{
+   static thread_local std::uint64_t counter = 0;
+   return ++counter;
+}
+
+/// The id of the evaluator in this thread that stamped the data tokens last
+/// (zero if no evaluator did yet).
+std::uint64_t &lastDataTokenOwnerId()
+{
+   static thread_local std::uint64_t id = 0;
+   return id;
+}
+
+} // namespace
+
 /// Construct a new Evaluator. The constructor analyzes and saves metadata about the graph,
 /// useful for the evaluation of it that will be done later. In case the CUDA mode is selected,
 /// there's also some CUDA-related initialization.
@@ -150,7 +175,7 @@ struct NodeInfo {
 ///            computation graph that we want to evaluate.
 /// \param[in] useGPU Whether the evaluation should be preferably done on the GPU.
 Evaluator::Evaluator(const RooAbsReal &absReal, bool useGPU)
-   : _topNode{const_cast<RooAbsReal &>(absReal)}, _useGPU{useGPU}
+   : _topNode{const_cast<RooAbsReal &>(absReal)}, _dataTokenOwnerId{nextDataTokenOwnerId()}, _useGPU{useGPU}
 {
    RooBatchCompute::initCPU();
    if (useGPU && RooBatchCompute::initCUDA() != 0) {
@@ -188,8 +213,6 @@ Evaluator::Evaluator(const RooAbsReal &absReal, bool useGPU)
 
       if (dynamic_cast<RooRealVar const *>(arg)) {
          nodeInfo.isVariable = true;
-      } else {
-         arg->setDataToken(iNode);
       }
       if (dynamic_cast<RooAbsCategory const *>(arg)) {
          nodeInfo.isCategory = true;
@@ -205,6 +228,12 @@ Evaluator::Evaluator(const RooAbsReal &absReal, bool useGPU)
             auto *serverInfo = nodeInfos.at(server);
             info.serverInfos.emplace_back(serverInfo);
             serverInfo->clientInfos.emplace_back(&info);
+            if (server != serverInfo->absArg) {
+               // A server with the same name that got de-duplicated in the
+               // `_nodes` list. It needs to carry the data token of the node
+               // it is an alias of, so remember it for syncDataTokens().
+               _aliasedServers.emplace_back(server, serverInfo);
+            }
          }
       }
    }
@@ -233,23 +262,62 @@ Evaluator::Evaluator(const RooAbsReal &absReal, bool useGPU)
    }
 }
 
-/// If there are servers with the same name that got de-duplicated in the
-/// `_nodes` list, we need to set their data tokens too. We find such nodes by
-/// visiting the servers of every known node.
+/// Make sure the data tokens on the RooAbsArg objects of the computation
+/// graph point into this evaluator's EvalContext.
+///
+/// The data token is per-evaluator information (an index into that
+/// evaluator's context) that is stored on the RooAbsArg objects themselves,
+/// some of which - parameters and categories in particular - can be shared
+/// between the computation graphs of several evaluators. The tokens are
+/// therefore treated as a cache owned by whichever evaluator used them last:
+/// before an evaluator uses any tokens, it re-stamps the tokens of all its
+/// nodes, unless it was also the last evaluator to do so. In the common case
+/// of a single active evaluator, this check reduces to one integer
+/// comparison per call.
+///
+/// In the long term, the tokens should not live on the (possibly shared)
+/// RooAbsArg objects at all, but on the client side, which is never shared:
+/// for example in the RooTemplateProxy instances of the client nodes, or by
+/// passing the server value spans to doEval() positionally. Then this
+/// ownership mechanism can be deleted.
 void Evaluator::syncDataTokens()
 {
+   if (lastDataTokenOwnerId() == _dataTokenOwnerId) {
+      return;
+   }
+
    for (NodeInfo &info : _nodes) {
-      std::size_t iValueServer = 0;
-      for (RooAbsArg *server : info.absArg->servers()) {
-         if (server->isValueServer(*info.absArg)) {
-            auto *knownServer = info.serverInfos[iValueServer]->absArg;
-            if (knownServer->hasDataToken()) {
-               server->setDataToken(knownServer->dataToken());
-            }
-            ++iValueServer;
-         }
+      if (info.isVariable && !info.fromArrayInput) {
+         // Variables without array input are read directly via their value
+         // member in EvalContext::at(), signaled by the absence of a data
+         // token. The token must be actively reset here: it can carry a
+         // stale value if the variable is an array input to another
+         // evaluator.
+         info.absArg->resetDataToken();
+      } else {
+         info.absArg->setDataToken(info.iNode);
       }
    }
+
+   // Servers with the same name that got de-duplicated in the `_nodes` list
+   // need to carry the data tokens of the nodes they are aliases of - but
+   // only if the node is not a variable. Variables are read via their value
+   // member when they have no token, and their aliases are separate objects
+   // whose values are not kept in sync. In particular, an alias of an
+   // observable must not be stamped with the data token of its node: reading
+   // the full data column through a reference that is not redirected to the
+   // dataset is not what the unevaluated graph would do. This also matches
+   // the pre-existing behavior, where the alias sync ran only at
+   // construction time, before setInput() gave any variable its token.
+   for (auto const &[server, info] : _aliasedServers) {
+      if (!info->isVariable) {
+         server->setDataToken(info->iNode);
+      } else {
+         server->resetDataToken();
+      }
+   }
+
+   lastDataTokenOwnerId() = _dataTokenOwnerId;
 }
 
 void Evaluator::setInput(std::string const &name, std::span<const double> inputArray, bool isOnDevice)
@@ -265,6 +333,11 @@ void Evaluator::setInput(std::string const &name, std::span<const double> inputA
 
    if (found == _nodesMap.end())
       return;
+
+   // The data tokens must point into this evaluator's context both for
+   // registering the input span below and for the later evaluations that use
+   // it.
+   syncDataTokens();
 
    _needToUpdateOutputSizes = true;
 
@@ -337,11 +410,10 @@ void Evaluator::updateOutputSizes()
 
 Evaluator::~Evaluator()
 {
-   for (auto &info : _nodes) {
-      if (!info.isVariable) {
-         info.absArg->resetDataToken();
-      }
-   }
+   // Note that the data tokens don't need to be reset here: they are only
+   // valid for the evaluator that stamped them last anyway, and the next
+   // evaluator that uses any of the nodes re-stamps them (see
+   // syncDataTokens()).
 }
 
 void Evaluator::computeCPUNode(const RooAbsArg *node, NodeInfo &info)
@@ -441,6 +513,11 @@ void Evaluator::setClientsDirty(NodeInfo &nodeInfo)
 /// Returns the value of the top node in the computation graph
 std::span<const double> Evaluator::run()
 {
+   // Take back the data tokens in case another evaluator used shared nodes
+   // in the meantime. In the common case of repeated evaluations by the same
+   // evaluator, this is only a single integer comparison.
+   syncDataTokens();
+
    if (_needToUpdateOutputSizes)
       updateOutputSizes();
 

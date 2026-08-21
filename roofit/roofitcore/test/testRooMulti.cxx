@@ -1,5 +1,8 @@
+#include <RooAddPdf.h>
 #include <RooCategory.h>
 #include <RooConstVar.h>
+#include <RooDataSet.h>
+#include <RooGlobalFunc.h>
 #include <RooGaussian.h>
 #include <RooMultiPdf.h>
 #include <RooMultiReal.h>
@@ -360,4 +363,78 @@ TEST(RooMultiPdf, StripDisconnectedParameterTest)
    EXPECT_TRUE(params.find("sigma1") != nullptr);
    EXPECT_TRUE(params.find("mean2") != nullptr);
    EXPECT_TRUE(params.find("sigma2") != nullptr);
+}
+/// The data tokens that map a RooAbsArg to a slot in a RooFit::Evaluator's
+/// context are stored on the arg objects themselves, which can be shared
+/// between the computation graphs of several evaluators (parameters and, in
+/// particular for RooMultiPdf, the index category). They used to be owned by
+/// whichever evaluator set them first and reset unconditionally on evaluator
+/// destruction, so with two same-shaped NLLs, destroying the older one wiped
+/// the tokens of the surviving one: its NLL value got permanently stuck at
+/// the value of the index state it was evaluated with first. With NLLs of
+/// different shape, the construction of the second one used to throw ("data
+/// token is already set"). The tokens are now re-stamped by an evaluator
+/// whenever a different evaluator used the shared nodes in the meantime.
+TEST(RooMultiPdf, SharedNodesBetweenEvaluators)
+{
+   using namespace RooFit;
+
+   RooRealVar x("x", "x", 0, 50);
+   RooRealVar lam1("lam1", "lam1", -0.05, -0.1, -0.01);
+   RooRealVar lam2("lam2", "lam2", -0.02, -0.1, -0.01);
+   RooExponential expo1("expo1", "expo1", x, lam1);
+   RooExponential expo2("expo2", "expo2", x, lam2);
+
+   RooCategory cat("cat", "cat");
+   RooMultiPdf multi("multi", "multi", cat, RooArgList{expo1, expo2});
+
+   // Fill a deterministic dataset instead of generating a random one: the
+   // actual values don't matter for this test, and not touching the global
+   // random number generator keeps the data of the other tests in this file
+   // unchanged.
+   RooDataSet data("data", "data", x);
+   for (int i = 0; i < 100; ++i) {
+      x.setVal(50.0 * (i + 0.5) / 100.0);
+      data.add(x);
+   }
+
+   // Establish the reference values for both index states with a single NLL.
+   // Both component pdfs have one floating parameter, so the constant penalty
+   // term is the same no matter at which index state the NLL got created.
+   cat.setIndex(0);
+   std::unique_ptr<RooAbsReal> nllA{multi.createNLL(data, EvalBackend::Cpu())};
+   const double ref0 = nllA->getVal();
+   cat.setIndex(1);
+   const double ref1 = nllA->getVal();
+   ASSERT_NE(ref0, ref1);
+
+   // Create a second NLL and destroy the older one *afterwards*: this order
+   // used to break the data tokens of the surviving evaluator.
+   std::unique_ptr<RooAbsReal> nllB{multi.createNLL(data, EvalBackend::Cpu())};
+   nllA.reset();
+
+   EXPECT_DOUBLE_EQ(nllB->getVal(), ref1);
+   cat.setIndex(0);
+   EXPECT_DOUBLE_EQ(nllB->getVal(), ref0);
+
+   // A differently-shaped model sharing the category and the component pdfs:
+   // creating its NLL used to throw. Alternating evaluations between the two
+   // NLLs exercises the repeated re-stamping of the shared data tokens.
+   RooRealVar mean("mean", "mean", 25, 20, 30);
+   RooRealVar sigma("sigma", "sigma", 2, 0.5, 5);
+   RooGaussian gauss("gauss", "gauss", x, mean, sigma);
+   RooRealVar frac("frac", "frac", 0.8, 0.0, 1.0);
+   RooAddPdf model("model", "model", RooArgList{multi, gauss}, frac);
+
+   std::unique_ptr<RooAbsReal> nllModel{model.createNLL(data, EvalBackend::Cpu())};
+
+   const double refModel0 = nllModel->getVal();
+   EXPECT_DOUBLE_EQ(nllB->getVal(), ref0);
+   cat.setIndex(1);
+   const double refModel1 = nllModel->getVal();
+   EXPECT_DOUBLE_EQ(nllB->getVal(), ref1);
+   EXPECT_NE(refModel0, refModel1);
+   cat.setIndex(0);
+   EXPECT_DOUBLE_EQ(nllModel->getVal(), refModel0);
+   EXPECT_DOUBLE_EQ(nllB->getVal(), ref0);
 }
