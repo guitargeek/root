@@ -29,6 +29,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <unordered_set>
 
 #include "TBuffer.h"
 #include "TMath.h"
@@ -50,8 +51,9 @@
 #include "RooMsgService.h"
 #include "TH2D.h"
 #include "TMatrixDSym.h"
+#include "RooDataSet.h"
 #include "RooMultiVarGaussian.h"
-
+#include "RooNumber.h"
 
 using std::ostream, std::string, std::pair, std::vector, std::setw;
 
@@ -1178,7 +1180,162 @@ RooAbsPdf* RooFitResult::createHessePdf(const RooArgSet& params) const
   return ret ;
 }
 
+namespace {
 
+/// Validate the "params" argument of RooFitResult::createChi2Pdf() and
+/// RooFitResult::createChi2DataSet(): all elements must be unique floating
+/// parameters of the fit result.
+bool checkChi2ModelParams(RooFitResult const &fr, RooArgList const &finalPars, RooArgList const &params,
+                          const char *caller)
+{
+   if (params.empty()) {
+      oocoutE(&fr, InputArguments) << caller << "(" << fr.GetName() << ") ERROR: no parameters given" << std::endl;
+      return false;
+   }
+   std::unordered_set<std::string> seen;
+   for (RooAbsArg const *arg : params) {
+      if (!finalPars.find(arg->GetName())) {
+         oocoutE(&fr, InputArguments) << caller << "(" << fr.GetName() << ") ERROR: input variable " << arg->GetName()
+                                      << " was not a floating parameter in the fit result" << std::endl;
+         return false;
+      }
+      if (!seen.insert(arg->GetName()).second) {
+         oocoutE(&fr, InputArguments) << caller << "(" << fr.GetName() << ") ERROR: input variable " << arg->GetName()
+                                      << " is given more than once" << std::endl;
+         return false;
+      }
+   }
+   return true;
+}
+
+/// Create the pseudo-observables that represent measured values of the given
+/// fit parameters, in the same order as "params". The observables are named
+/// "<parameter name>_obs", set to the best-fit values, and left unbounded such
+/// that the normalization integral of the multivariate Gaussian over them is
+/// always available in closed form.
+void makeChi2Observables(RooArgList const &finalPars, RooArgList const &params, RooArgList &out)
+{
+   const double inf = RooNumber::infinity();
+   for (RooAbsArg const *arg : params) {
+      auto const &par = static_cast<RooRealVar const &>(*finalPars.find(arg->GetName()));
+      out.addOwned(std::make_unique<RooRealVar>((std::string(par.GetName()) + "_obs").c_str(),
+                                                (std::string("Measured ") + par.GetTitle()).c_str(), par.getVal(), -inf,
+                                                inf));
+   }
+}
+
+} // namespace
+
+////////////////////////////////////////////////////////////////////////////////
+/// Create a multivariate-Gaussian "chi-square" model that approximates the
+/// likelihood represented by this fit result, with the measured parameters
+/// replaced by externally provided prediction functions.
+///
+/// For each parameter \f$ p_i \f$ in `params`, a pseudo-observable named
+/// `<parameter name>_obs` is created. The returned pdf is a
+/// RooMultiVarGaussian in these observables \f$ \vec{x} \f$, with the mean
+/// vector given by the `predictions` functions \f$ \vec{\mu}(\vec{\theta})
+/// \f$ (matched to `params` by position) and the covariance matrix \f$ V \f$
+/// given by reducedCovarianceMatrix() for the selected parameters:
+/// \f[
+///   -2 \log \mathrm{pdf}(\vec{x} ; \vec{\theta})
+///      = \left(\vec{x} - \vec{\mu}(\vec{\theta})\right)^{T} V^{-1}
+///        \left(\vec{x} - \vec{\mu}(\vec{\theta})\right) + \mathrm{const.}
+/// \f]
+/// Since the pseudo-observables are unbounded, the normalization constant
+/// does not depend on \f$ \vec{\theta} \f$, so fitting the returned pdf to
+/// the single-entry dataset provided by createChi2DataSet() is a weighted
+/// least-squares fit of the new parameters \f$ \vec{\theta} \f$ to the
+/// measured parameter values.
+///
+/// The main use case is building simplified models for toy studies: fit a
+/// model with free parameters for the quantities of interest (for example one
+/// scale factor per bin in a binned measurement), and then approximate the
+/// full likelihood by this Gaussian model in which the fitted parameters are
+/// expressed by a cheaper parameterization with fewer degrees of freedom (for
+/// example, yields that are quadratic functions of EFT couplings). The
+/// returned pdf is usually orders of magnitude faster to evaluate than the
+/// original model, and it can also directly generate() toy values of the
+/// pseudo-observables. See the rf620_simplified_toys tutorial for a complete
+/// example.
+///
+/// The returned pdf owns the pseudo-observables; they can be retrieved with
+/// RooAbsArg::getObservables(), for example passing the dataset returned by
+/// createChi2DataSet().
+///
+/// \param params The (subset of) floating fit parameters to include in the
+///        chi-square model.
+/// \param predictions Prediction functions, one for each entry in `params`,
+///        in the same order.
+///
+/// \see createChi2DataSet(), createHessePdf(), reducedCovarianceMatrix()
+
+std::unique_ptr<RooAbsPdf> RooFitResult::createChi2Pdf(const RooArgList &params, const RooArgList &predictions) const
+{
+   if (params.size() != predictions.size()) {
+      coutE(InputArguments) << "RooFitResult::createChi2Pdf(" << GetName() << ") ERROR: got " << params.size()
+                            << " parameters but " << predictions.size() << " prediction functions" << std::endl;
+      return nullptr;
+   }
+   if (!checkChi2ModelParams(*this, *_finalPars, params, "RooFitResult::createChi2Pdf")) {
+      return nullptr;
+   }
+   for (RooAbsArg const *arg : predictions) {
+      if (!dynamic_cast<RooAbsReal const *>(arg)) {
+         coutE(InputArguments) << "RooFitResult::createChi2Pdf(" << GetName() << ") ERROR: prediction "
+                               << arg->GetName() << " is not a real-valued function" << std::endl;
+         return nullptr;
+      }
+   }
+
+   // The reduced covariance matrix has the same parameter order as "params".
+   TMatrixDSym V = reducedCovarianceMatrix(params);
+   if (V.Determinant() <= 0) {
+      coutE(Eval) << "RooFitResult::createChi2Pdf(" << GetName()
+                  << ") ERROR: covariance matrix is not positive definite (|V|=" << V.Determinant()
+                  << ") cannot construct p.d.f" << std::endl;
+      return nullptr;
+   }
+
+   RooArgList obsVec;
+   makeChi2Observables(*_finalPars, params, obsVec);
+
+   std::string name = std::string("chi2Pdf_") + GetName();
+   std::string title = std::string("Chi-square model of ") + GetTitle();
+   auto mvg = std::make_unique<RooMultiVarGaussian>(name.c_str(), title.c_str(), obsVec, predictions, V);
+   mvg->addOwnedComponents(std::move(obsVec));
+   return mvg;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Create the single-entry dataset that complements the chi-square model
+/// returned by createChi2Pdf(): it contains the corresponding
+/// pseudo-observables (named `<parameter name>_obs`, in the order of
+/// `params`), set to the best-fit parameter values. Fitting the chi-square
+/// model to this dataset gives the parameters of the prediction functions
+/// that best reproduce the original fit result.
+///
+/// \param params The (subset of) floating fit parameters to include, which
+///        must correspond to the ones passed to createChi2Pdf().
+///
+/// \see createChi2Pdf()
+
+std::unique_ptr<RooDataSet> RooFitResult::createChi2DataSet(const RooArgList &params) const
+{
+   if (!checkChi2ModelParams(*this, *_finalPars, params, "RooFitResult::createChi2DataSet")) {
+      return nullptr;
+   }
+
+   RooArgList obsVec;
+   makeChi2Observables(*_finalPars, params, obsVec);
+
+   std::string name = std::string("chi2Data_") + GetName();
+   std::string title = std::string("Best-fit parameter values of ") + GetTitle();
+   RooArgSet obsSet{obsVec};
+   auto data = std::make_unique<RooDataSet>(name.c_str(), title.c_str(), obsSet);
+   data->add(obsSet);
+   return data;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Change name of RooFitResult object

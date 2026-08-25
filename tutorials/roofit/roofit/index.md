@@ -125,6 +125,7 @@ Explore the tutorials below to discover the main features of RooFit. A more inde
 | rf611_weightedfits.C| | Parameter uncertainties for weighted unbinned ML fits.|
 | rf612_recoverFromInvalidParameters.C| rf612_recoverFromInvalidParameters.py | Recover from regions where the function is not defined.|
 | rf619_discrete_profiling.C | rf619_discrete_profiling.py | Switch between multiple models using RooMultiPdf and select the best one with the discrete profiling method. |
+| rf620_simplified_toys.C | rf620_simplified_toys.py | Approximate a likelihood with a simplified chi-square model for cheap toy studies. |
 
 \anchor roofit_special_pdfs
 ## Special Pdf's

@@ -30,6 +30,7 @@ ROOT_ADD_GTEST(testRooFitCore
     testRooCollectionProxy.cxx
     testRooCurve.cxx
     testRooDataHist.cxx
+    testRooFitResult.cxx
     testRooHist.cxx
     testRooHistPdf.cxx
     testRooLinkedList.cxx

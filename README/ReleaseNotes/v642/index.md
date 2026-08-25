@@ -132,6 +132,18 @@ the cut instead of being selected based on `sqrt(abs(x))`.
 
 ## RooFit
 
+### Automated creation of simplified models for toy studies
+
+The new `RooFitResult::createChi2Pdf()` method builds a multivariate-Gaussian "chi-square" model from a fit result,
+in which the measured parameters are replaced by externally provided prediction functions.
+This automates a common workflow for validating results with toys when the full model is too expensive,
+for example in EFT analyses: fit the full model with one unconstrained yield parameter per bin,
+and then approximate the likelihood by a chi-square model in which the yields are expressed by a cheap
+parameterization with few degrees of freedom (such as yields that are quadratic in the EFT couplings).
+The companion method `RooFitResult::createChi2DataSet()` provides the corresponding single-entry dataset
+with the measured parameter values. See the new `rf620_simplified_toys` tutorial for a complete example.
+This addresses [GitHub issue #20560](https://github.com/root-project/root/issues/20560).
+
 ### Small changes
 
 * The `RooMinimizer::Strategy` enum has been removed. It named the Minuit strategies that are usually referred to just by integers, but caused confusion because it didn't include the unnamed "Strategy 3". Since people usually set the strategy with integer values anyway, it was decided that the simplest solution to avoid the confusion was simply to remove the `RooMinimizer::Strategy` enum
