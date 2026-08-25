@@ -168,6 +168,17 @@ The `RooFit::MultiProcess` package that implements the parallel gradient minimiz
 The interprocess communication is now implemented directly on top of plain `socketpair()` pipes that are inherited by the forked worker processes, so the ZeroMQ and cppzmq dependencies and the `RooFitZMQ` library are removed entirely.
 Since the feature no longer needs extra dependencies, it is now always built on non-Windows platforms and the `roofit_multiprocess` build option has no effect anymore; it is deprecated and will be removed in ROOT 6.44.
 For implementers of custom `RooFit::MultiProcess::Job` subclasses, the message type in the `Job` interface changed from `zmq::message_t` to the new `RooFit::MultiProcess::Message` byte-buffer class, which supports the same usage patterns.
+### Automated creation of simplified models for toy studies
+
+The new `RooFitResult::createChi2Pdf()` method builds a multivariate-Gaussian "chi-square" model from a fit result,
+in which the measured parameters are replaced by externally provided prediction functions.
+This automates a common workflow for validating results with toys when the full model is too expensive,
+for example in EFT analyses: fit the full model with one unconstrained yield parameter per bin,
+and then approximate the likelihood by a chi-square model in which the yields are expressed by a cheap
+parameterization with few degrees of freedom (such as yields that are quadratic in the EFT couplings).
+The companion method `RooFitResult::createChi2DataSet()` provides the corresponding single-entry dataset
+with the measured parameter values. See the new `rf620_simplified_toys` tutorial for a complete example.
+This addresses [GitHub issue #20560](https://github.com/root-project/root/issues/20560).
 
 ### Small changes
 

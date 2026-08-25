@@ -26,12 +26,14 @@
 #include "TMatrixDSym.h"
 #include "TList.h"
 
+#include <memory>
 #include <vector>
 #include <string>
 #include <utility>
 
 class RooArgSet ;
 class RooAbsPdf ;
+class RooDataSet;
 class RooPlot;
 class TH2;
 
@@ -68,6 +70,9 @@ public:
   StyleOption defaultPrintStyle(Option_t* opt) const override ;
 
   RooAbsPdf* createHessePdf(const RooArgSet& params) const ;
+
+  std::unique_ptr<RooAbsPdf> createChi2Pdf(const RooArgList &params, const RooArgList &predictions) const;
+  std::unique_ptr<RooDataSet> createChi2DataSet(const RooArgList &params) const;
 
   // Accessors
   /// Return MINUIT status code
