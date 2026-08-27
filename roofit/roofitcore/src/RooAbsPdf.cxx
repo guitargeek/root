@@ -149,6 +149,7 @@ called for each data event.
 #include "RooPlot.h"
 #include "RooCurve.h"
 #include "RooCategory.h"
+#include "RooConstVar.h"
 #include "RooNameReg.h"
 #include "RooCmdConfig.h"
 #include "RooGlobalFunc.h"
@@ -613,6 +614,25 @@ double RooAbsPdf::getLogVal(const RooArgSet* nset) const
 double RooAbsPdf::getCorrection() const
 {
    return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Create a function representing the penalty term that createNLL() adds to
+/// the negative log-likelihood, or nullptr if there is none.
+///
+/// The default implementation snapshots the current value of getCorrection()
+/// into a constant. Pdfs whose penalty depends on model parameters override
+/// this function to return a live term instead: RooMultiPdf returns a
+/// function of its index category, so that the penalty can influence which
+/// pdf gets selected in the discrete profiling loop of the RooMinimizer.
+std::unique_ptr<RooAbsReal> RooAbsPdf::createCorrectionTerm() const
+{
+   const double correction = getCorrection();
+   if (correction <= 0) {
+      return nullptr;
+   }
+   return std::make_unique<RooConstVar>((std::string{GetName()} + "_Penalty").c_str(),
+                                        "Penalty term from getCorrection()", correction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

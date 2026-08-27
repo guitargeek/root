@@ -21,6 +21,7 @@
 
 #include <RooMultiPdf.h>
 #include <RooFit/Detail/MathFuncs.h>
+#include <RooFit/Detail/RooCategoryLookup.h>
 #include <RooConstVar.h>
 
 // Constructing a RooMultiPdf
@@ -77,6 +78,20 @@ Double_t RooMultiPdf::getLogVal(const RooArgSet *nset) const
    double logval = getCurrentPdf()->getLogVal(nset);
    _oldIndex = x;
    return logval;
+}
+
+// The penalty is a live function of the index category: each state contributes
+// cFactor times the number of free parameters of the corresponding pdf, as
+// counted at construction time. Returning a function of the category and not a
+// constant is essential for the discrete profiling method: the penalty has to
+// enter the comparison of the per-index likelihood minima.
+std::unique_ptr<RooAbsReal> RooMultiPdf::createCorrectionTerm() const
+{
+   if (cFactor == 0.0) {
+      return nullptr;
+   }
+   return std::make_unique<RooFit::Detail::RooCategoryLookup>(
+      (std::string{GetName()} + "_Penalty").c_str(), "Penalty term", const_cast<RooAbsCategory &>(*x), corr, cFactor);
 }
 
 void RooMultiPdf::getParametersHook(const RooArgSet *nset, RooArgSet *list, bool stripDisconnected) const

@@ -1,11 +1,15 @@
 #include <RooAddPdf.h>
 #include <RooCategory.h>
+#include <RooChebychev.h>
 #include <RooConstVar.h>
 #include <RooDataSet.h>
+#include <RooFitResult.h>
 #include <RooGlobalFunc.h>
 #include <RooGaussian.h>
+#include <RooHelpers.h>
 #include <RooMultiPdf.h>
 #include <RooMultiReal.h>
+#include <RooRandom.h>
 #include <RooRealVar.h>
 #include <RooBernstein.h>
 #include <RooExponential.h>
@@ -437,4 +441,112 @@ TEST(RooMultiPdf, SharedNodesBetweenEvaluators)
    cat.setIndex(0);
    EXPECT_DOUBLE_EQ(nllModel->getVal(), refModel0);
    EXPECT_DOUBLE_EQ(nllB->getVal(), ref0);
+}
+
+/// The penalty term added to the NLL has to be a live function of the index
+/// category: an NLL created once must reflect the penalty of the currently
+/// selected pdf, not a constant snapshot taken at NLL creation time.
+TEST(RooMultiPdfTest, PenaltyTracksIndexCategory)
+{
+   using namespace RooFit;
+
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+
+   RooRealVar x("x", "x", -10, 10);
+
+   RooRealVar mean("mean", "mean", 0, -5, 5);
+   RooRealVar sigma("sigma", "sigma", 4, 0.1, 10);
+   RooGaussian gauss("gauss", "gauss", x, mean, sigma);
+
+   RooRealVar c0("c0", "c0", -0.5, -1, 1);
+   RooRealVar c1("c1", "c1", 0.2, -1, 1);
+   RooRealVar c2("c2", "c2", 0.1, -1, 1);
+   RooChebychev cheb("cheb", "cheb", x, {c0, c1, c2});
+
+   RooCategory index("index", "index");
+   RooMultiPdf multiPdf("multiPdf", "multiPdf", index, RooArgList{gauss, cheb});
+
+   std::unique_ptr<RooDataSet> data{gauss.generate(x, 100)};
+
+   // The components deliberately have different numbers of free parameters.
+   const double penalty0 = 0.5 * countFloatingParametersIncludingObservable(gauss);
+   const double penalty1 = 0.5 * countFloatingParametersIncludingObservable(cheb);
+   ASSERT_NE(penalty0, penalty1);
+
+   std::vector<RooFit::EvalBackend> backends;
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
+   backends.push_back(RooFit::EvalBackend::Legacy());
+#endif
+   backends.push_back(RooFit::EvalBackend::Cpu());
+   backends.push_back(RooFit::EvalBackend::CodegenNoGrad());
+
+   for (auto &backend : backends) {
+      index.setIndex(0);
+      std::unique_ptr<RooAbsReal> nll{multiPdf.createNLL(*data, backend)};
+      std::unique_ptr<RooAbsReal> refNll0{gauss.createNLL(*data, backend)};
+      std::unique_ptr<RooAbsReal> refNll1{cheb.createNLL(*data, backend)};
+
+      index.setIndex(0);
+      EXPECT_NEAR(nll->getVal() - refNll0->getVal(), penalty0, 1e-10) << backend.name() << ", index 0";
+      // The penalty of the newly-selected pdf has to be applied without
+      // recreating the NLL.
+      index.setIndex(1);
+      EXPECT_NEAR(nll->getVal() - refNll1->getVal(), penalty1, 1e-10) << backend.name() << ", index 1";
+      index.setIndex(0);
+      EXPECT_NEAR(nll->getVal() - refNll0->getVal(), penalty0, 1e-10) << backend.name() << ", back to index 0";
+   }
+}
+
+/// The point of the penalty term in the discrete profiling method: a more
+/// flexible pdf can be disfavored even if it reaches a lower NLL minimum.
+/// Here, the second pdf contains the first one as a special case, so its raw
+/// NLL minimum is at least as good, but a penalty factor large enough to
+/// dominate any overfitting gain has to make the fit select the simpler pdf.
+/// With the old constant-snapshot penalty, the index choice was based on the
+/// raw NLL values alone.
+TEST(RooMultiPdfTest, PenaltyInfluencesIndexChoice)
+{
+   using namespace RooFit;
+
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+
+   RooRealVar x("x", "x", -10, 10);
+
+   RooRealVar mean("mean", "mean", 0, -5, 5);
+   RooRealVar sigma("sigma", "sigma", 4, 1, 10);
+   RooGaussian gauss("gauss", "gauss", x, mean, sigma);
+
+   RooRealVar mean2("mean2", "mean2", 0, -5, 5);
+   RooRealVar sigma2("sigma2", "sigma2", 4, 1, 10);
+   RooGaussian gauss2("gauss2", "gauss2", x, mean2, sigma2);
+   RooRealVar mean3("mean3", "mean3", 1, -5, 5);
+   RooRealVar sigma3("sigma3", "sigma3", 5, 1, 10);
+   RooGaussian gauss3("gauss3", "gauss3", x, mean3, sigma3);
+   RooRealVar frac("frac", "frac", 0.5, 0, 1);
+   RooAddPdf sum("sum", "sum", {gauss2, gauss3}, frac);
+
+   RooCategory index("index", "index");
+   RooMultiPdf multiPdf("multiPdf", "multiPdf", index, RooArgList{gauss, sum});
+
+   // Penalty factor large enough to dominate any possible overfitting gain of
+   // the more flexible pdf.
+   const double penaltyFactor = 50.;
+   multiPdf.setCorrectionFactor(penaltyFactor);
+   const double penalty0 = penaltyFactor * countFloatingParametersIncludingObservable(gauss);
+
+   std::unique_ptr<RooDataSet> data{gauss.generate(x, 500)};
+
+   // Start from the state that the penalty has to disfavor.
+   index.setIndex(1);
+   std::unique_ptr<RooFitResult> fitResult{
+      multiPdf.fitTo(*data, EvalBackend::Cpu(), Save(), PrintLevel(-1), Strategy(0))};
+
+   EXPECT_EQ(index.getIndex(), 0);
+
+   std::unique_ptr<RooFitResult> refFitResult{
+      gauss.fitTo(*data, EvalBackend::Cpu(), Save(), PrintLevel(-1), Strategy(0))};
+
+   EXPECT_NEAR(fitResult->minNll(), refFitResult->minNll() + penalty0, 1e-2);
 }
