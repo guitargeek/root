@@ -19,6 +19,7 @@ public:
 
    inline bool checkIndexDirty() const { return _oldIndex != x; }
    inline double getCorrection() const override { return cFactor * static_cast<RooAbsReal *>(corr.at(x))->getVal(); }
+   std::unique_ptr<RooAbsReal> createCorrectionTerm() const override;
    inline RooAbsPdf *getCurrentPdf() const { return getPdf(getCurrentIndex()); }
    int getNumPdfs() const { return c.size(); }
 
