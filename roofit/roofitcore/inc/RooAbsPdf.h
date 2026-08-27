@@ -172,6 +172,7 @@ public:
   virtual RooAbsPdf* createProjection(const RooArgSet& iset) ;
 
   virtual double getCorrection() const;
+  virtual std::unique_ptr<RooAbsReal> createCorrectionTerm() const;
 
   // Create cumulative density function from p.d.f
   RooFit::OwningPtr<RooAbsReal> createCdf(const RooArgSet& iset, const RooArgSet& nset=RooArgSet()) ;
