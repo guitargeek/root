@@ -963,3 +963,56 @@ TEST(RooSimultaneous, ParameterIndexTopLevelNLL)
       EXPECT_THAT(nll->getVal(), RelativeNear(refNll1->getVal(), 1e-10)) << backend.name() << ", index 1";
    }
 }
+
+/// A "switch"-mode RooSimultaneous (see the ParameterIndexSwitchMode test
+/// above) must also support event generation: if the index category is not
+/// among the generation variables, it is interpreted as a parameter, and
+/// events are generated from the component pdf selected by the current index
+/// state, analogous to RooMultiPdf. Generating like this used to fail with an
+/// error, or with a crash when the RooSimultaneous was nested inside a
+/// RooAddPdf, which dereferenced the null generator context.
+TEST(RooSimultaneous, ParameterIndexGenerate)
+{
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   RooRealVar x("x", "x", 0, 50);
+   RooRealVar lam("lam", "lam", -0.04, -0.1, -0.01);
+   RooExponential expo("expo", "expo", x, lam);
+   RooRealVar c0("c0", "c0", -0.5, -1.0, 1.0);
+   RooRealVar c1("c1", "c1", 0.2, -1.0, 1.0);
+   RooChebychev cheb("cheb", "cheb", x, {c0, c1});
+
+   RooCategory cat("cat", "cat", {{"expo", 0}, {"cheb", 1}});
+   RooSimultaneous sim("sim", "sim", cat);
+   sim.addPdf(expo, "expo");
+   sim.addPdf(cheb, "cheb");
+
+   // Generating from the switch-mode RooSimultaneous is equivalent to
+   // generating from the component selected by the current index state.
+   cat.setIndex(1);
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   std::unique_ptr<RooDataSet> data{sim.generate(x, 100)};
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   std::unique_ptr<RooDataSet> refData{cheb.generate(x, 100)};
+
+   ASSERT_NE(data, nullptr);
+   ASSERT_EQ(data->numEntries(), refData->numEntries());
+   for (int i = 0; i < data->numEntries(); ++i) {
+      EXPECT_DOUBLE_EQ(data->get(i)->getRealValue("x"), refData->get(i)->getRealValue("x")) << "event " << i;
+   }
+
+   // The index category itself must not end up in the generated dataset.
+   EXPECT_EQ(data->get()->find("cat"), nullptr);
+
+   // Also generate from a RooAddPdf with the switch-mode RooSimultaneous as a
+   // component.
+   RooRealVar mean("mean", "mean", 25, 20, 30);
+   RooRealVar sigma("sigma", "sigma", 2, 0.5, 5);
+   RooGaussian gauss("gauss", "gauss", x, mean, sigma);
+   RooRealVar frac("frac", "frac", 0.8, 0.0, 1.0);
+   RooAddPdf model("model", "model", {sim, gauss}, frac);
+
+   std::unique_ptr<RooDataSet> dataAdd{model.generate(x, 100)};
+   ASSERT_NE(dataAdd, nullptr);
+   EXPECT_EQ(dataAdd->numEntries(), 100);
+}
