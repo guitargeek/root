@@ -344,6 +344,7 @@
 #pragma link off class RooErrorHandler+ ;
 #pragma link C++ class RooBinSamplingPdf+;
 #pragma link C++ class RooBinWidthFunction+;
+#pragma link C++ class RooFit::Detail::RooCategoryLookup+;
 #pragma link C++ class RooFit::Detail::RooNLLVarNew+;
 #pragma link C++ class RooFit::Detail::RooNormalizedPdf+ ;
 

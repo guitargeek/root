@@ -48,6 +48,8 @@ public:
 
    inline double getCorrection() const override { return _pdf->getCorrection(); }
 
+   inline std::unique_ptr<RooAbsReal> createCorrectionTerm() const override { return _pdf->createCorrectionTerm(); }
+
    bool forceAnalyticalInt(const RooAbsArg & /*dep*/) const override { return true; }
    /// Forward determination of analytical integration capabilities to input p.d.f
    Int_t getAnalyticalIntegralWN(RooArgSet &allVars, RooArgSet &analVars, const RooArgSet *normSet,

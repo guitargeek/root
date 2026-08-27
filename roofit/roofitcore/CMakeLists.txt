@@ -139,6 +139,7 @@ set(ROOFITCORE_HEADERS
   RooFit/Config.h
   RooFit/Detail/MathFuncs.h
   RooFit/Detail/NormalizationHelpers.h
+  RooFit/Detail/RooCategoryLookup.h
   RooFit/Detail/RooNLLVarNew.h
   RooFit/Detail/RooNormalizedPdf.h
   RooFit/EvalContext.h
@@ -390,6 +391,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooMultiVarGaussian.cxx
     src/RooMultiPdf.cxx
     src/RooMultiReal.cxx
+    src/RooCategoryLookup.cxx
     src/RooNLLVarNew.cxx
     src/RooNameReg.cxx
     src/RooNormSetCache.cxx

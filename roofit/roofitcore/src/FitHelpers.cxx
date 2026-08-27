@@ -894,15 +894,9 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       auto nll = createNLLNew(*pdfClone, data, std::move(compiledConstr), rangeName ? rangeName : "", projDeps, ext,
                               pc.getDouble("IntegrateBins"), offset);
 
-      const double correction = pdfClone->getCorrection();
-
-      if (correction > 0) {
-         oocoutI(&pdf, Fitting) << "[FitHelpers] Detected correction term from RooAbsPdf::getCorrection(). "
+      if (std::unique_ptr<RooAbsReal> penaltyTerm = pdfClone->createCorrectionTerm()) {
+         oocoutI(&pdf, Fitting) << "[FitHelpers] Detected correction term from RooAbsPdf::createCorrectionTerm(). "
                                 << "Adding penalty to NLL." << std::endl;
-
-         // Convert the multiplicative correction to an additive term in -log L
-         auto penaltyTerm = std::make_unique<RooConstVar>((baseName + "_Penalty").c_str(),
-                                                          "Penalty term from getCorrection()", correction);
 
          // add penalty and NLL
          auto correctedNLL = std::make_unique<RooAddition>((baseName + "_corrected").c_str(), "NLL + penalty",
@@ -1005,13 +999,9 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       nll->enableOffsetting(true);
    }
 
-   if (const double correction = pdf.getCorrection(); correction > 0) {
-      oocoutI(&pdf, Fitting) << "[FitHelpers] Detected correction term from RooAbsPdf::getCorrection(). "
+   if (std::unique_ptr<RooAbsReal> penaltyTerm = pdf.createCorrectionTerm()) {
+      oocoutI(&pdf, Fitting) << "[FitHelpers] Detected correction term from RooAbsPdf::createCorrectionTerm(). "
                              << "Adding penalty to NLL." << std::endl;
-
-      // Convert the multiplicative correction to an additive term in -log L
-      auto penaltyTerm = std::make_unique<RooConstVar>((baseName + "_Penalty").c_str(),
-                                                       "Penalty term from getCorrection()", correction);
 
       auto correctedNLL = std::make_unique<RooAddition>(
          // add penalty and NLL

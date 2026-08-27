@@ -28,6 +28,7 @@
 #include <RooEfficiency.h>
 #include <RooExponential.h>
 #include <RooExtendPdf.h>
+#include <RooFit/Detail/RooCategoryLookup.h>
 #include <RooFit/Detail/RooNLLVarNew.h>
 #include <RooFit/Detail/RooNormalizedPdf.h>
 #include <RooFormulaVar.h>
@@ -254,6 +255,24 @@ void codegenImpl(RooMultiVarGaussian &arg, CodegenContext &ctx)
    std::span<const double> covISpan{covI.GetMatrixArray(), static_cast<size_t>(covI.GetNoElements())};
    ctx.addResult(&arg,
                  ctx.buildCall(mathFunc("multiVarGaussian"), arg.xVec().size(), arg.xVec(), arg.muVec(), covISpan));
+}
+
+void codegenImpl(RooFit::Detail::RooCategoryLookup &arg, CodegenContext &ctx)
+{
+   // Nested ternary expression that selects the value matching the current
+   // category state, keyed on the state index numbers.
+   std::string const &indexExpr = ctx.getResult(arg.cat());
+   std::string const scaleExpr = doubleToString(arg.scale());
+
+   std::string expr;
+   const std::size_t n = arg.values().size();
+   for (std::size_t i = 0; i < n; ++i) {
+      expr += "(" + indexExpr + " == " + std::to_string(i) + " ? (" + scaleExpr + " * " +
+              ctx.getResult(arg.values()[i]) + ") : ";
+   }
+   expr += "0.0" + std::string(n, ')');
+
+   ctx.addResult(&arg, expr);
 }
 
 void codegenImpl(RooMultiPdf &arg, CodegenContext &ctx)
