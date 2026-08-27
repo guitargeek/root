@@ -1036,27 +1036,27 @@ RooAbsGenContext* RooSimultaneous::genContext(const RooArgSet &vars, const RooDa
   RooArgSet allVars{vars};
   if(prototype) allVars.add(*prototype->get());
 
-  RooArgSet catsAmongAllVars;
-  allVars.selectCommon(flattenedCatList(), catsAmongAllVars);
-
-  // Not generating index cat: we better error out because it's not clear what
-  // the user expects here. Does the user want to generate according to the
-  // currently-selected pdf? Or does the user want to generate global
-  // observable values according to the union of all category pdfs?
-  // Print an error and tell the user what to do to explicitly.
-  if(catsAmongAllVars.empty()) {
-    coutE(InputArguments) << "RooSimultaneous::generateSimGlobal(" << GetName()
-           << ") asking to generate without the index category!\n"
-           << "It's not clear what to do. you probably want to either:\n"
-           << "\n"
-           << "    1. Generate according to the currently-selected pdf.\n"
-           << "       Please do this explicitly with:\n"
-           << "           simpdf->getPdf(simpdf->indexCat().getCurrentLabel())->generate(vars, ...)\n"
-           << "\n"
-           << "    1. Generate global observable values according to the union of all component pdfs.\n"
-           << "       For this, please use simpdf->generateSimGlobal(vars, ...)\n"
-           << std::endl;
-    return nullptr;
+  // Not generating the index cat: like in likelihood building, the index
+  // category is then interpreted as a parameter, and the RooSimultaneous acts
+  // as a "switch" that generates from the component selected by the current
+  // index state, analogous to RooMultiPdf.
+  if (!indexCatIsObservable(allVars)) {
+     const char *label = indexCat().getCurrentLabel();
+     RooAbsPdf *pdf = getPdf(label);
+     if (!pdf) {
+        coutE(Generation) << "RooSimultaneous::genContext(" << GetName()
+                          << ") ERROR: no component pdf associated with current index state \"" << label << "\""
+                          << std::endl;
+        return nullptr;
+     }
+     coutI(Generation)
+        << "RooSimultaneous::genContext(" << GetName()
+        << "): the index category is not among the generation variables, so it is interpreted as a\n"
+        << "parameter: events are generated from the component pdf selected by the current index state \"" << label
+        << "\".\n"
+        << "To generate global observable values according to the union of all component pdfs, use\n"
+        << "generateSimGlobal() instead." << std::endl;
+     return pdf->genContext(vars, prototype, auxProto, verbose);
   }
 
   RooArgSet catsAmongProtoVars;
