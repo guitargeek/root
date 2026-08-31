@@ -109,6 +109,8 @@ protected:
   double evaluate() const override;
 
   void createPdf(bool firstCall, RooDataSet const& data);
+  void createPdfImpl(bool firstCall, RooDataSet const& data);
+  void deleteOwnedObjects();
   void setOptions();
   void initialize(RooDataSet const& data);
   void loadDataSet(bool firstCall, RooDataSet const& data);
@@ -118,7 +120,7 @@ protected:
   void calculatePreNorm(BoxInfo *bi) const;
   void sortDataIndices(BoxInfo *bi = nullptr);
   void calculateBandWidth();
-  double gauss(std::vector<double> &x, std::vector<std::vector<double>> &weights) const;
+  double gauss(std::vector<double> &x, std::vector<std::vector<double>> &weights, bool useAbsWeights = false) const;
   void loopRange(std::vector<double> &x, std::vector<Int_t> &indices) const;
   void boxInfoInit(BoxInfo *bi, const char *rangeName, Int_t code) const;
   RooDataSet *createDatasetFromHist(const RooArgList &varList, const TH1 &hist) const;

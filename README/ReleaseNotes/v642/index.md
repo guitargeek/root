@@ -249,6 +249,44 @@ workspace on its own anymore. The model remains accessible via `RooAbsAnaConvPdf
 
 This is not expected to affect typical usage, since the resolution model was never part of the actual likelihood. Workspaces written with older ROOT versions are read back correctly via schema evolution.
 
+### Support for negative event weights in `RooKeysPdf` and `RooNDKeysPdf`
+
+Kernel estimation pdfs built from datasets with negative event weights (as they occur for example for sWeighted
+datasets) used to produce `NaN` pdf values, because the local event density that sets the adaptive kernel widths
+was evaluated as `weight * density` and the square root of that quantity was taken.
+
+The local density is now the properly weighted one, `sum_i |w_i| * K(x - x_i)`, evaluated with the absolute value
+of the event weights: it measures how many events are available to resolve the shape locally, which is not reduced
+by events that carry a negative weight. The kernels themselves are still summed with the signed weights, so
+background subtraction with negative weights works as expected. Where the estimated density comes out negative,
+it is clipped to zero and a warning is printed. Unlike before, the clipping is now applied to the internal lookup
+table itself, so that the analytical integral that normalizes the pdf sees the same function as the evaluation
+does and the pdf integrates to unity again (for a typical sWeighted dataset the two used to disagree by up to a
+few percent).
+
+Inputs for which the estimation is not defined at all are now rejected with a `std::runtime_error` instead of
+silently producing `NaN`: the total weight of the dataset and the weighted variance of each observable have to be
+strictly positive (and, for `RooNDKeysPdf`, the weighted covariance matrix has to be positive definite). Note that
+low-purity sWeighted datasets can genuinely run into the variance condition; increasing the sample size or the
+purity of the input is then the only cure. `RooStats::MCMCInterval` and `RooStats::ProposalHelper` catch the new
+exception and fall back to their existing "no kernel estimation available" code paths.
+
+Note that this changes the result for datasets with *non-uniform positive* event weights, typically by about a
+percent of the peak density. The old expression was not a weighted local density at all: it gave every event a
+kernel width scaled with the inverse square root of *its own* weight, so two events at the same position with
+weights 0.01 and 1 got kernel widths that differed by a factor of ten. As a consequence the old code did not
+respect the "event weights are event multiplicities" convention that `RooKeysPdf` documents and that its unit
+tests rely on: replacing an event of weight two by two events of weight one changed the result by several percent
+of the peak density. The new expression respects it exactly, and it is also the better estimator - for samples of
+1000 events with weights drawn independently of the observable, the mean integrated squared error with respect to
+the generating density drops by between 5% (weights spread over a factor of three) and 50% (weights spread over
+two orders of magnitude).
+
+Results for unweighted datasets, and for datasets where every event carries a weight of exactly `1`, are
+bit-for-bit unchanged. For datasets in which all events carry the same weight different from `1` the expressions
+are algebraically identical and the results agree to floating point rounding. `RooNDKeysPdf` is bit-for-bit
+unchanged for all datasets with non-negative event weights.
+
 ## Graphics and GUI
 
 ### New POLF and POLN draw options for TH2
