@@ -1621,6 +1621,10 @@ RooAbsData::split(const RooSimultaneous &simPdf, bool createEmptyDataSets) const
 ///    - `Poisson` draws asymmetric Poisson confidence intervals.
 ///    - `SumW2` draws symmetric sum-of-weights error ( \f$ \left( \sum w \right)^2 / \sum\left(w^2\right) \f$ )
 ///    - `None` draws no error bars
+///
+///    \note `Expected` is **not** supported here: the expected error is a property of the model
+///    and not of the data, so it can't be attached to the plotted data points. It is only
+///    meaningful for chi-square test statistics, see RooAbsReal::createChi2().
 /// <tr><td> RooFit::Binning(int nbins, double xlo, double xhi)
 ///     <td> Use specified binning to draw dataset
 /// <tr><td> RooFit::Binning(const RooAbsBinning&)
@@ -1765,6 +1769,19 @@ RooPlot* RooAbsData::plotOn(RooPlot* frame, const RooLinkedList& argList) const
       coutI(InputArguments) << "RooAbsData::plotOn(" << GetName()
              << ") INFO: dataset has non-integer weights, auto-selecting SumW2 errors instead of Poisson errors" << std::endl ;
     }
+  }
+
+  // Expected errors are a property of the model and not of the data, so they can't be
+  // attached to plotted data points. This silently resulted in error-less data points
+  // (like DataError(RooAbsData::None)), which then made RooPlot::chiSquare() return NaN.
+  if (o.etype == Expected) {
+    coutE(InputArguments) << "RooAbsData::plotOn(" << GetName()
+           << ") ERROR: DataError(RooAbsData::Expected) is not supported when plotting data, because the expected"
+              " error is a property of the model and not of the data. The data points will be drawn without errors,"
+              " like with DataError(RooAbsData::None), and RooPlot::chiSquare() will not work on them."
+              "\n    Use DataError(RooAbsData::Poisson) or DataError(RooAbsData::SumW2) for the plot. To get the"
+              " Pearson chi-square that uses the expected errors, use"
+              " RooAbsReal::createChi2(data, RooFit::DataError(RooAbsData::Expected))." << std::endl ;
   }
 
   if (o.addToHistName && !frame->findObject(o.addToHistName,RooHist::Class())) {

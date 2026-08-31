@@ -52,13 +52,14 @@ To retrieve a RooCurve from a RooPlot, use RooPlot::getCurve().
 #include "TVectorD.h"
 #include "Math/Util.h"
 
-#include <iomanip>
-#include <deque>
 #include <algorithm>
-#include <ostream>
-#include <list>
-#include <vector>
 #include <cmath>
+#include <deque>
+#include <iomanip>
+#include <limits>
+#include <list>
+#include <ostream>
+#include <vector>
 
 using std::ostream, std::list, std::vector, std::min;
 
@@ -531,9 +532,47 @@ void RooCurve::printMultiline(ostream& os, Int_t /*contents*/, bool /*verbose*/,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate the chi^2/NDOF of this curve with respect to the histogram
-/// 'hist' accounting nFitParam floating parameters in case the curve
-/// was the result of a fit
+/// Calculate the reduced \f$ \chi^2 \f$ of this curve with respect to the data
+/// points in `hist`.
+///
+/// The quantity that is returned is
+/// \f[
+///   \frac{\chi^2}{\mathrm{ndf}} = \frac{1}{N_\mathrm{bins} - N_\mathrm{fitParam}}
+///     \sum_{i \,\in\, \mathrm{bins}} \left( \frac{y_i - \bar{f}_i}{\sigma_i} \right)^2,
+/// \f]
+/// where the sum runs over the bins of `hist`, and:
+///
+///  * \f$ y_i \f$ is the content of bin \f$ i \f$ of `hist`.
+///  * \f$ \bar{f}_i \f$ is **not** the value of the underlying pdf or function, but the
+///    average of the *plotted curve* over the bin, obtained by trapezoidal integration of
+///    the curve's polyline over the bin and division by the bin width (see RooCurve::average()).
+///    The curve is therefore only as accurate as its sampling, and the result has more
+///    rounding error than a \f$ \chi^2 \f$ evaluated from the function itself.
+///  * \f$ \sigma_i \f$ is the error of the **data point**, taken asymmetrically: the lower
+///    error `hist.GetEYlow()[i]` if \f$ y_i > \bar{f}_i \f$, and the upper error
+///    `hist.GetEYhigh()[i]` otherwise. This is a Neyman-style \f$ \chi^2 \f$: the denominator
+///    comes from the data, never from the model.
+///  * \f$ N_\mathrm{bins} \f$ counts only the bins that entered the sum.
+///
+/// Bins with \f$ y_i = 0 \f$, and bins whose center falls outside the \f$ x \f$ range covered
+/// by the curve, are skipped and do not count towards \f$ N_\mathrm{bins} \f$.
+///
+/// Because the errors are taken from the data points, this function requires the data to be
+/// plotted with data errors that are actually defined per bin, i.e. with
+/// RooFit::DataError(RooAbsData::Poisson) (the default for unweighted data) or
+/// RooFit::DataError(RooAbsData::SumW2). With RooFit::DataError(RooAbsData::None) or
+/// RooFit::DataError(RooAbsData::Expected), the plotted points carry no error and the
+/// \f$ \chi^2 \f$ is undefined: in that case an error is printed and NaN is returned.
+///
+/// \param[in] hist       The data points to compare this curve to.
+/// \param[in] nFitParam  Number of floating parameters that the curve was fitted with. It is
+/// subtracted from the number of bins to get the number of degrees of freedom.
+///
+/// \return \f$ \chi^2 / \mathrm{ndf} \f$, or NaN if the data errors don't allow to define it.
+///
+/// \see RooAbsReal::createChi2() to get a \f$ \chi^2 \f$ that is
+/// evaluated from the function directly instead of from its plot, and that also supports the
+/// Pearson \f$ \chi^2 \f$ via RooFit::DataError(RooAbsData::Expected).
 
 double RooCurve::chiSquare(const RooHist& hist, Int_t nFitParam) const
 {
@@ -544,6 +583,11 @@ double RooCurve::chiSquare(const RooHist& hist, Int_t nFitParam) const
   double xstop = GetPointX(GetN()-1);
 
   Int_t nbin(0) ;
+
+  // Bins that contribute to the sum but have no error make the chi-square
+  // undefined. They are counted here to report a meaningful error afterwards.
+  Int_t nZeroErrorBins(0) ;
+  double firstZeroErrorBinX(0.) ;
 
   ROOT::Math::KahanSum<double> chisq;
   for (int i=0 ; i<np ; i++) {
@@ -564,10 +608,36 @@ double RooCurve::chiSquare(const RooHist& hist, Int_t nFitParam) const
 
     // Add pull^2 to chisq
     if (point.y!=0) {
-      double pull = (point.y>avg) ? ((point.y-avg)/eyl) : ((point.y-avg)/eyh) ;
+      const double err = (point.y>avg) ? eyl : eyh ;
+      if (!(err > 0.)) {
+        if (nZeroErrorBins == 0) {
+          firstZeroErrorBinX = point.x ;
+        }
+        ++nZeroErrorBins ;
+      }
+      double pull = (point.y-avg)/err ;
       chisq += pull*pull ;
       nbin++ ;
     }
+  }
+
+  // The chi-square is not defined if any of the data points that contribute has
+  // no error. Don't silently skip these bins, because omitting them biases the
+  // test statistic: report the problem and deliberately return NaN.
+  if (nZeroErrorBins > 0) {
+    coutE(Plotting) << "RooCurve::chiSquare(" << GetName() << ") ERROR: the data histogram \"" << hist.GetName()
+                    << "\" has " << nZeroErrorBins << " non-empty bin(s) with a zero error (the first one at x = "
+                    << firstZeroErrorBinX << "). The chi-square is not defined in this case, and NaN is returned."
+                    << "\n    This usually means that the data was plotted with RooFit::DataError(RooAbsData::None)"
+                       " or RooFit::DataError(RooAbsData::Expected), neither of which attaches an error to the"
+                       " plotted data points (the expected error is a property of the model, not of the data)."
+                       "\n    Plot the data with RooFit::DataError(RooAbsData::Poisson) or"
+                       " RooFit::DataError(RooAbsData::SumW2) to get a chi-square from the plot, or use"
+                       " RooAbsReal::createChi2() to compute the chi-square from the pdf directly."
+                       " In particular, RooAbsReal::createChi2(data, RooFit::DataError(RooAbsData::Expected))"
+                       " gives you the Pearson chi-square."
+                    << std::endl ;
+    return std::numeric_limits<double>::quiet_NaN() ;
   }
 
   // Return chisq/nDOF

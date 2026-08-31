@@ -1018,7 +1018,18 @@ void RooPlot::SetMinimum(double minimum)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate and return reduced chi-squared between a curve and a histogram.
+/// Calculate and return reduced chi-squared between a curve and a histogram in this plot.
+///
+/// The quantity that is returned is
+/// \f[
+///   \frac{\chi^2}{\mathrm{ndf}} = \frac{1}{N_\mathrm{bins} - N_\mathrm{fitParam}}
+///     \sum_{i \,\in\, \mathrm{bins}} \left( \frac{y_i - \bar{f}_i}{\sigma_i} \right)^2,
+/// \f]
+/// where \f$ y_i \f$ is the content of bin \f$ i \f$ of the data histogram, \f$ \bar{f}_i \f$ is
+/// the average of the curve over that bin, and \f$ \sigma_i \f$ is the error of the data point,
+/// taken asymmetrically (the lower error if \f$ y_i > \bar{f}_i \f$, the upper error otherwise).
+/// Empty bins and bins outside the \f$ x \f$ range of the curve are skipped and don't count
+/// towards \f$ N_\mathrm{bins} \f$. See RooCurve::chiSquare() for the full definition.
 ///
 /// \param[in] curvename  Name of the curve or nullptr for last curve
 /// \param[in] histname   Name of the histogram to compare to or nullptr for last added histogram
@@ -1026,11 +1037,23 @@ void RooPlot::SetMinimum(double minimum)
 /// number. This means that the curve was fitted to the data with nFitParam floating
 /// parameters, which needs to be reflected in the calculation of \f$\chi^2 / \mathrm{ndf}\f$.
 ///
-/// \return \f$ \chi^2 / \mathrm{ndf} \f$ between the plotted curve and the data.
+/// \return \f$ \chi^2 / \mathrm{ndf} \f$ between the plotted curve and the data, NaN if the
+/// data errors don't allow to define it (see the note on the supported error types below), or
+/// -1 if the requested curve or histogram is not on this plot.
 ///
-/// \note The \f$ \chi^2 \f$ is calculated between a *plot of the original distribution* and the data.
-/// It therefore has more rounding errors than directly calculating the \f$ \chi^2 \f$ from a PDF or
-/// function. To do this, use RooAbsReal::createChi2(RooDataHist&, const RooCmdArg&,  const RooCmdArg&, const RooCmdArg&,  const RooCmdArg&, const RooCmdArg&, const RooCmdArg&,  const RooCmdArg&, const RooCmdArg&).
+/// \note The \f$ \chi^2 \f$ is calculated between a *plot of the original distribution* and the data,
+/// i.e. the curve is linearly interpolated and integrated over each bin instead of evaluating the pdf
+/// or function itself. It therefore has more rounding errors than directly calculating the
+/// \f$ \chi^2 \f$ from a PDF or function. To do this, use RooAbsReal::createChi2().
+///
+/// \note The denominator is always the error of the **data** point (a Neyman-style \f$ \chi^2 \f$),
+/// so the result depends on how the data was plotted. Only data plotted with
+/// RooFit::DataError(RooAbsData::Poisson) (the default for unweighted data) or
+/// RooFit::DataError(RooAbsData::SumW2) is supported. With RooFit::DataError(RooAbsData::None) or
+/// RooFit::DataError(RooAbsData::Expected), the data points have no error, the \f$ \chi^2 \f$ is
+/// undefined, and NaN is returned after printing an error. For a Pearson \f$ \chi^2 \f$ that uses
+/// the expected errors from the model, use
+/// RooAbsReal::createChi2() with RooFit::DataError(RooAbsData::Expected).
 double RooPlot::chiSquare(const char* curvename, const char* histname, int nFitParam) const
 {
 
