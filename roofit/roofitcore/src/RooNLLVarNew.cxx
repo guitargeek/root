@@ -34,6 +34,7 @@ computation times.
 #include <RooSetProxy.h>
 #include <RooFit/Detail/MathFuncs.h>
 
+#include "FitHelpers.h"
 #include "RooFitImplHelpers.h"
 
 #include <ROOT/StringUtils.hxx>
@@ -43,6 +44,7 @@ computation times.
 #include <Math/Util.h>
 
 #include <numeric>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -340,6 +342,7 @@ void RooNLLVarNew::doEvalChi2(RooFit::EvalContext &ctx, std::span<const double> 
       const double diff = mu - N;
 
       double sigma2;
+      bool expectedError = false;
       switch (_chi2ErrorType) {
       case RooDataHist::SumW2: sigma2 = weightsSumW2[i]; break;
       case RooDataHist::Poisson: {
@@ -348,7 +351,10 @@ void RooNLLVarNew::doEvalChi2(RooFit::EvalContext &ctx, std::span<const double> 
          sigma2 = err * err;
          break;
       }
-      default: sigma2 = mu; break; // Expected
+      default:
+         sigma2 = mu; // Expected
+         expectedError = true;
+         break;
       }
 
       // Skip bins where data, prediction and error are all zero (matches legacy RooChi2Var).
@@ -356,7 +362,12 @@ void RooNLLVarNew::doEvalChi2(RooFit::EvalContext &ctx, std::span<const double> 
          continue;
       }
       if (sigma2 <= 0.0) {
-         logEvalError(Form("chi2 bin %lu has non-positive error; term replaced with NaN", (unsigned long)i));
+         // Unlike the legacy RooChi2Var, this loop has no access to the
+         // observable values, and `i` counts only the bins that enter the
+         // chi-square (bins outside the fit range are not in the data spans).
+         std::stringstream binLabel;
+         binLabel << "bin " << i << " (counting only the bins inside the fit range)";
+         logEvalError(RooFit::FitHelpers::chi2ZeroErrorBinMessage(binLabel.str(), N, mu, expectedError).c_str());
          result += std::numeric_limits<double>::quiet_NaN();
          continue;
       }

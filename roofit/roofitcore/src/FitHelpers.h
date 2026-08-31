@@ -16,6 +16,7 @@
 #define RooFit_FitHelpers_h
 
 #include <memory>
+#include <string>
 
 class RooAbsData;
 class RooDataHist;
@@ -36,6 +37,18 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
 std::unique_ptr<RooAbsReal> createChi2(RooAbsReal &real, RooDataHist &data, const RooLinkedList &cmdList);
 
 std::unique_ptr<RooFitResult> fitTo(RooAbsReal &pdf, RooAbsData &data, const RooLinkedList &cmdList, bool chi2);
+
+/// Build the evaluation-error message emitted when the chi-square denominator
+/// of a bin is not positive, which makes the chi-square undefined there.
+/// Shared by the legacy `RooChi2Var` and the vectorizing evaluation backends
+/// so that the user gets the same actionable advice from both.
+/// \param[in] binLabel Human-readable identification of the offending bin.
+/// \param[in] nData Observed (weighted) event count in that bin.
+/// \param[in] nPred Event count predicted by the model in that bin.
+/// \param[in] expectedError Whether the denominator is the error predicted by
+///            the model (Pearson) rather than the error of the data (Neyman).
+///            The recommendation given to the user depends on it.
+std::string chi2ZeroErrorBinMessage(std::string const &binLabel, double nData, double nPred, bool expectedError);
 
 } // namespace FitHelpers
 } // namespace RooFit

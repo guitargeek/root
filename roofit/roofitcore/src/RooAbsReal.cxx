@@ -4054,16 +4054,45 @@ std::unique_ptr<RooFitResult> RooAbsReal::chi2FitToImpl(RooDataHist &data, const
 /// In extended PDF mode, N_tot (total number of data events) is substituted with N_expected, the
 /// expected number of events that the PDF predicts.
 ///
-/// \note If the dataset has errors stored, empty bins will prevent the calculation of \f$ \chi^2 \f$, because those have
-/// zero error. This leads to messages like:
+/// ### Neyman versus Pearson, and the treatment of empty bins
+///
+/// With `DataError(RooAbsData::SumW2)` or `DataError(RooAbsData::Poisson)`, the
+/// denominator \f$ \Delta_\mathrm{bin} \f$ is the error of the *data*: this is
+/// *Neyman's* \f$ \chi^2 \f$. With `DataError(RooAbsData::Expected)`, the
+/// denominator is the error predicted by the *model*,
+/// \f$ \sqrt{N_\mathrm{PDF,bin}} \f$: this is *Pearson's* \f$ \chi^2 \f$.
+///
+/// The default is `DataError(RooAbsData::Auto)`, which is *not* the same thing
+/// in both cases: it resolves to `RooAbsData::Expected` (Pearson) for an
+/// ordinary, Poisson-distributed histogram, and to `RooAbsData::SumW2`
+/// (Neyman) for a histogram with non-Poisson weights, where the
+/// sum-of-weights-squared errors of the data are the only meaningful ones.
+///
+/// Neyman's \f$ \chi^2 \f$ is undefined in a bin whose data error is zero, which
+/// is exactly what happens for an empty bin of a weighted histogram. RooFit
+/// reports this as an evaluation error and the result becomes NaN:
 /// ```
-/// [#0] ERROR:Eval -- RooChi2Var::RooChi2Var(chi2_GenPdf_data_hist) INFINITY ERROR: bin 2 has zero error
+/// [#0] ERROR:Eval -- RooAbsReal::logEvalError(chi2_GenPdf_data_hist) evaluation error,
+///  message      : bin 2 (x=0.175): the data error is not positive (observed 0, predicted 4.14), so [...]
 /// ```
 ///
-/// \note In this case, one can use the expected errors of the PDF instead of the data errors:
+/// The way out is to use Pearson's \f$ \chi^2 \f$, which stays finite as long as
+/// the model prediction is positive:
 /// ```{.cpp}
-/// RooChi2Var chi2(..., ..., RooFit::DataError(RooAbsData::Expected), ...);
+/// pdf.createChi2(data, RooFit::DataError(RooAbsData::Expected));
 /// ```
+/// Pearson's \f$ \chi^2 \f$ is in turn undefined wherever the model predicts
+/// exactly zero events, which is reported in the same way.
+///
+/// \note This is a deliberate difference to TH1::Chisquare() and to the default
+/// \f$ \chi^2 \f$ of TH1::Fit(), which drop empty bins from the data altogether
+/// (see `ROOT::Fit::DataOptions::fUseEmpty`). RooFit does not drop them: an
+/// empty bin is not the same as a non-existing bin, and the fact that nothing
+/// was observed there is information about the data-model agreement. Dropping
+/// exactly those bins in which the model predicts the most and the data
+/// delivers the least biases the test statistic. Rather than silently omitting
+/// information, RooFit asks you to pick a \f$ \chi^2 \f$ definition that is
+/// well-defined for your data.
 ///
 /// \param data Histogram with data
 /// \param arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8 ordered arguments

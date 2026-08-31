@@ -45,6 +45,8 @@
 #include "RooFitImplHelpers.h"
 #include "RooFit/Detail/RooNLLVarNew.h"
 
+#include <sstream>
+
 #ifdef ROOFIT_LEGACY_EVAL_BACKEND
 #include "RooChi2Var.h"
 #include "RooNLLVar.h"
@@ -1056,6 +1058,25 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
 #endif
 
    return nll;
+}
+
+std::string chi2ZeroErrorBinMessage(std::string const &binLabel, double nData, double nPred, bool expectedError)
+{
+   std::stringstream ss;
+   ss << binLabel << ": ";
+   if (expectedError) {
+      ss << "the model predicts " << nPred << " events (observed " << nData
+         << "), so the error predicted by the model is not positive and Pearson's chi-square is undefined there. "
+            "Check the normalization and the ranges of the model, or use RooFit::DataError(RooAbsData::SumW2) for "
+            "Neyman's chi-square if the data errors are positive in all bins.";
+   } else {
+      ss << "the data error is not positive (observed " << nData << ", predicted " << nPred
+         << "), so Neyman's chi-square is undefined there, and RooFit deliberately does not skip such bins. Use "
+            "RooFit::DataError(RooAbsData::Expected) for Pearson's chi-square, which uses the error predicted by "
+            "the model instead.";
+   }
+   ss << " See the RooAbsReal::createChi2() documentation.";
+   return ss.str();
 }
 
 std::unique_ptr<RooAbsReal> createChi2(RooAbsReal &real, RooDataHist &data, const RooLinkedList &cmdList)

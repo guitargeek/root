@@ -33,6 +33,7 @@
 
 #include "gtest_wrapper.h"
 
+#include <array>
 #include <cmath>
 #include <memory>
 #include <numeric>
@@ -1119,6 +1120,135 @@ TEST(CreateNLL, ResetDataCodegen)
    double nll2Val = nll->getVal();
 
    EXPECT_FLOAT_EQ(nll2Val, 2 * nll1Val);
+}
+
+/// The Neyman chi-square (with the error of the *data* in the denominator) is
+/// undefined in bins with zero error, i.e. in empty bins of a weighted
+/// histogram. Unlike TH1::Chisquare(), RooFit does not skip such bins: it
+/// reports an evaluation error for every one of them and the result is NaN, so
+/// that a wrong number can't be mistaken for a valid chi-square. Pearson's
+/// chi-square, requested with DataError(RooAbsData::Expected), is the way out,
+/// and is undefined in turn where the model predicts zero events.
+/// Covers GitHub issue #21696.
+TEST(RooChi2Var, ZeroErrorBins)
+{
+   using namespace RooFit;
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   constexpr int nBins = 10;
+   constexpr double weight = 1.5;
+
+   // The first histogram has two empty bins, which have zero SumW2 error.
+   const std::array<int, nBins> countsEmpty{{5, 7, 0, 9, 11, 8, 6, 0, 4, 3}};
+   const std::array<int, nBins> countsFull{{5, 7, 2, 9, 11, 8, 6, 1, 4, 3}};
+
+   auto makeHist = [&](const char *name, std::array<int, nBins> const &counts) {
+      auto hist = std::make_unique<TH1D>(name, name, nBins, 0., 10.);
+      hist->Sumw2();
+      for (int i = 0; i < nBins; ++i) {
+         for (int j = 0; j < counts[i]; ++j) {
+            hist->Fill(i + 0.5, weight);
+         }
+      }
+      return hist;
+   };
+
+   // Neyman chi-square for a flat prediction, computed by hand.
+   auto referenceChi2 = [&](std::array<int, nBins> const &counts) {
+      const double sumW = weight * std::accumulate(counts.begin(), counts.end(), 0);
+      double chi2 = 0.0;
+      for (int c : counts) {
+         const double nData = weight * c;
+         const double mu = sumW / nBins;
+         chi2 += (mu - nData) * (mu - nData) / (weight * weight * c);
+      }
+      return chi2;
+   };
+
+   RooWorkspace ws;
+   ws.factory("Uniform::uniform(x[0, 10])");
+   // A Gaussian this narrow underflows to exactly zero in the upper bins, so
+   // that the *predicted* error of Pearson's chi-square vanishes there.
+   ws.factory("Gaussian::narrow(x, mu0[0.5], sigma0[0.05, 0.01, 1.0])");
+   RooRealVar &x = *ws.var("x");
+   x.setBins(nBins);
+   RooAbsPdf &uniform = *ws.pdf("uniform");
+   RooAbsPdf &narrow = *ws.pdf("narrow");
+
+   std::unique_ptr<TH1D> histEmpty{makeHist("histEmpty", countsEmpty)};
+   std::unique_ptr<TH1D> histFull{makeHist("histFull", countsFull)};
+   RooDataHist dhEmpty{"dhEmpty", "dhEmpty", RooArgList{x}, histEmpty.get()};
+   RooDataHist dhFull{"dhFull", "dhFull", RooArgList{x}, histFull.get()};
+
+   std::vector<EvalBackend> backends = chi2CrossCheckBackends();
+#ifdef ROOFIT_LEGACY_EVAL_BACKEND
+   backends.push_back(EvalBackend::Legacy());
+#endif
+
+   for (auto const &backend : backends) {
+      SCOPED_TRACE(std::string("backend = ") + backend.name());
+      const bool isLegacy = backend.name() == EvalBackend::Legacy().name();
+      // The codegen backends inline RooFit::Detail::MathFuncs::chi2*(), which
+      // return NaN but cannot talk to the message service. They therefore give
+      // the right value, but no explanation (see GitHub issue #21696).
+      const bool hasMessages = backend.name().find("codegen") == std::string::npos;
+
+      // The Neyman chi-square is undefined: expect NaN (and in particular not
+      // the plausible-looking zero that RooChi2Var used to return) and an
+      // error message that points at Pearson's chi-square.
+      {
+         RooHelpers::HijackMessageStream hijack{RooFit::ERROR, RooFit::Eval};
+         std::unique_ptr<RooAbsReal> chi2{uniform.createChi2(dhEmpty, DataError(RooAbsData::SumW2), backend)};
+         EXPECT_TRUE(std::isnan(chi2->getVal()));
+         const std::string msg = hijack.str();
+         if (hasMessages) {
+            EXPECT_NE(msg.find("Pearson"), std::string::npos) << msg;
+            EXPECT_NE(msg.find("RooFit::DataError(RooAbsData::Expected)"), std::string::npos) << msg;
+            // Every offending bin is reported, not just the first one.
+            EXPECT_NE(msg.find("bin 2"), std::string::npos) << msg;
+            EXPECT_NE(msg.find("bin 7"), std::string::npos) << msg;
+         }
+         if (isLegacy) {
+            // The legacy backend also knows the observable values.
+            EXPECT_NE(msg.find("x=2.5"), std::string::npos) << msg;
+            EXPECT_NE(msg.find("x=7.5"), std::string::npos) << msg;
+         }
+      }
+
+      // Pearson's chi-square is finite on the very same dataset.
+      {
+         std::unique_ptr<RooAbsReal> chi2{uniform.createChi2(dhEmpty, DataError(RooAbsData::Expected), backend)};
+         const double val = chi2->getVal();
+         EXPECT_TRUE(std::isfinite(val));
+         EXPECT_GT(val, 0.0);
+      }
+
+      // Pearson's chi-square is undefined where the model predicts nothing.
+      // The message must not recommend what the user is already doing.
+      {
+         RooHelpers::HijackMessageStream hijack{RooFit::ERROR, RooFit::Eval};
+         std::unique_ptr<RooAbsReal> chi2{narrow.createChi2(dhFull, DataError(RooAbsData::Expected), backend)};
+         EXPECT_TRUE(std::isnan(chi2->getVal()));
+         const std::string msg = hijack.str();
+         if (hasMessages) {
+            EXPECT_NE(msg.find("Pearson's chi-square is undefined"), std::string::npos) << msg;
+            EXPECT_EQ(msg.find("RooFit::DataError(RooAbsData::Expected)"), std::string::npos) << msg;
+         }
+      }
+
+      // DataError(RooAbsData::None) means "no denominator": zero by convention,
+      // consistently in all backends.
+      {
+         std::unique_ptr<RooAbsReal> chi2{uniform.createChi2(dhEmpty, DataError(RooAbsData::None), backend)};
+         EXPECT_EQ(chi2->getVal(), 0.0);
+      }
+
+      // Without empty bins, the Neyman chi-square is unaffected by all this.
+      {
+         std::unique_ptr<RooAbsReal> chi2{uniform.createChi2(dhFull, DataError(RooAbsData::SumW2), backend)};
+         EXPECT_NEAR(chi2->getVal(), referenceChi2(countsFull), 1e-9 * referenceChi2(countsFull));
+      }
+   }
 }
 
 TEST(RooChi2Var, BinnedRangeAdditivityAndNormalization)

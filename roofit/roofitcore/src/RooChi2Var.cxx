@@ -24,11 +24,47 @@
 #include "RooCmdConfig.h"
 #include "RooMsgService.h"
 #include "RooRealVar.h"
+#include "RooAbsCategory.h"
 #include "RooAbsDataStore.h"
 
 #include <ROOT/StringUtils.hxx>
 
+#include <limits>
 #include <ostream>
+#include <sstream>
+#include <string>
+
+namespace {
+
+/// Label a data-hist row by its index and, where available, by the values of
+/// its observables, e.g. "bin 3 (x=0.175, cat=sig)".
+std::string describeBin(std::size_t idx, RooArgSet const &row)
+{
+   std::stringstream ss;
+   ss << "bin " << idx;
+   std::stringstream coords;
+   bool first = true;
+   for (RooAbsArg *arg : row) {
+      auto *real = dynamic_cast<RooAbsReal *>(arg);
+      auto *cat = dynamic_cast<RooAbsCategory *>(arg);
+      if (!real && !cat) {
+         continue;
+      }
+      coords << (first ? "" : ", ") << arg->GetName() << "=";
+      if (real) {
+         coords << real->getVal();
+      } else {
+         coords << cat->getCurrentLabel();
+      }
+      first = false;
+   }
+   if (!first) {
+      ss << " (" << coords.str() << ")";
+   }
+   return ss.str();
+}
+
+} // namespace
 
 RooChi2Var::RooChi2Var(const char *name, const char *title, RooAbsReal &func, RooDataHist &data, bool extended,
                        RooDataHist::ErrorType etype, RooAbsTestStatistic::Configuration const &cfg)
@@ -62,6 +98,18 @@ double RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEve
 {
   double result(0);
   double carry(0);
+
+  // With DataError(RooAbsData::None), all bin errors are zero by definition and
+  // the chi-square is zero by convention (the vectorizing backends in
+  // RooNLLVarNew::doEvalChi2() do the same).
+  if (_etype == RooAbsData::None) {
+    _evalCarry = 0.;
+    return 0.;
+  }
+
+  // Set to true if at least one bin has a non-positive error, which makes the
+  // chi-square undefined.
+  bool hasUndefinedBin = false;
 
   // Also consider the composite case of multiple ranges
   std::vector<std::string> rangeTokens;
@@ -125,11 +173,16 @@ double RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEve
     // Skip cases where pdf=0 and there is no data
     if (0. == eInt * eInt && 0. == nData * nData && 0. == nPdf * nPdf) continue ;
 
-    // Return 0 if eInt=0, special handling in MINUIT will follow
+    // The chi-square is undefined for a bin with zero error. Log an evaluation
+    // error (so the minimizer's error handling kicks in) and make sure that the
+    // final value is NaN instead of a plausible-looking number.
     if (0. == eInt * eInt) {
-      coutE(Eval) << "RooChi2Var::RooChi2Var(" << GetName() << ") INFINITY ERROR: bin " << i
-        << " has zero error" << std::endl;
-      return 0.;
+      const bool expectedError = (_etype == RooAbsData::Expected);
+      const std::string msg =
+        RooFit::FitHelpers::chi2ZeroErrorBinMessage(describeBin(i, *row), nData, nPdf, expectedError);
+      logEvalError(msg.c_str());
+      hasUndefinedBin = true;
+      continue;
     }
 
 //     std::cout << "Chi2Var[" << i << "] nData = " << nData << " nPdf = " << nPdf << " errorExt = " << eExt << " errorInt = " << eInt << " contrib = " << eExt*eExt/(eInt*eInt) << std::endl ;
@@ -142,6 +195,9 @@ double RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEve
   }
 
   _evalCarry = carry;
+  if (hasUndefinedBin) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
   return result ;
 }
 
