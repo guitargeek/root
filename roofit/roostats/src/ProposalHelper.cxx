@@ -29,6 +29,7 @@
 #include "RooConstVar.h"
 #include "TString.h"
 
+#include <exception>
 #include <map>
 
 namespace RooStats {
@@ -130,10 +131,20 @@ void ProposalHelper::CreateCovMatrix(RooArgList& xVec)
 void ProposalHelper::CreateCluesPdf()
 {
    if (fClues != nullptr) {
-      if (fCluesOptions == nullptr) {
-         fCluesPdf = new RooNDKeysPdf("cluesPdf", "Clues PDF", *fVars, *fClues);
-      } else {
-         fCluesPdf = new RooNDKeysPdf("cluesPdf", "Clues PDF", *fVars, *fClues, fCluesOptions);
+      // A degenerate set of clues (a single point, or points that do not span
+      // all dimensions) makes the kernel estimation impossible and
+      // RooNDKeysPdf reports that with an exception. Leave fCluesPdf empty in
+      // that case, which GetProposalFunction() already handles.
+      try {
+         if (fCluesOptions == nullptr) {
+            fCluesPdf = new RooNDKeysPdf("cluesPdf", "Clues PDF", *fVars, *fClues);
+         } else {
+            fCluesPdf = new RooNDKeysPdf("cluesPdf", "Clues PDF", *fVars, *fClues, fCluesOptions);
+         }
+      } catch (std::exception const &e) {
+         oocoutE(nullptr, Eval) << "ProposalHelper::CreateCluesPdf: creation of clues PDF failed: " << e.what()
+                                << std::endl;
+         fCluesPdf = nullptr;
       }
    }
 }
