@@ -4,6 +4,8 @@
 For an introduction check the \ref tutorial_roofit, [user's guides](https://root.cern/topical/#roofit),
 [courses](https://root.cern.ch/learn/courses) or [the RooFit chapter of the Manual](https://root.cern/manual/roofit/).
 
+The \ref roofit_likelihood_math page spells out the negative log-likelihood that RooAbsPdf::createNLL() builds, including all constant terms.
+
 For developers, there is also the \ref roofit_dev_docs, which serves as a reference on how to extend %RooFit with custom classes or for contributing to %RooFit itself.
 
 \defgroup roofit_dev_docs RooFit Developer Documentation

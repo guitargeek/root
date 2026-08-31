@@ -85,6 +85,23 @@ tool.exportJSON("myjson.json");
 
 For more details, consult the tutorial <a href="rf515__hfJSON_8py.html">rf515_hfJSON</a>.
 
+### Likelihood conventions
+
+An HS3 file describes the *model*, not the likelihood that is built from it.
+When comparing absolute negative log-likelihood values between %RooFit and
+another HS3 implementation, mind the constant terms that
+RooAbsPdf::createNLL() adds: the \f$ \log n_j! \f$ of the per-bin Poisson terms
+of a binned likelihood and the normalization constants of the constraint pdfs
+are part of the %RooFit NLL, while the \f$ \log N! \f$ of the extended term is
+not. The explicit formulae are collected in \ref roofit_likelihood_math.
+
+Note also that whether the channels of a histogram-based model are evaluated as
+binned Poisson likelihoods is steered by the `BinnedLikelihood` attribute, which
+is stored in the ROOT-specific `misc.ROOT_internal.attributes` section of the
+JSON file and is therefore not visible to other HS3 implementations.
+
+### Extending the tool
+
 The RooJSONFactoryWSTool only knows about a limited set of classes for
 import and export. If import or export of a class you're interested in
 fails, you might need to add your own importer or exporter. Please

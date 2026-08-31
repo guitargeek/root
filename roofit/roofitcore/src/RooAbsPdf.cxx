@@ -670,6 +670,10 @@ void RooAbsPdf::getLogProbabilities(std::span<const double> pdfValues, double * 
 /// Return the extended likelihood term (\f$ N_\mathrm{expect} - N_\mathrm{observed} \cdot \log(N_\mathrm{expect} \f$)
 /// of this PDF for the given number of observed events.
 ///
+/// Note that the \f$ \log N_\mathrm{observed}! \f$ constant of the Poisson
+/// distribution of \f$ N_\mathrm{observed} \f$ is not part of this term
+/// (see \ref roofit_likelihood_math).
+///
 /// For successful operation, the PDF implementation must indicate that
 /// it is extendable by overloading `canBeExtended()`, and must
 /// implement the `expectedEvents()` function.
@@ -812,13 +816,22 @@ double RooAbsPdf::extendedTerm(RooAbsData const& data, bool weightSquared, bool 
  *       If you mean to customize the NLL creation routine,
  *       you need to override the virtual RooAbsPdf::createNLLImpl() method.
  *
+ * \see \ref roofit_likelihood_math for the explicit mathematical definition of
+ *      the returned negative log-likelihood, in particular for the list of
+ *      constant terms that it does and does not contain. Those constants matter
+ *      when absolute NLL values are compared with other tools.
+ *
  * The following named arguments are supported:
  *
  * <table>
  * <tr><th> Type of CmdArg    <th>    Effect on NLL
  * <tr><td> `ConditionalObservables(Args_t &&... argsOrArgSet)`  <td>  Do not normalize PDF over listed observables.
  *                                                 Arguments can either be multiple RooRealVar or a single RooArgSet containing them.
- * <tr><td> `Extended(bool flag)`             <td> Add extended likelihood term, off by default.
+ * <tr><td> `Extended(bool flag)`             <td> Add extended likelihood term \f$ \nu - N \log \nu \f$, where \f$ \nu \f$ is the expected
+ *                                                 number of events and \f$ N \f$ the sum of weights of the dataset. If this argument is not given,
+ *                                                 the extended term is added for all pdfs that provide an expected number of events.
+ *                                                 Note that the \f$ \log N! \f$ constant of the Poisson distribution of \f$ N \f$ is not part of
+ *                                                 this term (see \ref roofit_likelihood_math).
  * <tr><td> `Range(const char* name)`         <td>  Fit only data inside range with given name. Multiple comma-separated range names can be specified.
  *                                                  In this case, the unnormalized PDF \f$f(x)\f$ is normalized by the integral over all ranges \f$r_i\f$:
  *                                                  \f[
