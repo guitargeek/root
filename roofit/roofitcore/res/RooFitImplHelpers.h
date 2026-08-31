@@ -20,6 +20,7 @@
 
 #include <TMath.h>
 
+#include <cstddef>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -126,6 +127,11 @@ struct BinnedLOutput {
 BinnedLOutput getBinnedL(RooAbsPdf const &pdf);
 
 void getSortedComputationGraph(RooAbsArg const &func, RooArgSet &out);
+
+/// Check the computation graph rooted at `head` (and, if given, at the
+/// additional `extraHeads`) for distinct objects that share the same name.
+std::size_t checkGraphForNameClashes(RooAbsArg const &head, std::string const &context,
+                                     RooAbsCollection const *extraHeads = nullptr);
 
 /// Check that `function` is constant (flat) inside each bin defined by the
 /// sorted `boundaries` when scanning the observable `obs`. Several interior

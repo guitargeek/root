@@ -769,6 +769,14 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       return nullptr;
    }
 
+   // Inspect the user-built computation graph before any internal cloning
+   // happens: distinct objects sharing a name make the result silently wrong.
+   // The externally-supplied constraint pdfs are part of the likelihood too,
+   // and a constraint that was built with its own copy of a model parameter is
+   // one of the most common ways to run into this.
+   RooHelpers::checkGraphForNameClashes(pdf, "RooAbsPdf::createNLL(" + std::string(pdf.GetName()) + ")",
+                                        pc.getSet("extCons"));
+
    if (pc.getInt("ModularL")) {
       int lut[3] = {2, 1, 0};
       RooFit::TestStatistics::RooAbsL::Extended ext{
@@ -1028,6 +1036,10 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
 std::unique_ptr<RooAbsReal> createChi2(RooAbsReal &real, RooDataHist &data, const RooLinkedList &cmdList)
 {
    RooCmdConfig pc("createChi2(" + std::string(real.GetName()) + ")");
+
+   // Inspect the user-built computation graph before any internal cloning
+   // happens: distinct objects sharing a name make the result silently wrong.
+   RooHelpers::checkGraphForNameClashes(real, "createChi2(" + std::string(real.GetName()) + ")");
 
    pc.defineInt("EvalBackend", "EvalBackend", 0, static_cast<int>(RooFit::EvalBackend::defaultValue()));
    pc.defineInt("numcpu", "NumCPU", 0, 1);

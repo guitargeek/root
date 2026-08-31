@@ -9,6 +9,7 @@
 #include <RooDataHist.h>
 #include <RooDataSet.h>
 #include <RooExponential.h>
+#include <RooFitImplHelpers.h>
 #include <RooFitResult.h>
 #include <RooFormulaVar.h>
 #include <RooGaussian.h>
@@ -537,6 +538,39 @@ double gaussInt(double lo, double hi, double mean, double sigma)
           (std::erf((hi - mean) / (sqrt2 * sigma)) - std::erf((lo - mean) / (sqrt2 * sigma)));
 }
 
+/// Model of the JIRA issue ROOT-3555 referenced in GitHub issue #7417: a
+/// simultaneous pdf built from two Gaussians whose "mean" and "sigma"
+/// parameters are *different objects with identical names*.
+struct ClashingModel {
+   ClashingModel(const char *nameA, const char *nameB)
+      : mean1{nameA, nameA, 1.0, -10, 10},
+        sigma1{nameB, nameB, 1.0, 0.1, 10},
+        mean2{nameA, nameA, -1.0, -10, 10},
+        sigma2{nameB, nameB, 2.0, 0.1, 10}
+   {
+      cat.defineType("A", 0);
+      cat.defineType("B", 1);
+      sim.addPdf(g1, "A");
+      sim.addPdf(g2, "B");
+      for (int i = 0; i < 20; ++i) {
+         x.setVal(-2.0 + 0.2 * i);
+         cat.setIndex(i % 2);
+         data.add({x, cat});
+      }
+   }
+
+   RooRealVar x{"x", "x", -10, 10};
+   RooRealVar mean1;
+   RooRealVar sigma1;
+   RooRealVar mean2;
+   RooRealVar sigma2;
+   RooGaussian g1{"g1", "g1", x, mean1, sigma1};
+   RooGaussian g2{"g2", "g2", x, mean2, sigma2};
+   RooCategory cat{"cat", "cat"};
+   RooSimultaneous sim{"sim", "sim", cat};
+   RooDataSet data{"data", "data", {x, cat}};
+};
+
 } // namespace
 
 /// Normalization, integration and cdf of a pdf in one dimension, checked
@@ -657,6 +691,178 @@ TEST(RooAbsPdf, NumIntConfig)
 
    // Both ways of passing the custom configuration must give the identical result
    EXPECT_DOUBLE_EQ(val3, val2);
+}
+
+/// If the computation graph contains different objects that share a name, only
+/// one of them is picked up by RooFit's name-based lookup and the result is
+/// silently wrong. Check that this is now reported. Covers GitHub issue #7417.
+TEST(RooAbsPdf, DuplicateNamesInComputationGraph)
+{
+   ClashingModel model{"mean", "sigma"};
+
+   // Without the check, the fit would happily run with only two floating
+   // parameters instead of four.
+   std::unique_ptr<RooArgSet> params{model.sim.getParameters(RooArgSet{model.x})};
+   EXPECT_EQ(params->size(), 2 + 1); // "mean", "sigma" and the index category
+
+   RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+   std::unique_ptr<RooAbsReal> nll{model.sim.createNLL(model.data)};
+   const std::string msg = hijack.str();
+
+   EXPECT_NE(msg.find(R"(different objects named "mean")"), std::string::npos) << msg;
+   EXPECT_NE(msg.find(R"(different objects named "sigma")"), std::string::npos) << msg;
+   // The message needs to point at the offending nodes and their location.
+   EXPECT_NE(msg.find("RooRealVar::mean"), std::string::npos) << msg;
+   EXPECT_NE(msg.find("used by: g1"), std::string::npos) << msg;
+   EXPECT_NE(msg.find("used by: g2"), std::string::npos) << msg;
+}
+
+/// Importing such a graph into a workspace is the other common way to silently
+/// lose one of the two objects.
+TEST(RooWorkspace, DuplicateNamesInImportedGraph)
+{
+   ClashingModel model{"mean", "sigma"};
+
+   RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+   RooWorkspace ws{"ws"};
+   ws.import(model.sim, RooFit::Silence());
+   const std::string msg = hijack.str();
+
+   EXPECT_NE(msg.find(R"(different objects named "mean")"), std::string::npos) << msg;
+}
+
+/// The check must not fire on the many legitimate ways in which the *same*
+/// object shows up several times in a computation graph.
+TEST(RooAbsPdf, NoDuplicateNameFalsePositives)
+{
+   using namespace RooFit;
+
+   // Shared parameters across the channels: "mean" and "sigma" are reached
+   // through many different paths, but they are always the same object.
+   RooRealVar x{"x", "x", -10, 10};
+   RooRealVar mean{"mean", "mean", 0.0, -10, 10};
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10};
+   RooGaussian g1{"g1", "g1", x, mean, sigma};
+   RooGaussian g2{"g2", "g2", x, mean, sigma};
+
+   // A RooConstVar obtained from the RooRealConstant factory: the same value
+   // hands out the same object, so "1" appears twice in the graph as one node.
+   RooAddPdf sum1{"sum1", "sum1", {g1, g2}, {RooFit::RooConst(0.5)}};
+   RooAddPdf sum2{"sum2", "sum2", {g2, g1}, {RooFit::RooConst(0.5)}};
+
+   RooCategory cat{"cat", "cat"};
+   cat.defineType("A", 0);
+   cat.defineType("B", 1);
+   RooSimultaneous sim{"sim", "sim", cat};
+   sim.addPdf(sum1, "A");
+   sim.addPdf(sum2, "B");
+
+   RooDataSet data{"data", "data", {x, cat}};
+   for (int i = 0; i < 20; ++i) {
+      x.setVal(-2.0 + 0.2 * i);
+      cat.setIndex(i % 2);
+      data.add({x, cat});
+   }
+
+   RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+
+   // Also check that RooFit's own internal cloning (which does create objects
+   // with equal names) is not picked up: the graph is inspected before that
+   // happens, and running the fit twice must stay silent.
+   std::unique_ptr<RooFitResult>{sim.fitTo(data, Save(), PrintLevel(-1))};
+   std::unique_ptr<RooFitResult>{sim.fitTo(data, Save(), PrintLevel(-1))};
+
+   RooWorkspace ws{"ws"};
+   ws.import(sim, RooFit::Silence());
+
+   EXPECT_TRUE(hijack.str().empty()) << hijack.str();
+}
+
+/// Distinct RooConstVar instances that carry the same name are the one
+/// legitimate duplicate-name case in RooFit: constants are named after their
+/// value and are interchangeable. They occur in real models, e.g. in the
+/// RooStats HybridInstructional tutorial, where the "1" of the inner sum and
+/// the "1" of the Gamma end up as two separate objects.
+TEST(RooAbsPdf, NoDuplicateNameFalsePositiveForConstants)
+{
+   RooWorkspace ws{"ws"};
+   ws.factory("Gamma::gamma_y0(b[10,0,100], sum::temp0(y0[10,0,100], 1), 1, 0)");
+
+   {
+      RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+      EXPECT_EQ(RooHelpers::checkGraphForNameClashes(*ws.pdf("gamma_y0"), "test"), 0u);
+      EXPECT_TRUE(hijack.str().empty()) << hijack.str();
+   }
+
+   // Constants with the same name but different values are a real problem and
+   // must still be reported.
+   RooRealVar x{"x", "x", 1.0};
+   RooConstVar c1{"c", "c", 1.0};
+   RooConstVar c2{"c", "c", 2.0};
+   RooProduct p1{"p1", "p1", {x, c1}};
+   RooProduct p2{"p2", "p2", {x, c2}};
+   RooAddition top{"top", "top", {p1, p2}};
+
+   RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+   EXPECT_EQ(RooHelpers::checkGraphForNameClashes(top, "test"), 1u);
+   EXPECT_NE(hijack.str().find(R"(different objects named "c")"), std::string::npos) << hijack.str();
+}
+
+/// A RooConstVar that shares its name with something that is not a constant is
+/// a real clash and must not be swallowed by the constant exclusion, whichever
+/// of the two the graph walk happens to encounter first.
+TEST(RooAbsPdf, DuplicateNameConstantAndVariable)
+{
+   RooRealVar x{"x", "x", 1.0};
+   RooRealVar one{"1", "one", 1.0};
+   RooConstVar constOne{"1", "one", 1.0};
+
+   for (bool constFirst : {true, false}) {
+      RooProduct p1{"p1", "p1", {x, constFirst ? static_cast<RooAbsReal &>(constOne) : one}};
+      RooProduct p2{"p2", "p2", {x, constFirst ? one : static_cast<RooAbsReal &>(constOne)}};
+      RooAddition top{"top", "top", {p1, p2}};
+
+      RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+      EXPECT_EQ(RooHelpers::checkGraphForNameClashes(top, "test"), 1u) << "constFirst=" << constFirst;
+      EXPECT_NE(hijack.str().find(R"(different objects named "1")"), std::string::npos) << hijack.str();
+   }
+}
+
+/// Constraint pdfs handed to fitTo() with ExternalConstraints() are part of the
+/// likelihood but not of the pdf's own computation graph. A constraint built
+/// with its own copy of a model parameter is the same silent-wrongness trap, so
+/// they have to be inspected together with the model.
+TEST(RooAbsPdf, DuplicateNamesInExternalConstraints)
+{
+   RooRealVar x{"x", "x", -10, 10};
+   RooRealVar alpha{"alpha", "alpha", 0.0, -5, 5};
+   RooRealVar sigma{"sigma", "sigma", 2.0, 0.1, 10};
+   sigma.setConstant(true);
+   RooGaussian gauss{"gauss", "gauss", x, alpha, sigma};
+
+   // A *different* object with the same name as the model parameter: without
+   // the check, the constraint has no effect on the fit and nothing is said.
+   RooRealVar alphaClone{"alpha", "alpha", 0.0, -5, 5};
+   RooRealVar globs{"alpha_glob", "alpha_glob", 1.0, -10, 10};
+   RooConstVar width{"width", "width", 0.3};
+   RooGaussian constraint{"constraint", "constraint", globs, alphaClone, width};
+
+   RooRandom::randomGenerator()->SetSeed(42);
+   std::unique_ptr<RooAbsData> data{gauss.generate(x, 20)};
+
+   RooHelpers::HijackMessageStream hijack(RooFit::ERROR, RooFit::InputArguments);
+   std::unique_ptr<RooAbsReal> nll{
+      gauss.createNLL(*data, RooFit::ExternalConstraints(constraint), RooFit::GlobalObservables(globs))};
+   const std::string msg = hijack.str();
+   EXPECT_NE(msg.find(R"(different objects named "alpha")"), std::string::npos) << msg;
+   EXPECT_NE(msg.find("used by: constraint"), std::string::npos) << msg;
+
+   // A constraint that correctly shares the model parameter stays silent.
+   RooGaussian goodConstraint{"constraint", "constraint", globs, alpha, width};
+   RooHelpers::HijackMessageStream hijack2(RooFit::ERROR, RooFit::InputArguments);
+   std::unique_ptr<RooAbsReal> nll2{
+      gauss.createNLL(*data, RooFit::ExternalConstraints(goodConstraint), RooFit::GlobalObservables(globs))};
+   EXPECT_TRUE(hijack2.str().empty()) << hijack2.str();
 }
 
 /// Unbinned fit with a per-event acceptance region, implemented via a range

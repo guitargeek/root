@@ -75,6 +75,8 @@ and try reading again.
 #include "TClass.h"
 #include "strlcpy.h"
 
+#include "RooFitImplHelpers.h"
+
 #ifdef ROOFIT_LEGACY_EVAL_BACKEND
 #include "RooAbsOptTestStatistic.h"
 #endif
@@ -428,6 +430,22 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
 
   bool conflictOnly = suffixA ? false : true ;
   const char* suffix = suffixA ? suffixA : suffixC ;
+
+  // Importing a computation graph that contains different objects with the
+  // same name is the other common way to end up with a silently wrong model,
+  // because the workspace only keeps one object per name. This is only
+  // flagged when no conflict resolution protocol was requested, mirroring how
+  // name collisions with the *existing* workspace contents are treated below:
+  // with RecycleConflictNodes() or one of the Rename*() arguments, the caller
+  // explicitly asks for same-name objects to be merged or renamed. Assembling
+  // a model from separately built parts that share parameter names is a
+  // supported workflow, used for instance by HistFactory when it combines the
+  // per-channel workspaces into the combined model.
+  // With NoRecursion() only the top node is imported, so a clash further down
+  // the graph is none of this import's business.
+  if (!suffix && !useExistingNodes && !noRecursion) {
+     RooHelpers::checkGraphForNameClashes(inArg, "RooWorkspace::import(" + std::string(GetName()) + ")");
+  }
 
   // Process any change in variable names
   std::unordered_map<string,string> varMap ;

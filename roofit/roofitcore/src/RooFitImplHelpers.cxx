@@ -19,6 +19,7 @@
 #include <RooAbsPdf.h>
 #include <RooAbsRealLValue.h>
 #include <RooArgList.h>
+#include <RooConstVar.h>
 #include <RooDataHist.h>
 #include <RooDataSet.h>
 #include <RooProdPdf.h>
@@ -28,7 +29,11 @@
 #include <ROOT/StringUtils.hxx>
 #include <TClass.h>
 
+#include <algorithm>
+#include <map>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace RooHelpers {
 
@@ -192,6 +197,168 @@ void getSortedComputationGraph(RooAbsArg const &func, RooArgSet &out)
    // Sort nodes topologically: the servers of any node will be before that
    // node in the collection.
    out.sortTopologically();
+}
+
+namespace {
+
+/// Collect the nodes of the computation graph rooted at `head` by following
+/// the server links. Nodes already in `visited` are skipped, so the function
+/// can be called repeatedly to accumulate several graphs into one node list.
+/// Every node is recorded exactly once (by pointer), which makes the walk
+/// linear in the number of nodes and server links.
+void collectGraphNodes(RooAbsArg const &head, std::vector<RooAbsArg const *> &nodes,
+                       std::unordered_set<RooAbsArg const *> &visited)
+{
+   if (!visited.insert(&head).second) {
+      return;
+   }
+   std::vector<RooAbsArg const *> stack{&head};
+   while (!stack.empty()) {
+      RooAbsArg const *node = stack.back();
+      stack.pop_back();
+      nodes.push_back(node);
+      for (RooAbsArg *server : node->servers()) {
+         if (visited.insert(server).second) {
+            stack.push_back(server);
+         }
+      }
+   }
+}
+
+/// A group of same-named nodes that consists exclusively of RooConstVar
+/// instances with the same value is not reported. RooFit names its constants
+/// after their value and creates one wherever a literal number is needed, so
+/// the same literal legitimately ends up in a graph as several objects: the
+/// RooStats HybridInstructional model, for example, contains two separate
+/// "1". Reporting those would be pure noise.
+///
+/// The exclusion is deliberately narrow. A RooConstVar that shares its name
+/// with any other kind of object, and constants that carry the same name but
+/// different values, are real clashes and stay reported. It is *not* a claim
+/// that a RooConstVar is immutable: RooConstVar::changeVal() exists (xRooFit
+/// uses it), so a graph in which one of two identically named constants is
+/// modified afterwards is still silently wrong. That residual hole is
+/// accepted, because without the exclusion the check would fire on models
+/// that are perfectly fine.
+bool isBenignConstantGroup(std::vector<RooAbsArg const *> const &args)
+{
+   auto *first = dynamic_cast<RooConstVar const *>(args.front());
+   if (!first) {
+      return false;
+   }
+   for (std::size_t i = 1; i < args.size(); ++i) {
+      auto *other = dynamic_cast<RooConstVar const *>(args[i]);
+      if (!other || other->getVal() != first->getVal()) {
+         return false;
+      }
+   }
+   return true;
+}
+
+/// Comma-separated names of the clients of `node` that are themselves part of
+/// the inspected graph, truncated to `maxNames` entries.
+std::string
+clientsInGraph(RooAbsArg const &node, std::unordered_set<RooAbsArg const *> const &graph, std::size_t maxNames)
+{
+   std::vector<std::string> names;
+   for (RooAbsArg *client : node.clients()) {
+      if (graph.find(client) != graph.end()) {
+         names.emplace_back(client->GetName());
+      }
+   }
+   std::sort(names.begin(), names.end());
+   names.erase(std::unique(names.begin(), names.end()), names.end());
+   std::string out;
+   for (std::size_t i = 0; i < std::min(names.size(), maxNames); ++i) {
+      out += (i == 0 ? "" : ", ") + names[i];
+   }
+   if (names.size() > maxNames) {
+      out += ", ... (" + std::to_string(names.size() - maxNames) + " more)";
+   }
+   return out;
+}
+
+} // namespace
+
+////////////////////////////////////////////////////////////////////////////////
+/// Check the computation graph rooted at `head` for *distinct* objects that
+/// carry the same name, and emit one error message for each name clash found.
+///
+/// RooFit resolves objects by name: `RooArgSet` and friends are indexed by
+/// name and silently refuse a second element with an already-known name. If a
+/// model is built from two different objects that happen to have the same
+/// name, only one of them ends up in the parameter and observable sets, and
+/// the other one is silently ignored -- the fit then runs to completion but
+/// gives wrong results (see https://github.com/root-project/root/issues/7417).
+///
+/// The same object occurring many times in the graph (same pointer) is
+/// perfectly normal and not reported. Only the server links are followed, so
+/// objects that a node references without declaring them as servers are not
+/// inspected.
+///
+/// \param[in] head Top node of the computation graph to inspect.
+/// \param[in] context String prefixed to the error message, e.g. the name of
+///            the calling function.
+/// \param[in] extraHeads Optional additional root nodes that are part of the
+///            same calculation, for example the pdfs passed to
+///            RooAbsPdf::fitTo() with ExternalConstraints(). Their graphs are
+///            inspected together with the one of `head`, so that a clash
+///            *between* them is found as well.
+/// \return The number of clashing names (zero if the graph is fine).
+std::size_t
+checkGraphForNameClashes(RooAbsArg const &head, std::string const &context, RooAbsCollection const *extraHeads)
+{
+   std::vector<RooAbsArg const *> nodes;
+   std::unordered_set<RooAbsArg const *> visited;
+   collectGraphNodes(head, nodes, visited);
+   if (extraHeads) {
+      for (RooAbsArg *extraHead : *extraHeads) {
+         collectGraphNodes(*extraHead, nodes, visited);
+      }
+   }
+
+   // Map from the de-duplicated name pointer to the objects carrying that name.
+   std::unordered_map<TNamed const *, std::vector<RooAbsArg const *>> byName;
+   byName.reserve(nodes.size());
+   for (RooAbsArg const *node : nodes) {
+      byName[node->namePtr()].push_back(node);
+   }
+
+   // Sorted by name so that the output is reproducible.
+   std::map<std::string, std::vector<RooAbsArg const *>> clashes;
+   for (auto const &item : byName) {
+      if (item.second.size() > 1 && !isBenignConstantGroup(item.second)) {
+         clashes[item.second.front()->GetName()] = item.second;
+      }
+   }
+
+   // A hopelessly broken graph must not drown the session in output, so the
+   // list of offenders for each name is truncated. The number of messages is
+   // one per clashing name in any case, not one per pair of objects.
+   constexpr std::size_t maxListed = 10;
+
+   for (auto const &item : clashes) {
+      std::vector<RooAbsArg const *> const &args = item.second;
+      std::stringstream ss;
+      ss << context << ": the computation graph of \"" << head.GetName() << "\" contains " << args.size()
+         << " different objects named \"" << item.first << "\":";
+      for (std::size_t i = 0; i < std::min(args.size(), maxListed); ++i) {
+         RooAbsArg const *node = args[i];
+         ss << "\n    " << node->ClassName() << "::" << node->GetName() << " at " << static_cast<void const *>(node);
+         std::string clients = clientsInGraph(*node, visited, maxListed);
+         if (!clients.empty()) {
+            ss << ", used by: " << clients;
+         }
+      }
+      if (args.size() > maxListed) {
+         ss << "\n    ... (" << args.size() - maxListed << " more)";
+      }
+      ss << "\n  RooFit looks objects up by name, so only one of them is used and the others are silently ignored:"
+            "\n  THE RESULT OF THIS CALCULATION WILL BE WRONG. Please give every object in the model a unique name.";
+      oocoutE(&head, InputArguments) << ss.str() << std::endl;
+   }
+
+   return clashes.size();
 }
 
 namespace Detail {
