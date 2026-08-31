@@ -52,6 +52,25 @@ subtracts the reflected events, which is appropriate when the true density is
 expected to vanish at the boundary. See the RooKeysPdf::Mirror enum for the list
 of options.
 
+Datasets with per-event weights are supported. The weights enter both the
+kernel sum and the kernel width determination, and they are interpreted as event
+*multiplicities*: an event of weight two is exactly equivalent to two events of
+weight one at the same value, and the sum of weights takes the role of the
+sample size in the normal-reference bandwidth. In particular, scaling all
+weights of a dataset by a common factor is not a no-op, just as duplicating
+every event of an unweighted dataset is not.
+
+Negative weights, as they occur for example for sWeighted datasets, are allowed
+as long as the estimate stays well defined: the total weight of the dataset and
+the weighted variance of the observable both have to be strictly positive,
+otherwise the constructor throws a `std::runtime_error`. Note that with negative
+weights the estimated density can become negative in regions where the weights
+cancel; such regions are clipped to zero and a warning is emitted when this
+happens. Since a sample of sWeights carries less information than its sum of
+weights suggests, sWeighted datasets usually want more smoothing than the
+default: consider raising `rho` until the residual structure of the subtracted
+background is gone.
+
 For a multi-dimensional version of this pdf, see RooNDKeysPdf.
 **/
 
@@ -59,6 +78,8 @@ For a multi-dimensional version of this pdf, see RooNDKeysPdf.
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
 #include "TMath.h"
 #include "snprintf.h"
 #include "RooKeysPdf.h"
@@ -189,26 +210,30 @@ namespace {
   };
 }
 void RooKeysPdf::LoadDataSet( RooDataSet& data) {
-  delete[] _dataPts;
-  delete[] _dataWgts;
-  delete[] _weights;
+  // Note that this function must not throw after the raw arrays below have been
+  // reallocated: it is called from the constructor, where the destructor would
+  // not run, and it is also public API, where a half-updated object would be
+  // left behind. All input validation therefore happens up front, before any of
+  // the owned memory is touched.
 
   std::vector<Data> tmp;
   tmp.reserve((1 + _mirrorLeft + _mirrorRight) * data.numEntries());
   double x0 = 0.;
   double x1 = 0.;
   double x2 = 0.;
-  _sumWgt = 0.;
+  double sumWgt = 0.;
+  bool hasNegativeWeights = false;
   // read the data set into tmp and accumulate some statistics
   RooRealVar& real = static_cast<RooRealVar&>(data.get()->operator[](_varName));
   for (Int_t i = 0; i < data.numEntries(); ++i) {
     data.get(i);
     const double x = real.getVal();
     const double w = data.weight();
+    hasNegativeWeights |= w < 0.;
     x0 += w;
     x1 += w * x;
     x2 += w * x * x;
-    _sumWgt += double(1 + _mirrorLeft + _mirrorRight) * w;
+    sumWgt += double(1 + _mirrorLeft + _mirrorRight) * w;
 
     Data p;
     p.x = x, p.w = w;
@@ -222,13 +247,50 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data) {
       tmp.push_back(p);
     }
   }
+
+  // Negative event weights are allowed, but the kernel width is derived from a
+  // few quantities that have to be positive for the estimate to be defined at
+  // all. Check them here and fail with an explanatory message instead of
+  // letting NaNs propagate into the lookup table (see GitHub issue #12639).
+  if (!(x0 > 0.)) {
+     std::stringstream errMsg;
+     errMsg << "RooKeysPdf::LoadDataSet(" << GetName() << ") the total weight of dataset \"" << data.GetName()
+            << "\" is " << x0 << ", but a kernel estimation requires a strictly positive total weight."
+            << " If your dataset has negative event weights (like sWeights), make sure that they add up to a"
+            << " positive number.";
+     coutF(InputArguments) << errMsg.str() << std::endl;
+     throw std::runtime_error(errMsg.str());
+  }
+
+  const double meanv = x1 / x0;
+  const double variance = x2 / x0 - meanv * meanv;
+  if (!(variance > 0.)) {
+     std::stringstream errMsg;
+     errMsg << "RooKeysPdf::LoadDataSet(" << GetName() << ") the weighted variance of \"" << _varName
+            << "\" in dataset \"" << data.GetName() << "\" is " << variance
+            << ", but a kernel estimation requires a strictly positive variance. This happens if all events are at"
+            << " the same value of \"" << _varName << "\", or if negative event weights cancel the spread of the"
+            << " sample.";
+     coutF(InputArguments) << errMsg.str() << std::endl;
+     throw std::runtime_error(errMsg.str());
+  }
+  const double sigmav = std::sqrt(variance);
+
+  // The input is valid, so from here on the members can be updated.
+
   // sort the entire data set so that values of x are increasing
   std::sort(tmp.begin(), tmp.end(), cmp());
 
   // copy the sorted data set to its final destination
+  delete[] _dataPts;
+  delete[] _dataWgts;
+  delete[] _weights;
+  _dataPts = _dataWgts = _weights = nullptr;
+  _sumWgt = sumWgt;
   _nEvents = tmp.size();
   _dataPts  = new double[_nEvents];
   _dataWgts = new double[_nEvents];
+  _weights  = new double[_nEvents];
   for (unsigned i = 0; i < tmp.size(); ++i) {
     _dataPts[i] = tmp[i].x;
     _dataWgts[i] = tmp[i].w;
@@ -239,8 +301,10 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data) {
     tmp2.swap(tmp);
   }
 
-  double meanv=x1/x0;
-  double sigmav=std::sqrt(x2/x0-meanv*meanv);
+  // The sum of weights is used as the effective sample size in the
+  // normal-reference bandwidth below. This treats the weights as event
+  // multiplicities, which is the convention that RooKeysPdf follows since the
+  // support for weighted datasets was introduced.
   double h=std::pow(double(4)/double(3),0.2)*std::pow(_sumWgt,-0.2)*_rho;
   double hmin=h*sigmav*std::sqrt(2.)/10;
   // Dividing by 2*sqrt(3) = sqrt(12) turns a width into the standard deviation
@@ -255,9 +319,17 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data) {
   // The same factor appears in RooNDKeysPdf::calculateBandWidth().
   double norm=h*std::sqrt(sigmav * _sumWgt)/(2.0*std::sqrt(3.0));
 
-  _weights=new double[_nEvents];
   for(Int_t j=0;j<_nEvents;++j) {
-    _weights[j] = norm / std::sqrt(_dataWgts[j] * g(_dataPts[j],h*sigmav));
+    // The local density that steers the adaptive kernel width is evaluated with
+    // the *absolute* value of the event weights (see RooKeysPdf::g()): it
+    // measures how many events are available around _dataPts[j] to resolve the
+    // shape, and that resolving power is not reduced by events that happen to
+    // carry a negative weight. The signed density would be the wrong quantity
+    // here, because it can vanish or turn negative where weights cancel, which
+    // leaves the kernel width undefined. For datasets with non-negative weights
+    // both prescriptions agree identically.
+    const double localDensity = g(_dataPts[j], h * sigmav);
+    _weights[j] = localDensity > 0. ? norm / std::sqrt(localDensity) : hmin;
     if (_weights[j]<hmin) _weights[j]=hmin;
   }
 
@@ -324,6 +396,27 @@ void RooKeysPdf::LoadDataSet( RooDataSet& data) {
   static const double sqrt2pi(std::sqrt(2*TMath::Pi()));
   for (Int_t i=0;i<_nPoints+1;++i)
     _lookupTable[i] /= sqrt2pi * _sumWgt;
+
+  // With negative event weights the estimate can come out negative where the
+  // weights cancel. Such regions are clipped to zero. The clipping is applied
+  // to the lookup table itself and not only in evaluate(), because
+  // analyticalIntegral() integrates the very same table: if the two disagreed,
+  // the normalized pdf would not integrate to unity (by up to a few percent for
+  // a typical sWeighted dataset). For non-negative event weights the table has
+  // no negative entries and nothing is changed here.
+  if (hasNegativeWeights) {
+     const auto begin = _lookupTable;
+     const auto end = _lookupTable + _nPoints + 1;
+     if (std::any_of(begin, end, [](double val) { return val < 0.; })) {
+        std::replace_if(begin, end, [](double val) { return val < 0.; }, 0.);
+        coutW(InputArguments) << "RooKeysPdf::LoadDataSet(" << GetName() << ") the kernel estimation of dataset \""
+                              << data.GetName()
+                              << "\" is negative in some places, which can happen for datasets with negative event"
+                                 " weights. These regions are clipped to zero. Consider widening the kernels with"
+                                 " the rho parameter to smooth them out."
+                              << std::endl;
+     }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -415,6 +508,12 @@ double RooKeysPdf::maxVal(Int_t code) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/// Kernel estimate of the local event density at `x` with a fixed kernel width
+/// `sigmav`, used to determine the adaptive kernel widths. The event weights
+/// enter with their absolute value, such that the result is a measure of the
+/// local statistical power of the sample that is well defined also for datasets
+/// with negative event weights. The result is not divided by the sum of weights.
+
 double RooKeysPdf::g(double x,double sigmav) const {
   double y=0;
   // since data is sorted, we can be a little faster because we know which data
@@ -426,7 +525,7 @@ double RooKeysPdf::g(double x,double sigmav) const {
       x + _nSigma * sigmav);
   for ( ; it < iend; ++it) {
     const double r = (x - *it) / sigmav;
-    y += std::exp(-0.5 * r * r);
+    y += std::abs(_dataWgts[it - _dataPts]) * std::exp(-0.5 * r * r);
   }
 
   static const double sqrt2pi(std::sqrt(2*TMath::Pi()));

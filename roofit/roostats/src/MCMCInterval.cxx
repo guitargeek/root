@@ -78,6 +78,7 @@
 #include "THnSparse.h"
 #include "RooNumber.h"
 
+#include <exception>
 #include <cstdlib>
 #include <string>
 #include <algorithm>
@@ -280,7 +281,21 @@ void MCMCInterval::CreateKeysPdf()
    for (Int_t i = 0; i < fDimension; i++)
       paramsList.add(*fAxes[i]);
 
-   fKeysPdf = std::make_unique<RooNDKeysPdf>("keysPDF", "Keys PDF", paramsList, static_cast<RooDataSet&>(*chain), "a");
+   // A degenerate chain (e.g. one that never moved, so that a parameter has no
+   // spread at all) makes the kernel estimation impossible and RooNDKeysPdf
+   // reports that with an exception. Keep the "leave the pdf empty and let the
+   // caller degrade gracefully" contract of this function in that case.
+   try {
+      fKeysPdf =
+         std::make_unique<RooNDKeysPdf>("keysPDF", "Keys PDF", paramsList, static_cast<RooDataSet &>(*chain), "a");
+   } catch (std::exception const &e) {
+      coutE(Eval) << "MCMCInterval::CreateKeysPdf: creation of Keys PDF failed: " << e.what() << std::endl;
+      fKeysPdf.reset();
+      fCutoffVar.reset();
+      fHeaviside.reset();
+      fProduct.reset();
+      return;
+   }
    fCutoffVar = std::make_unique<RooRealVar>("cutoff", "cutoff", 0);
    fHeaviside = std::make_unique<Heaviside>("heaviside", "Heaviside", *fKeysPdf, *fCutoffVar);
    fProduct = std::make_unique<RooProduct>("product", "Keys PDF & Heaviside Product",
