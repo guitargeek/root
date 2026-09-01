@@ -255,6 +255,40 @@ For implementers of custom `RooFit::MultiProcess::Job` subclasses, the message t
 
 * An extended **RooSimultaneous** whose index category is a parameter ("switch mode", like **RooMultiPdf**) now evaluates to the selected component and uses its expected events in the extended term, also with code generation. Before, the value was weighted by the component's relative yield, and the new backends dropped the extended term. Consequently, `RooSimultaneous::getVal(normSet)` only includes the relative channel yields if the index category is in `normSet`.
 
+### Global observables in toy dataset generation
+
+`RooAbsPdf::generate()`, `RooAbsPdf::generateBinned()` and `RooAbsPdf::prepareMultiGen()` now accept the
+`RooFit::GlobalObservables()` command argument, which attaches a snapshot of the given global observables to the generated dataset with
+`RooAbsData::setGlobalObservables()`. Datasets created like this are picked up automatically by
+`RooAbsPdf::createNLL()` and `RooAbsPdf::fitTo()`, which take the global observable values from the dataset by default.
+
+There are two modes, selected by whether a given global observable is also in the set of variables to generate:
+
+1. The global observable is *not* in the set of variables to generate. Its current value is taken from the model and
+   stored in the dataset. This is what you want for a toy of a constrained fit where the auxiliary measurement is
+   fixed at its measured value:
+   ```C++
+   std::unique_ptr<RooDataSet> data{model.generate(x, 1000, RooFit::GlobalObservables(g))};
+   ```
+2. The global observable *is* in the set of variables to generate. Its value is sampled from the model, i.e. from the
+   constraint term that describes it. This is what you want for a frequentist toy where the auxiliary measurement is
+   randomized as well:
+   ```C++
+   std::unique_ptr<RooDataSet> data{model.generate({x, g}, 1000, RooFit::GlobalObservables(g))};
+   ```
+   The sampling happens once per dataset and not once per event, since one toy dataset corresponds to one auxiliary
+   measurement. The nuisance parameter values used in the sampling are the current ones, and the state of the model
+   is not changed by the sampling. Sampled global observables are not columns of the generated dataset.
+
+   Note the difference to `RooStats::ToyMCSampler`, which also assigns the sampled values back to the variables of the
+   model. Here, the sampled values only live in the generated dataset, which is all that is needed for the round trip
+   through `RooAbsPdf::fitTo()`.
+
+Of course this also works from Python:
+```Python
+data = model.generate({x, g}, 1000, GlobalObservables=g)
+```
+
 ### Faster Hesse for likelihoods with many independent parameters
 
 RooFit now analyzes the computation graph of the minimized function to find pairs of parameters that never appear in the same additive term of the likelihood, meaning their mixed second derivative is identically zero.

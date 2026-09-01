@@ -74,6 +74,11 @@ public:
     friend class RooAbsPdf ;
     std::unique_ptr<RooAbsGenContext> _genContext;
     RooArgSet _whatVars ;
+    /// Global observables to attach to each generated dataset (nullptr if the
+    /// RooFit::GlobalObservables() command argument was not used).
+    std::unique_ptr<RooArgSet> _globalObservables;
+    /// Subset of _globalObservables that is sampled from the model for each generated dataset.
+    RooArgSet _globObsToSample;
     RooDataSet* _protoData = nullptr;
     Int_t _nGen = 0;
     bool _extended = false;
