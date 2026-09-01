@@ -65,6 +65,7 @@ protected:
   UInt_t _eventsUsed;           ///< Accepted number of function samples
 
   UInt_t _minTrialsArray[4];    ///< Minimum number of trials samples for 1,2,3 dimensional problems
+  UInt_t _nBoundViolations = 0; ///< Number of samples that exceeded the a-priori maximum function value
 };
 
 #endif

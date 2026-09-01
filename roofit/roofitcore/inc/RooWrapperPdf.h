@@ -86,9 +86,13 @@ public:
 
 
   // Hints for optimized brute-force sampling
+  /// Forwards to the function's implementation. This is correct because the
+  /// unnormalized value of this pdf is exactly the value of the function, and
+  /// RooAbsReal::maxVal() bounds the unnormalized value.
   Int_t getMaxVal(const RooArgSet& vars) const override {
     return _func.arg().getMaxVal(vars);
   }
+  /// Forwards to the function's implementation.
   double maxVal(Int_t code) const override {
     return _func.arg().maxVal(code);
   }

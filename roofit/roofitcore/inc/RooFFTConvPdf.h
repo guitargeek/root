@@ -57,9 +57,12 @@ public:
 
   void printMetaArgs(std::ostream& os) const override ;
 
-  // Propagate maximum value estimate of pdf1 as convolution can only result in lower max values
-  Int_t getMaxVal(const RooArgSet& vars) const override { return _pdf1.arg().getMaxVal(vars) ; }
-  double maxVal(Int_t code) const override { return _pdf1.arg().maxVal(code) ; }
+  // Note that getMaxVal()/maxVal() are deliberately not implemented: the value
+  // of the convolution is not bounded by the maximum of the first input pdf
+  // (it is the first pdf smeared with the second one, and the scale depends on
+  // the integral of the second pdf and on the binning of the internal cache).
+  // Without an override, the accept/reject generator determines the maximum by
+  // initial sampling.
 
   RooAbsReal const &getConvVar() const { return *_x; }
 

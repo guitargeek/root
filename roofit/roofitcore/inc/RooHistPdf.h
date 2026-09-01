@@ -119,6 +119,13 @@ private:
 
   friend class RooHistFunc;
 
+  /// True if the bin contents of the RooDataHist bound the interpolated value,
+  /// which is a precondition for advertising a maximum via getMaxVal().
+  static bool histMaxValSupported(Int_t intOrder, bool cdfBoundaries);
+
+  /// Largest bin content of \p dataHist, optionally divided by the bin volume.
+  static double histMaxWeight(RooDataHist const& dataHist, bool correctForBinSize);
+
   static bool forceAnalyticalInt(RooArgSet const& pdfObsList, RooAbsArg const& dep);
 
   static Int_t getAnalyticalIntegral(RooArgSet& allVars,

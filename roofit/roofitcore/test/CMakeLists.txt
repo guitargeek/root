@@ -106,6 +106,14 @@ if(mathmore)
   list(APPEND ROOFITMORE_LIBRARIES RooFitMore MathMore)
 endif()
 
+# Tests for the RooAbsReal::getMaxVal()/maxVal() contract, which is implemented
+# by classes from RooFitCore, RooFit and RooFitMore.
+ROOT_ADD_GTEST(testRooAbsRealMaxVal testRooAbsRealMaxVal.cxx
+               LIBRARIES RooFitCore RooFit ${ROOFITMORE_LIBRARIES})
+if(mathmore)
+  target_compile_definitions(testRooAbsRealMaxVal PRIVATE ROOFITMORE)
+endif()
+
 #--stressRooFit----------------------------------------------------------------------------------
 ROOT_EXECUTABLE(stressRooFit stressRooFit.cxx LIBRARIES RooFit Gpad ${ROOFITMORE_LIBRARIES})
 if(mathmore)

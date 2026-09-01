@@ -224,27 +224,36 @@ void RooHistFunc::doEval(RooFit::EvalContext & ctx) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Only handle case of maximum in all variables
+/// Only handle the case of the maximum in all variables, and only for
+/// interpolation orders for which the interpolated value is guaranteed to stay
+/// within the range spanned by the bin contents.
+///
+/// See RooAbsReal::getMaxVal() for the contract.
 
 Int_t RooHistFunc::getMaxVal(const RooArgSet& vars) const
 {
+  if (!RooHistPdf::histMaxValSupported(_intOrder, _cdfBoundaries)) {
+    return 0;
+  }
   std::unique_ptr<RooAbsCollection> common{_depList.selectCommon(vars)};
-  return common->size() == _depList.size() ? 1 : 0;
+  return !common->empty() && common->size() == _depList.size() ? 1 : 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Return an upper bound on the function value. Contrary to RooHistPdf, the
+/// value of a RooHistFunc is the plain bin content, without dividing by the bin
+/// volume. See RooAbsReal::getMaxVal() for the contract.
 
 double RooHistFunc::maxVal(Int_t code) const
 {
   R__ASSERT(code==1) ;
 
-  double max(-1) ;
-  for (Int_t i=0 ; i<_dataHist->numEntries() ; i++) {
-    double wgt = _dataHist->weight(i) ;
-    if (wgt>max) max=wgt ;
-  }
-
-  return max*1.05 ;
+  // The factor 1.05 is a safety margin, mirroring the one that RooAcceptReject
+  // applies to the maxima it determines by sampling. Contrary to RooHistPdf,
+  // the value of a RooHistFunc is not clipped at zero, so scaling up must be
+  // skipped for a negative maximum, which it would push below the true one.
+  const double maxWeight = RooHistPdf::histMaxWeight(*_dataHist, false);
+  return maxWeight > 0.0 ? 1.05 * maxWeight : maxWeight;
 }
 
 RooDataHist* RooHistFunc::cloneAndOwnDataHist(const char* newname) {

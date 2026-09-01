@@ -398,11 +398,28 @@ double RooKeysPdf::analyticalIntegral(Int_t code, const char* rangeName) const
   return sum;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Advertise that we know the maximum of this pdf, which is exact because
+/// evaluate() linearly interpolates the internal lookup table.
+///
+/// The lookup table only spans the range of the variable that the kernel
+/// estimate was built from. If the observable of this pdf can leave that
+/// range, evaluate() linearly *extrapolates* from the outermost table entries,
+/// which is not bounded by the table maximum. In that case no maximum is
+/// advertised. See RooAbsReal::getMaxVal() for the contract.
+
 Int_t RooKeysPdf::getMaxVal(const RooArgSet& vars) const
 {
+  auto const* xLValue = dynamic_cast<RooAbsRealLValue const*>(&_x.arg());
+  if (!xLValue || xLValue->getMin() < _lo || xLValue->getMax() > _hi) return 0;
   if (vars.contains(*_x.absArg())) return 1;
   return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return the maximum of the internal lookup table. Since evaluate() linearly
+/// interpolates between the table entries, this is the exact maximum of the
+/// *unnormalized* pdf. See RooAbsReal::getMaxVal() for the contract.
 
 double RooKeysPdf::maxVal(Int_t code) const
 {

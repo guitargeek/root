@@ -274,6 +274,20 @@ void RooAcceptReject::addEventToCache()
   double val= _funcClone->getVal();
   _funcValPtr->setVal(val);
 
+  // If the maximum was advertised a priori via RooAbsReal::getMaxVal() and it
+  // is too small, the sampling is silently biased: every point above the
+  // claimed maximum ends up being accepted with the same probability instead
+  // of one proportional to the function value, so the distribution is
+  // effectively truncated there. Complain rather than failing silently.
+  if (_funcMaxVal && val > _funcMaxVal->getVal() && _nBoundViolations < 5) {
+    ++_nBoundViolations;
+    oocoutE(nullptr, Generation)
+       << "RooAcceptReject::generateEvent(" << _funcClone->GetName() << ") ERROR: the function value " << val
+       << " exceeds the maximum " << _funcMaxVal->getVal()
+       << " that was advertised by RooAbsReal::maxVal(). The generated distribution will be biased!"
+       << (_nBoundViolations == 5 ? " Further warnings of this kind are suppressed." : "") << std::endl;
+  }
+
   // Update the estimated integral and maximum value. Increase our
   // maximum estimate slightly to give a safety margin with a
   // corresponding loss of efficiency.

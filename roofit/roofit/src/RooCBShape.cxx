@@ -103,12 +103,17 @@ Int_t RooCBShape::getMaxVal(const RooArgSet& vars) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Return an upper bound on the *unnormalized* value of this pdf, as required
+/// by the RooAbsReal::getMaxVal() contract.
+///
+/// The Gaussian core is `exp(-0.5 * t^2)`, which is at most one, and the
+/// power-law tail is attached continuously at `t = -|alpha|` where its value is
+/// `exp(-0.5 * alpha^2) <= 1` and from where it falls off monotonically. The
+/// maximum of the shape is therefore exactly one, reached at `m == m0`.
 
 double RooCBShape::maxVal(Int_t code) const
 {
   R__ASSERT(code==1) ;
 
-  // The maximum value for given (m0,alpha,n,sigma)
-  // is 1./ Integral in the variable range
-  return 1.0/analyticalIntegral(1) ;
+  return 1.0 ;
 }

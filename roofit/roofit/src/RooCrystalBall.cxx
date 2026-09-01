@@ -294,13 +294,17 @@ Int_t RooCrystalBall::getMaxVal(const RooArgSet &vars) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Return an upper bound on the *unnormalized* value of this pdf, as required
+/// by the RooAbsReal::getMaxVal() contract.
+///
+/// The Gaussian core is `exp(-0.5 * t^2)`, which is at most one, and each
+/// power-law tail is attached continuously at `t = -|alpha_i|`, where its value
+/// is `exp(-0.5 * alpha_i^2) <= 1` and from where it falls off monotonically.
+/// The maximum of the shape is therefore exactly one, reached at `x == x0`.
 
 double RooCrystalBall::maxVal(Int_t code) const
 {
    R__ASSERT(code == 1);
 
-   // The maximum value for given (m0,alpha,n,sigma) is 1./ Integral in the variable range
-   // For the crystal ball, the maximum is 1.0 in the current implementation,
-   // but it's maybe better to keep this general in case the implementation changes.
-   return 1.0 / analyticalIntegral(code);
+   return 1.0;
 }

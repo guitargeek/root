@@ -3283,11 +3283,50 @@ void RooAbsReal::selectNormalization(const RooArgSet *, bool) {}
 void RooAbsReal::selectNormalizationRange(const char *, bool) {}
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Advertise capability to determine maximum value of function for given set of
-/// observables. If no direct generator method is provided, this information
-/// will assist the accept/reject generator to operate more efficiently as
-/// it can skip the initial trial sampling phase to empirically find the function
-/// maximum
+/// Advertise the capability to determine an upper bound on the value of this
+/// function while the observables in `vars` scan their full range.
+///
+/// If no direct generator method is provided, this information assists the
+/// accept/reject generator (RooAcceptReject) to operate more efficiently,
+/// because it can skip the initial trial sampling phase that would otherwise
+/// be needed to find the function maximum empirically.
+///
+/// \param[in] vars The observables that will be varied over their full range.
+///                 Elements of `vars` that this function does not depend on
+///                 must be ignored.
+/// \return Zero if no bound can be advertised, otherwise a non-zero code that
+///         is passed back to maxVal() to retrieve the actual bound.
+///
+/// ### The contract implemented by getMaxVal() and maxVal()
+///
+/// * `maxVal(getMaxVal(vars))` must be an upper bound on the value returned by
+///   evaluate(), i.e. on the **unnormalized** function value. It is *not* a
+///   bound on `getVal(normSet)` of a pdf. Dividing by the normalization
+///   integral is the caller's job, and that is what RooGenContext does. The
+///   normalization set is deliberately not part of this interface: maxVal()
+///   only takes a code, and this interface is also implemented by plain
+///   functions (RooAbsReal) that have no normalization at all.
+/// * The bound must hold while *every* variable in `vars` scans its full
+///   range, with all other variables kept at their current values. Because a
+///   bound that is valid for a larger set of varied observables is also valid
+///   for a smaller one, it is always allowed (though possibly not tight) to
+///   return the bound over the full phase space.
+/// * The bound must never be *below* the true maximum. RooAcceptReject accepts
+///   a trial point x with probability f(x)/max, so if max < f(x) anywhere, the
+///   generated distribution is silently truncated at `max` and hence biased.
+///   Underestimating is a correctness bug; overestimating only costs
+///   generation efficiency.
+/// * Implementations should return zero from getMaxVal() whenever they cannot
+///   guarantee a bound (for instance because `vars` does not contain all the
+///   observables the shape depends on, or because an interpolation scheme is
+///   used whose overshoot cannot be bounded). Returning zero is safe for the
+///   accept/reject generator, which then falls back to determining the maximum
+///   by initial trial sampling. The one exception is RooEffGenContext, which
+///   assumes a maximum of one for an efficiency function that does not
+///   advertise one (see the note there).
+/// * For an *empty* `vars` set, implementations return zero. The maximum over
+///   an empty set of varied observables is just the current function value, a
+///   degenerate case that no caller inside RooFit ever asks for.
 
 Int_t RooAbsReal::getMaxVal(const RooArgSet & /*vars*/) const
 {
@@ -3295,8 +3334,10 @@ Int_t RooAbsReal::getMaxVal(const RooArgSet & /*vars*/) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return maximum value for set of observables identified by code assigned
-/// in getMaxVal
+/// Return the upper bound on the unnormalized function value for the set of
+/// observables identified by the code that getMaxVal() assigned.
+///
+/// See getMaxVal() for the full contract.
 
 double RooAbsReal::maxVal(Int_t /*code*/) const
 {

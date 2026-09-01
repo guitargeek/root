@@ -201,7 +201,17 @@ double RooLegendre::analyticalIntegral(Int_t code, const char* ) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Int_t RooLegendre::getMaxVal( const RooArgSet& /*vars*/) const {
+/// Advertise that we know an upper bound on the absolute value of this
+/// function. See RooAbsReal::getMaxVal() for the contract.
+///
+/// The bound returned by maxVal() holds over the full range of cos(theta), and
+/// evaluate() clamps cos(theta) to [-1,1], so it is valid no matter which
+/// subset of the observables is being scanned. Only the degenerate case of an
+/// empty `vars` set is excluded, following the convention of the other
+/// implementations of this interface.
+
+Int_t RooLegendre::getMaxVal( const RooArgSet& vars) const {
+    if (vars.empty()) return 0;
     if (_m1==0&&_m2==0) return 1;
     // does anyone know the analytical expression for the  max values in case m!=0??
     if (_l1<3&&_l2<3) return 1;
@@ -221,6 +231,10 @@ namespace {
         return m2[j-1];
     }
 }
+/// Return an upper bound on the absolute value of the product of the two
+/// associated Legendre polynomials. See RooAbsReal::getMaxVal() for the
+/// contract.
+
 double RooLegendre::maxVal( Int_t /*code*/) const {
     return maxSingle(_l1,_m1)*maxSingle(_l2,_m2);
 }

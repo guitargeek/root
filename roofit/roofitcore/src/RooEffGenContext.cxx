@@ -67,6 +67,19 @@ void RooEffGenContext::initGenerator(const RooArgSet &theEvent)
 /// Generate one event. Generate an event from the p.d.f and
 /// then perform an accept/reject sampling based on the efficiency
 /// function
+///
+/// \note This accept/reject step still handles a violated maximum badly, and
+/// this was left alone on purpose to keep the fix for issue #12317 focused.
+/// If the efficiency does not advertise a maximum via
+/// RooAbsReal::getMaxVal(), a maximum of one is assumed, and any point where
+/// the efficiency exceeds that is rejected outright instead of the maximum
+/// being adjusted, which zeroes out exactly the region with the highest
+/// efficiency (and does not even terminate if the efficiency does not depend
+/// on the generated observables). If a maximum *is* advertised but is too
+/// small, every point above it is accepted, which truncates the distribution
+/// like it used to in RooAcceptReject. Both cases should be fixed the way
+/// RooAcceptReject does it, by raising the maximum and resampling what was
+/// already generated.
 
 void RooEffGenContext::generateEvent(RooArgSet &theEvent, Int_t remaining)
 {

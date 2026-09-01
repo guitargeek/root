@@ -161,9 +161,19 @@ double RooSpHarmonic::analyticalIntegral(Int_t code, const char* range) const
   }
 }
 
+/// Advertise that we know an upper bound on the absolute value of this
+/// function. The bound is over the full range of both cos(theta) and phi, so
+/// it is valid for any subset of the observables, just like the RooLegendre
+/// bound it is built from. See RooAbsReal::getMaxVal() for the contract.
+
 Int_t RooSpHarmonic::getMaxVal( const RooArgSet& vars) const {
     return RooLegendre::getMaxVal(vars);
 }
+
+/// Return an upper bound on the absolute value of this function: the
+/// normalization factors times the bound of the associated Legendre
+/// polynomials, since the additional sine and cosine factors are at most one in
+/// absolute value. See RooAbsReal::getMaxVal() for the contract.
 
 double RooSpHarmonic::maxVal( Int_t code) const {
     double n = _n*N(_l1,_m1)*N(_l2,_m2);

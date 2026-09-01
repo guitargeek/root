@@ -44,6 +44,7 @@ The input histogram is not modified.
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <ostream>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -565,12 +566,52 @@ std::list<double>* RooHistPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Only handle case of maximum in all variables
+/// Return true if the value returned by RooDataHist::weightFast() is bounded
+/// by the bin contents of the histogram.
+///
+/// Zeroth order "interpolation" is a plain bin lookup, and first-order
+/// interpolation is linear between two bin centres, so both are bounded by the
+/// bin contents. Higher orders use a polynomial through several bins, which
+/// can overshoot by an arbitrary amount. The special c.d.f. boundary
+/// conditions extend the histogram with a bin of content 1.0, which is not
+/// related to the bin contents either.
+
+bool RooHistPdf::histMaxValSupported(Int_t intOrder, bool cdfBoundaries)
+{
+   return intOrder == 0 || (intOrder == 1 && !cdfBoundaries);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return the largest bin content of \p dataHist. If \p correctForBinSize is
+/// true, the bin contents are divided by the bin volumes first, matching what
+/// RooDataHist::weightFast() does in that case. This matters for histograms
+/// with non-uniform binning, where the maximum of the density is not
+/// necessarily reached in the bin with the largest content.
+
+double RooHistPdf::histMaxWeight(RooDataHist const &dataHist, bool correctForBinSize)
+{
+   double max = -std::numeric_limits<double>::infinity();
+   for (Int_t i = 0; i < dataHist.numEntries(); i++) {
+      const double wgt = correctForBinSize ? dataHist.weight(i) / dataHist.binVolume(i) : dataHist.weight(i);
+      max = std::max(max, wgt);
+   }
+   return max;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Only handle the case of the maximum in all variables, and only for
+/// interpolation orders for which the interpolated value is guaranteed to stay
+/// within the range spanned by the bin contents.
+///
+/// See RooAbsReal::getMaxVal() for the contract.
 
 Int_t RooHistPdf::getMaxVal(const RooArgSet& vars) const
 {
+  if (!histMaxValSupported(_intOrder, _cdfBoundaries)) {
+    return 0;
+  }
   std::unique_ptr<RooAbsCollection> common{_pdfObsList.selectCommon(vars)};
-  if (common->size()==_pdfObsList.size()) {
+  if (!common->empty() && common->size()==_pdfObsList.size()) {
     return 1;
   }
   return 0 ;
@@ -578,18 +619,20 @@ Int_t RooHistPdf::getMaxVal(const RooArgSet& vars) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Return an upper bound on the *unnormalized* pdf value, which is the bin
+/// weight divided by the bin volume unless the histogram is declared to be
+/// unit normalized. See RooAbsReal::getMaxVal() for the contract.
+///
+/// The factor 1.05 is a safety margin, mirroring the one that RooAcceptReject
+/// applies to the maxima it determines by sampling. The clipping at zero
+/// matters if all bin contents are negative: evaluate() clips the pdf value at
+/// zero, and scaling up a negative number would give a bound below it.
 
 double RooHistPdf::maxVal(Int_t code) const
 {
   R__ASSERT(code==1) ;
 
-  double max(-1) ;
-  for (Int_t i=0 ; i<_dataHist->numEntries() ; i++) {
-    double wgt = _dataHist->weight(i) ;
-    if (wgt>max) max=wgt ;
-  }
-
-  return max*1.05 ;
+  return 1.05 * std::max(0.0, histMaxWeight(*_dataHist, !_unitNorm));
 }
 
 
