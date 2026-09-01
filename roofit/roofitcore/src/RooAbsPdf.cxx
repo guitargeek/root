@@ -1143,6 +1143,120 @@ RooAbsGenContext* RooAbsPdf::autoGenContext(const RooArgSet &vars, const RooData
 
 
 
+namespace {
+
+////////////////////////////////////////////////////////////////////////////////
+/// Get the set of global observables that was passed to a generate() method
+/// via the RooFit::GlobalObservables() command argument, treating an empty set
+/// like a missing command argument.
+///
+/// An empty snapshot must not be attached to the dataset: RooAbsPdf::fitTo()
+/// and RooAbsPdf::createNLL() would then take an *empty* set of global
+/// observables from the dataset, and normalize the constraint terms with
+/// respect to nothing instead of with respect to the constrained parameters.
+RooArgSet const *globalObservablesFromCmdArg(RooCmdConfig const &pc)
+{
+   RooArgSet const *globalObservables = pc.getSet("glObs");
+   return globalObservables && !globalObservables->empty() ? globalObservables : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Analyze the set of global observables that was passed to a generate()
+/// method via the RooFit::GlobalObservables() command argument.
+///
+/// The global observables that are also part of the set of variables to
+/// generate need to be *sampled* from the model ("mode 2" of
+/// RooAbsPdf::generate()). They are moved from `genVars` to
+/// `globObsToSample`, because they are not regular columns of the generated
+/// dataset: there is only one auxiliary measurement per toy experiment, not
+/// one per event.
+///
+/// \param[in] pdf The model that is used for the generation.
+/// \param[in] caller Name of the calling method, only used for error messages.
+/// \param[in] globalObservables The set of global observables requested by the user.
+/// \param[in,out] genVars The set of variables to generate. The global observables
+///                that are to be sampled are removed from this set.
+/// \param[out] globObsToSample Filled with the global observables to be sampled.
+void splitGlobalObservablesToSample(RooAbsPdf const &pdf, const char *caller, RooArgSet const &globalObservables,
+                                    RooArgSet &genVars, RooArgSet &globObsToSample)
+{
+   genVars.selectCommon(globalObservables, globObsToSample);
+
+   if (globObsToSample.empty()) {
+      return;
+   }
+
+   // A global observable can only be sampled if the model actually describes
+   // it, which usually means that there is a constraint term for it.
+   for (RooAbsArg *arg : globObsToSample) {
+      if (!pdf.dependsOn(*arg)) {
+         std::string errMsg = std::string(caller) + "(" + pdf.GetName() + "): the global observable \"" +
+                              arg->GetName() +
+                              "\" is in the set of variables to generate, but the model doesn't depend on it. There "
+                              "is no constraint term from which its value could be sampled.";
+         oocoutE(&pdf, Generation) << errMsg << std::endl;
+         throw std::invalid_argument(errMsg);
+      }
+   }
+
+   genVars.remove(globObsToSample, true, true);
+
+   if (genVars.empty()) {
+      std::string errMsg = std::string(caller) + "(" + pdf.GetName() +
+                           "): all variables to generate are global observables, so the generated dataset would have "
+                           "no columns! Please also request at least one regular observable.";
+      oocoutE(&pdf, Generation) << errMsg << std::endl;
+      throw std::invalid_argument(errMsg);
+   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Create the snapshot of global observables that is attached to a generated
+/// dataset with RooAbsData::setGlobalObservables().
+///
+/// The values are taken from the model, except for the global observables in
+/// `globObsToSample`, which are sampled from the model with a single call to
+/// RooAbsPdf::generateSimGlobal(). Note that the model itself is not modified:
+/// the sampled values only live in the returned snapshot and hence in the
+/// generated dataset.
+std::unique_ptr<RooArgSet> makeGlobalObservablesSnapshot(RooAbsPdf const &pdf, const char *caller,
+                                                         RooArgSet const &globalObservables,
+                                                         RooArgSet const &globObsToSample)
+{
+   auto snapshot = std::make_unique<RooArgSet>();
+   globalObservables.snapshot(*snapshot);
+
+   if (globObsToSample.empty()) {
+      return snapshot;
+   }
+
+   // The global observables are sampled once per dataset and not once per
+   // event: one toy experiment corresponds to one auxiliary measurement. The
+   // values of the nuisance parameters that are used for the sampling are the
+   // current ones. We go via generateSimGlobal() such that the sampling also
+   // works for RooSimultaneous models, where the global observables are not
+   // associated to any specific channel.
+   //
+   // The const_cast is safe: generateSimGlobal() is only non-const for
+   // historical reasons, it doesn't change the state of the model.
+   std::unique_ptr<RooDataSet> globObsData{const_cast<RooAbsPdf &>(pdf).generateSimGlobal(globObsToSample, 1)};
+
+   if (!globObsData || globObsData->numEntries() != 1) {
+      std::string errMsg = std::string(caller) + "(" + pdf.GetName() + "): failed to sample the global observables " +
+                           globObsToSample.contentsString() + "!";
+      oocoutE(&pdf, Generation) << errMsg << std::endl;
+      throw std::runtime_error(errMsg);
+   }
+
+   snapshot->assign(*globObsData->get(0));
+
+   return snapshot;
+}
+
+} // namespace
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Generate a new dataset containing the specified variables with events sampled from our distribution.
 /// Generate the specified number of events or expectedEvents() if not specified.
@@ -1186,6 +1300,31 @@ RooAbsGenContext* RooAbsPdf::autoGenContext(const RooArgSet &vars, const RooData
 ///               copy of the prototype dataset with only variables in whatVars randomized. Variables in whatVars that
 ///               are not in the prototype will be added as new columns to the generated dataset.
 ///
+/// <tr><td> `GlobalObservables(const RooArgSet&)`
+///          <td> Store a snapshot of the given global observables in the generated dataset, such that it is
+///               picked up automatically by RooAbsPdf::createNLL() and RooAbsPdf::fitTo() later on
+///               (see RooAbsData::setGlobalObservables()). There are two modes, selected by whether a given
+///               global observable is also in `whatVars`:
+///               <br>1. The global observable is *not* in `whatVars`, as in
+///               `model.generate(x, 1000, GlobalObservables(g))`. Its current value is taken from the model
+///               and stored in the dataset. This is what you want for a toy of a constrained fit, where the
+///               auxiliary measurement is fixed at its measured value.
+///               <br>2. The global observable *is* in `whatVars`, as in
+///               `model.generate({x, g}, 1000, GlobalObservables(g))`. Its value is sampled from the model,
+///               i.e. from the constraint term that describes it. This is what you want for a frequentist
+///               toy, where the auxiliary measurement is randomized as well.
+///               <br>The sampling happens once per dataset and not once per event, because one toy dataset
+///               corresponds to one auxiliary measurement. The values of the nuisance parameters used in the
+///               sampling are the current ones. Sampled global observables are not columns of the generated
+///               dataset, and the state of the model is not changed by the sampling. It is an error to
+///               request the sampling of a global observable that the model doesn't depend on, because there
+///               is no constraint term to sample it from. An empty set has no effect at all.
+///               \note The values of the global observables are the ones the *model* has at the time of the
+///               call. Unlike RooStats::ToyMCSampler, the sampling in mode 2 does not write the sampled
+///               values back into the model, so code that reads the global observables from the model after
+///               generating a toy will not see them. This is not needed for the round trip through
+///               RooAbsPdf::fitTo() and RooAbsPdf::createNLL(), which take the values from the dataset.
+///
 /// </table>
 ///
 /// #### Accessing the underlying event generator
@@ -1215,6 +1354,7 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
   pc.defineInt("expectedData","ExpectedData",0,0) ;
   pc.defineDouble("nEventsD","NumEventsD",0,-1.) ;
   pc.defineString("binnedTag","GenBinned",0,"") ;
+  pc.defineSet("glObs","GlobalObservables",0,nullptr) ;
   pc.defineMutex("GenBinned","ProtoData") ;
   pc.defineMutex("Extended", "NumEvents");
 
@@ -1225,6 +1365,7 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
   }
 
   // Decode command line arguments
+  RooArgSet const* globalObservables = globalObservablesFromCmdArg(pc) ;
   RooDataSet* protoData = static_cast<RooDataSet*>(pc.getObject("proto",nullptr)) ;
   const char* dsetName = pc.getString("dsetName") ;
   bool verbose = pc.getInt("verbose") ;
@@ -1240,16 +1381,24 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
 
   double nEvents = (nEventsD>0) ? nEventsD : double(nEventsI);
 
+  // The global observables that are also in whatVars are not columns of the
+  // generated dataset: they are sampled once for the whole dataset.
+  RooArgSet genVars{whatVars};
+  RooArgSet globObsToSample;
+  if (globalObservables) {
+    splitGlobalObservablesToSample(*this, "RooAbsPdf::generate", *globalObservables, genVars, globObsToSample);
+  }
+
   // Force binned mode for expected data mode
   if (expectedData) {
     binnedTag="*" ;
   }
 
   if (extended) {
-     if (nEvents == 0) nEvents = expectedEvents(&whatVars);
+     if (nEvents == 0) nEvents = expectedEvents(&genVars);
   } else if (nEvents==0) {
     cxcoutI(Generation) << "No number of events specified , number of events generated is "
-           << GetName() << "::expectedEvents() = " << expectedEvents(&whatVars)<< std::endl ;
+           << GetName() << "::expectedEvents() = " << expectedEvents(&genVars)<< std::endl ;
   }
 
   if (extended && protoData && !randProto) {
@@ -1263,14 +1412,21 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(const RooArgSet& whatVars, con
   // Forward to appropriate implementation
   std::unique_ptr<RooDataSet> data;
   if (protoData) {
-    data = std::unique_ptr<RooDataSet>{generate(whatVars,*protoData,Int_t(nEvents),verbose,randProto,resampleProto)};
+    data = std::unique_ptr<RooDataSet>{generate(genVars,*protoData,Int_t(nEvents),verbose,randProto,resampleProto)};
   } else {
-     data = std::unique_ptr<RooDataSet>{generate(whatVars,nEvents,verbose,autoBinned,binnedTag,expectedData, extended)};
+     data = std::unique_ptr<RooDataSet>{generate(genVars,nEvents,verbose,autoBinned,binnedTag,expectedData, extended)};
   }
 
   // Rename dataset to given name if supplied
   if (dsetName && strlen(dsetName)>0) {
     data->SetName(dsetName) ;
+  }
+
+  // Attach the global observables to the generated dataset, sampling the ones
+  // that were requested to be sampled
+  if (data && globalObservables) {
+    data->setGlobalObservables(
+       *makeGlobalObservablesSnapshot(*this, "RooAbsPdf::generate", *globalObservables, globObsToSample));
   }
 
   return RooFit::makeOwningPtr(std::move(data));
@@ -1305,6 +1461,7 @@ RooAbsPdf::GenSpec* RooAbsPdf::prepareMultiGen(const RooArgSet &whatVars,
   pc.defineInt("nEvents","NumEvents",0,0) ;
   pc.defineInt("autoBinned","AutoBinned",0,1) ;
   pc.defineString("binnedTag","GenBinned",0,"") ;
+  pc.defineSet("glObs","GlobalObservables",0,nullptr) ;
   pc.defineMutex("GenBinned","ProtoData") ;
 
 
@@ -1315,6 +1472,7 @@ RooAbsPdf::GenSpec* RooAbsPdf::prepareMultiGen(const RooArgSet &whatVars,
   }
 
   // Decode command line arguments
+  RooArgSet const* globalObservables = globalObservablesFromCmdArg(pc) ;
   RooDataSet* protoData = static_cast<RooDataSet*>(pc.getObject("proto",nullptr)) ;
   const char* dsetName = pc.getString("dsetName") ;
   Int_t nEvents = pc.getInt("nEvents") ;
@@ -1325,9 +1483,23 @@ RooAbsPdf::GenSpec* RooAbsPdf::prepareMultiGen(const RooArgSet &whatVars,
   bool autoBinned = pc.getInt("autoBinned") ;
   const char* binnedTag = pc.getString("binnedTag") ;
 
-  RooAbsGenContext* cx = autoGenContext(whatVars,protoData,nullptr,verbose,autoBinned,binnedTag) ;
+  // The global observables that are also in whatVars are not columns of the
+  // generated datasets: they are sampled once for each generated dataset.
+  RooArgSet genVars{whatVars};
+  RooArgSet globObsToSample;
+  if (globalObservables) {
+    splitGlobalObservablesToSample(*this, "RooAbsPdf::prepareMultiGen", *globalObservables, genVars, globObsToSample);
+  }
 
-  return new GenSpec(cx,whatVars,protoData,nEvents,extended,randProto,resampleProto,dsetName) ;
+  RooAbsGenContext* cx = autoGenContext(genVars,protoData,nullptr,verbose,autoBinned,binnedTag) ;
+
+  std::unique_ptr<GenSpec> spec{new GenSpec(cx,genVars,protoData,nEvents,extended,randProto,resampleProto,dsetName)} ;
+  if (globalObservables) {
+    spec->_globalObservables = std::make_unique<RooArgSet>(*globalObservables) ;
+    spec->_globObsToSample.add(globObsToSample) ;
+  }
+
+  return spec.release() ;
 }
 
 
@@ -1348,6 +1520,14 @@ RooFit::OwningPtr<RooDataSet> RooAbsPdf::generate(RooAbsPdf::GenSpec& spec) cons
   std::unique_ptr<RooDataSet> ret{generate(*spec._genContext,spec._whatVars,spec._protoData, nEvt,false,spec._randProto,spec._resampleProto,
               spec._init,spec._extended)};
   spec._init = true ;
+
+  // Attach the global observables to the generated dataset. The ones that were
+  // requested to be sampled are re-sampled for each generated dataset.
+  if (ret && spec._globalObservables) {
+    ret->setGlobalObservables(
+       *makeGlobalObservablesSnapshot(*this, "RooAbsPdf::generate", *spec._globalObservables, spec._globObsToSample));
+  }
+
   return RooFit::makeOwningPtr(std::move(ret));
 }
 
@@ -1585,6 +1765,7 @@ bool RooAbsPdf::isDirectGenSafe(const RooAbsArg& arg) const
 /// | `NumEvents(int nevt)`     | Generate specified number of events
 /// | `Extended()`              | The actual number of events generated will be sampled from a Poisson distribution with mu=nevt. This can be *much* faster for peaked PDFs, but the number of events is not exactly what was requested.
 /// | `ExpectedData()`          | Return a binned dataset _without_ statistical fluctuations (also aliased as Asimov())
+/// | `GlobalObservables(const RooArgSet&)` | Store a snapshot of the given global observables in the generated dataset. Works exactly like in RooAbsPdf::generate(), see there for the description of the two modes.
 ///
 
 RooFit::OwningPtr<RooDataHist> RooAbsPdf::generateBinned(const RooArgSet& whatVars, const RooCmdArg& arg1,const RooCmdArg& arg2,
@@ -1592,13 +1773,14 @@ RooFit::OwningPtr<RooDataHist> RooAbsPdf::generateBinned(const RooArgSet& whatVa
 {
 
   // Select the pdf-specific commands
-  RooCmdConfig pc("RooAbsPdf::generate(" + std::string(GetName()) + ")");
+  RooCmdConfig pc("RooAbsPdf::generateBinned(" + std::string(GetName()) + ")");
   pc.defineString("dsetName","Name",0,"") ;
   pc.defineInt("verbose","Verbose",0,0) ;
   pc.defineInt("extended","Extended",0,0) ;
   pc.defineInt("nEvents","NumEvents",0,0) ;
   pc.defineDouble("nEventsD","NumEventsD",0,-1.) ;
   pc.defineInt("expectedData","ExpectedData",0,0) ;
+  pc.defineSet("glObs","GlobalObservables",0,nullptr) ;
 
   // Process and check varargs
   pc.process(arg1,arg2,arg3,arg4,arg5,arg6) ;
@@ -1607,6 +1789,7 @@ RooFit::OwningPtr<RooDataHist> RooAbsPdf::generateBinned(const RooArgSet& whatVa
   }
 
   // Decode command line arguments
+  RooArgSet const* globalObservables = globalObservablesFromCmdArg(pc) ;
   double nEvents = pc.getDouble("nEventsD") ;
   if (nEvents<0) {
     nEvents = pc.getInt("nEvents") ;
@@ -1616,9 +1799,17 @@ RooFit::OwningPtr<RooDataHist> RooAbsPdf::generateBinned(const RooArgSet& whatVa
   bool expectedData = pc.getInt("expectedData") ;
   const char* dsetName = pc.getString("dsetName") ;
 
+  // The global observables that are also in whatVars are not columns of the
+  // generated dataset: they are sampled once for the whole dataset.
+  RooArgSet genVars{whatVars};
+  RooArgSet globObsToSample;
+  if (globalObservables) {
+    splitGlobalObservablesToSample(*this, "RooAbsPdf::generateBinned", *globalObservables, genVars, globObsToSample);
+  }
+
   if (extended) {
-     //nEvents = (nEvents==0?Int_t(expectedEvents(&whatVars)+0.5):nEvents) ;
-    nEvents = (nEvents==0 ? expectedEvents(&whatVars) :nEvents) ;
+     //nEvents = (nEvents==0?Int_t(expectedEvents(&genVars)+0.5):nEvents) ;
+    nEvents = (nEvents==0 ? expectedEvents(&genVars) :nEvents) ;
     cxcoutI(Generation) << " Extended mode active, number of events generated (" << nEvents << ") is Poisson fluctuation on "
          << GetName() << "::expectedEvents() = " << nEvents << std::endl ;
     // If Poisson fluctuation results in zero events, stop here
@@ -1627,18 +1818,25 @@ RooFit::OwningPtr<RooDataHist> RooAbsPdf::generateBinned(const RooArgSet& whatVa
     }
   } else if (nEvents==0) {
     cxcoutI(Generation) << "No number of events specified , number of events generated is "
-         << GetName() << "::expectedEvents() = " << expectedEvents(&whatVars)<< std::endl ;
+         << GetName() << "::expectedEvents() = " << expectedEvents(&genVars)<< std::endl ;
   }
 
   // Forward to appropriate implementation
-  auto data = generateBinned(whatVars,nEvents,expectedData,extended);
+  std::unique_ptr<RooDataHist> data{generateBinned(genVars,nEvents,expectedData,extended)};
 
   // Rename dataset to given name if supplied
-  if (dsetName && strlen(dsetName)>0) {
+  if (data && dsetName && strlen(dsetName)>0) {
     data->SetName(dsetName) ;
   }
 
-  return data;
+  // Attach the global observables to the generated dataset, sampling the ones
+  // that were requested to be sampled
+  if (data && globalObservables) {
+    data->setGlobalObservables(
+       *makeGlobalObservablesSnapshot(*this, "RooAbsPdf::generateBinned", *globalObservables, globObsToSample));
+  }
+
+  return RooFit::makeOwningPtr(std::move(data));
 }
 
 

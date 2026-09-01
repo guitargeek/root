@@ -957,5 +957,95 @@ class RooWorkspace_test(unittest.TestCase):
         self.assertIn("SigXsecOverSM", poi)
 
 
+class RooAbsPdfGenerateGlobalObservables(unittest.TestCase):
+    """
+    Test the GlobalObservables() command argument of RooAbsPdf::generate()
+    (GitHub issue #10634).
+    """
+
+    def _make_workspace(self):
+        ws = ROOT.RooWorkspace("ws")
+        ws.factory("Gaussian::model(x[-10, 10], mu[0.0, -10, 10], sigma[2.0, 0.1, 10.0])")
+        ws.factory("Gaussian::constraint(gmu[0.0, -10, 10], mu, sigmaG[1.5, 0.01, 10.0])")
+        ws.factory("ProdPdf::modelc({model, constraint})")
+        ws["gmu"].setConstant(True)
+        return ws
+
+    def test_value_from_model(self):
+        # The global observable is not generated, so its current value is
+        # stored in the dataset.
+        ws = self._make_workspace()
+        ws["gmu"].setVal(1.25)
+
+        data = ws["modelc"].generate(ROOT.RooArgSet(ws["x"]), 100, GlobalObservables=ws["gmu"])
+
+        self.assertEqual(data.numEntries(), 100)
+        globs = data.getGlobalObservables()
+        self.assertEqual(len(globs), 1)
+        self.assertEqual(globs["gmu"].getVal(), 1.25)
+
+    def test_sampled_from_constraint(self):
+        # The global observable is in the set of variables to generate, so its
+        # value is sampled from the constraint term.
+        ROOT.RooRandom.randomGenerator().SetSeed(1337)
+        ws = self._make_workspace()
+        ws["gmu"].setVal(-9.0)
+
+        data = ws["modelc"].generate(ROOT.RooArgSet(ws["x"], ws["gmu"]), 100, GlobalObservables=ws["gmu"])
+
+        self.assertEqual(data.numEntries(), 100)
+        # the sampled global observable is not a column of the dataset
+        self.assertFalse(data.get().find("gmu"))
+        self.assertNotEqual(data.getGlobalObservables()["gmu"].getVal(), -9.0)
+        # the model itself is not modified by the sampling
+        self.assertEqual(ws["gmu"].getVal(), -9.0)
+
+    def test_generate_binned(self):
+        # The same works for binned datasets.
+        ROOT.RooRandom.randomGenerator().SetSeed(1337)
+        ws = self._make_workspace()
+        ws["gmu"].setVal(1.25)
+
+        hist = ws["modelc"].generateBinned(ROOT.RooArgSet(ws["x"]), 100, GlobalObservables=ws["gmu"])
+        self.assertEqual(hist.getGlobalObservables()["gmu"].getVal(), 1.25)
+
+        hist = ws["modelc"].generateBinned(ROOT.RooArgSet(ws["x"], ws["gmu"]), 100, GlobalObservables=ws["gmu"])
+        self.assertFalse(hist.get().find("gmu"))
+        self.assertNotEqual(hist.getGlobalObservables()["gmu"].getVal(), 1.25)
+
+    def test_multi_gen(self):
+        # The global observables are re-sampled for each dataset generated from
+        # the same GenSpec.
+        ROOT.RooRandom.randomGenerator().SetSeed(1337)
+        ws = self._make_workspace()
+
+        spec = ws["modelc"].prepareMultiGen(
+            ROOT.RooArgSet(ws["x"], ws["gmu"]), NumEvents=10, GlobalObservables=ws["gmu"]
+        )
+        values = set()
+        for _ in range(20):
+            data = ws["modelc"].generate(spec)
+            values.add(data.getGlobalObservables()["gmu"].getVal())
+        self.assertEqual(len(values), 20)
+
+    def test_round_trip_to_fit(self):
+        # createNLL() takes the global observables from the dataset by default.
+        ROOT.RooRandom.randomGenerator().SetSeed(1337)
+        ws = self._make_workspace()
+        ws["gmu"].setVal(1.0)
+
+        data = ws["modelc"].generate(ROOT.RooArgSet(ws["x"]), 100, GlobalObservables=ws["gmu"])
+        nll_ref = ws["modelc"].createNLL(data).getVal()
+
+        ws["gmu"].setVal(3.0)
+        self.assertEqual(ws["modelc"].createNLL(data).getVal(), nll_ref)
+
+    def test_no_constraint_term(self):
+        # Sampling a global observable that the model doesn't depend on is an error.
+        ws = self._make_workspace()
+        with self.assertRaises(Exception):
+            ws["model"].generate(ROOT.RooArgSet(ws["x"], ws["gmu"]), 10, GlobalObservables=ws["gmu"])
+
+
 if __name__ == "__main__":
     unittest.main()

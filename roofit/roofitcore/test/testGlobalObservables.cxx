@@ -3,6 +3,8 @@
 
 #include <RooAbsPdf.h>
 #include <RooCmdConfig.h>
+#include <RooCategory.h>
+#include <RooDataHist.h>
 #include <RooDataSet.h>
 #include <RooFitResult.h>
 #include <RooHelpers.h>
@@ -11,12 +13,19 @@
 #include <RooWorkspace.h>
 #include <RooRandom.h>
 
+#include <TFile.h>
+#include <TSystem.h>
+
 #include "../src/FitHelpers.h"
 
 #include "gtest_wrapper.h"
 
-#include <memory>
+#include <cmath>
 #include <functional>
+#include <memory>
+#include <set>
+#include <stdexcept>
+#include <vector>
 
 using RooFit::FitHelpers::minimize;
 
@@ -447,3 +456,469 @@ INSTANTIATE_TEST_SUITE_P(TestGlobalObservables, GlobsTest, testing::Values(ROOFI
                             ss << "EvalBackend" << std::get<0>(paramInfo.param).name();
                             return ss.str();
                          });
+
+////////////////////////////////////////////////////////////////////////////////
+/// Tests for the global observables support in toy dataset generation
+/// (GitHub issue #10634).
+
+namespace {
+
+/// Model with one event observable `x` and one global observable `gmu` that
+/// constrains the nuisance parameter `mu` with a Gaussian of width `sigmaG`.
+std::unique_ptr<RooWorkspace> makeConstrainedModel()
+{
+   auto ws = std::make_unique<RooWorkspace>("ws");
+   ws->factory("Gaussian::model(x[-10, 10], mu[0.0, -10, 10], sigma[2.0, 0.1, 10.0])");
+   ws->factory("Gaussian::constraint(gmu[0.0, -10, 10], mu, sigmaG[1.5, 0.01, 10.0])");
+   ws->factory("ProdPdf::modelc({model, constraint})");
+   ws->var("gmu")->setConstant(true);
+   return ws;
+}
+
+double globValue(RooAbsData const &data, const char *name)
+{
+   RooArgSet const *globs = data.getGlobalObservables();
+   if (!globs || !globs->find(name)) {
+      throw std::runtime_error(std::string("no global observable ") + name + " in dataset!");
+   }
+   return static_cast<RooRealVar const *>(globs->find(name))->getVal();
+}
+
+/// Sample mean and (unbiased) sample standard deviation of a set of toy values.
+struct Moments {
+   double mean = 0.0;
+   double stddev = 0.0;
+};
+
+Moments moments(std::vector<double> const &values)
+{
+   const double n = values.size();
+   double sum = 0.0;
+   double sum2 = 0.0;
+   for (double v : values) {
+      sum += v;
+      sum2 += v * v;
+   }
+   Moments out;
+   out.mean = sum / n;
+   out.stddev = std::sqrt((sum2 - n * out.mean * out.mean) / (n - 1.));
+   return out;
+}
+
+/// Generate `nToys` datasets from `spec` and return the sampled values of the
+/// global observable `name`.
+std::vector<double> sampleGlobs(RooAbsPdf &pdf, RooAbsPdf::GenSpec &spec, const char *name, int nToys)
+{
+   std::vector<double> out;
+   out.reserve(nToys);
+   for (int i = 0; i < nToys; ++i) {
+      std::unique_ptr<RooDataSet> data{pdf.generate(spec)};
+      out.push_back(globValue(*data, name));
+   }
+   return out;
+}
+
+} // namespace
+
+/// Mode 1: the global observable is not in the set of variables to generate,
+/// so its current value is taken from the model and stored in the dataset.
+TEST(GlobalObservablesGeneration, TakeValueFromModel)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   gmu.setVal(1.234);
+
+   std::unique_ptr<RooDataSet> data{modelc.generate(x, 100, RooFit::GlobalObservables(gmu))};
+
+   ASSERT_TRUE(data != nullptr);
+   EXPECT_EQ(data->numEntries(), 100);
+
+   // The global observable is not a column of the dataset
+   EXPECT_EQ(data->get()->find("gmu"), nullptr);
+
+   RooArgSet const *globs = data->getGlobalObservables();
+   ASSERT_TRUE(globs != nullptr);
+   EXPECT_EQ(globs->size(), 1u);
+   EXPECT_DOUBLE_EQ(globValue(*data, "gmu"), 1.234);
+   // Global observables attached to a dataset are always constant
+   EXPECT_TRUE(static_cast<RooRealVar const *>(globs->find("gmu"))->isConstant());
+
+   // The dataset owns a snapshot: changing the model doesn't change the dataset
+   gmu.setVal(5.0);
+   EXPECT_DOUBLE_EQ(globValue(*data, "gmu"), 1.234);
+}
+
+/// Mode 2: the global observable is also in the set of variables to generate,
+/// so its value is sampled from the constraint term in the model. Check that
+/// the sampled values follow the constraint pdf.
+TEST(GlobalObservablesGeneration, SampleFromConstraint)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &mu = *ws->var("mu");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   // The global observable is sampled from constraint(gmu | mu, sigmaG) with
+   // the *current* value of the nuisance parameter mu.
+   mu.setVal(1.0);
+   const double muRef = mu.getVal();
+   const double sigmaGRef = ws->var("sigmaG")->getVal();
+
+   // Set the global observable to a value far away from the constraint pdf, so
+   // we can verify that it is really sampled and that the model is untouched.
+   gmu.setVal(-9.0);
+
+   // Using the prepareMultiGen()/generate() combination also covers the
+   // GenSpec code path, and it is much faster for many toys.
+   std::unique_ptr<RooAbsPdf::GenSpec> spec{
+      modelc.prepareMultiGen({x, gmu}, RooFit::NumEvents(10), RooFit::GlobalObservables(gmu))};
+   ASSERT_TRUE(spec != nullptr);
+
+   const int nToys = 5000;
+
+   // Structural checks on the first toy
+   {
+      std::unique_ptr<RooDataSet> data{modelc.generate(*spec)};
+      ASSERT_TRUE(data != nullptr);
+      EXPECT_EQ(data->numEntries(), 10);
+      // Sampled global observables are not columns of the dataset: there is one
+      // auxiliary measurement per toy experiment, not one per event.
+      EXPECT_EQ(data->get()->find("gmu"), nullptr);
+   }
+
+   std::vector<double> values = sampleGlobs(modelc, *spec, "gmu", nToys);
+   const Moments mom = moments(values);
+
+   // Four times the statistical uncertainty on the mean and on the standard
+   // deviation. This is a tight check: it fails if the values are not sampled
+   // at all (they would all be -9.0), if they are sampled from the wrong pdf
+   // (e.g. from model(x | mu, sigma), which has a different width), or if they
+   // are sampled uniformly over the range of gmu.
+   EXPECT_NEAR(mom.mean, muRef, 4.0 * sigmaGRef / std::sqrt(double(nToys)));
+   EXPECT_NEAR(mom.stddev, sigmaGRef, 4.0 * sigmaGRef / std::sqrt(2.0 * nToys));
+
+   // Each toy gets its own auxiliary measurement, so the values must not repeat
+   EXPECT_EQ(std::set<double>(values.begin(), values.end()).size(), values.size());
+
+   // The mean of the sampled values follows the nuisance parameter: sampling
+   // again with a shifted mu must shift the distribution by exactly that much.
+   // This is what distinguishes sampling from the constraint term from sampling
+   // from any other distribution that happens to be centered around muRef.
+   const double muShifted = -2.75;
+   mu.setVal(muShifted);
+   const Moments momShifted = moments(sampleGlobs(modelc, *spec, "gmu", nToys));
+   EXPECT_NEAR(momShifted.mean, muShifted, 4.0 * sigmaGRef / std::sqrt(double(nToys)));
+   EXPECT_NEAR(momShifted.stddev, sigmaGRef, 4.0 * sigmaGRef / std::sqrt(2.0 * nToys));
+   mu.setVal(muRef);
+
+   // The width of the sampled values follows the width of the constraint pdf
+   const double sigmaGShifted = 0.4;
+   ws->var("sigmaG")->setVal(sigmaGShifted);
+   const Moments momNarrow = moments(sampleGlobs(modelc, *spec, "gmu", nToys));
+   EXPECT_NEAR(momNarrow.mean, muRef, 4.0 * sigmaGShifted / std::sqrt(double(nToys)));
+   EXPECT_NEAR(momNarrow.stddev, sigmaGShifted, 4.0 * sigmaGShifted / std::sqrt(2.0 * nToys));
+   ws->var("sigmaG")->setVal(sigmaGRef);
+
+   // The state of the model is not changed by the sampling
+   EXPECT_DOUBLE_EQ(gmu.getVal(), -9.0);
+
+   // The same works with the plain generate() interface
+   std::unique_ptr<RooDataSet> data{modelc.generate({x, gmu}, 10, RooFit::GlobalObservables(gmu))};
+   ASSERT_TRUE(data != nullptr);
+   EXPECT_EQ(data->get()->find("gmu"), nullptr);
+   EXPECT_NE(globValue(*data, "gmu"), -9.0);
+   EXPECT_DOUBLE_EQ(gmu.getVal(), -9.0);
+}
+
+/// The generated dataset is consumed correctly by createNLL(), which picks up
+/// the global observables from the dataset by default.
+TEST(GlobalObservablesGeneration, RoundTripToNll)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   gmu.setVal(1.0);
+   std::unique_ptr<RooDataSet> data{modelc.generate(x, 100, RooFit::GlobalObservables(gmu))};
+   ASSERT_TRUE(data != nullptr);
+
+   const double nllRef = std::unique_ptr<RooAbsReal>{modelc.createNLL(*data)}->getVal();
+
+   // Changing the global observable in the model doesn't change the NLL,
+   // because the value is taken from the dataset by default
+   gmu.setVal(3.0);
+   EXPECT_DOUBLE_EQ(std::unique_ptr<RooAbsReal>{modelc.createNLL(*data)}->getVal(), nllRef);
+
+   // ... unless the values are explicitly requested to come from the model
+   const double nllFromModel = std::unique_ptr<RooAbsReal>{modelc.createNLL(*data, RooFit::GlobalObservables(gmu),
+                                                                            RooFit::GlobalObservablesSource("model"))}
+                                  ->getVal();
+   EXPECT_NE(nllFromModel, nllRef);
+
+   // The difference is exactly the change in the Gaussian constraint term
+   const double sigmaG = ws->var("sigmaG")->getVal();
+   const double mu = ws->var("mu")->getVal();
+   auto constraintNll = [&](double g) { return 0.5 * (g - mu) * (g - mu) / (sigmaG * sigmaG); };
+   EXPECT_NEAR(nllFromModel - nllRef, constraintNll(3.0) - constraintNll(1.0), 1e-9);
+}
+
+/// Error cases.
+TEST(GlobalObservablesGeneration, ErrorCases)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::FATAL};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &model = *ws->pdf("model");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   // The model doesn't depend on the global observable, so there is no
+   // constraint term from which it could be sampled
+   EXPECT_THROW(std::unique_ptr<RooDataSet>{model.generate({x, gmu}, 10, RooFit::GlobalObservables(gmu))},
+                std::invalid_argument);
+   EXPECT_THROW(std::unique_ptr<RooAbsPdf::GenSpec>{model.prepareMultiGen({x, gmu}, RooFit::NumEvents(10),
+                                                                          RooFit::GlobalObservables(gmu))},
+                std::invalid_argument);
+
+   // Nothing left to generate: the dataset would have no columns
+   EXPECT_THROW(std::unique_ptr<RooDataSet>{modelc.generate(gmu, 10, RooFit::GlobalObservables(gmu))},
+                std::invalid_argument);
+
+   // Storing the value of a global observable that is not part of the model is
+   // allowed: no sampling is involved
+   RooRealVar gOther{"gOther", "gOther", 42.0};
+   std::unique_ptr<RooDataSet> data{model.generate(x, 10, RooFit::GlobalObservables(gOther))};
+   ASSERT_TRUE(data != nullptr);
+   EXPECT_DOUBLE_EQ(globValue(*data, "gOther"), 42.0);
+}
+
+/// The global observables are also attached to binned datasets generated with
+/// RooAbsPdf::generateBinned(), with the same two modes.
+TEST(GlobalObservablesGeneration, GenerateBinned)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &mu = *ws->var("mu");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   // Mode 1: value taken from the model
+   gmu.setVal(1.234);
+   std::unique_ptr<RooDataHist> hist{modelc.generateBinned(x, 500, RooFit::GlobalObservables(gmu))};
+   ASSERT_TRUE(hist != nullptr);
+   EXPECT_EQ(hist->get()->find("gmu"), nullptr);
+   EXPECT_DOUBLE_EQ(globValue(*hist, "gmu"), 1.234);
+
+   // An Asimov dataset gets the global observables at their nominal values too
+   std::unique_ptr<RooDataHist> asimov{
+      modelc.generateBinned(x, 500, RooFit::ExpectedData(), RooFit::GlobalObservables(gmu))};
+   ASSERT_TRUE(asimov != nullptr);
+   EXPECT_DOUBLE_EQ(globValue(*asimov, "gmu"), 1.234);
+
+   // Mode 2: sampled from the constraint term
+   mu.setVal(-1.25);
+   const double sigmaGRef = ws->var("sigmaG")->getVal();
+   const int nToys = 2000;
+   std::vector<double> values;
+   values.reserve(nToys);
+   for (int i = 0; i < nToys; ++i) {
+      std::unique_ptr<RooDataHist> data{modelc.generateBinned({x, gmu}, 20, RooFit::GlobalObservables(gmu))};
+      ASSERT_TRUE(data != nullptr);
+      // The sampled global observable is not an axis of the histogram
+      EXPECT_EQ(data->get()->find("gmu"), nullptr);
+      values.push_back(globValue(*data, "gmu"));
+   }
+   const Moments mom = moments(values);
+   EXPECT_NEAR(mom.mean, mu.getVal(), 4.0 * sigmaGRef / std::sqrt(double(nToys)));
+   EXPECT_NEAR(mom.stddev, sigmaGRef, 4.0 * sigmaGRef / std::sqrt(2.0 * nToys));
+   // The state of the model is not changed by the sampling
+   EXPECT_DOUBLE_EQ(gmu.getVal(), 1.234);
+
+   // Same error handling as in generate()
+   EXPECT_THROW(
+      std::unique_ptr<RooDataHist>{ws->pdf("model")->generateBinned({x, gmu}, 10, RooFit::GlobalObservables(gmu))},
+      std::invalid_argument);
+}
+
+/// Sampling global observables also works for RooSimultaneous models, where the
+/// global observables are not associated to any specific channel.
+TEST(GlobalObservablesGeneration, Simultaneous)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   RooWorkspace ws{"ws"};
+   ws.factory("Gaussian::pdfA(x[-10, 10], muA[1.1, -10, 10], sA[2.0])");
+   ws.factory("Gaussian::pdfB(x, muB[-0.4, -10, 10], sB[1.5])");
+   ws.factory("Gaussian::cA(gA[0.0, -10, 10], muA, sgA[1.0])");
+   ws.factory("Gaussian::cB(gB[0.0, -10, 10], muB, sgB[0.4])");
+   ws.factory("SUM::epdfA(nA[40, 0, 10000] * pdfA)");
+   ws.factory("SUM::epdfB(nB[60, 0, 10000] * pdfB)");
+   ws.factory("ProdPdf::mA({epdfA, cA})");
+   ws.factory("ProdPdf::mB({epdfB, cB})");
+   ws.factory("SIMUL::sim(cat[A=0, B=1], A=mA, B=mB)");
+   ws.var("gA")->setConstant(true);
+   ws.var("gB")->setConstant(true);
+
+   RooAbsPdf &sim = *ws.pdf("sim");
+   RooArgSet globs{*ws.var("gA"), *ws.var("gB")};
+   RooArgSet whatVars{*ws.var("x"), *ws.cat("cat"), *ws.var("gA"), *ws.var("gB")};
+
+   std::unique_ptr<RooAbsPdf::GenSpec> spec{
+      sim.prepareMultiGen(whatVars, RooFit::Extended(), RooFit::GlobalObservables(globs))};
+   ASSERT_TRUE(spec != nullptr);
+
+   const int nToys = 2000;
+   std::vector<double> valuesA;
+   std::vector<double> valuesB;
+   valuesA.reserve(nToys);
+   valuesB.reserve(nToys);
+   for (int i = 0; i < nToys; ++i) {
+      std::unique_ptr<RooDataSet> data{sim.generate(*spec)};
+      ASSERT_TRUE(data != nullptr);
+      EXPECT_EQ(data->get()->find("gA"), nullptr);
+      EXPECT_EQ(data->get()->find("gB"), nullptr);
+      valuesA.push_back(globValue(*data, "gA"));
+      valuesB.push_back(globValue(*data, "gB"));
+   }
+
+   // Each global observable follows the constraint of its own channel
+   const Moments momA = moments(valuesA);
+   const Moments momB = moments(valuesB);
+   const double sgA = ws.var("sgA")->getVal();
+   const double sgB = ws.var("sgB")->getVal();
+   EXPECT_NEAR(momA.mean, ws.var("muA")->getVal(), 4.0 * sgA / std::sqrt(double(nToys)));
+   EXPECT_NEAR(momA.stddev, sgA, 4.0 * sgA / std::sqrt(2.0 * nToys));
+   EXPECT_NEAR(momB.mean, ws.var("muB")->getVal(), 4.0 * sgB / std::sqrt(double(nToys)));
+   EXPECT_NEAR(momB.stddev, sgB, 4.0 * sgB / std::sqrt(2.0 * nToys));
+
+   // The values are attached to the dataset and picked up by createNLL()
+   std::unique_ptr<RooDataSet> data{sim.generate(*spec)};
+   const double nllRef = std::unique_ptr<RooAbsReal>{sim.createNLL(*data)}->getVal();
+   ws.var("gA")->setVal(5.0);
+   ws.var("gB")->setVal(-5.0);
+   EXPECT_DOUBLE_EQ(std::unique_ptr<RooAbsReal>{sim.createNLL(*data)}->getVal(), nllRef);
+}
+
+/// The global observables attached to the generated dataset survive the round
+/// trip through a file, so that toys can be generated and fitted in separate
+/// jobs.
+TEST(GlobalObservablesGeneration, FilePersistence)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   gmu.setVal(0.77);
+   std::unique_ptr<RooDataSet> data{modelc.generate(x, 100, RooFit::GlobalObservables(gmu))};
+   ASSERT_TRUE(data != nullptr);
+   const double nllRef = std::unique_ptr<RooAbsReal>{modelc.createNLL(*data)}->getVal();
+
+   const char *fileName = "testGlobalObservablesGeneration.root";
+   {
+      TFile file{fileName, "RECREATE"};
+      file.WriteObject(data.get(), "data");
+   }
+
+   {
+      TFile file{fileName};
+      auto *dataFromFile = file.Get<RooDataSet>("data");
+      ASSERT_TRUE(dataFromFile != nullptr);
+      ASSERT_TRUE(dataFromFile->getGlobalObservables() != nullptr);
+      EXPECT_DOUBLE_EQ(globValue(*dataFromFile, "gmu"), 0.77);
+      // The reconstructed dataset gives the same likelihood
+      gmu.setVal(-3.0);
+      EXPECT_DOUBLE_EQ(std::unique_ptr<RooAbsReal>{modelc.createNLL(*dataFromFile)}->getVal(), nllRef);
+   }
+
+   gSystem->Unlink(fileName);
+}
+
+/// The stored global observables actually steer a subsequent fit with default
+/// arguments.
+TEST(GlobalObservablesGeneration, RoundTripToFit)
+{
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooRealVar &mu = *ws->var("mu");
+   RooRealVar &gmu = *ws->var("gmu");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   // With a constraint that is tight compared to the 100 generated events, the
+   // fitted nuisance parameter is dragged towards the auxiliary measurement.
+   ws->var("sigmaG")->setVal(0.3);
+   ws->var("sigmaG")->setConstant(true);
+   ws->var("sigma")->setConstant(true);
+
+   auto fitMu = [&](double trueMu) {
+      mu.setVal(trueMu);
+      gmu.setVal(trueMu);
+      std::unique_ptr<RooDataSet> data{modelc.generate(x, 100, RooFit::GlobalObservables(gmu))};
+      // The value in the model is irrelevant: what counts is what is in the
+      // data. If the constraint used the model value, the fit would end up
+      // more than one unit away from trueMu.
+      gmu.setVal(-8.0);
+      mu.setVal(0.0);
+      std::unique_ptr<RooFitResult> res{
+         modelc.fitTo(*data, RooFit::Save(), RooFit::PrintLevel(-1), RooFit::Minos(false))};
+      EXPECT_EQ(res->status(), 0);
+      return static_cast<RooRealVar const *>(res->floatParsFinal().find("mu"))->getVal();
+   };
+
+   EXPECT_NEAR(fitMu(1.5), 1.5, 0.6);
+   EXPECT_NEAR(fitMu(-2.0), -2.0, 0.6);
+}
+
+/// An empty GlobalObservables() set has no effect at all. In particular, no
+/// empty snapshot must be attached to the dataset, because RooAbsPdf::fitTo()
+/// would then normalize the constraint terms with respect to nothing.
+TEST(GlobalObservablesGeneration, EmptySet)
+{
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+
+   auto ws = makeConstrainedModel();
+   RooRealVar &x = *ws->var("x");
+   RooAbsPdf &modelc = *ws->pdf("modelc");
+
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   std::unique_ptr<RooDataSet> ref{modelc.generate(x, 100)};
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+   std::unique_ptr<RooDataSet> data{modelc.generate(x, 100, RooFit::GlobalObservables(RooArgSet{}))};
+
+   ASSERT_TRUE(data != nullptr);
+   EXPECT_EQ(data->getGlobalObservables(), nullptr);
+   EXPECT_DOUBLE_EQ(std::unique_ptr<RooAbsReal>{modelc.createNLL(*data)}->getVal(),
+                    std::unique_ptr<RooAbsReal>{modelc.createNLL(*ref)}->getVal());
+
+   std::unique_ptr<RooAbsPdf::GenSpec> spec{
+      modelc.prepareMultiGen({x}, RooFit::NumEvents(10), RooFit::GlobalObservables(RooArgSet{}))};
+   ASSERT_TRUE(spec != nullptr);
+   std::unique_ptr<RooDataSet> fromSpec{modelc.generate(*spec)};
+   EXPECT_EQ(fromSpec->getGlobalObservables(), nullptr);
+}
