@@ -1452,6 +1452,25 @@ void TKey::SetParent(const TObject *parent)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Rename the key.
+///
+/// The length of the key header (fKeylen) and of the whole record (fNbytes)
+/// are updated to match the new name.  The key list of the mother directory
+/// must be reinserted (eg. removed and added again) so that its name based
+/// hash table stays consistent.  Also the record on file is not updated by
+/// this routine; the owning directory does it (see TDirectoryFile::SetName).
+
+void TKey::SetName(const char *newname)
+{
+   if (!newname || !newname[0] || fName == newname)
+      return;
+   Int_t oldKeylen = fKeylen;
+   TNamed::SetName(newname);
+   fKeylen = Sizeof();
+   fNbytes += fKeylen - oldKeylen;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Reset the key as it had not been 'filled' yet.
 
 void TKey::Reset()

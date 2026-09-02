@@ -111,6 +111,7 @@ protected:
            bool        ReadKeyBuffer(char *&buffer, std::size_t bufsize);
    virtual Bool_t      ReadFile();
    virtual void        SetBuffer() { DeleteBuffer(); fBuffer = new char[fNbytes]; }
+           void        SetName(const char *newname) override;
    virtual void        SetParent(const TObject *parent);
            void        SetMotherDir(TDirectory* dir) { fMotherDir = dir; }
            Int_t       Sizeof() const override;

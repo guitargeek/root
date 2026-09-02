@@ -1671,6 +1671,230 @@ void TDirectoryFile::SetBufferSize(Int_t bufsize)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Set the name of the directory.
+///
+/// In addition to changing the name in memory, if this directory belongs to
+/// a writable binary ROOT file (eg. it was created by TDirectoryFile::mkdir),
+/// the directory is renamed on file as well.  More precisely:
+///   - the corresponding key in the mother directory is renamed and the
+///     mother directory's list of keys is rewritten on file,
+///   - the record of this directory's key (the key header immediately
+///     followed by the directory header) is rewritten with the new name.  If
+///     the new name does not fit in the space used by the old key header, the
+///     record is moved to a new location in the file and the space used by
+///     the old record is marked as free.
+///
+/// The content of the directory (objects, subdirectories) is neither moved
+/// nor modified, only the name of the directory changes:
+/// ~~~{.cpp}
+///    TFile *f = TFile::Open("myfile.root", "update");
+///    TDirectory *dir = f->GetDirectory("oldname");
+///    if (dir) dir->SetName("newname");
+///    delete f; // the file now contains a subdirectory named 'newname'
+/// ~~~
+///
+/// For directories that are in memory only (ie. that do not belong to a
+/// file), that were never written to the file, that belong to a file opened
+/// in read-only mode or to a non-binary file (eg. XML, SQL), only the name in
+/// memory is changed.
+
+void TDirectoryFile::SetName(const char *newname)
+{
+   if (!newname || fName == newname)
+      return;
+
+   TDirectory *motherdir = GetMotherDir();
+   TFile *f = GetFile();
+
+   // In all the cases where the on-file structures cannot (or should not) be
+   // updated, fall back to the historical behavior of TDirectory::SetName of
+   // renaming the directory in memory only:
+   //  - directories in memory only (no file or no mother directory),
+   //  - directories that were never written to the file (fSeekDir == 0),
+   //  - directories whose file is not writable,
+   //  - files that cannot be accessed as raw bytes (eg. XML or SQL files)
+   //    or whose directory structure is not key based (TMapFile).
+   // Note that this function is also called to rename the TFile object
+   // itself: in that case there is no mother directory and the new name may
+   // legitimately be a full path (eg. containing slashes).
+   if (!f || !motherdir || !fSeekDir || !IsWritable() || !f->IsBinary() || f->InheritsFrom(TMapFile::Class())) {
+      TDirectory::SetName(newname);
+      return;
+   }
+
+   // From here on, the directory is renamed on file: the name becomes the
+   // name of a key and is looked up in path-like expressions.
+   if (!newname[0]) {
+      Error("SetName", "The new directory name is empty");
+      return;
+   }
+   if (strchr(newname, '/')) {
+      Error("SetName", "Directory name (%s) cannot contain a slash", newname);
+      return;
+   }
+
+   if (motherdir->GetKey(newname)) {
+      Error("SetName", "An object with name %s exists already in the mother directory", newname);
+      return;
+   }
+
+   // Look for the key pointing to this directory in the list of keys of the
+   // mother directory (the key whose record is at fSeekDir).  Also remember
+   // the key immediately following it so that the renamed (or replaced) key
+   // can be re-inserted at the same position and the user visible order of
+   // the list of keys does not change.
+   TList *keys = motherdir->GetListOfKeys();
+   TKey *key = nullptr;
+   TObject *nextkey = nullptr;
+   if (keys) {
+      TIter next(keys);
+      TObject *obj;
+      while ((obj = next())) {
+         if (key) {
+            nextkey = obj;
+            break;
+         }
+         TKey *k = static_cast<TKey *>(obj);
+         if (k->GetSeekKey() == fSeekDir)
+            key = k;
+      }
+   }
+   if (!key) {
+      // Unusual: the key was not found, the on-file structures cannot be
+      // updated.
+      TDirectory::SetName(newname);
+      return;
+   }
+
+   // Remove this directory from the list of objects of the mother directory;
+   // it is re-inserted (at the same position) once renamed so that the name
+   // based hash table of the list stays consistent.
+   TList *mobjects = motherdir->GetList();
+   TObject *nextobj = nullptr;
+   Bool_t inlist = kFALSE;
+   if (mobjects) {
+      for (TObjLink *lnk = mobjects->FirstLink(); lnk; lnk = lnk->Next()) {
+         if (lnk->GetObject() == this) {
+            inlist = kTRUE;
+            nextobj = lnk->Next() ? lnk->Next()->GetObject() : nullptr;
+            break;
+         }
+      }
+      if (inlist)
+         mobjects->Remove(this);
+   }
+
+   // The layout of the on-file record holding this directory is
+   //    [ key header | directory header ]
+   // starting at fSeekDir.  The name of the directory appears in the key
+   // header (both in this record and in the serialized copy of the key in
+   // the list of keys of the mother directory).
+   Int_t oldnbytes = key->GetNbytes();
+   Int_t oldkeylen = key->GetKeylen(); // same as fNbytesName
+   Int_t objlen = key->GetObjlen();    // size of the directory header part
+   Int_t keylendelta = TString(newname).Sizeof() - fName.Sizeof();
+   Int_t newkeylen = oldkeylen + keylendelta;
+
+   // The record can be rewritten at its current location if the new key
+   // header is not longer than the old one.  In addition, a record can be
+   // shortened only if the space released is either empty or large enough to
+   // hold the 4 bytes marker of a free segment (see TFree::GetBestFree).
+   if (newkeylen > oldkeylen || (keylendelta < 0 && keylendelta > -4)) {
+      // Not enough space for the new key header (or too little space would
+      // be left behind): the whole record is moved to a new location.  The
+      // new key allocates the space for the relocated record; note that at
+      // this point the space of the old record is not in the list of free
+      // segments and thus cannot be picked for the new record.
+      TClass *cl = TClass::GetClass(key->GetClassName());
+      TKey *newkey = cl ? new TKey(newname, GetTitle(), cl, objlen, motherdir) : nullptr;
+      if (!newkey || !newkey->GetSeekKey()) {
+         Error("SetName", "Cannot allocate space to rename directory %s to %s", GetName(), newname);
+         delete newkey;
+         if (inlist) {
+            if (nextobj)
+               mobjects->AddBefore(nextobj, this);
+            else
+               mobjects->Add(this);
+         }
+         return;
+      }
+      // Fill the payload of the new key with the directory header and write
+      // the record (key header followed by the directory header) at its new
+      // location, keeping the same cycle number as the old key.
+      TNamed::SetName(newname);
+      Long64_t oldseek = fSeekDir;
+      fSeekDir = newkey->GetSeekKey();
+      fNbytesName = newkey->GetKeylen();
+      fDatimeM.Set();
+      char *buffer = newkey->GetBuffer();
+      TDirectoryFile::FillBuffer(buffer);
+      newkey->WriteFile(key->GetCycle());
+      // Mark the space used by the old record as free.
+      f->MakeFree(oldseek, oldseek + oldnbytes - 1);
+      // Replace the old key by the new one (at the same position) in the
+      // list of keys of the mother directory.
+      keys->Remove(key);
+      if (nextkey)
+         keys->AddBefore(nextkey, newkey);
+      else
+         keys->AddLast(newkey);
+      delete key;
+   } else {
+      // Enough space: rewrite the record at its current location.  First
+      // remove the key from the list of keys of the mother directory (its
+      // hash is based on the old name) then rename it.
+      keys->Remove(key);
+      key->SetName(newname);
+      TNamed::SetName(newname);
+      fNbytesName = newkeylen;
+      fDatimeM.Set();
+      char *buffer = new char[oldkeylen + keylendelta + objlen];
+      char *buf = buffer;
+      key->FillBuffer(buf);
+      TDirectoryFile::FillBuffer(buf);
+      f->Seek(fSeekDir);
+      if (f->WriteBuffer(buffer, key->GetNbytes())) {
+         Error("SetName", "Could not rewrite the directory %s with the new name %s", GetName(), newname);
+         delete[] buffer;
+         if (nextkey)
+            keys->AddBefore(nextkey, key);
+         else
+            keys->AddLast(key);
+         if (inlist) {
+            if (nextobj)
+               mobjects->AddBefore(nextobj, this);
+            else
+               mobjects->Add(this);
+         }
+         return;
+      }
+      delete[] buffer;
+      // Mark the space that is not used anymore as free.
+      if (keylendelta < 0)
+         f->MakeFree(fSeekDir + key->GetNbytes(), fSeekDir + oldnbytes - 1);
+      // Re-insert the key at its original position.
+      if (nextkey)
+         keys->AddBefore(nextkey, key);
+      else
+         keys->AddLast(key);
+   }
+
+   // Re-insert this directory at its original position in the list of
+   // objects of the mother directory.
+   if (inlist) {
+      if (nextobj)
+         mobjects->AddBefore(nextobj, this);
+      else
+         mobjects->Add(this);
+   }
+
+   // Update the list of keys of the mother directory on file and the mother
+   // directory header.
+   motherdir->SetModified();
+   motherdir->SaveSelf();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Find the action to be executed in the dictionary of the parent class
 /// and store the corresponding exec number into fBits.
 ///

@@ -1288,11 +1288,15 @@ Int_t TDirectory::SaveObjectAs(const TObject *obj, const char *filename, Option_
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Set the name for directory
-/// If the directory name is changed after the directory was written once,
-/// ROOT currently would NOT change the name of correspondent key in the
-/// mother directory.
-/// DO NOT use this method to 'rename a directory'.
-/// Renaming a directory is currently NOT supported.
+///
+/// This function simply changes the name of the directory in memory; use it
+/// for directories that do not belong to a ROOT file.
+/// For directories that belong to a writable ROOT file, the re-implementation
+/// in TDirectoryFile additionally renames the directory on file: the name of
+/// the corresponding key in the mother directory is changed and the directory
+/// record is rewritten with the new name.
+///
+/// See TDirectoryFile::SetName for more details.
 
 void TDirectory::SetName(const char* newname)
 {

@@ -116,6 +116,7 @@ public:
            Int_t       SaveObjectAs(const TObject *obj, const char *filename="", Option_t *option="") const override;
            void        SetBufferSize(Int_t bufsize) override;
            void        SetModified() override {fModified = kTRUE;}
+           void        SetName(const char *newname) override;
            void        SetSeekDir(Long64_t v) override { fSeekDir = v; }
            void        SetTRefAction(TObject *ref, TObject *parent) override;
            void        SetWritable(Bool_t writable=kTRUE) override;
