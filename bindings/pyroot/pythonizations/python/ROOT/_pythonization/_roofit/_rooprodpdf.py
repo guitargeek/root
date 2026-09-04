@@ -16,17 +16,14 @@ from ._utils import _kwargs_to_roocmdargs, cpp_signature
 
 class RooProdPdf(object):
     r"""RooProdPdf() constructor takes a RooCmdArg as argument also supports keyword arguments.
-    For example, the following code is equivalent in PyROOT:
+    For example, the conditional product \f$ F(x|y) \cdot G(y) \f$ from the
+    RooProdPdf class documentation can be constructed equivalently as:
     \code{.py}
     # Directly passing a RooCmdArg:
-    model = ROOT.RooProdPdf(
-        "model", "model", ROOT.RooArgSet(shapePdf), ROOT.RooFit.Conditional(ROOT.RooArgSet(effPdf), ROOT.RooArgSet(cut))
-        )
+    model = ROOT.RooProdPdf("model", "F(x|y) * G(y)", [G], ROOT.RooFit.Conditional([F], [x]))
 
     # With keyword arguments:
-    model = ROOT.RooProdPdf(
-        "model", "model", ROOT.RooArgSet(shapePdf), Conditional=(ROOT.RooArgSet(effPdf), ROOT.RooArgSet(cut))
-        )
+    model = ROOT.RooProdPdf("model", "F(x|y) * G(y)", [G], Conditional=([F], [x]))
     \endcode
     """
 

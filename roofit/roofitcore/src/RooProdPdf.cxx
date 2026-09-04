@@ -20,25 +20,150 @@
 \ingroup Roofitcore
 
 Efficient implementation of a product of PDFs of the form
-\f[ \prod_{i=1}^{N} \mathrm{PDF}_i (x, \ldots) \f]
 
-PDFs may share observables. If that is the case any irreducible subset
-of PDFs that share observables will be normalised with explicit numeric
-integration as any built-in normalisation will no longer be valid.
+\f[
+    P(x_1, \ldots, x_M \,;\, \vec{p}) = \prod_{i=1}^{N} \mathrm{pdf}_i ,
+\f]
 
-Alternatively, products using conditional PDFs can be defined, *e.g.*
+constructed from a list of components:
 
-\f[ F(x|y) \cdot G(y), \f]
+~~~{.cpp}
+RooProdPdf P("P", "P", RooArgList(pdf1, pdf2, pdf3));
+~~~
 
-meaning a PDF \f$ F(x) \f$ **given** \f$ y \f$ and a PDF \f$ G(y) \f$.
-In this construction, \f$ F \f$ is only
-normalised w.r.t \f$ x\f$, and \f$ G \f$ is normalised w.r.t \f$ y \f$. The product in this construction
-is properly normalised.
+The factors \f$ \mathrm{pdf}_i \f$ may share *parameters* \f$ \vec{p} \f$
+freely; that has no effect on the normalisation. What matters is which
+*observables* they share, where "observables" means the subset of each
+factor's variables that appears in the normalisation set: the set passed to
+RooAbsReal::getVal() in the snippets below, the variables of the dataset in a
+fit, the plotted variable in a plot. Which variables count as observables is
+therefore decided at use time, not at construction.
+
+### Normalisation
+
+A product of PDFs is normalised jointly over its observables
+\f$ \vec{x} = (x_1, \ldots, x_M) \f$:
+
+\f[
+    P(\vec{x}) = \frac{\prod_i \mathrm{pdf}_i}{\int \prod_i \mathrm{pdf}_i \,\mathrm{d}\vec{x}} .
+\f]
+
+Where the factors depend on disjoint sets of observables, the integral
+factorises into the normalisation integrals of the individual factors. Given a
+PDF \f$ F(x) \f$ and a PDF \f$ G(y) \f$,
+
+~~~{.cpp}
+RooProdPdf P("P", "P", F, G);
+
+RooArgSet normSet{x, y};
+double val = P.getVal(normSet);
+~~~
+
+evaluates to
+
+\f[
+    P(x,y) = \frac{F(x)}{\int F(x) \,\mathrm{d}x} \cdot \frac{G(y)}{\int G(y) \,\mathrm{d}y} ,
+\f]
+
+so each factor is normalised on its own, typically analytically, and no
+integral of the product as a whole is ever computed. Only observables that
+are shared between factors have to be integrated explicitly, in general
+numerically, which can be expensive.
+
+### Conditional products
+
+Alternatively, a product can be built from conditional PDFs, using the
+`Conditional()` argument of the
+\ref RooProdPdfConditionalConstructor "named-argument constructor". Given a
+PDF \f$ F(x,y) \f$ and a PDF \f$ G(y) \f$,
+
+~~~{.cpp}
+RooProdPdf P("P", "P", G, Conditional(F, x));
+
+RooArgSet normSet{x, y};
+double val = P.getVal(normSet);
+~~~
+
+interprets \f$ F \f$ as a PDF for \f$ x \f$ **given** \f$ y \f$, normalised
+over \f$ x \f$ separately for each value of \f$ y \f$:
+
+\f[
+    P(x,y) = F(x|y) \cdot G(y)
+           = \frac{F(x,y)}{\int F(x,y) \,\mathrm{d}x} \cdot \frac{G(y)}{\int G(y) \,\mathrm{d}y} .
+\f]
+
+Since \f$ \int F(x|y) \,\mathrm{d}x = 1 \f$ for every \f$ y \f$, this
+product is unit-normalised over \f$ (x,y) \f$, again without any integral of
+the product as a whole; the conditional normalisation
+\f$ \int F(x,y) \,\mathrm{d}x \f$ is a function of \f$ y \f$ and is
+generally evaluated numerically. The result is a well normalised and properly
+defined PDF, but a different one than the jointly normalised product of the
+same two factors,
+
+~~~{.cpp}
+RooProdPdf Pprime("Pprime", "Pprime", F, G); // F(x,y) and G(y) share y
+
+double val = Pprime.getVal(normSet); // same normalisation set {x, y}
+~~~
+
+which evaluates to
+
+\f[
+    P'(x,y) = \frac{F(x,y) \cdot G(y)}{\iint F(x,y) \cdot G(y) \,\mathrm{d}x \,\mathrm{d}y} :
+\f]
+
+in \f$ P \f$ the distribution of \f$ y \f$ is identical to that of
+\f$ G \f$, and \f$ F \f$ only determines the distribution of \f$ x \f$ at
+each value of \f$ y \f$ — analogous to generating events from
+\f$ F(x,y) \f$ with a prototype dataset sampled from \f$ G(y) \f$. In
+\f$ P' \f$, the distribution of \f$ y \f$ is defined by the product of
+\f$ F \f$ and \f$ G \f$.
+
+Longer products of conditional PDFs follow the chain rule of probability.
+For PDFs \f$ F(x,y,z) \f$, \f$ G(y,z) \f$ and \f$ H(z) \f$,
+
+~~~{.cpp}
+RooProdPdf P("P", "P", H, Conditional(F, x), Conditional(G, y));
+
+RooArgSet normSet{x, y, z};
+double val = P.getVal(normSet);
+~~~
+
+evaluates to
+
+\f[
+    P(x,y,z) = F(x|y,z) \cdot G(y|z) \cdot H(z) ,
+\f]
+
+with each factor normalised over its non-conditional observables only. The
+order in which the factors are given to the constructor plays no role: which
+observables each factor is normalised over is determined solely by the
+`Conditional()` specifications, and the product is the same in any order.
+Such a product is unit-normalised provided that *some* ordering of the
+factors exists in which the conditional observables of each factor are
+modelled by factors later in that ordering, as in the example above. A
+circular structure such as \f$ F(x|y) \cdot G(y|x) \f$, for which no such
+ordering exists, evaluates without complaint but does not integrate to one.
+
+Both constructions combine: factors — conditional or not — that share
+normalisation observables are normalised jointly over them.
+
+Because the normalisation above is built into the evaluation, RooProdPdf
+reports itself as self-normalised: no additional normalisation integral is
+applied on top of these expressions.
+
+### Extended products
 
 If exactly one of the component PDFs supports extended likelihood fits, the
 product will also be usable in extended mode, returning the number of expected
 events from the extendable component PDF. The extendable component does not
 have to appear in any specific place in the list.
+
+### See also
+
+The tutorials rf304_uncorrprod.C (product with independent observables),
+rf305_condcorrprod.C (conditional product) and rf307_fullpereventerrors.C
+(conditional product for per-event errors) demonstrate typical use.
 **/
 
 #include "RooProdPdf.h"
@@ -164,6 +289,7 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgList& in
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// \anchor RooProdPdfConditionalConstructor
 /// Constructor from named argument list.
 /// \param[in] name Name used by RooFit
 /// \param[in] title Title used for plotting
@@ -177,24 +303,9 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgList& in
 /// (Setting `depsAreCond` to true inverts this, so the observables in depSet will be the conditional observables.)
 /// </table>
 ///
-/// For example, given a PDF \f$ F(x,y) \f$ and \f$ G(y) \f$,
-///
-/// `RooProdPdf("P", "P", G, Conditional(F,x))` will construct a 2-dimensional PDF as follows:
-/// \f[
-///     P(x,y) = \frac{G(y)}{\int_y G(y)} \cdot \frac{F(x,y)}{\int_x F(x,y)},
-/// \f]
-///
-/// which is a well normalised and properly defined PDF, but different from
-/// \f[
-///     P'(x,y) = \frac{F(x,y) \cdot G(y)}{\int_x\int_y F(x,y) \cdot G(y)}.
-/// \f]
-///
-/// In the former case, the \f$ y \f$ distribution of \f$ P \f$ is identical to that of \f$ G \f$, while
-/// \f$ F \f$ only is used to determine the correlation between \f$ X \f$ and \f$ Y \f$. In the latter
-/// case, the \f$ Y \f$ distribution is defined by the product of \f$ F \f$ and \f$ G \f$.
-///
-/// This \f$ P(x,y) \f$ construction is analogous to generating events from \f$ F(x,y) \f$ with
-/// a prototype dataset sampled from \f$ G(y) \f$.
+/// The mathematical semantics of conditional products, and how they differ
+/// from plain products of the same factors, are documented in the RooProdPdf
+/// class description.
 
 RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgSet& fullPdfSet,
              const RooCmdArg& arg1, const RooCmdArg& arg2,
