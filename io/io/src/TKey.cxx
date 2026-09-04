@@ -1452,6 +1452,62 @@ void TKey::SetParent(const TObject *parent)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Rename the key.
+///
+/// In contrast to SetName, which only changes the name in memory, the length
+/// of the key header (fKeylen) and of the whole record (fNbytes) are updated
+/// to match the new name.  The caller (TDirectoryFile::SetName) is
+/// responsible for rewriting the record on file accordingly and for keeping
+/// the name based hash table of the key list of the mother directory
+/// consistent (eg. by removing the key and adding it again).
+
+void TKey::Rename(const char *newname)
+{
+   Int_t oldKeylen = fKeylen;
+   TNamed::SetName(newname);
+   fKeylen = Sizeof();
+   fNbytes += fKeylen - oldKeylen;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Change the location of the record of the mother directory (fSeekPdir),
+/// both in memory and in the key header already written on file.
+///
+/// Used by TDirectoryFile::SetName when the record of the mother directory
+/// is relocated because its new name does not fit in the old record.
+/// Returns kFALSE if the key header on file could not be updated: the new
+/// location does not fit in the 32 bit field of a key written by an old
+/// version of ROOT, or the write failed.
+
+Bool_t TKey::UpdateSeekPdir(Long64_t newseekpdir)
+{
+   fSeekPdir = newseekpdir;
+   if (!fSeekKey)
+      return kTRUE; // the key was never written to the file
+   TFile *f = GetFile();
+   if (!f)
+      return kFALSE;
+   // fSeekPdir is preceded in the key header by fNbytes (4 bytes), fVersion
+   // (2), fObjlen (4), fDatime (4), fKeylen (2), fCycle (2) and fSeekKey
+   // (4 or 8), see FillBuffer.
+   char buf[8];
+   char *buffer = buf;
+   Int_t width;
+   if (fVersion > 1000) {
+      Long64_t pdir = (((Long64_t)fPidOffset) << kPidOffsetShift) | (kPidOffsetMask & fSeekPdir);
+      tobuf(buffer, pdir);
+      width = 8;
+   } else {
+      if (fSeekPdir > TFile::kStartBigFile)
+         return kFALSE;
+      tobuf(buffer, (Int_t)fSeekPdir);
+      width = 4;
+   }
+   f->Seek(fSeekKey + 18 + width);
+   return !f->WriteBuffer(buf, width);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Reset the key as it had not been 'filled' yet.
 
 void TKey::Reset()

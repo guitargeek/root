@@ -35,7 +35,11 @@ private:
    TKey(const TKey&) = delete;            // TKey objects are not copiable.
    TKey& operator=(const TKey&) = delete; // TKey objects are not copiable.
 
+   friend class TDirectoryFile; // uses Rename and UpdateSeekPdir to rename directories on file
+
    Int_t UnzipBuffer(char *targetBuffer, const char *compressedBuffer) const;
+   void Rename(const char *newname);
+   Bool_t UpdateSeekPdir(Long64_t newseekpdir);
 
 protected:
    Int_t       fVersion;     ///< Key version identifier
