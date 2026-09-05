@@ -399,7 +399,7 @@ void Evaluator::rangeRestrictionAnalysis()
       return;
 
    // Determine the contiguous event range that each data-only mask selects.
-   std::map<NodeInfo const *, std::pair<std::size_t, std::size_t>> maskRanges;
+   std::map<NodeInfo *, std::pair<std::size_t, std::size_t>> maskRanges;
    for (auto &info : _nodes) {
       if (info.outputSize <= 1 || info.fromArrayInput || !info.absArg->getAttribute("BinaryMask"))
          continue;
@@ -442,6 +442,7 @@ void Evaluator::rangeRestrictionAnalysis()
    // Fix the computed slice of each gated product to the range of its mask.
    // The product keeps a full-length buffer whose value outside of the slice
    // is exactly zero, because that's what multiplying with the mask yields.
+   std::map<NodeInfo const *, NodeInfo const *> productMasks;
    for (auto &info : _nodes) {
       if (info.outputSize <= 1 || !info.absArg->getAttribute("MaskGatedProduct"))
          continue;
@@ -451,6 +452,7 @@ void Evaluator::rangeRestrictionAnalysis()
             info.isMaskedProduct = true;
             info.sliceBegin = found->second.first;
             info.computeSize = found->second.second - found->second.first;
+            productMasks[&info] = server;
             break;
          }
       }
@@ -458,6 +460,26 @@ void Evaluator::rangeRestrictionAnalysis()
    }
    if (!_hasRestrictedNodes)
       return;
+
+   // A mask that is only ever read by the products it gates is only read
+   // inside its own slice, where it is identically one. Present it as a
+   // broadcast constant and release the full-length buffer, so that the
+   // memory usage doesn't grow with the number of masks (i.e. the number of
+   // channels of a simultaneous fit).
+   for (auto const &item : maskRanges) {
+      NodeInfo *maskInfo = item.first;
+      bool onlyGatedClients = !maskInfo->clientInfos.empty();
+      for (NodeInfo *client : maskInfo->clientInfos) {
+         auto found = productMasks.find(client);
+         onlyGatedClients &= found != productMasks.end() && found->second == maskInfo;
+      }
+      if (!onlyGatedClients)
+         continue;
+      maskInfo->scalarBuffer = 1.0;
+      assignSpan(maskInfo->canonicalSpan, {&maskInfo->scalarBuffer, 1});
+      _evalContextCPU.set(maskInfo->absArg, maskInfo->canonicalSpan);
+      maskInfo->buffer.reset();
+   }
 
    // Propagate the demands down the graph, visiting clients before servers
    // (the node list is topologically sorted). Each vector node is then
