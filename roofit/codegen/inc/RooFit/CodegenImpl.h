@@ -73,6 +73,7 @@ class FlexibleInterpVar;
 namespace RooFit {
 
 namespace Detail {
+class RooChannelIndicatorPdf;
 class RooFixedProdPdf;
 class RooNLLVarNew;
 class RooNormalizedPdf;
@@ -82,6 +83,7 @@ namespace Experimental {
 
 class CodegenContext;
 
+void codegenImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, CodegenContext &ctx);
 void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx);
 void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx);
 void codegenImpl(RooFit::Detail::RooNormalizedPdf &arg, CodegenContext &ctx);
@@ -133,6 +135,8 @@ void codegenImpl(RooUniform &arg, CodegenContext &ctx);
 void codegenImpl(RooWrapperPdf &arg, CodegenContext &ctx);
 
 std::string codegenIntegralImpl(RooAbsReal &arg, int code, const char *rangeName, CodegenContext &ctx);
+std::string
+codegenIntegralImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, int code, const char *rangeName, CodegenContext &ctx);
 std::string codegenIntegralImpl(RooBernstein &arg, int code, const char *rangeName, CodegenContext &ctx);
 std::string codegenIntegralImpl(RooBifurGauss &arg, int code, const char *rangeName, CodegenContext &ctx);
 std::string codegenIntegralImpl(RooCBShape &arg, int code, const char *rangeName, CodegenContext &ctx);
