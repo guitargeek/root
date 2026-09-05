@@ -51,6 +51,7 @@ in each category.
 #include "RooAbsCategoryLValue.h"
 #include "RooAbsData.h"
 #include "RooAddPdf.h"
+#include "RooAddition.h"
 #include "RooArgSet.h"
 #include "RooBinSamplingPdf.h"
 #include "RooBinWidthFunction.h"
@@ -1520,6 +1521,22 @@ std::string rangeSelectionCut(RooSimultaneous const &simPdf,
    return cut;
 }
 
+/// Whether the binned-likelihood pdf of the given channel contains a
+/// RooBinWidthFunction, which is required for interpreting the compiled pdf
+/// values directly as bin yields (the "BinnedLikelihoodActiveYields" mode).
+bool binnedChannelHasBinWidthFunction(RooAbsPdf const &channelPdf)
+{
+   RooAbsPdf const &binnedPdf = *RooHelpers::getBinnedL(channelPdf).binnedPdf;
+   RooArgList binnedPdfNodes;
+   binnedPdf.treeNodeServerList(&binnedPdfNodes);
+   for (RooAbsArg const *node : binnedPdfNodes) {
+      if (dynamic_cast<RooBinWidthFunction const *>(node)) {
+         return true;
+      }
+   }
+   return false;
+}
+
 /// Variant of the mixture compilation for a simultaneous pdf whose channels
 /// all use the binned likelihood optimization. The compiled pdf is a single
 /// unnormalized sum of the indicator-gated channel yields,
@@ -1566,17 +1583,7 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
       // disable themselves during the binned-likelihood compilation. Without
       // them, the likelihood would have to multiply by per-channel bin
       // volumes, which the single concatenated RooNLLVarNew doesn't support.
-      RooAbsPdf const &binnedPdf = *RooHelpers::getBinnedL(*channelPdf).binnedPdf;
-      RooArgList binnedPdfNodes;
-      binnedPdf.treeNodeServerList(&binnedPdfNodes);
-      bool hasBinWidthFunc = false;
-      for (RooAbsArg const *node : binnedPdfNodes) {
-         if (dynamic_cast<RooBinWidthFunction const *>(node)) {
-            hasBinWidthFunc = true;
-            break;
-         }
-      }
-      if (!hasBinWidthFunc) {
+      if (!binnedChannelHasBinWidthFunction(*channelPdf)) {
          return fallBack("the binned-likelihood pdf of channel \"" + catState.first +
                          "\" has no RooBinWidthFunction, so its values can't be interpreted as bin yields");
       }
@@ -1671,6 +1678,241 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
    compiled->addOwnedComponents(std::move(mixture));
 
    return compiled;
+}
+
+/// Variant of the mixture compilation for a simultaneous pdf with both
+/// binned-likelihood and unbinned channels. The compiled pdf is a single
+/// unnormalized sum of indicator-gated terms with different meanings per
+/// channel type,
+/// \f[
+///   V(\vec{x}, c) = \sum_{s \in \mathrm{binned}} \mathbf{1}[c = s] \; Y_s(\vec{x})
+///     + \sum_{s \in \mathrm{unbinned}} \mathbf{1}[c = s] \; \nu_s^{[\mathrm{ext}]} \, \hat{f}_s(\vec{x}),
+/// \f]
+/// matching the heterogeneous rows of the concatenated dataset: on the rows
+/// of a binned channel the value is the expected bin yield (compiled through
+/// the binned-likelihood machinery like in compileSimPdfAsBinnedMixture()),
+/// and on the rows of an unbinned channel it is the normalized channel
+/// density (scaled by the expected channel yield in extended fits, so that
+/// \f$ -w \log(\nu_s \hat{f}_s) \f$ contains the per-channel
+/// \f$ -w \log \nu_s \f$ part of the extended term already). The compiled pdf
+/// declares a mask node selecting the binned rows ("MixtureBinnedRowsMask")
+/// and, in extended fits, a node with the summed expected events of the
+/// unbinned channels ("MixtureExpectedEventsTotal"); RooNLLVarNew picks both
+/// up via the "MixedBinnedLikelihoodActive" attribute and reduces the rows
+/// accordingly (see RooNLLVarNew::doEvalMixed()). The "SimCount" attribute
+/// reproduces the legacy convention of adding sumOfWeights * log(nChannels)
+/// over all rows, exactly like the per-channel likelihoods of the
+/// channel-splitting path do.
+template <typename FallBackFunc>
+std::unique_ptr<RooAbsArg>
+compileSimPdfAsMixedMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet,
+                            RooFit::Detail::CompileContext &ctx, MixtureIndexStandIns indexStandIns,
+                            std::vector<std::pair<std::string, RooAbsCategory::value_type>> const &keptChannels,
+                            std::string const &dataSelectionCut, FallBackFunc const &fallBack)
+{
+   // Upfront checks that can still fall back, before any compilation
+   // pollutes the CompileContext.
+   std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
+   for (auto const &catState : keptChannels) {
+      RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
+      auto [seenIt, inserted] = seenChannelPdfs.emplace(channelPdf->GetName(), channelPdf);
+      if (!inserted && seenIt->second != channelPdf) {
+         // See the unbinned mixture compilation below.
+         return fallBack("two channels use different pdfs with the same name \"" + seenIt->first + "\"");
+      }
+      if (RooHelpers::getBinnedL(*channelPdf).isBinnedL) {
+         // See compileSimPdfAsBinnedMixture().
+         if (!binnedChannelHasBinWidthFunction(*channelPdf)) {
+            return fallBack("the binned-likelihood pdf of channel \"" + catState.first +
+                            "\" has no RooBinWidthFunction, so its values can't be interpreted as bin yields");
+         }
+      } else if (ctx.extendedMode() && !channelPdf->canBeExtended()) {
+         return fallBack("extended fit with non-extendable unbinned channel pdfs");
+      }
+   }
+
+   // Build the gated terms, with the binned channels first so that the
+   // compiled binned terms can be identified by their position in the
+   // function list below. The term for a binned channel is a function
+   // product, evaluating to the expected bin yields on the rows of the
+   // channel; the term for an unbinned channel is a pdf product, compiling
+   // to the normalized channel density (times the expected channel yield in
+   // extended fits).
+   RooArgList funcs;
+   std::vector<RooAbsArg *> binnedTerms;
+   std::vector<RooAbsArg *> unbinnedTerms;
+   RooArgList expectedFuncs;
+   for (const bool binnedPass : {true, false}) {
+      for (auto const &catState : keptChannels) {
+         RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
+         if (RooHelpers::getBinnedL(*channelPdf).isBinnedL != binnedPass) {
+            continue;
+         }
+         std::string baseName = std::string(simPdf.GetName()) + "_" + catState.first;
+         auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
+            (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(),
+            indexStandIns.standInList(), indexStandIns.channelTargets.at(catState.second));
+         // See the other mixture compilation variants for the meaning of the
+         // "BinaryMask" attribute and the naming conventions.
+         indicator->setAttribute("BinaryMask");
+
+         std::unique_ptr<RooAbsReal> term;
+         const std::string termName = baseName + "_mixtureTerm";
+         if (binnedPass) {
+            term =
+               std::make_unique<RooProduct>(termName.c_str(), termName.c_str(), RooArgList(*indicator, *channelPdf));
+            term->addOwnedComponents(std::move(indicator));
+         } else {
+            auto prod =
+               std::make_unique<RooProdPdf>(termName.c_str(), termName.c_str(), RooArgList(*indicator, *channelPdf));
+            prod->addOwnedComponents(std::move(indicator));
+            if (ctx.extendedMode()) {
+               // Scale the channel density with the expected channel yield.
+               RooArgSet channelObs;
+               channelPdf->getObservables(&normSet, channelObs);
+               std::unique_ptr<RooAbsReal> expected{channelPdf->createExpectedEventsFunc(&channelObs)};
+               expected->SetName((baseName + "_mixtureExpected").c_str());
+               expectedFuncs.add(*expected);
+               const std::string extName = termName + "_extended";
+               auto extTerm =
+                  std::make_unique<RooProduct>(extName.c_str(), extName.c_str(), RooArgList(*expected, *prod));
+               extTerm->addOwnedComponents(std::move(expected));
+               extTerm->addOwnedComponents(std::move(prod));
+               term = std::move(extTerm);
+            } else {
+               term = std::move(prod);
+            }
+         }
+         (binnedPass ? binnedTerms : unbinnedTerms).push_back(term.get());
+         funcs.addOwned(std::move(term));
+      }
+   }
+
+   // Unit coefficients, see compileSimPdfAsBinnedMixture().
+   std::string coefName = std::string(simPdf.GetName()) + "_mixtureCoef";
+   auto coefVar = std::make_unique<RooConstVar>(coefName.c_str(), coefName.c_str(), 1.0);
+   RooArgList coefs;
+   for (std::size_t i = 0; i < funcs.size(); ++i) {
+      coefs.add(*coefVar);
+   }
+
+   auto mixture = std::make_unique<RooRealSumPdf>(simPdf.GetName(), simPdf.GetTitle(), funcs, coefs);
+
+   RooArgSet mixtureNormSet = indexStandIns.mixtureNormSet(normSet);
+
+   for (auto &standIn : indexStandIns.standIns) {
+      mixture->addOwnedComponents(std::move(standIn));
+   }
+
+   // The mixture sum was built here from scratch, so it can be compiled in
+   // place: only the terms need to be compiled, each group with its own
+   // settings. The binned terms compile through the binned-likelihood
+   // machinery with an empty normalization set, exactly like the servers of
+   // a "BinnedLikelihood" RooRealSumPdf (the RooBinWidthFunctions disable
+   // themselves, making the compiled values bin yields). The unbinned terms
+   // compile with the mixture normalization set, like the components of the
+   // unbinned mixture. The template terms and coefficient stay in local
+   // ownership until all the compilation is done: their compiled clones take
+   // their names and become owned components of the mixture sum, so the
+   // templates can only be added (renamed, to keep them alive like the other
+   // mixture variants keep their templates) afterwards.
+   ctx.markAsCompiled(*mixture);
+   ctx.setBinnedLikelihoodMode(true);
+   for (RooAbsArg *term : binnedTerms) {
+      ctx.compileServer(*term, *mixture, {});
+   }
+   ctx.setBinnedLikelihoodMode(false);
+   if (!ctx.binWidthFuncFlag()) {
+      // The RooBinWidthFunction check above should have guaranteed the
+      // yields mode; without it, the Poisson terms would silently use
+      // probability densities as yields.
+      throw std::runtime_error("RooSimultaneous::compileForNormSet(): the mixed-likelihood mixture compilation "
+                               "unexpectedly didn't end up in yields mode");
+   }
+   for (RooAbsArg *term : unbinnedTerms) {
+      ctx.compileServer(*term, *mixture, mixtureNormSet);
+   }
+   ctx.compileServers(*mixture, {}); // the remaining servers: the coefficients
+
+   for (RooAbsArg *term : funcs) {
+      term->SetName((std::string("_") + term->GetName()).c_str());
+   }
+   coefVar->SetName((std::string("_") + coefVar->GetName()).c_str());
+   mixture->addOwnedComponents(std::move(funcs));
+   mixture->addOwnedComponents(std::move(coefVar));
+
+   mixture->setAttribute("MixedBinnedLikelihoodActive");
+
+   // See compileSimPdfAsBinnedMixture() for the SimCount convention and the
+   // mask-gated product marking (here, the extended unbinned terms wrap the
+   // gated product in the yield scaling, so the gated node to mark is one
+   // level down).
+   mixture->setStringAttribute("SimCount", std::to_string(keptChannels.size()).c_str());
+   if (!dataSelectionCut.empty()) {
+      mixture->setStringAttribute("DataSelectionCut", dataSelectionCut.c_str());
+   }
+   auto markIfMaskGated = [](RooAbsArg *node) {
+      for (RooAbsArg *server : node->servers()) {
+         if (server->getAttribute("BinaryMask") && server->isValueServer(*node)) {
+            node->setAttribute("MaskGatedProduct");
+            return true;
+         }
+      }
+      return false;
+   };
+   for (RooAbsArg *component : mixture->funcList()) {
+      if (!markIfMaskGated(component)) {
+         for (RooAbsArg *server : component->servers()) {
+            markIfMaskGated(server);
+         }
+      }
+   }
+
+   // The mask selecting the rows of the binned channels, for the per-row
+   // dispatch in RooNLLVarNew::doEvalMixed(): the sum of the indicators of
+   // the binned channels (the indicators are disjoint, so the sum is exactly
+   // zero or one). It is built from the compiled indicators and attached as
+   // an extra value server, so that RooNLLVarNew can discover it among the
+   // components of the compiled pdf.
+   RooArgList compiledBinnedIndicators;
+   for (std::size_t i = 0; i < binnedTerms.size(); ++i) {
+      RooAbsArg *compiledTerm = &mixture->funcList()[i];
+      for (RooAbsArg *server : compiledTerm->servers()) {
+         if (server->getAttribute("BinaryMask") && server->isValueServer(*compiledTerm)) {
+            compiledBinnedIndicators.add(*server);
+            break;
+         }
+      }
+   }
+   if (compiledBinnedIndicators.size() != binnedTerms.size()) {
+      throw std::runtime_error("RooSimultaneous::compileForNormSet(): the mixed-likelihood mixture compilation "
+                               "lost track of the compiled channel indicators");
+   }
+   std::string maskName = std::string(simPdf.GetName()) + "_mixtureBinnedRowsMask";
+   auto mask = std::make_unique<RooAddition>(maskName.c_str(), maskName.c_str(), compiledBinnedIndicators);
+   mask->setAttribute("MixtureBinnedRowsMask");
+   ctx.markAsCompiled(*mask);
+   mixture->addServer(*mask, true, false);
+   mixture->addOwnedComponents(std::move(mask));
+
+   if (ctx.extendedMode()) {
+      // The summed expected events of the unbinned channels, added to the
+      // likelihood by RooNLLVarNew::doEvalMixed(). The sum is built over the
+      // template expected-events functions and compiled, so that its inputs
+      // deduplicate to the same compiled objects that scale the unbinned
+      // terms above.
+      std::string totalName = std::string(simPdf.GetName()) + "_mixtureExpectedTotal";
+      auto total = std::make_unique<RooAddition>(totalName.c_str(), totalName.c_str(), expectedFuncs);
+      RooAbsArg *totalCompiled = ctx.compile(*total, *mixture, {});
+      totalCompiled->setAttribute("MixtureExpectedEventsTotal");
+      mixture->addServer(*totalCompiled, true, false);
+      // Keep the template alive under a non-clashing name, like the other
+      // mixture variants keep their templates.
+      total->SetName(("_" + totalName).c_str());
+      mixture->addOwnedComponents(std::move(total));
+   }
+
+   return mixture;
 }
 
 /// Experimental alternative to the channel-splitting compilation below: the
@@ -1806,7 +2048,16 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
                                           dataSelectionCut, fallBack);
    }
    if (nBinnedL > 0) {
-      return fallBack("mixed binned-likelihood and unbinned channels are not supported yet");
+      if (!rangeName.empty()) {
+         return fallBack("ranged fits with binned-likelihood channels are not supported yet");
+      }
+      if (ctx.binOffsetMode()) {
+         // The unbinned rows would need a per-channel offset template, see
+         // the comment on the unbinned fallback below.
+         return fallBack("bin-by-bin likelihood offsetting is not supported yet");
+      }
+      return compileSimPdfAsMixedMixture(simPdf, normSet, ctx, std::move(indexStandIns), keptChannels, dataSelectionCut,
+                                         fallBack);
    }
    if (ctx.binOffsetMode()) {
       // The bin-by-bin offsetting of RooNLLVarNew builds a template pdf from

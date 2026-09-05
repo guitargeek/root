@@ -42,6 +42,7 @@ computation times.
 #include <TMath.h>
 #include <Math/Util.h>
 
+#include <cmath>
 #include <numeric>
 #include <stdexcept>
 #include <vector>
@@ -144,18 +145,47 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
       _funcMode = !pdf ? FuncMode::Function : (cfg.extended ? FuncMode::ExtendedPdf : FuncMode::Pdf);
    } else {
       _binnedL = pdf && pdf->getAttribute("BinnedLikelihoodActive");
+      _mixedBinnedL = pdf && pdf->getAttribute("MixedBinnedLikelihoodActive");
    }
 
    RooArgSet obs;
    func.getObservables(&observables, obs);
 
+   if (_mixedBinnedL) {
+      // A pdf compiled from a simultaneous pdf with both binned-likelihood
+      // and unbinned channels declares which data rows belong to the binned
+      // channels via a mask node in its computation graph, and (in extended
+      // fits) the total expected events of the unbinned channels via a
+      // dedicated sum node. See RooSimultaneous::compileForNormSet().
+      std::unique_ptr<RooArgSet> components{pdf->getComponents()};
+      for (RooAbsArg *component : *components) {
+         auto *asReal = dynamic_cast<RooAbsReal *>(component);
+         if (!asReal) {
+            continue;
+         }
+         if (component->getAttribute("MixtureBinnedRowsMask")) {
+            _binnedRowsMask =
+               std::make_unique<RooTemplateProxy<RooAbsReal>>("binnedRowsMask", "binnedRowsMask", this, *asReal);
+         } else if (cfg.extended && component->getAttribute("MixtureExpectedEventsTotal")) {
+            _expectedEvents =
+               std::make_unique<RooTemplateProxy<RooAbsReal>>("expectedEvents", "expectedEvents", this, *asReal);
+         }
+      }
+      if (!_binnedRowsMask) {
+         throw std::runtime_error("RooNLLVarNew: the mixed binned likelihood pdf declares no binned-rows mask");
+      }
+   }
+
    // Extended mode needs an expected-events function for both NLL and chi2
    // (NLL adds it as an extra additive term, chi2 uses it as the predicted
    // yield normalisation). Skip it for binned NLL (where the yields come
-   // directly from the pdf) and for chi2 Function mode (where the function
-   // values are directly the predicted yields).
-   const bool wantsExpectedEvents = pdf && ((_statistic == Statistic::NLL && cfg.extended && !_binnedL) ||
-                                            (_statistic == Statistic::Chi2 && _funcMode == FuncMode::ExtendedPdf));
+   // directly from the pdf), for the mixed binned likelihood (where the
+   // expected-events sum node was already picked up above), and for chi2
+   // Function mode (where the function values are directly the predicted
+   // yields).
+   const bool wantsExpectedEvents =
+      pdf && ((_statistic == Statistic::NLL && cfg.extended && !_binnedL && !_mixedBinnedL) ||
+              (_statistic == Statistic::Chi2 && _funcMode == FuncMode::ExtendedPdf));
    if (wantsExpectedEvents) {
       std::unique_ptr<RooAbsReal> expectedEvents = pdf->createExpectedEventsFunc(&obs);
       if (expectedEvents) {
@@ -214,6 +244,7 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
      _weightSquaredVar{"weightSquaredVar", this, other._weightSquaredVar},
      _weightSquared{other._weightSquared},
      _binnedL{other._binnedL},
+     _mixedBinnedL{other._mixedBinnedL},
      _doOffset{other._doOffset},
      _doBinOffset{other._doBinOffset},
      _statistic{other._statistic},
@@ -225,6 +256,9 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
 {
    if (other._expectedEvents) {
       _expectedEvents = std::make_unique<RooTemplateProxy<RooAbsReal>>("expectedEvents", this, *other._expectedEvents);
+   }
+   if (other._binnedRowsMask) {
+      _binnedRowsMask = std::make_unique<RooTemplateProxy<RooAbsReal>>("binnedRowsMask", this, *other._binnedRowsMask);
    }
    if (other._binVolumes) {
       _binVolumes = std::make_unique<RooTemplateProxy<RooAbsReal>>(binVolumeVarName, this, *other._binVolumes);
@@ -384,6 +418,116 @@ double RooNLLVarNew::sumOfWeights(RooFit::EvalContext &ctx, std::span<const doub
    return cache;
 }
 
+/// Reduce the likelihood of a pdf compiled from a simultaneous pdf with both
+/// binned-likelihood and unbinned channels. The rows of the concatenated
+/// dataset are heterogeneous: rows of the binned channels are histogram bins
+/// (with the observed counts as weights and the compiled pdf values being the
+/// expected yields), rows of the unbinned channels are events (with the
+/// compiled pdf values being probability densities, scaled by the expected
+/// channel yields in extended fits). The mask provided by the compiled pdf
+/// selects the binned rows, which contribute Poisson terms exactly like in
+/// doEvalBinnedL(); the unbinned rows contribute -weight * log(value) with
+/// the same conventions as RooBatchCompute::reduceNLL().
+void RooNLLVarNew::doEvalMixed(RooFit::EvalContext &ctx, std::span<const double> preds, std::span<const double> weights,
+                               std::span<const double> weightsSumW2) const
+{
+   std::span<const double> mask = ctx.at(*_binnedRowsMask);
+   std::span<const double> weightSpan = _weightSquared ? weightsSumW2 : weights;
+
+   ROOT::Math::KahanSum<double> result;
+   ROOT::Math::KahanSum<double> sumWeightK;
+   // Weight sums over the unbinned rows only, for the sum-of-weights-squared
+   // scaling of the expected-events term in extended weighted fits.
+   ROOT::Math::KahanSum<double> sumWeightUnbinned;
+   ROOT::Math::KahanSum<double> sumWeight2Unbinned;
+   std::size_t nBinnedErrors = 0;
+   std::size_t nNonPositive = 0;
+   std::size_t nInfinite = 0;
+   std::size_t nNaN = 0;
+   double badness = 0.0;
+
+   for (std::size_t i = 0; i < preds.size(); ++i) {
+      const double w = weightSpan[weightSpan.size() == 1 ? 0 : i];
+      if (mask[i] > 0.5) {
+         // Binned row: log(Poisson(N|mu)) with the pdf value as the yield.
+         // Like in doEvalBinnedL(), bins with data in a zero-yield prediction
+         // are excluded from the sum and from the weight sum, and reported as
+         // evaluation errors.
+         const double N = w;
+         const double mu = preds[i];
+         if (mu <= 0 && N > 0) {
+            ++nBinnedErrors;
+         } else {
+            result += RooFit::Detail::MathFuncs::nll(mu, N, true, false);
+            sumWeightK += N;
+         }
+         continue;
+      }
+
+      // Unbinned row: -weight * log(value), with the error handling of
+      // RooBatchCompute::reduceNLL(), including the skipping of zero-weight
+      // entries.
+      if (w == 0.0) {
+         continue;
+      }
+      const double p = preds[i];
+      double term = 0.0;
+      if (p <= 0.0) {
+         ++nNonPositive;
+         term = std::log(p);
+         badness += -p;
+      } else if (std::isnan(p)) {
+         ++nNaN;
+         term = p;
+         badness += RooNaNPacker::unpackNaN(p);
+      } else {
+         if (std::isinf(p)) {
+            ++nInfinite;
+         }
+         term = std::log(p);
+      }
+      result += -w * term;
+      sumWeightK += w;
+      sumWeightUnbinned += weights[weights.size() == 1 ? 0 : i];
+      sumWeight2Unbinned += weightsSumW2[weightsSumW2.size() == 1 ? 0 : i];
+   }
+
+   for (std::size_t i = 0; i < nBinnedErrors; ++i) {
+      logEvalError("Observed events in a bin with zero event yield");
+   }
+   if (nInfinite > 0) {
+      oocoutW(&*_func, Eval) << "RooAbsPdf::getLogVal(" << _func->GetName()
+                             << ") WARNING: top-level pdf has some infinite values" << std::endl;
+   }
+   for (std::size_t i = 0; i < nNonPositive; ++i) {
+      _func->logEvalError("getLogVal() top-level p.d.f not greater than zero");
+   }
+   for (std::size_t i = 0; i < nNaN; ++i) {
+      _func->logEvalError("getLogVal() top-level p.d.f evaluates to NaN");
+   }
+   if (badness != 0.0) {
+      // Some events with evaluation errors: return the "badness" of the
+      // errors, packed like in RooBatchCompute::reduceNLL().
+      result = ROOT::Math::KahanSum<double>{RooNaNPacker::packFloatIntoNaN(badness), 0.0};
+   }
+
+   if (_expectedEvents) {
+      // The unbinned rows are the negative logarithms of the yield-scaled
+      // channel densities, so their sum already includes the
+      // -sumWeight * log(expectedEvents) part of the extended term; only the
+      // sum of the expected events of the unbinned channels remains. In
+      // weighted fits with the weight-squared correction, the term is scaled
+      // by the ratio of the weight sums like in RooAbsPdf::extendedTerm().
+      double term = ctx.at(*_expectedEvents)[0];
+      if (_weightSquared && sumWeightUnbinned.Sum() > 0.0) {
+         term *= sumWeight2Unbinned.Sum() / sumWeightUnbinned.Sum();
+      }
+      result += term;
+   }
+
+   finalizeResult(ctx, result, sumWeightK.Sum());
+}
+
 void RooNLLVarNew::doEvalChi2(RooFit::EvalContext &ctx, std::span<const double> preds, std::span<const double> weights,
                               std::span<const double> weightsSumW2) const
 {
@@ -455,6 +599,10 @@ void RooNLLVarNew::doEval(RooFit::EvalContext &ctx) const
 
    if (_binnedL) {
       return doEvalBinnedL(ctx, ctx.at(&*_func), _weightSquared ? weightsSumW2 : weights);
+   }
+
+   if (_mixedBinnedL) {
+      return doEvalMixed(ctx, ctx.at(&*_func), weights, weightsSumW2);
    }
 
    auto config = ctx.config(this);
