@@ -20,6 +20,7 @@
 #include <ROOT/RSpan.hxx>
 
 #include <cstddef>
+#include <functional>
 #include <iomanip>
 #include <locale>
 #include <sstream>
@@ -95,6 +96,7 @@ public:
    };
 
    std::unique_ptr<LoopScope> beginLoop(RooAbsArg const *in);
+   std::unique_ptr<LoopScope> beginLoop(RooAbsArg const *in, std::string const &beginExpr, std::string const &endExpr);
 
    std::string getTmpVarName() const;
 
@@ -112,6 +114,8 @@ public:
    auto const &dependsOnData() const { return _dependsOnData; }
    std::string
    buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::Detail::DataKey> const &dependsOnData = {});
+   std::string buildFunction(std::function<std::string(CodegenContext &)> const &bodyGen,
+                             std::unordered_set<RooFit::Detail::DataKey> const &dependsOnData = {});
 
    struct ScopeRAII {
       std::string _fn;

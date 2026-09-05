@@ -117,6 +117,32 @@ std::string realSumPdfTranslateImpl(CodegenContext &ctx, RooAbsArg const &arg, R
 {
    bool noLastCoeff = funcList.size() != coefList.size();
 
+   // If all but one of the functions are constant zero, collapse the sum to
+   // the single surviving term, without emitting the arrays and the
+   // accumulation loop that the AD tooling would otherwise tape for every
+   // event. This is the situation inside the per-channel functions of a
+   // compiled simultaneous mixture, where the gated terms of the foreign
+   // channels are folded away (see tryCodegenMixtureChannels()).
+   if (!noLastCoeff && !normalize) {
+      int iNonZero = -1;
+      bool multipleNonZero = false;
+      for (std::size_t i = 0; i < funcList.size(); ++i) {
+         if (ctx.getResult(funcList[i]) != "0.0") {
+            multipleNonZero = iNonZero >= 0;
+            if (multipleNonZero) {
+               break;
+            }
+            iNonZero = static_cast<int>(i);
+         }
+      }
+      if (!multipleNonZero && iNonZero >= 0) {
+         std::string sum = ctx.getTmpVarName();
+         ctx.addToCodeBody(&arg, "const double " + sum + " = " + ctx.getResult(funcList[iNonZero]) + " * " +
+                                    ctx.getResult(coefList[iNonZero]) + ";\n");
+         return sum;
+      }
+   }
+
    std::string const &funcName = ctx.buildArg(funcList);
    std::string const &coeffName = ctx.buildArg(coefList);
    std::string const &coeffSize = std::to_string(coefList.size());
@@ -166,6 +192,18 @@ void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx)
       }
    }
    if (indicator) {
+      // Inside the per-channel functions of a mixture likelihood, the
+      // indicator results are folded to constants (see
+      // tryCodegenMixtureChannels()): the terms of the foreign channels
+      // vanish without emitting any of their code, and the own channel
+      // drops the redundant gate.
+      std::string indicatorCode = ctx.getResult(*indicator);
+      if (indicatorCode == "0.0") {
+         // Record the plain literal, not a saved temporary, so that clients
+         // like the mixture sum can fold this term away in turn.
+         ctx.addResult(arg.GetName(), "0.0");
+         return;
+      }
       RooArgList others;
       for (RooAbsArg *part : parts) {
          if (part != indicator) {
@@ -174,7 +212,11 @@ void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx)
       }
       std::string othersCode =
          others.size() == 1 ? ctx.getResult(others[0]) : ctx.buildCall(mathFunc("product"), others, others.size());
-      ctx.addResult(&arg, "(" + ctx.getResult(*indicator) + " != 0.0 ? " + othersCode + " : 0.0)");
+      if (indicatorCode == "1.0") {
+         ctx.addResult(&arg, othersCode);
+         return;
+      }
+      ctx.addResult(&arg, "(" + indicatorCode + " != 0.0 ? " + othersCode + " : 0.0)");
       return;
    }
 
@@ -672,6 +714,137 @@ void codegenChi2(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
    ctx.addToCodeBody(&arg, resName + " += " + term + ";");
 }
 
+/// Emit the likelihood of a compiled simultaneous mixture as one generated
+/// function per channel, each looping only over the contiguous block of rows
+/// that belongs to its channel. A single flat event loop over the gated sum
+/// would put every channel's code into one loop body, and the AD tooling
+/// pays superlinearly for that shape: the source transformation and the
+/// machine code generation scale with the size of a single function, and the
+/// reverse pass tapes every channel's code for every row. The per-channel
+/// functions restore the shape of separate per-channel likelihoods. Returns
+/// false if the pdf is not a mixture of indicator-gated terms, in which case
+/// the caller emits the generic flat event loop.
+bool tryCodegenMixtureChannels(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx, std::string const &resName)
+{
+   using RooFit::Detail::RooChannelIndicatorPdf;
+
+   auto *mixture = dynamic_cast<RooRealSumPdf const *>(&arg.func());
+   if (!mixture) {
+      return false;
+   }
+   RooArgList const &funcList = mixture->funcList();
+   if (funcList.empty() || funcList.size() != mixture->coefList().size()) {
+      return false;
+   }
+
+   struct Channel {
+      RooChannelIndicatorPdf *indicator;
+      bool binnedL;
+   };
+   std::vector<Channel> channels;
+   channels.reserve(funcList.size());
+
+   for (RooAbsArg *func : funcList) {
+      RooAbsCollection const *parts = nullptr;
+      if (auto *prodPdf = dynamic_cast<RooFit::Detail::RooFixedProdPdf *>(func)) {
+         parts = prodPdf->partList();
+      } else if (auto *prod = dynamic_cast<RooProduct *>(func)) {
+         parts = &prod->realComponents();
+      }
+      if (!parts) {
+         return false;
+      }
+      RooChannelIndicatorPdf *indicator = nullptr;
+      for (RooAbsArg *part : *parts) {
+         if (auto *cand = dynamic_cast<RooChannelIndicatorPdf *>(part)) {
+            if (indicator) {
+               return false;
+            }
+            indicator = cand;
+         }
+      }
+      if (!indicator) {
+         return false;
+      }
+      // The row ranges are found by scanning the index columns, so they must
+      // be vector observables with known slots in the observable array.
+      for (RooAbsArg *indexVar : indicator->indexVars()) {
+         if (ctx.observableIndexOf(*indexVar) < 0) {
+            return false;
+         }
+      }
+      const bool binnedL = arg.binnedL() || (arg.binnedRowsMask() && arg.binnedRowsMask()->dependsOn(*indicator));
+      channels.push_back({indicator, binnedL});
+   }
+
+   for (std::size_t iChannel = 0; iChannel < channels.size(); ++iChannel) {
+      Channel const &channel = channels[iChannel];
+      std::string funcName = ctx.buildFunction(
+         [&](CodegenContext &fnCtx) {
+            // Only rows of this channel are visited: fold the channel
+            // indicators to constants, so that the gated terms of the
+            // foreign channels drop out of this function entirely (see the
+            // RooFixedProdPdf and RooProduct codegen implementations).
+            for (std::size_t k = 0; k < channels.size(); ++k) {
+               fnCtx.addResult(channels[k].indicator->GetName(), k == iChannel ? "1.0" : "0.0");
+            }
+
+            // Find the contiguous row block of this channel by scanning its
+            // index columns. The ranges depend on the dataset, which can be
+            // exchanged without regenerating the code, so they cannot be
+            // baked in as generation-time constants.
+            RooArgList const &indexVars = channel.indicator->indexVars();
+            std::vector<int> const &states = channel.indicator->states();
+            std::string iVar = fnCtx.getTmpVarName();
+            std::string rowCond;
+            std::string sizeExpr;
+            for (std::size_t j = 0; j < states.size(); ++j) {
+               const int slot = fnCtx.observableIndexOf(indexVars[j]);
+               std::string access = "obs[static_cast<int>(obs[" + std::to_string(2 * slot) + "]) + " + iVar + "]";
+               if (!rowCond.empty()) {
+                  rowCond += " && ";
+               }
+               rowCond += "std::abs(" + access + " - " + std::to_string(states[j]) + ".0) < 0.5";
+               if (sizeExpr.empty()) {
+                  sizeExpr = "obs[" + std::to_string(2 * slot + 1) + "]";
+               }
+            }
+
+            std::string beginVar = fnCtx.getTmpVarName();
+            std::string endVar = fnCtx.getTmpVarName();
+            std::stringstream scan;
+            scan << "int " << beginVar << " = -1;\n"
+                 << "int " << endVar << " = 0;\n"
+                 << "for (int " << iVar << " = 0; " << iVar << " < " << sizeExpr << "; " << iVar << "++) {\n"
+                 << "   if (" << rowCond << ") { if (" << beginVar << " < 0) " << beginVar << " = " << iVar << "; "
+                 << endVar << " = " << iVar << " + 1; }\n"
+                 << "}\n"
+                 << "if (" << beginVar << " < 0) " << beginVar << " = 0;\n";
+            fnCtx.addToCodeBody(scan.str());
+
+            std::string partialSum = fnCtx.getTmpVarName();
+            fnCtx.addToCodeBody("double " + partialSum + " = 0.0;\n");
+            {
+               auto scope = fnCtx.beginLoop(&arg, beginVar, endVar);
+               std::string term =
+                  fnCtx.buildCall(mathFunc("nll"), arg.func(), arg.weightVar(), channel.binnedL ? 1 : 0, 0);
+               if (arg.mixedBinnedL() && !channel.binnedL) {
+                  // Zero-weight rows are retained in mixed mode for the sake
+                  // of the binned channels; skip them here like the CPU
+                  // reduction does, because the density can vanish on such
+                  // rows and 0 * log(0) would poison the sum.
+                  term = "(" + fnCtx.getResult(arg.weightVar()) + " == 0.0 ? 0.0 : (" + term + "))";
+               }
+               fnCtx.addToCodeBody(&arg, partialSum + " += " + term + ";");
+            }
+            return partialSum;
+         },
+         ctx.dependsOnData());
+      ctx.addToCodeBody(resName + " += " + funcName + "(params, obs, xlArr);\n");
+   }
+   return true;
+}
+
 } // namespace
 
 void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
@@ -709,7 +882,7 @@ void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
    // Begin loop scope for the observables and weight variable. If the weight
    // is a scalar, the context will ignore it for the loop scope. The closing
    // brackets of the loop is written at the end of the scopes lifetime.
-   {
+   if (!tryCodegenMixtureChannels(arg, ctx, resName)) {
       auto scope = ctx.beginLoop(&arg);
       if (arg.mixedBinnedL()) {
          // Mixed binned/unbinned simultaneous mixture: the mask selects the
@@ -868,7 +1041,42 @@ void codegenImpl(RooPolynomial &arg, CodegenContext &ctx)
 
 void codegenImpl(RooProduct &arg, CodegenContext &ctx)
 {
-   ctx.addResult(&arg, ctx.buildCall(mathFunc("product"), arg.realComponents(), arg.realComponents().size()));
+   RooArgList const &comps = arg.realComponents();
+   // The binned channel terms of a compiled simultaneous mixture are plain
+   // products gated by a channel indicator. Inside the per-channel functions
+   // of the mixture likelihood, the indicator results are folded to
+   // constants (see tryCodegenMixtureChannels()): fold the product with
+   // them, so that the terms of the foreign channels vanish without emitting
+   // any of their code.
+   RooAbsArg *indicator = nullptr;
+   for (RooAbsArg *comp : comps) {
+      if (dynamic_cast<RooFit::Detail::RooChannelIndicatorPdf *>(comp)) {
+         indicator = comp;
+         break;
+      }
+   }
+   if (indicator) {
+      std::string indicatorCode = ctx.getResult(*indicator);
+      if (indicatorCode == "0.0" || indicatorCode == "1.0") {
+         if (indicatorCode == "0.0") {
+            // Record the plain literal, not a saved temporary, so that
+            // clients like the mixture sum can fold this term away in turn.
+            ctx.addResult(arg.GetName(), "0.0");
+            return;
+         }
+         RooArgList others;
+         for (RooAbsArg *comp : comps) {
+            if (comp != indicator) {
+               others.add(*comp);
+            }
+         }
+         std::string othersCode =
+            others.size() == 1 ? ctx.getResult(others[0]) : ctx.buildCall(mathFunc("product"), others, others.size());
+         ctx.addResult(&arg, othersCode);
+         return;
+      }
+   }
+   ctx.addResult(&arg, ctx.buildCall(mathFunc("product"), comps, comps.size()));
 }
 
 void codegenImpl(RooRatio &arg, CodegenContext &ctx)
