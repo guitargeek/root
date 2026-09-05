@@ -126,6 +126,24 @@ private:
    mutable std::size_t _sumWeight2Gen = 0;           ///<! Input data generation of the cached squared-weight sum
    mutable double _sumWeight2Cache = 0.0;            ///<! Cached sum of the squared event weights
 
+   /// Cache for incremental evaluation, used only when the evaluator
+   /// provides change tracking for the pdf values (see
+   /// RooFit::EvalContext::changeTrackingEnabled()): the NLL reduction is
+   /// done in fixed-size chunks whose partial results are cached, so that
+   /// only the chunks in which the pdf values changed have to be reduced
+   /// again. This makes the cost of a single-parameter variation in e.g. a
+   /// simultaneous-fit mixture proportional to the size of the affected
+   /// channel instead of the full dataset.
+   struct ChunkCache {
+      const double *probasPtr = nullptr;
+      const double *weightsPtr = nullptr;
+      std::size_t nEvents = 0;
+      std::vector<double> sums;
+      std::vector<double> carrys;
+      std::vector<std::size_t> counts; ///< 3 entries per chunk: infinite, non-positive, NaN
+   };
+   mutable ChunkCache _chunkCache; ///<!
+
    ClassDefOverride(RooFit::Detail::RooNLLVarNew, 0);
 };
 

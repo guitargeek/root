@@ -602,19 +602,33 @@ void RooAddPdf::doEval(RooFit::EvalContext & ctx) const
   // compiled into a mixture), skip the events outside of those ranges. This
   // gives bit-identical results to the batch computation below, because
   // adding an exact zero doesn't change the sum.
+  //
+  // In addition, if the evaluator declared in which event range the inputs
+  // changed with respect to the previous evaluation, only that range of the
+  // output is recomputed: the output buffer is persistent, so the values
+  // outside of the changed range are still valid.
   if (anyLimitedSupport && !config.useCuda()) {
-    std::fill(output.begin(), output.end(), 0.0);
+    std::size_t evalBegin = 0;
+    std::size_t evalEnd = output.size();
+    if (ctx.changeTrackingEnabled()) {
+      auto changed = ctx.changedRange(this);
+      evalBegin = std::min(changed.first, evalEnd);
+      evalEnd = std::min(changed.second, evalEnd);
+    }
+    std::fill(output.begin() + evalBegin, output.begin() + evalEnd, 0.0);
     for (std::size_t n = 0; n < pdfs.size(); ++n) {
       std::span<const double> const &pdfSpan = pdfs[n];
       const double coef = coefs[n];
       if (pdfSpan.size() != output.size()) {
         // Scalar component, broadcast over all events.
-        for (std::size_t i = 0; i < output.size(); ++i) {
+        for (std::size_t i = evalBegin; i < evalEnd; ++i) {
           output[i] += coef * pdfSpan[0];
         }
         continue;
       }
-      for (std::size_t i = supports[n].first; i < supports[n].second; ++i) {
+      const std::size_t begin = std::max(supports[n].first, evalBegin);
+      const std::size_t end = std::min(supports[n].second, evalEnd);
+      for (std::size_t i = begin; i < end; ++i) {
         output[i] += coef * pdfSpan[i];
       }
     }

@@ -133,6 +133,12 @@ struct NodeInfo {
    // evaluation context. Used to re-derive the per-client input spans when
    // restricted nodes are present.
    std::span<const double> canonicalSpan;
+   // Change tracking (only maintained when restricted nodes are present): the
+   // evaluation counter at which this node was last computed, and the global
+   // event range in which its values changed in that computation.
+   int lastComputeStamp = -1;
+   std::size_t changedBegin = 0;
+   std::size_t changedEnd = std::numeric_limits<std::size_t>::max();
    std::size_t lastSetValCount = std::numeric_limits<std::size_t>::max();
    int lastCatVal = std::numeric_limits<int>::max();
    double scalarBuffer = 0.0;
@@ -363,6 +369,7 @@ void Evaluator::updateOutputSizes()
    if (!_useGPU) {
       rangeRestrictionAnalysis();
    }
+   _evalContextCPU._changeTracking = _hasRestrictedNodes;
 
    if (_useGPU) {
       markGPUNodes();
@@ -595,6 +602,42 @@ void Evaluator::computeCPUNode(const RooAbsArg *node, NodeInfo &info)
    }
    if (_hasRestrictedNodes) {
       prepareInputSpans(info);
+
+      // Change tracking: determine in which global event range the values of
+      // this node can change in this computation. For a node whose servers
+      // were computed earlier in this evaluation, that's the union hull of
+      // their changed ranges; otherwise (or for scalars) everything within
+      // the node's own extent may change. A mask-gated product can only ever
+      // change within its slice.
+      if (nOut == 1) {
+         info.changedBegin = 0;
+         info.changedEnd = std::numeric_limits<std::size_t>::max();
+      } else {
+         std::size_t hullBegin = std::numeric_limits<std::size_t>::max();
+         std::size_t hullEnd = 0;
+         bool anyStampedServer = false;
+         for (NodeInfo *server : info.serverInfos) {
+            if (server->lastComputeStamp == _nEvaluations) {
+               anyStampedServer = true;
+               hullBegin = std::min(hullBegin, server->changedBegin);
+               hullEnd = std::max(hullEnd, server->changedEnd);
+            }
+         }
+         const std::size_t extentBegin = info.isMaskedProduct ? info.sliceBegin : info.frameBegin;
+         const std::size_t extentEnd = extentBegin + nCompute;
+         if (!anyStampedServer) {
+            info.changedBegin = extentBegin;
+            info.changedEnd = extentEnd;
+         } else {
+            info.changedBegin = std::max(extentBegin, hullBegin);
+            info.changedEnd = std::min(extentEnd, hullEnd);
+            if (info.changedBegin > info.changedEnd) {
+               info.changedBegin = info.changedEnd = extentBegin;
+            }
+         }
+         _evalContextCPU.setChangedRange(node, info.changedBegin, info.changedEnd);
+      }
+      info.lastComputeStamp = _nEvaluations;
    }
    if (info.isCategory) {
       auto nodeAbsCategory = static_cast<RooAbsCategory const *>(node);
