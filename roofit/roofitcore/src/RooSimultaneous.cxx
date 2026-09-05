@@ -1289,15 +1289,6 @@ bool RooSimultaneous::indexCatIsObservable(RooArgSet const &vars) const
 
 namespace {
 
-/// Whether the experimental compilation of a RooSimultaneous into an ordinary
-/// mixture pdf is requested via the ROOFIT_SIM_COMPILE_MIXTURE environment
-/// variable.
-bool simMixtureCompileRequested()
-{
-   const char *env = std::getenv("ROOFIT_SIM_COMPILE_MIXTURE");
-   return env && *env && std::string_view{env} != "0";
-}
-
 /// Real-valued stand-ins for the index of a simultaneous mixture: one per
 /// fundamental category making up the index -- the index category itself, or
 /// the input categories of a RooSuperCategory (as created e.g. when combining
@@ -1308,7 +1299,7 @@ bool simMixtureCompileRequested()
 struct MixtureIndexStandIns {
    std::vector<std::unique_ptr<RooRealVar>> standIns;
    std::map<RooAbsCategory::value_type, std::vector<int>> channelTargets;
-   std::string error; ///< non-empty: configuration not supported, fall back
+   std::string error; ///< non-empty: configuration not supported
 
    RooArgList standInList() const
    {
@@ -1321,7 +1312,7 @@ struct MixtureIndexStandIns {
 
    /// Cut expression that excludes the data rows of the given index states,
    /// for the "DataSelectionCut" attribute of the compiled pdf. The
-   /// channel-splitting path silently drops the entries of index states that
+   /// legacy channel-splitting evaluation silently drops the entries of index states that
    /// have no pdf attached, and this is how the mixture pdf reproduces that.
    std::string exclusionCut(std::vector<RooAbsCategory::value_type> const &droppedStates) const
    {
@@ -1345,7 +1336,7 @@ struct MixtureIndexStandIns {
 
    /// The normalization set for the mixture, with the index categories
    /// replaced by their real-valued stand-ins. Conditional observables
-   /// (projected dependents) are excluded, like the channel-splitting path
+   /// (projected dependents) are excluded, like the legacy channel-splitting evaluation
    /// excludes them from the per-channel normalization sets; they still feed
    /// the compiled graph as data inputs.
    RooArgSet mixtureNormSet(RooArgSet const &normSet) const
@@ -1466,7 +1457,7 @@ std::string boundToCutString(double val)
 /// real-valued observable of that channel lies inside one of the
 /// comma-separated subranges of the fit range (with per-channel range names
 /// when SplitRange() is used). This reproduces exactly the per-channel range
-/// selection that the channel-splitting path applies to the split datasets,
+/// selection that the legacy channel-splitting evaluation applies to the split datasets,
 /// including the closed range bounds and the fallback to the full variable
 /// range for observables on which a subrange is not defined.
 std::string rangeSelectionCut(RooSimultaneous const &simPdf,
@@ -1552,7 +1543,7 @@ bool binnedChannelHasBinWidthFunction(RooAbsPdf const &channelPdf)
 /// "BinnedLikelihoodActive(Yields)" attributes that make RooNLLVarNew sum
 /// Poisson terms over the concatenated bins and make the data loading retain
 /// zero-weight entries. The result is identical to the sum of the per-channel
-/// binned likelihoods of the channel-splitting path; the "SimCount" attribute
+/// binned likelihoods of the legacy channel-splitting evaluation; the "SimCount" attribute
 /// reproduces the legacy convention of adding sumOfWeights * log(nChannels).
 template <typename FallBackFunc>
 std::unique_ptr<RooAbsArg>
@@ -1645,7 +1636,7 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
    if (!allYields) {
       // Some channels have no RooBinWidthFunctions, so their compiled values
       // are probability densities: provide the per-row bin volumes (from the
-      // bin boundaries of the channel pdfs, like the channel-splitting path
+      // bin boundaries of the channel pdfs, like the legacy channel-splitting evaluation
       // does per channel) via a dedicated node that the likelihood discovers
       // through the "MixtureBinVolumes" attribute. Rows of yield-mode
       // channels get unit volumes. The compiled top must not carry the
@@ -1674,7 +1665,7 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
             continue;
          }
          // Like RooNLLVarNew::fillBinWidthsFromPdfBoundaries() in the
-         // channel-splitting path, the bin widths come from the boundaries
+         // legacy channel-splitting evaluation, the bin widths come from the boundaries
          // that the binned-likelihood pdf reports for its one-dimensional
          // observable.
          RooAbsPdf *channelPdf = simPdf.getPdf(keptChannels[i].first.c_str());
@@ -1703,7 +1694,7 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
       compiled->addOwnedComponents(std::move(volumes));
    }
 
-   // The per-channel binned likelihoods of the channel-splitting path each
+   // The per-channel binned likelihoods of the legacy channel-splitting evaluation each
    // add the legacy sumOfWeights * log(nChannels) term, so the concatenated
    // likelihood has to be asked to do the same.
    compiled->setStringAttribute("SimCount", std::to_string(nChannels).c_str());
@@ -1732,9 +1723,8 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
 
    // Keep the uncompiled mixture template alive: some normalization sets
    // stored inside RooProdPdf are disconnected from the computation graph, so
-   // server redirection has no control over them (see the comment in the
-   // channel-splitting compilation below). Rename it to avoid a name clash
-   // with the compiled pdf.
+   // server redirection has no control over them. Rename it to avoid a name
+   // clash with the compiled pdf.
    mixture->SetName((std::string("_") + mixture->GetName()).c_str());
    compiled->addOwnedComponents(std::move(mixture));
 
@@ -1755,11 +1745,11 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
 /// extended fits -- so that \f$ -w \log(\nu_s \hat{f}_s) \f$ already
 /// contains the per-channel \f$ -w \log \nu_s \f$ part of the extended term
 /// -- and a unit coefficient otherwise. This reproduces the per-channel
-/// likelihoods of the channel-splitting path term by term, including
+/// likelihoods of the legacy channel-splitting evaluation term by term, including
 /// simultaneous pdfs where only some channels are extendable. The "SimCount"
 /// attribute reproduces the legacy convention of adding
 /// sumOfWeights * log(nChannels) over all rows, exactly like the per-channel
-/// likelihoods of the channel-splitting path do.
+/// likelihoods of the legacy channel-splitting evaluation do.
 ///
 /// When the sum contains binned-likelihood rows, the compiled pdf carries
 /// the "MixedBinnedLikelihoodActive" attribute and declares a mask node
@@ -1787,8 +1777,8 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
                         std::string const &dataSelectionCut, std::string const &rangeName, bool splitRange,
                         FallBackFunc const &fallBack)
 {
-   // Upfront checks that can still fall back, before any compilation
-   // pollutes the CompileContext.
+   // Upfront checks that reject unsupported configurations, before any
+   // compilation pollutes the CompileContext.
    std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
    for (auto const &catState : keptChannels) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
@@ -1869,7 +1859,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
          } else {
             term =
                std::make_unique<RooProdPdf>(termName.c_str(), termName.c_str(), RooArgList(*indicator, *channelPdf));
-            // Mirror the per-channel extended flag of the channel-splitting
+            // Mirror the per-channel extended flag of the legacy channel-splitting
             // path (see FitHelpers::createSimultaneousNLL()): in an extended
             // fit, only the extendable channels get yield coefficients and
             // contribute to the expected-events total.
@@ -1944,7 +1934,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
                // For a chi-squared without a yield coefficient, the expected
                // channel count is the sum of the data weights of the channel
                // rows, mirroring the per-channel weight-sum normalization
-               // factor of the channel-splitting path (see
+               // factor of the legacy channel-splitting evaluation (see
                // RooNLLVarNew::doEvalChi2() for FuncMode::Pdf).
                std::string wsName = baseName + "_mixtureWeightSum";
                coef = std::make_unique<RooFit::Detail::RooChannelWeightSum>(wsName.c_str(), wsName.c_str(), *indicator,
@@ -1974,15 +1964,14 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
    }
 
    // Set the per-channel normalization ranges while the terms are compiled,
-   // like the channel-splitting path does on its channel clones. Unlike that
+   // like the legacy channel-splitting evaluation does on its channel clones. Unlike that
    // path, which only mutates the clones, this acts on the original channel
    // pdfs, so the RAII guard restores the original settings afterwards, also
    // when the compilation throws. A pdf object shared by several channels is
    // recorded and set only once: recording it again would capture the range
    // set in the first iteration instead of the user's original setting. The
    // shared pdf gets the same range for all its channels anyway, because
-   // per-channel split ranges with shared pdfs fall back to channel
-   // splitting.
+   // per-channel split ranges with shared pdfs are rejected.
    struct NormRangeRestorer {
       std::vector<std::pair<RooAbsPdf *, std::string>> entries;
       ~NormRangeRestorer()
@@ -2041,7 +2030,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       // already folded into the coefficients above.
       mixture->setAttribute("MixtureChi2Active");
    } else {
-      // The per-channel likelihoods of the channel-splitting path each add
+      // The per-channel likelihoods of the legacy channel-splitting evaluation each add
       // the legacy sumOfWeights * log(nChannels) term, so the concatenated
       // likelihood has to be asked to do the same.
       mixture->setStringAttribute("SimCount", std::to_string(keptChannels.size()).c_str());
@@ -2102,7 +2091,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       // With this attribute, the likelihood adds the expected-events total
       // declared below directly, instead of constructing a full extended
       // term (and adds nothing if no channel is extendable, exactly like the
-      // channel-splitting path).
+      // legacy channel-splitting evaluation).
       mixture->setAttribute("MixtureFoldedExtendedEvents");
    }
 
@@ -2128,7 +2117,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       // would build over all rows: the template of each channel is built
       // only from the rows of that channel (via the indicator mask), so it
       // is normalized over the channel's own weight sum, exactly like the
-      // per-channel templates of the channel-splitting path. For channels
+      // per-channel templates of the legacy channel-splitting evaluation. For channels
       // with a yield coefficient, the template additionally absorbs the
       // weight-sum-dependent parts of the offset extended term (see
       // RooOffsetPdf). The combined gated sum of the templates is declared
@@ -2212,8 +2201,8 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
    return mixture;
 }
 
-/// Experimental alternative to the channel-splitting compilation below: the
-/// RooSimultaneous replaces itself with an ordinary mixture pdf,
+/// For likelihood and chi-squared evaluations, the RooSimultaneous replaces
+/// itself with an ordinary mixture pdf,
 /// \f[
 ///   P(\vec{x}, c) = \sum_s w_s \; \mathbf{1}[c = s] \; \mathrm{pdf}_s(\vec{x}),
 /// \f]
@@ -2235,19 +2224,16 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
 /// If all channels use the binned likelihood optimization, the compilation
 /// is delegated to compileSimPdfAsBinnedMixture(); otherwise, the mixture is
 /// built by compileSimPdfAsGatedSum() above, which reproduces the
-/// per-channel likelihoods of the channel-splitting path term by term.
+/// per-channel likelihoods of the legacy channel-splitting evaluation term by term.
 ///
-/// Returns nullptr if some feature of this RooSimultaneous or of the fit
-/// configuration is not supported yet, in which case the caller falls back to
-/// the channel-splitting compilation.
+/// Throws an exception if some feature of this RooSimultaneous or of the fit
+/// configuration is not supported (yet) by the mixture compilation.
 std::unique_ptr<RooAbsArg>
 compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx)
 {
-   auto fallBack = [&](std::string const &why) {
-      oocoutI(&simPdf, Fitting) << "RooSimultaneous::compileForNormSet(" << simPdf.GetName()
-                                << "): not compiling to a mixture pdf (falling back to channel splitting): " << why
-                                << std::endl;
-      return std::unique_ptr<RooAbsArg>{};
+   auto fallBack = [&](std::string const &why) -> std::unique_ptr<RooAbsArg> {
+      throw std::runtime_error("RooSimultaneous::compileForNormSet(" + std::string(simPdf.GetName()) +
+                               "): this configuration is not supported by the mixture compilation: " + why);
    };
 
    RooAbsCategoryLValue const &indexCat = simPdf.indexCat();
@@ -2279,8 +2265,8 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    auto const *indexCatAsRooCategory = dynamic_cast<RooCategory const *>(&indexCat);
    for (auto const &catState : indexCat) {
       // Skip channels excluded by a category range (only RooCategory
-      // supports ranges on categorical values), like the channel-splitting
-      // path does.
+      // supports ranges on categorical values), like the legacy
+      // channel-splitting evaluation does.
       if (!rangeName.empty() && indexCatAsRooCategory &&
           !indexCatAsRooCategory->isStateInRange(rangeName.c_str(), catState.second)) {
          droppedStates.push_back(catState.second);
@@ -2288,7 +2274,7 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       }
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
       if (!channelPdf) {
-         // The channel-splitting path silently drops the data entries of
+         // The legacy channel-splitting evaluation silently drops the data entries of
          // states without an associated pdf. The mixture pdf reproduces that
          // with a data selection cut on the compiled pdf, applied by
          // RooEvaluatorWrapper::setData().
@@ -2356,33 +2342,6 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
                                   rangeName, splitRange, fallBack);
 }
 
-void markObs(RooAbsArg *arg, std::string const &prefix, RooArgSet const &normSet)
-{
-   for (RooAbsArg *server : arg->servers()) {
-      if (server->isFundamental() && normSet.find(*server)) {
-         markObs(server, prefix, normSet);
-         server->setAttribute("__obs__");
-      } else if (!server->isFundamental()) {
-         markObs(server, prefix, normSet);
-      }
-   }
-}
-
-void prefixArgs(RooAbsArg *arg, std::string const &prefix, RooArgSet const &normSet)
-{
-   if (!arg->getStringAttribute("__prefix__")) {
-      arg->SetName((prefix + arg->GetName()).c_str());
-      arg->setStringAttribute("__prefix__", prefix.c_str());
-   }
-   for (RooAbsArg *server : arg->servers()) {
-      if (server->isFundamental() && normSet.find(*server)) {
-         prefixArgs(server, prefix, normSet);
-      } else if (!server->isFundamental()) {
-         prefixArgs(server, prefix, normSet);
-      }
-   }
-}
-
 } // namespace
 
 std::unique_ptr<RooAbsArg>
@@ -2391,96 +2350,19 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::Com
    if (!indexCatIsObservable(normSet)) {
       // The index category is not an observable here: the RooSimultaneous
       // acts as a plain "switch" that evaluates to the component selected by
-      // the current index state, analogous to RooMultiPdf. The channel
-      // observables are then the same as the ones of this pdf, so the
-      // channel-splitting compilation below (which renames the per-channel
-      // observables so they can be filled from split datasets) must not be
-      // used. Compile like an ordinary self-normalized pdf instead.
+      // the current index state, analogous to RooMultiPdf. There are no
+      // channels to mix over, so compile like an ordinary self-normalized
+      // pdf instead.
       return RooAbsPdf::compileForNormSet(normSet, ctx);
    }
 
-   // Experimental, opt-in via ROOFIT_SIM_COMPILE_MIXTURE=1: compile into an
-   // ordinary mixture pdf built from standard components, so that the
-   // downstream likelihood machinery needs no special treatment of the
-   // simultaneous case. Only for likelihood compilation; unsupported
-   // configurations fall through to the channel-splitting path below.
-   if ((ctx.likelihoodMode() || ctx.chi2Mode()) && simMixtureCompileRequested()) {
-      if (std::unique_ptr<RooAbsArg> mixture = compileSimPdfAsMixture(*this, normSet, ctx)) {
-         return mixture;
-      }
+   if (!(ctx.likelihoodMode() || ctx.chi2Mode())) {
+      throw std::runtime_error("RooSimultaneous::compileForNormSet() is only supported for likelihood and "
+                               "chi-squared evaluations");
    }
 
-   std::unique_ptr<RooSimultaneous> newSimPdf{static_cast<RooSimultaneous *>(this->Clone())};
-
-   const char *rangeName = this->getStringAttribute("RangeName");
-   bool splitRange = this->getAttribute("SplitRange");
-
-   RooArgSet newPdfs;
-   std::vector<std::string> catNames;
-
-   for (auto *proxy : static_range_cast<RooRealProxy *>(newSimPdf->_pdfProxyList)) {
-      catNames.emplace_back(proxy->GetName());
-      std::string const &catName = catNames.back();
-      const std::string prefix = "_" + catName + "_";
-
-      const std::string origname = proxy->arg().GetName();
-
-      auto pdfClone = RooHelpers::cloneTreeWithSameParameters(static_cast<RooAbsPdf const &>(proxy->arg()), &normSet);
-
-      markObs(pdfClone.get(), prefix, normSet);
-
-      std::unique_ptr<RooArgSet> pdfNormSet{
-         std::unique_ptr<RooArgSet>(pdfClone->getVariables())->selectByAttrib("__obs__", true)};
-      std::unique_ptr<RooArgSet> condVarSet{
-         std::unique_ptr<RooArgSet>(pdfClone->getVariables())->selectByAttrib("__conditional__", true)};
-
-      pdfNormSet->remove(*condVarSet, true, true);
-
-      if (rangeName) {
-         pdfClone->setNormRange(RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, catName).c_str());
-      }
-
-      RooFit::Detail::CompileContext pdfContext{*pdfNormSet};
-      pdfContext.setLikelihoodMode(ctx.likelihoodMode());
-      auto *pdfFinal = pdfContext.compile(*pdfClone, *newSimPdf, *pdfNormSet);
-
-      // We can only prefix the observables after everything related the
-      // compiling of the compute graph for the normalization set is done. This
-      // is because of a subtlety in conditional RooProdPdfs, which stores the
-      // normalization sets for the individual pdfs in RooArgSets that are
-      // disconnected from the computation graph, so we have no control over
-      // them. An alternative would be to use recursive server re-direction,
-      // but this has more performance overhead.
-      prefixArgs(pdfFinal, prefix, normSet);
-
-      pdfFinal->fixAddCoefNormalization(*pdfNormSet, false);
-
-      pdfClone->SetName((std::string("_") + pdfClone->GetName()).c_str());
-      pdfFinal->addOwnedComponents(std::move(pdfClone));
-
-      pdfFinal->setAttribute(("ORIGNAME:" + origname).c_str());
-      newPdfs.add(*pdfFinal);
-
-      // We will remove the old pdf server because we will fill the new ones by
-      // hand via the creation of new proxies.
-      newSimPdf->removeServer(const_cast<RooAbsReal &>(proxy->arg()), true);
-   }
-
-   // Replace pdfs with compiled pdfs. Don't use RooAbsArg::redirectServers()
-   // here, because it doesn't support replacing two servers with the same name
-   // (it can happen in a RooSimultaneous that two pdfs have the same name).
-
-   // First delete old proxies (we have already removed the servers before).
-   newSimPdf->_pdfProxyList.Delete();
-
-   // Recreate the _pdfProxyList with the compiled pdfs
-   for (std::size_t i = 0; i < newPdfs.size(); ++i) {
-      const char *label = catNames[i].c_str();
-      newSimPdf->_pdfProxyList.Add(
-         new RooRealProxy(label, label, newSimPdf.get(), *static_cast<RooAbsReal *>(newPdfs[i])));
-   }
-
-   ctx.compileServers(*newSimPdf, normSet); // to trigger compiling also the index category
-
-   return newSimPdf;
+   // Compile into an ordinary mixture pdf built from standard components, so
+   // that the downstream likelihood machinery needs no special treatment of
+   // the simultaneous case.
+   return compileSimPdfAsMixture(*this, normSet, ctx);
 }
