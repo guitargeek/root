@@ -1309,6 +1309,30 @@ struct MixtureIndexStandIns {
       return out;
    }
 
+   /// Cut expression that excludes the data rows of the given index states,
+   /// for the "DataSelectionCut" attribute of the compiled pdf. The
+   /// channel-splitting path silently drops the entries of index states that
+   /// have no pdf attached, and this is how the mixture pdf reproduces that.
+   std::string exclusionCut(std::vector<RooAbsCategory::value_type> const &droppedStates) const
+   {
+      std::string cut;
+      for (auto state : droppedStates) {
+         auto const &targets = channelTargets.at(state);
+         if (!cut.empty()) {
+            cut += " && ";
+         }
+         cut += "!(";
+         for (std::size_t i = 0; i < standIns.size(); ++i) {
+            if (i > 0) {
+               cut += " && ";
+            }
+            cut += std::string(standIns[i]->GetName()) + " == " + std::to_string(targets[i]);
+         }
+         cut += ")";
+      }
+      return cut;
+   }
+
    /// The normalization set for the mixture, with the index categories
    /// replaced by their real-valued stand-ins. Conditional observables
    /// (projected dependents) are excluded, like the channel-splitting path
@@ -1419,7 +1443,7 @@ template <typename FallBackFunc>
 std::unique_ptr<RooAbsArg>
 compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet,
                              RooFit::Detail::CompileContext &ctx, MixtureIndexStandIns indexStandIns,
-                             FallBackFunc const &fallBack)
+                             std::string const &dataSelectionCut, FallBackFunc const &fallBack)
 {
    RooAbsCategoryLValue const &indexCat = simPdf.indexCat();
 
@@ -1429,6 +1453,10 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
 
    for (auto const &catState : indexCat) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
+      if (!channelPdf) {
+         // Handled by the data selection cut, see compileSimPdfAsMixture().
+         continue;
+      }
 
       auto [seenIt, inserted] = seenChannelPdfs.emplace(channelPdf->GetName(), channelPdf);
       if (!inserted && seenIt->second != channelPdf) {
@@ -1519,6 +1547,10 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
    // add the legacy sumOfWeights * log(nChannels) term, so the concatenated
    // likelihood has to be asked to do the same.
    compiled->setStringAttribute("SimCount", std::to_string(nChannels).c_str());
+
+   if (!dataSelectionCut.empty()) {
+      compiled->setStringAttribute("DataSelectionCut", dataSelectionCut.c_str());
+   }
 
    // Mark the compiled mixture terms as products gated by a binary mask, so
    // that the RooFit::Evaluator can restrict the evaluation of the channel
@@ -1617,13 +1649,16 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    // Mixed binned/unbinned configurations are not supported.
    std::size_t nChannels = 0;
    std::size_t nBinnedL = 0;
+   std::vector<RooAbsCategory::value_type> droppedStates;
    for (auto const &catState : indexCat) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
       if (!channelPdf) {
-         // The channel-splitting path silently drops data entries of states
-         // without an associated pdf. The mixture pdf would evaluate to zero
-         // for them, so it can't reproduce that behavior.
-         return fallBack("state \"" + catState.first + "\" has no pdf attached");
+         // The channel-splitting path silently drops the data entries of
+         // states without an associated pdf. The mixture pdf reproduces that
+         // with a data selection cut on the compiled pdf, applied by
+         // RooEvaluatorWrapper::setData().
+         droppedStates.push_back(catState.second);
+         continue;
       }
       ++nChannels;
       if (RooHelpers::getBinnedL(*channelPdf).isBinnedL) {
@@ -1633,8 +1668,9 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    if (nChannels == 0) {
       return fallBack("there are no channels");
    }
+   const std::string dataSelectionCut = indexStandIns.exclusionCut(droppedStates);
    if (nBinnedL == nChannels) {
-      return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, std::move(indexStandIns), fallBack);
+      return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, std::move(indexStandIns), dataSelectionCut, fallBack);
    }
    if (nBinnedL > 0) {
       return fallBack("mixed binned-likelihood and unbinned channels are not supported yet");
@@ -1658,6 +1694,10 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
 
    for (auto const &catState : indexCat) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
+      if (!channelPdf) {
+         // Handled by the data selection cut, see above.
+         continue;
+      }
       auto [seenIt, inserted] = seenChannelPdfs.emplace(channelPdf->GetName(), channelPdf);
       if (!inserted && seenIt->second != channelPdf) {
          // Two different pdf objects with the same name would collide in
@@ -1732,6 +1772,10 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       // expected yields instead, so the term has to be requested from the
       // likelihood class explicitly to get exactly the same NLL values.
       compiled->setStringAttribute("SimCount", std::to_string(nChannels).c_str());
+   }
+
+   if (!dataSelectionCut.empty()) {
+      compiled->setStringAttribute("DataSelectionCut", dataSelectionCut.c_str());
    }
 
    // Mark the compiled mixture terms as products gated by a binary mask, so
