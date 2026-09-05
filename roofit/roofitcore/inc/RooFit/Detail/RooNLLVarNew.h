@@ -60,7 +60,7 @@ public:
    double defaultErrorLevel() const override { return _statistic == Statistic::Chi2 ? 1.0 : 0.5; }
 
    void doEval(RooFit::EvalContext &) const override;
-   bool canComputeBatchWithCuda() const override { return _statistic == Statistic::NLL && !_binnedL; }
+   bool canComputeBatchWithCuda() const override { return _statistic == Statistic::NLL && !_binnedL && !_mixedBinnedL; }
    bool isReducerNode() const override { return true; }
 
    void setPrefix(std::string const &prefix);
@@ -83,11 +83,13 @@ public:
    RooAbsReal const &weightVar() const { return *_weightVar; }
    RooAbsReal const &weightSquaredVar() const { return *_weightSquaredVar; }
    bool binnedL() const { return _binnedL; }
+   bool mixedBinnedL() const { return _mixedBinnedL; }
    int simCount() const { return _simCount; }
    Statistic statistic() const { return _statistic; }
    FuncMode funcMode() const { return _funcMode; }
    RooDataHist::ErrorType chi2ErrorType() const { return _chi2ErrorType; }
    RooAbsReal const *expectedEvents() const { return _expectedEvents ? &**_expectedEvents : nullptr; }
+   RooAbsReal const *binnedRowsMask() const { return _binnedRowsMask ? &**_binnedRowsMask : nullptr; }
    RooAbsReal const *binVolumes() const { return _binVolumes ? &**_binVolumes : nullptr; }
    RooAbsReal const *weightErrLo() const { return _weightErrLo ? &**_weightErrLo : nullptr; }
    RooAbsReal const *weightErrHi() const { return _weightErrHi ? &**_weightErrHi : nullptr; }
@@ -99,6 +101,8 @@ private:
    void finalizeResult(RooFit::EvalContext &, ROOT::Math::KahanSum<double> result, double weightSum) const;
    void fillBinWidthsFromPdfBoundaries(RooAbsReal const &pdf, RooArgSet const &observables);
    void doEvalBinnedL(RooFit::EvalContext &, std::span<const double> preds, std::span<const double> weights) const;
+   void doEvalMixed(RooFit::EvalContext &, std::span<const double> preds, std::span<const double> weights,
+                    std::span<const double> weightsSumW2) const;
    void doEvalChi2(RooFit::EvalContext &, std::span<const double> preds, std::span<const double> weights,
                    std::span<const double> weightsSumW2) const;
 
@@ -106,12 +110,14 @@ private:
    RooTemplateProxy<RooAbsReal> _weightVar;
    RooTemplateProxy<RooAbsReal> _weightSquaredVar;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _expectedEvents;
+   std::unique_ptr<RooTemplateProxy<RooAbsReal>> _binnedRowsMask;
    std::unique_ptr<RooTemplateProxy<RooAbsPdf>> _offsetPdf;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _binVolumes;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _weightErrLo;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _weightErrHi;
    bool _weightSquared = false;
    bool _binnedL = false;
+   bool _mixedBinnedL = false;
    bool _doOffset = false;
    bool _doBinOffset = false;
    Statistic _statistic = Statistic::NLL;
