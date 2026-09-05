@@ -266,10 +266,86 @@ void RooNLLVarNew::fillBinWidthsFromPdfBoundaries(RooAbsReal const &pdf, RooArgS
 void RooNLLVarNew::doEvalBinnedL(RooFit::EvalContext &ctx, std::span<const double> preds,
                                  std::span<const double> weights) const
 {
+   const bool predsAreYields = _binw.empty();
+
+   // If the evaluator tracks in which event range the pdf values changed,
+   // reduce the binned likelihood in fixed-size chunks and cache the partial
+   // results, so that only the chunks with changed yields have to be reduced
+   // again (see the analogous code for the unbinned reduction in doEval()).
+   // This makes the cost of a single-parameter variation in a concatenated
+   // binned likelihood proportional to the size of the affected channel. The
+   // chunks are much smaller than for the unbinned reduction, because binned
+   // datasets have far fewer entries.
+   if (ctx.changeTrackingEnabled() && preds.size() > 1 && weights.size() == preds.size()) {
+      constexpr std::size_t chunkSize = 64;
+      const std::size_t n = preds.size();
+      const std::size_t nChunks = (n + chunkSize - 1) / chunkSize;
+      ChunkCache &cache = _chunkCache;
+
+      auto [changedBegin, changedEnd] = ctx.changedRange(&*_func);
+
+      const bool rebuild = cache.probasPtr != preds.data() || cache.weightsPtr != weights.data() ||
+                           cache.nEvents != n || cache.sums.size() != nChunks;
+      if (rebuild) {
+         cache.probasPtr = preds.data();
+         cache.weightsPtr = weights.data();
+         cache.nEvents = n;
+         cache.sums.assign(nChunks, 0.0);
+         cache.carrys.assign(nChunks, 0.0);
+         cache.counts.assign(nChunks, 0);
+         cache.weightSums.assign(nChunks, 0.0);
+         changedBegin = 0;
+         changedEnd = n;
+      }
+
+      const std::size_t firstChunk = changedBegin / chunkSize;
+      const std::size_t endChunk = changedEnd == 0 ? 0 : (std::min(changedEnd, n) - 1) / chunkSize + 1;
+      for (std::size_t c = firstChunk; c < endChunk; ++c) {
+         const std::size_t begin = c * chunkSize;
+         const std::size_t end = std::min(begin + chunkSize, n);
+         ROOT::Math::KahanSum<double> chunkSum;
+         ROOT::Math::KahanSum<double> chunkWeightSum;
+         std::size_t nErrors = 0;
+         for (std::size_t i = begin; i < end; ++i) {
+            const double N = weights[i];
+            double mu = preds[i];
+            if (!predsAreYields) {
+               mu *= _binw[i];
+            }
+            if (mu <= 0 && N > 0) {
+               ++nErrors;
+            } else {
+               chunkSum += RooFit::Detail::MathFuncs::nll(mu, N, true, _doBinOffset);
+               chunkWeightSum += N;
+            }
+         }
+         cache.sums[c] = chunkSum.Sum();
+         cache.carrys[c] = chunkSum.Carry();
+         cache.counts[c] = nErrors;
+         cache.weightSums[c] = chunkWeightSum.Sum();
+      }
+
+      ROOT::Math::KahanSum<double> total;
+      double sumWeight = 0.0;
+      std::size_t nErrors = 0;
+      for (std::size_t c = 0; c < nChunks; ++c) {
+         total += ROOT::Math::KahanSum<double>{cache.sums[c], cache.carrys[c]};
+         sumWeight += cache.weightSums[c];
+         nErrors += cache.counts[c];
+      }
+      // The error condition (data present where zero events are predicted)
+      // has to be reported on every evaluation, also for the bins whose
+      // cached chunks were not recomputed.
+      for (std::size_t i = 0; i < nErrors; ++i) {
+         logEvalError("Observed events in a bin with zero event yield");
+      }
+
+      finalizeResult(ctx, total, sumWeight);
+      return;
+   }
+
    ROOT::Math::KahanSum<double> result{0.0};
    ROOT::Math::KahanSum<double> sumWeightKahanSum{0.0};
-
-   const bool predsAreYields = _binw.empty();
 
    for (std::size_t i = 0; i < preds.size(); ++i) {
 

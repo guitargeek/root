@@ -1363,6 +1363,12 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
       std::string baseName = std::string(simPdf.GetName()) + "_" + catState.first;
       auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
          (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(), *standIn, catState.second);
+      // Declare to the RooFit::Evaluator that this node is a data-only
+      // {0,1}-valued mask, so that it can restrict the evaluation of the
+      // other factors in the gated product to the events of this channel (see
+      // Evaluator::rangeRestrictionAnalysis()). Without this, every channel
+      // pdf is evaluated on the concatenated bins of all channels.
+      indicator->setAttribute("BinaryMask");
       auto prod = std::make_unique<RooProduct>((baseName + "_mixtureTerm").c_str(), (baseName + "_mixtureTerm").c_str(),
                                                RooArgList(*indicator, *channelPdf));
       prod->addOwnedComponents(std::move(indicator));
@@ -1415,6 +1421,24 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
    // add the legacy sumOfWeights * log(nChannels) term, so the concatenated
    // likelihood has to be asked to do the same.
    compiled->setStringAttribute("SimCount", std::to_string(nChannels).c_str());
+
+   // Mark the compiled mixture terms as products gated by a binary mask, so
+   // that the RooFit::Evaluator can restrict the evaluation of the channel
+   // pdfs to the bins of their own channel. The compiled product nodes are
+   // new objects that don't inherit the attributes of the RooProducts above,
+   // so the marking has to happen after the compilation. The sum over the
+   // gated products is exact for the skipped bins too: their buffer entries
+   // are exact zeros.
+   if (auto *compiledSumPdf = dynamic_cast<RooRealSumPdf *>(compiled.get())) {
+      for (RooAbsArg *component : compiledSumPdf->funcList()) {
+         for (RooAbsArg *server : component->servers()) {
+            if (server->getAttribute("BinaryMask") && server->isValueServer(*component)) {
+               component->setAttribute("MaskGatedProduct");
+               break;
+            }
+         }
+      }
+   }
 
    // Keep the uncompiled mixture template alive: some normalization sets
    // stored inside RooProdPdf are disconnected from the computation graph, so
