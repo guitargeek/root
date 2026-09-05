@@ -84,6 +84,33 @@ void EvalContext::resize(std::size_t n)
    _cfgs.resize(n);
    _ctx.resize(n);
    _supportRanges.resize(n, {0, std::numeric_limits<std::size_t>::max()});
+   _changedRanges.resize(n, {0, std::numeric_limits<std::size_t>::max()});
+}
+
+/// \brief Declare that the values of the span registered for `arg` are
+/// unchanged outside of [begin, end) with respect to the previous
+/// computation of `arg`.
+void EvalContext::setChangedRange(RooAbsArg const *arg, std::size_t begin, std::size_t end)
+{
+   if (!arg->hasDataToken())
+      return;
+   std::size_t idx = arg->dataToken();
+   if (idx < _changedRanges.size()) {
+      _changedRanges[idx] = {begin, end};
+   }
+}
+
+/// \brief The range outside of which the values of the span registered for
+/// `arg` are unchanged with respect to the previous computation of `arg`,
+/// clamped to the span size.
+std::pair<std::size_t, std::size_t> EvalContext::changedRange(RooAbsArg const *arg) const
+{
+   if (!arg->hasDataToken() || arg->dataToken() >= _changedRanges.size()) {
+      return {0, std::numeric_limits<std::size_t>::max()};
+   }
+   std::size_t idx = arg->dataToken();
+   std::size_t size = _ctx[idx].size();
+   return {std::min(_changedRanges[idx].first, size), std::min(_changedRanges[idx].second, size)};
 }
 
 /// \brief Declare that the values of the span registered for `arg` are
