@@ -1387,6 +1387,12 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       std::string baseName = std::string(simPdf.GetName()) + "_" + catState.first;
       auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
          (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(), *standIn, catState.second);
+      // Declare to the RooFit::Evaluator that this node is a data-only
+      // {0,1}-valued mask: the evaluator can then restrict the evaluation of
+      // the other factors in the gated product to the events selected by the
+      // mask (see Evaluator::rangeRestrictionAnalysis()). The attribute is
+      // copied along when the node is cloned during graph compilation.
+      indicator->setAttribute("BinaryMask");
       auto prod = std::make_unique<RooProdPdf>((baseName + "_mixtureTerm").c_str(), (baseName + "_mixtureTerm").c_str(),
                                                RooArgList(*indicator, *channelPdf));
       prod->addOwnedComponents(std::move(indicator));
@@ -1446,6 +1452,22 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       // expected yields instead, so the term has to be requested from the
       // likelihood class explicitly to get exactly the same NLL values.
       compiled->setStringAttribute("SimCount", std::to_string(nChannels).c_str());
+   }
+
+   // Mark the compiled mixture terms as products gated by a binary mask, so
+   // that the RooFit::Evaluator can restrict the evaluation of the channel
+   // pdfs to the events of their own channel. The compiled product nodes are
+   // new objects that don't inherit the attributes of the RooProdPdfs above,
+   // so the marking has to happen after the compilation.
+   if (auto *compiledAddPdf = dynamic_cast<RooAddPdf *>(compiled.get())) {
+      for (RooAbsArg *component : compiledAddPdf->pdfList()) {
+         for (RooAbsArg *server : component->servers()) {
+            if (server->getAttribute("BinaryMask") && server->isValueServer(*component)) {
+               component->setAttribute("MaskGatedProduct");
+               break;
+            }
+         }
+      }
    }
 
    // Keep the uncompiled mixture template alive: some normalization sets

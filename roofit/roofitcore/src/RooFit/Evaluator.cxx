@@ -113,6 +113,26 @@ struct NodeInfo {
    bool computeInGPU = false;
    bool isValueServer = false; // if this node is a value server to the top node
    std::size_t outputSize = 1;
+
+   // Range-restricted evaluation (see Evaluator::rangeRestrictionAnalysis()):
+   // the node only computes the events [sliceBegin, sliceBegin + computeSize)
+   // of the full event axis. For an unrestricted node, sliceBegin is zero and
+   // computeSize equals outputSize.
+   std::size_t sliceBegin = 0;
+   std::size_t computeSize = 1;
+   // Global event index that element 0 of the node's registered result span
+   // corresponds to. Nonzero only for restricted nodes with compressed
+   // buffers (a mask-gated product keeps a full-length buffer, so its frame
+   // starts at zero).
+   std::size_t frameBegin = 0;
+   // A product gated by a data-only binary mask: it computes only its slice,
+   // but its buffer stays full-length, with the mathematically exact value of
+   // zero outside of the slice.
+   bool isMaskedProduct = false;
+   // The result span in the node's own frame, as last registered in the
+   // evaluation context. Used to re-derive the per-client input spans when
+   // restricted nodes are present.
+   std::span<const double> canonicalSpan;
    std::size_t lastSetValCount = std::numeric_limits<std::size_t>::max();
    int lastCatVal = std::numeric_limits<int>::max();
    double scalarBuffer = 0.0;
@@ -281,6 +301,8 @@ void Evaluator::setInput(std::string const &name, std::span<const double> inputA
 
    if (!_useGPU) {
       _evalContextCPU.set(info.absArg, inputArray);
+      info.canonicalSpan = inputArray;
+      info.frameBegin = 0;
       return;
    }
 
@@ -330,7 +352,16 @@ void Evaluator::updateOutputSizes()
 
    for (auto &info : _nodes) {
       info.outputSize = outputSizeMap.at(info.absArg);
+      info.computeSize = info.outputSize;
+      info.sliceBegin = 0;
+      info.frameBegin = 0;
+      info.isMaskedProduct = false;
       info.isDirty = true;
+   }
+
+   _hasRestrictedNodes = false;
+   if (!_useGPU) {
+      rangeRestrictionAnalysis();
    }
 
    if (_useGPU) {
@@ -338,6 +369,162 @@ void Evaluator::updateOutputSizes()
    }
 
    _needToUpdateOutputSizes = false;
+}
+
+/// Detect data-only binary-mask nodes (attribute "BinaryMask") whose set of
+/// selected events forms one contiguous range of the event axis, and restrict
+/// the evaluation of the products gated by them (attribute
+/// "MaskGatedProduct"), and of the subgraphs that those products consume
+/// exclusively, to that range. The masks depend only on the data, so the
+/// analysis only has to run when new data is loaded and the restriction stays
+/// valid for the whole fit. This keeps the total evaluation cost of e.g. a
+/// simultaneous pdf compiled into a mixture (see
+/// RooSimultaneous::compileForNormSet()) proportional to the number of
+/// events, instead of the number of events times the number of channels.
+void Evaluator::rangeRestrictionAnalysis()
+{
+   // Quick scan, so that computation graphs without masks don't pay anything.
+   bool haveMasks = false;
+   for (auto &info : _nodes) {
+      haveMasks |= (info.outputSize > 1 && info.absArg->getAttribute("BinaryMask"));
+   }
+   if (!haveMasks)
+      return;
+
+   // Determine the contiguous event range that each data-only mask selects.
+   std::map<NodeInfo const *, std::pair<std::size_t, std::size_t>> maskRanges;
+   for (auto &info : _nodes) {
+      if (info.outputSize <= 1 || info.fromArrayInput || !info.absArg->getAttribute("BinaryMask"))
+         continue;
+      bool dataOnly = true;
+      for (NodeInfo *server : info.serverInfos) {
+         dataOnly &= server->fromArrayInput;
+      }
+      if (!dataOnly)
+         continue;
+
+      // Evaluate the mask once, on the full range. It will not become dirty
+      // again as long as the data doesn't change.
+      computeCPUNode(info.absArg, info);
+      info.isDirty = false;
+
+      std::span<const double> vals = info.canonicalSpan;
+      std::size_t begin = vals.size();
+      std::size_t end = 0;
+      for (std::size_t i = 0; i < vals.size(); ++i) {
+         if (vals[i] != 0.0) {
+            begin = std::min(begin, i);
+            end = i + 1;
+         }
+      }
+      // Only a non-empty contiguous range of selected events can be used. If
+      // the selected events are scattered (e.g. data that is not sorted by
+      // channel), the mask is not usable and the gated product is simply
+      // evaluated on all events, like before.
+      bool contiguous = begin < end;
+      for (std::size_t i = begin; i < end && contiguous; ++i) {
+         contiguous &= vals[i] != 0.0;
+      }
+      if (contiguous) {
+         maskRanges[&info] = {begin, end};
+      }
+   }
+   if (maskRanges.empty())
+      return;
+
+   // Fix the computed slice of each gated product to the range of its mask.
+   // The product keeps a full-length buffer whose value outside of the slice
+   // is exactly zero, because that's what multiplying with the mask yields.
+   for (auto &info : _nodes) {
+      if (info.outputSize <= 1 || !info.absArg->getAttribute("MaskGatedProduct"))
+         continue;
+      for (NodeInfo *server : info.serverInfos) {
+         auto found = maskRanges.find(server);
+         if (found != maskRanges.end()) {
+            info.isMaskedProduct = true;
+            info.sliceBegin = found->second.first;
+            info.computeSize = found->second.second - found->second.first;
+            break;
+         }
+      }
+      _hasRestrictedNodes |= info.isMaskedProduct;
+   }
+   if (!_hasRestrictedNodes)
+      return;
+
+   // Propagate the demands down the graph, visiting clients before servers
+   // (the node list is topologically sorted). Each vector node is then
+   // restricted to the interval hull of what its clients read from it.
+   std::vector<std::pair<std::size_t, std::size_t>> demand(_nodes.size(), {std::numeric_limits<std::size_t>::max(), 0});
+   auto addDemand = [&](NodeInfo const *server, std::size_t begin, std::size_t end) {
+      auto &d = demand[server->iNode];
+      d.first = std::min(d.first, begin);
+      d.second = std::max(d.second, end);
+   };
+   for (auto it = _nodes.rbegin(); it != _nodes.rend(); ++it) {
+      NodeInfo &info = *it;
+      // A scalar node (e.g. a reducer like the NLL class, or an integral)
+      // consumes its vector inputs in full.
+      if (info.outputSize == 1) {
+         for (NodeInfo *server : info.serverInfos) {
+            addDemand(server, 0, server->outputSize);
+         }
+         continue;
+      }
+      if (!info.isMaskedProduct) {
+         auto const &d = demand[info.iNode];
+         const bool hasDemand = d.first < d.second;
+         const bool isTop = info.absArg == &_topNode;
+         if (hasDemand && !isTop && !info.fromArrayInput) {
+            const std::size_t begin = d.first;
+            const std::size_t end = std::min(d.second, info.outputSize);
+            if (end - begin < info.outputSize) {
+               info.sliceBegin = begin;
+               info.computeSize = end - begin;
+               info.frameBegin = begin;
+            }
+         }
+      }
+      const std::size_t begin = info.sliceBegin;
+      const std::size_t end = info.sliceBegin + info.computeSize;
+      for (NodeInfo *server : info.serverInfos) {
+         if (info.isMaskedProduct && maskRanges.find(server) != maskRanges.end()) {
+            // The mask itself was already evaluated in full above and doesn't
+            // depend on parameters, so it must not be restricted.
+            addDemand(server, 0, server->outputSize);
+         } else {
+            addDemand(server, begin, end);
+         }
+      }
+   }
+}
+
+/// When range-restricted nodes are present, the evaluation-context span of
+/// every input has to be aligned to the frame of the node that is about to be
+/// computed: element i of each input span must correspond to the global event
+/// index `info.sliceBegin + i`. The canonical result spans of the servers
+/// stay untouched, only the context entries are rewritten (they are rewritten
+/// again before any other node is computed).
+void Evaluator::prepareInputSpans(NodeInfo &info)
+{
+   // Scalar nodes (reducers, integrals) consume their vector inputs in full.
+   const bool sliced = info.outputSize > 1;
+   for (NodeInfo *server : info.serverInfos) {
+      std::span<const double> const &canonical = server->canonicalSpan;
+      if (canonical.size() <= 1 || !server->absArg->hasDataToken())
+         continue;
+      // The demand propagation in rangeRestrictionAnalysis() guarantees that
+      // the frame of each server covers the slice of all of its clients. The
+      // checks are cheap insurance against out-of-bounds reads in case that
+      // invariant is ever broken.
+      if (sliced && info.sliceBegin >= server->frameBegin &&
+          info.sliceBegin - server->frameBegin + info.computeSize <= canonical.size()) {
+         const std::size_t shift = info.sliceBegin - server->frameBegin;
+         _evalContextCPU.set(server->absArg, {canonical.data() + shift, info.computeSize});
+      } else {
+         _evalContextCPU.set(server->absArg, canonical);
+      }
+   }
 }
 
 Evaluator::~Evaluator()
@@ -357,6 +544,7 @@ void Evaluator::computeCPUNode(const RooAbsArg *node, NodeInfo &info)
    using namespace Detail;
 
    const std::size_t nOut = info.outputSize;
+   const std::size_t nCompute = info.computeSize; // equal to nOut unless the node is range-restricted
 
    double *buffer = nullptr;
    if (nOut == 1) {
@@ -374,15 +562,31 @@ void Evaluator::computeCPUNode(const RooAbsArg *node, NodeInfo &info)
          info.hasLogged = true;
       }
       if (!info.buffer) {
-         info.buffer = info.copyAfterEvaluation ? _bufferManager->makePinnedBuffer(nOut, _cudaStream)
-                                                : _bufferManager->makeCpuBuffer(nOut);
+         const std::size_t nAlloc = info.isMaskedProduct ? nOut : nCompute;
+         info.buffer = info.copyAfterEvaluation ? _bufferManager->makePinnedBuffer(nAlloc, _cudaStream)
+                                                : _bufferManager->makeCpuBuffer(nAlloc);
+         if (info.isMaskedProduct && nCompute != nOut) {
+            // The value of a mask-gated product is exactly zero outside of
+            // its slice: initialize the buffer once, only the slice is
+            // rewritten by the evaluations.
+            double *ptr = info.buffer->hostWritePtr();
+            std::fill(ptr, ptr + nOut, 0.0);
+         }
       }
       buffer = info.buffer->hostWritePtr();
    }
-   assignSpan(_evalContextCPU._currentOutput, {buffer, nOut});
-   _evalContextCPU.set(node, {buffer, nOut});
-   if (nOut > 1) {
+   // A mask-gated product keeps a full-length buffer and computes only its
+   // slice; a compressed restricted node writes its slice at the beginning of
+   // its (shorter) buffer.
+   const std::size_t nRegister = info.isMaskedProduct ? nOut : nCompute;
+   assignSpan(_evalContextCPU._currentOutput, {buffer + (info.isMaskedProduct ? info.sliceBegin : 0), nCompute});
+   _evalContextCPU.set(node, {buffer, nRegister});
+   assignSpan(info.canonicalSpan, {buffer, nRegister});
+   if (nCompute > 1) {
       _evalContextCPU.enableVectorBuffers(true);
+   }
+   if (_hasRestrictedNodes) {
+      prepareInputSpans(info);
    }
    if (info.isCategory) {
       auto nodeAbsCategory = static_cast<RooAbsCategory const *>(node);
