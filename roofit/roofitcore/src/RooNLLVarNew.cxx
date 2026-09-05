@@ -155,7 +155,7 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
    : RooAbsReal(name, title),
      _func{"func", "func", this, func},
      _weightVar{"weightVar", "weightVar", this, dummyVar(weightVarName)},
-     _weightSquaredVar{weightVarNameSumW2, weightVarNameSumW2, this, dummyVar("weightSquardVar")},
+     _weightSquaredVar{weightVarNameSumW2, weightVarNameSumW2, this, dummyVar(weightVarNameSumW2)},
      _statistic{cfg.statistic},
      _chi2ErrorType{cfg.chi2ErrorType}
 {
@@ -311,8 +311,6 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
          addOwnedComponents(std::move(errHiDummy));
       }
    }
-
-   resetWeightVarNames();
 }
 
 RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
@@ -330,7 +328,6 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
      _funcMode{other._funcMode},
      _chi2ErrorType{other._chi2ErrorType},
      _simCount{other._simCount},
-     _prefix{other._prefix},
      _binw{other._binw}
 {
    if (other._expectedEvents) {
@@ -792,37 +789,6 @@ void RooNLLVarNew::doEval(RooFit::EvalContext &ctx) const
    }
 
    finalizeResult(ctx, {nllOut.nllSum, nllOut.nllSumCarry}, sumWeight);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Sets the prefix for the special variables of this NLL, like weights or bin
-/// volumes.
-/// \param[in] prefix The prefix to add to the observables and weight names.
-void RooNLLVarNew::setPrefix(std::string const &prefix)
-{
-   _prefix = prefix;
-
-   resetWeightVarNames();
-}
-
-void RooNLLVarNew::resetWeightVarNames()
-{
-   _weightVar->SetName((_prefix + weightVarName).c_str());
-   _weightSquaredVar->SetName((_prefix + weightVarNameSumW2).c_str());
-   if (_offsetPdf && !(*_offsetPdf)->getAttribute("MixtureBinOffsetPdf")) {
-      // Only the template pdf built by this class is renamed; a discovered
-      // mixture offset node keeps its name in the compiled graph.
-      (*_offsetPdf)->SetName((_prefix + "_offset_func").c_str());
-   }
-   if (_binVolumes) {
-      (*_binVolumes)->SetName((_prefix + binVolumeVarName).c_str());
-   }
-   if (_weightErrLo) {
-      (*_weightErrLo)->SetName((_prefix + weightErrorLoVarName).c_str());
-   }
-   if (_weightErrHi) {
-      (*_weightErrHi)->SetName((_prefix + weightErrorHiVarName).c_str());
-   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

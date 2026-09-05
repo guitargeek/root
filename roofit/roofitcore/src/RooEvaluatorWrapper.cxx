@@ -39,9 +39,7 @@ Wraps a RooFit::Evaluator that evaluates a RooAbsReal back into a RooAbsReal.
 namespace {
 
 // Throws an exception if any value in `span` is outside of the (default,
-// unnamed) range of `var`. The `obsName` is used only for the error message,
-// because it might differ from `var.GetName()` (e.g. the per-channel prefix
-// that RooSimultaneous adds is stripped for readability).
+// unnamed) range of `var`.
 void checkObservableSpanInRange(RooRealVar const &var, std::string const &obsName, std::string const &datasetName,
                                 std::span<const double> span)
 {
@@ -75,36 +73,6 @@ void validateObservableRanges(RooAbsPdf const *pdf, RooAbsData const &data,
 {
    if (!pdf)
       return;
-
-   if (auto const *simPdf = dynamic_cast<RooSimultaneous const *>(pdf)) {
-      // The per-channel pdfs coming out of RooSimultaneous::compileForNormSet()
-      // have their observables cloned and renamed with a "_<channel>_" prefix
-      // (and tagged with the "__obs__" attribute), so that the shared data map
-      // can hold independent columns for each channel. We look those up the
-      // same way, and strip the prefix again for a readable error message.
-      for (auto const &nameIdx : simPdf->indexCat()) {
-         RooAbsPdf *channelPdf = simPdf->getPdf(nameIdx.first);
-         if (!channelPdf)
-            continue;
-         const std::string prefix = "_" + nameIdx.first + "_";
-         std::unique_ptr<RooArgSet> vars{channelPdf->getVariables()};
-         std::unique_ptr<RooArgSet> obs{vars->selectByAttrib("__obs__", true)};
-         for (RooAbsArg *arg : *obs) {
-            auto *realVar = dynamic_cast<RooRealVar *>(arg);
-            if (!realVar)
-               continue;
-            auto it = dataSpans.find(RooFit::Detail::DataKey(realVar));
-            if (it == dataSpans.end())
-               continue;
-            std::string obsName = realVar->GetName();
-            if (obsName.rfind(prefix, 0) == 0) {
-               obsName = obsName.substr(prefix.size());
-            }
-            checkObservableSpanInRange(*realVar, obsName, data.GetName(), it->second);
-         }
-      }
-      return;
-   }
 
    RooArgSet obs;
    pdf->getObservables(data.get(), obs);
@@ -213,8 +181,8 @@ bool RooEvaluatorWrapper::getParameters(const RooArgSet *observables, RooArgSet 
 /// represents the data entry.
 class RooFuncWrapper {
 public:
-   RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooSimultaneous const *simPdf, RooArgSet const &paramSet,
-                  std::string const &rangeName, bool skipZeroWeights);
+   RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooArgSet const &paramSet, std::string const &rangeName,
+                  bool skipZeroWeights);
 
    bool hasGradient() const { return _hasGradient; }
    bool hasHessian() const { return _hasHessian; }
@@ -244,8 +212,7 @@ public:
       return _func(_varBuffer.data(), _observables.data(), _xlArr.data());
    }
 
-   void
-   loadData(RooAbsData const &data, RooSimultaneous const *simPdf, std::string const &rangeName, bool skipZeroWeights);
+   void loadData(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights);
 
 private:
    void updateGradientVarBuffer() const;
@@ -294,9 +261,6 @@ auto getDependsOnData(RooAbsReal &obj, RooArgSet const &dataObs)
    }
 
    for (RooAbsArg *arg : serverSet) {
-      if (arg->getAttribute("__obs__")) {
-         dependsOnData.insert(arg);
-      }
       for (RooAbsArg *server : arg->servers()) {
          if (server->isValueServer(*arg)) {
             if (dependsOnData.find(server) != dependsOnData.end() && !arg->isReducerNode()) {
@@ -312,12 +276,12 @@ auto getDependsOnData(RooAbsReal &obj, RooArgSet const &dataObs)
 
 } // namespace
 
-RooFuncWrapper::RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooSimultaneous const *simPdf,
-                               RooArgSet const &paramSet, std::string const &rangeName, bool skipZeroWeights)
+RooFuncWrapper::RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooArgSet const &paramSet,
+                               std::string const &rangeName, bool skipZeroWeights)
 {
    // Load the observables from the dataset
    if (data) {
-      loadData(*data, simPdf, rangeName, skipZeroWeights);
+      loadData(*data, rangeName, skipZeroWeights);
    }
 
    // Define the parameters
@@ -378,13 +342,11 @@ RooFuncWrapper::RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooSimul
    _collectedFunctions = ctx.collectedFunctions();
 }
 
-void RooFuncWrapper::loadData(RooAbsData const &data, RooSimultaneous const *simPdf, std::string const &rangeName,
-                              bool skipZeroWeights)
+void RooFuncWrapper::loadData(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights)
 {
    // Extract observables
    std::stack<std::vector<double>> vectorBuffers; // for data loading
-   auto spans =
-      RooFit::BatchModeDataHelpers::getDataSpans(data, rangeName, simPdf, skipZeroWeights, false, vectorBuffers);
+   auto spans = RooFit::BatchModeDataHelpers::getDataSpans(data, rangeName, skipZeroWeights, false, vectorBuffers);
 
    _observables.clear();
    // The first elements contain the sizes of the packed observable arrays
@@ -773,14 +735,13 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
    bool skipZeroWeights =
       !isChi2 &&
       (!_pdf || !(_pdf->getAttribute("BinnedLikelihoodActive") || _pdf->getAttribute("MixedBinnedLikelihoodActive")));
-   auto simPdf = dynamic_cast<RooSimultaneous const *>(_pdf);
    // When the compiled pdf declares a data selection cut, that cut encodes
    // the complete row selection, including any fit-range selection, so the
    // generic range-based selection of the data loading must not be applied
    // on top of it.
    const std::string rangeNameForLoading = _selectedData ? "" : _rangeName;
 
-   _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*dataForEval(), rangeNameForLoading, simPdf, skipZeroWeights,
+   _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*dataForEval(), rangeNameForLoading, skipZeroWeights,
                                                            _takeGlobalObservablesFromData, _vectorBuffers);
    if (_rangeName.empty()) {
       validateObservableRanges(_pdf, *dataForEval(), _dataSpans);
@@ -809,7 +770,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
    }
    _nUsedDataSpans = nUsedSpans;
    if (_funcWrapper) {
-      _funcWrapper->loadData(*dataForEval(), simPdf, rangeNameForLoading, skipZeroWeights);
+      _funcWrapper->loadData(*dataForEval(), rangeNameForLoading, skipZeroWeights);
    }
    return true;
 }
@@ -822,9 +783,8 @@ void RooEvaluatorWrapper::createFuncWrapper()
 
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
    const bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
-   _funcWrapper =
-      std::make_unique<RooFuncWrapper>(*_topNode, dataForEval(), dynamic_cast<RooSimultaneous const *>(_pdf), paramSet,
-                                       _selectedData ? std::string{} : _rangeName, skipZeroWeights);
+   _funcWrapper = std::make_unique<RooFuncWrapper>(*_topNode, dataForEval(), paramSet,
+                                                   _selectedData ? std::string{} : _rangeName, skipZeroWeights);
 }
 
 void RooEvaluatorWrapper::generateGradient()
