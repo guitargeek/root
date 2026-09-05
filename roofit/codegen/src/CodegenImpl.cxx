@@ -731,10 +731,12 @@ void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
    }
    if (arg.expectedEvents()) {
       std::string expected = ctx.getResult(*arg.expectedEvents());
-      if (arg.mixedBinnedL()) {
-         // The unbinned rows carry -weight * log(expectedChannelYield *
-         // density) terms, so only the summed expected events of the unbinned
-         // channels remain (see RooNLLVarNew::doEvalMixed()).
+      if (arg.mixedBinnedL() || arg.expectedEventsFolded()) {
+         // The unbinned rows of a gated-sum mixture carry the
+         // -weight * log(expectedChannelYield * density) terms, so only the
+         // summed expected events of the extendable channels remain (see
+         // RooNLLVarNew::doEvalMixed() and the folded extended term in
+         // RooNLLVarNew::doEval()).
          ctx.addToCodeBody(resName + " += " + expected + ";\n");
       } else {
          ctx.addToCodeBody(resName + " += " + expected + " - " + weightSumName + " * std::log(" + expected + ");\n");

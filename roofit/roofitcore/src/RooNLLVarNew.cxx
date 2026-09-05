@@ -151,12 +151,18 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
    RooArgSet obs;
    func.getObservables(&observables, obs);
 
-   if (_mixedBinnedL) {
-      // A pdf compiled from a simultaneous pdf with both binned-likelihood
-      // and unbinned channels declares which data rows belong to the binned
-      // channels via a mask node in its computation graph, and (in extended
-      // fits) the total expected events of the unbinned channels via a
-      // dedicated sum node. See RooSimultaneous::compileForNormSet().
+   const bool foldedExpectedEvents =
+      _statistic == Statistic::NLL && pdf && pdf->getAttribute("MixtureFoldedExtendedEvents");
+
+   if (_mixedBinnedL || foldedExpectedEvents) {
+      // A pdf compiled from a simultaneous pdf into a gated-sum mixture
+      // declares dedicated nodes in its computation graph: a mask selecting
+      // the data rows of the binned-likelihood channels (when there are
+      // both binned and unbinned channels), and (in extended fits) the total
+      // expected events of the extendable channels. The latter is added to
+      // the likelihood directly, because the rows of the gated sum already
+      // carry the per-channel -log(expected yield) parts of the extended
+      // terms. See RooSimultaneous::compileForNormSet().
       std::unique_ptr<RooArgSet> components{pdf->getComponents()};
       for (RooAbsArg *component : *components) {
          auto *asReal = dynamic_cast<RooAbsReal *>(component);
@@ -169,9 +175,10 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
          } else if (cfg.extended && component->getAttribute("MixtureExpectedEventsTotal")) {
             _expectedEvents =
                std::make_unique<RooTemplateProxy<RooAbsReal>>("expectedEvents", "expectedEvents", this, *asReal);
+            _expectedEventsFolded = true;
          }
       }
-      if (!_binnedRowsMask) {
+      if (_mixedBinnedL && !_binnedRowsMask) {
          throw std::runtime_error("RooNLLVarNew: the mixed binned likelihood pdf declares no binned-rows mask");
       }
    }
@@ -179,12 +186,13 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
    // Extended mode needs an expected-events function for both NLL and chi2
    // (NLL adds it as an extra additive term, chi2 uses it as the predicted
    // yield normalisation). Skip it for binned NLL (where the yields come
-   // directly from the pdf), for the mixed binned likelihood (where the
-   // expected-events sum node was already picked up above), and for chi2
+   // directly from the pdf), for the gated-sum mixtures (where the
+   // expected-events sum node was already picked up above, or is
+   // deliberately absent when no channel is extendable), and for chi2
    // Function mode (where the function values are directly the predicted
    // yields).
    const bool wantsExpectedEvents =
-      pdf && ((_statistic == Statistic::NLL && cfg.extended && !_binnedL && !_mixedBinnedL) ||
+      pdf && ((_statistic == Statistic::NLL && cfg.extended && !_binnedL && !_mixedBinnedL && !foldedExpectedEvents) ||
               (_statistic == Statistic::Chi2 && _funcMode == FuncMode::ExtendedPdf));
    if (wantsExpectedEvents) {
       std::unique_ptr<RooAbsReal> expectedEvents = pdf->createExpectedEventsFunc(&obs);
@@ -245,6 +253,7 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
      _weightSquared{other._weightSquared},
      _binnedL{other._binnedL},
      _mixedBinnedL{other._mixedBinnedL},
+     _expectedEventsFolded{other._expectedEventsFolded},
      _doOffset{other._doOffset},
      _doBinOffset{other._doBinOffset},
      _statistic{other._statistic},
@@ -688,10 +697,23 @@ void RooNLLVarNew::doEval(RooFit::EvalContext &ctx) const
    }
 
    if (_expectedEvents) {
-      // The unbinned NLL path is only reached for pdf inputs, so the cast is safe.
-      auto &pdf = static_cast<RooAbsPdf &>(const_cast<RooAbsReal &>(*_func));
       std::span<const double> expected = ctx.at(*_expectedEvents);
-      nllOut.nllSum += pdf.extendedTerm(sumWeight, expected[0], _weightSquared ? sumWeight2 : 0.0, _doBinOffset);
+      if (_expectedEventsFolded) {
+         // The rows of a gated-sum mixture already carry the per-channel
+         // -weight * log(expected yield) parts of the extended terms, so
+         // only the summed expected events remain. In weighted fits with
+         // the weight-squared correction, the term is scaled by the ratio
+         // of the weight sums like in RooAbsPdf::extendedTerm().
+         double term = expected[0];
+         if (_weightSquared && sumWeight > 0.0) {
+            term *= sumWeight2 / sumWeight;
+         }
+         nllOut.nllSum += term;
+      } else {
+         // The unbinned NLL path is only reached for pdf inputs, so the cast is safe.
+         auto &pdf = static_cast<RooAbsPdf &>(const_cast<RooAbsReal &>(*_func));
+         nllOut.nllSum += pdf.extendedTerm(sumWeight, expected[0], _weightSquared ? sumWeight2 : 0.0, _doBinOffset);
+      }
    }
 
    finalizeResult(ctx, {nllOut.nllSum, nllOut.nllSumCarry}, sumWeight);
