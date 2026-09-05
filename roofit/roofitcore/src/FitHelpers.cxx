@@ -500,12 +500,14 @@ private:
 /// optimisations in the compiled pdf). The returned compiled pdf has
 /// `fixAddCoefRange` already applied when `addCoefRangeName` is non-empty.
 std::unique_ptr<RooAbsPdf> compilePdfForFit(RooAbsPdf &pdf, RooArgSet const &normSet, const char *rangeName,
-                                            bool splitRange, const char *addCoefRangeName, bool likelihoodMode)
+                                            bool splitRange, const char *addCoefRangeName, bool likelihoodMode,
+                                            bool extendedFit)
 {
    NormRangeScope scope{pdf, rangeName, splitRange};
 
    RooFit::Detail::CompileContext ctx{normSet};
    ctx.setLikelihoodMode(likelihoodMode);
+   ctx.setExtendedMode(extendedFit);
    std::unique_ptr<RooAbsArg> head = pdf.compileForNormSet(normSet, ctx);
    std::unique_ptr<RooAbsPdf> pdfClone{&dynamic_cast<RooAbsPdf &>(*head.release())};
 
@@ -549,7 +551,16 @@ std::unique_ptr<RooAbsReal> createNLLNew(RooAbsPdf &pdf, RooAbsData &data, std::
       RooNLLVarNew::Config cfg;
       cfg.extended = isExtended;
       cfg.offsetMode = offset;
-      nllTerms.addOwned(std::make_unique<RooNLLVarNew>("RooNLLVarNew", "RooNLLVarNew", finalPdf, observables, cfg));
+      auto nllVar = std::make_unique<RooNLLVarNew>("RooNLLVarNew", "RooNLLVarNew", finalPdf, observables, cfg);
+      // A pdf can request the legacy convention of adding sumOfWeights *
+      // log(simCount) to the NLL, like the per-channel NLLs of a simultaneous
+      // fit do. This is used by the experimental compilation of a
+      // RooSimultaneous into a mixture pdf to reproduce exactly the same NLL
+      // values as the channel-splitting likelihood.
+      if (const char *simCount = finalPdf.getStringAttribute("SimCount")) {
+         nllVar->setSimCount(std::atoi(simCount));
+      }
+      nllTerms.addOwned(std::move(nllVar));
    }
    if (constraints) {
       nllTerms.addOwned(std::move(constraints));
@@ -907,7 +918,7 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       }
 
       std::unique_ptr<RooAbsPdf> pdfClone =
-         compilePdfForFit(pdf, normSet, rangeName, splitRange, addCoefRangeName, /*likelihoodMode=*/true);
+         compilePdfForFit(pdf, normSet, rangeName, splitRange, addCoefRangeName, /*likelihoodMode=*/true, ext);
 
       if (addCoefRangeName) {
          oocxcoutI(&pdf, Fitting) << "RooAbsPdf::fitTo(" << pdf.GetName()
@@ -1147,7 +1158,7 @@ std::unique_ptr<RooAbsReal> createChi2(RooAbsReal &real, RooDataHist &data, cons
 
          std::unique_ptr<RooAbsPdf> pdfClone =
             compilePdfForFit(*pdf, normSet, rangeName, splitRange, pc.getString("addCoefRange", nullptr, true),
-                             /*likelihoodMode=*/false);
+                             /*likelihoodMode=*/false, extended);
 
          RooArgList binSamplingPdfs;
          RooAbsPdf &finalPdf =

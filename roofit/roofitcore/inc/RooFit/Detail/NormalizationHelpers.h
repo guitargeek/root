@@ -47,6 +47,10 @@ public:
    // This information is used for the binned likelihood optimization.
    void setLikelihoodMode(bool flag) { _likelihoodMode = flag; }
    bool likelihoodMode() const { return _likelihoodMode; }
+   // Whether the likelihood that this computation graph is compiled for is an
+   // extended likelihood. Only meaningful if likelihoodMode() is also true.
+   void setExtendedMode(bool flag) { _extendedMode = flag; }
+   bool extendedMode() const { return _extendedMode; }
    void setBinnedLikelihoodMode(bool flag) { _binnedLikelihoodMode = flag; }
    bool binnedLikelihoodMode() const { return _binnedLikelihoodMode; }
    void setBinWidthFuncFlag(bool flag) { _binWidthFuncFlag = flag; }
@@ -63,6 +67,7 @@ private:
    std::unordered_map<RooAbsArg *, RooAbsArg *> _replacements;
 
    bool _likelihoodMode = false;
+   bool _extendedMode = false;
    bool _binnedLikelihoodMode = false;
    bool _binWidthFuncFlag = false;
 };
