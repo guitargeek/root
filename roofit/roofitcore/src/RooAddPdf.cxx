@@ -581,6 +581,9 @@ void RooAddPdf::doEval(RooFit::EvalContext & ctx) const
   RooAddHelpers::updateCoefficients(*this, _pdfList.size(), _coefCache, _haveLastCoef || _allExtendable, *cache,
                                     _coefErrCount);
 
+  std::vector<std::pair<std::size_t,std::size_t>> supports;
+  bool anyLimitedSupport = false;
+
   for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo)
   {
     auto pdf = static_cast<RooAbsPdf*>(&_pdfList[pdfNo]);
@@ -588,8 +591,36 @@ void RooAddPdf::doEval(RooFit::EvalContext & ctx) const
     {
       pdfs.push_back(ctx.at(pdf));
       coefs.push_back(_coefCache[pdfNo] / cache->suppNormVal(pdfNo) );
+      supports.push_back(ctx.supportRange(pdf));
+      anyLimitedSupport |= pdfs.back().size() == output.size() &&
+                           (supports.back().second - supports.back().first) < output.size();
     }
   }
+
+  // If some component values are known to be exactly zero outside of a
+  // limited support range (e.g. the channel terms of a simultaneous pdf
+  // compiled into a mixture), skip the events outside of those ranges. This
+  // gives bit-identical results to the batch computation below, because
+  // adding an exact zero doesn't change the sum.
+  if (anyLimitedSupport && !config.useCuda()) {
+    std::fill(output.begin(), output.end(), 0.0);
+    for (std::size_t n = 0; n < pdfs.size(); ++n) {
+      std::span<const double> const &pdfSpan = pdfs[n];
+      const double coef = coefs[n];
+      if (pdfSpan.size() != output.size()) {
+        // Scalar component, broadcast over all events.
+        for (std::size_t i = 0; i < output.size(); ++i) {
+          output[i] += coef * pdfSpan[0];
+        }
+        continue;
+      }
+      for (std::size_t i = supports[n].first; i < supports[n].second; ++i) {
+        output[i] += coef * pdfSpan[i];
+      }
+    }
+    return;
+  }
+
   RooBatchCompute::compute(config, RooBatchCompute::AddPdf, output, pdfs, coefs);
 }
 

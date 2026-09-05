@@ -23,9 +23,11 @@
 #include <Math/Util.h>
 
 #include <functional>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <sstream>
+#include <utility>
 
 template <class T>
 class RooTemplateProxy;
@@ -95,7 +97,13 @@ public:
          return;
       std::size_t idx = arg->dataToken();
       _ctx[idx] = span;
+      if (idx < _supportRanges.size()) {
+         _supportRanges[idx] = {0, std::numeric_limits<std::size_t>::max()};
+      }
    }
+
+   void setSupportRange(RooAbsArg const *arg, std::size_t begin, std::size_t end);
+   std::pair<std::size_t, std::size_t> supportRange(RooAbsArg const *arg) const;
 
    void setConfig(RooAbsArg const *arg, RooBatchCompute::Config const &config);
 
@@ -138,6 +146,11 @@ private:
    std::size_t _inputGeneration = 1;
    std::span<double> _currentOutput;
    std::vector<std::span<const double>> _ctx;
+   // For each registered span, the range outside of which the values are
+   // known to be exactly zero (e.g. a simultaneous-mixture product gated by a
+   // channel indicator, see Evaluator::rangeRestrictionAnalysis()). Nodes can
+   // use this to skip the events outside of the support of their inputs.
+   std::vector<std::pair<std::size_t, std::size_t>> _supportRanges;
    bool _enableVectorBuffers = false;
    std::vector<std::vector<double>> _buffers;
    std::size_t _bufferIdx = 0;
