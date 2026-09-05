@@ -74,6 +74,7 @@ namespace RooFit {
 
 namespace Detail {
 class RooChannelIndicatorPdf;
+class RooChannelWeightSum;
 class RooFixedProdPdf;
 class RooNLLVarNew;
 class RooNormalizedPdf;
@@ -84,6 +85,7 @@ namespace Experimental {
 class CodegenContext;
 
 void codegenImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, CodegenContext &ctx);
+void codegenImpl(RooFit::Detail::RooChannelWeightSum &arg, CodegenContext &ctx);
 void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx);
 void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx);
 void codegenImpl(RooFit::Detail::RooNormalizedPdf &arg, CodegenContext &ctx);
