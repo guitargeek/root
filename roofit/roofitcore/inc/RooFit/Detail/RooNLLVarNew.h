@@ -84,6 +84,7 @@ public:
    RooAbsReal const &weightSquaredVar() const { return *_weightSquaredVar; }
    bool binnedL() const { return _binnedL; }
    bool mixedBinnedL() const { return _mixedBinnedL; }
+   bool expectedEventsFolded() const { return _expectedEventsFolded; }
    int simCount() const { return _simCount; }
    Statistic statistic() const { return _statistic; }
    FuncMode funcMode() const { return _funcMode; }
@@ -118,6 +119,9 @@ private:
    bool _weightSquared = false;
    bool _binnedL = false;
    bool _mixedBinnedL = false;
+   /// Whether the expected-events proxy holds a gated-sum mixture total that
+   /// is added to the likelihood directly (see the constructor).
+   bool _expectedEventsFolded = false;
    bool _doOffset = false;
    bool _doBinOffset = false;
    Statistic _statistic = Statistic::NLL;
