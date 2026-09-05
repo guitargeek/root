@@ -1562,6 +1562,7 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
                              std::string const &dataSelectionCut, FallBackFunc const &fallBack)
 {
    RooArgList prods;
+   std::vector<bool> channelHasBinWidthFunc;
 
    std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
 
@@ -1578,16 +1579,13 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
          return fallBack("two channels use different pdfs with the same name \"" + seenIt->first + "\"");
       }
 
-      // The concatenated binned likelihood can only interpret the compiled
-      // pdf values directly as yields (the "BinnedLikelihoodActiveYields"
-      // mode). That requires RooBinWidthFunctions in the channel pdfs, which
-      // disable themselves during the binned-likelihood compilation. Without
-      // them, the likelihood would have to multiply by per-channel bin
-      // volumes, which the single concatenated RooNLLVarNew doesn't support.
-      if (!binnedChannelHasBinWidthFunction(*channelPdf)) {
-         return fallBack("the binned-likelihood pdf of channel \"" + catState.first +
-                         "\" has no RooBinWidthFunction, so its values can't be interpreted as bin yields");
-      }
+      // Channels with RooBinWidthFunctions compile directly to bin yields
+      // (the functions disable themselves during the binned-likelihood
+      // compilation). For channels without them (e.g. models from before
+      // ROOT 6.26), the compiled values are probability densities, and the
+      // per-row bin volumes are provided to the likelihood via a dedicated
+      // node built below.
+      channelHasBinWidthFunc.push_back(binnedChannelHasBinWidthFunction(*channelPdf));
 
       // The suffixes make the names collision-safe, see the unbinned mixture
       // compilation below.
@@ -1635,12 +1633,74 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
 
    std::unique_ptr<RooAbsArg> compiled = mixture->compileForNormSet(mixtureNormSet, ctx);
 
-   if (!compiled->getAttribute("BinnedLikelihoodActiveYields")) {
+   const bool allYields =
+      std::all_of(channelHasBinWidthFunc.begin(), channelHasBinWidthFunc.end(), [](bool v) { return v; });
+   if (allYields && !compiled->getAttribute("BinnedLikelihoodActiveYields")) {
       // The RooBinWidthFunction check above should have guaranteed the yields
       // mode; without it, the Poisson terms would silently use probability
       // densities as yields.
       throw std::runtime_error("RooSimultaneous::compileForNormSet(): the binned-likelihood mixture compilation "
                                "unexpectedly didn't end up in yields mode");
+   }
+   if (!allYields) {
+      // Some channels have no RooBinWidthFunctions, so their compiled values
+      // are probability densities: provide the per-row bin volumes (from the
+      // bin boundaries of the channel pdfs, like the channel-splitting path
+      // does per channel) via a dedicated node that the likelihood discovers
+      // through the "MixtureBinVolumes" attribute. Rows of yield-mode
+      // channels get unit volumes. The compiled top must not carry the
+      // yields attribute in this case, because not all of its values are
+      // yields.
+      compiled->setAttribute("BinnedLikelihoodActiveYields", false);
+      auto *compiledSum = static_cast<RooRealSumPdf *>(compiled.get());
+      RooArgList compiledIndicators;
+      std::vector<std::vector<double>> binWidths;
+      for (std::size_t i = 0; i < keptChannels.size(); ++i) {
+         RooAbsArg *compiledTerm = &compiledSum->funcList()[i];
+         RooAbsReal *indicator = nullptr;
+         for (RooAbsArg *server : compiledTerm->servers()) {
+            if (server->getAttribute("BinaryMask") && server->isValueServer(*compiledTerm)) {
+               indicator = static_cast<RooAbsReal *>(server);
+               break;
+            }
+         }
+         if (!indicator) {
+            throw std::runtime_error("RooSimultaneous::compileForNormSet(): the binned-likelihood mixture "
+                                     "compilation lost track of the compiled channel indicators");
+         }
+         compiledIndicators.add(*indicator);
+         binWidths.emplace_back();
+         if (channelHasBinWidthFunc[i]) {
+            continue;
+         }
+         // Like RooNLLVarNew::fillBinWidthsFromPdfBoundaries() in the
+         // channel-splitting path, the bin widths come from the boundaries
+         // that the binned-likelihood pdf reports for its one-dimensional
+         // observable.
+         RooAbsPdf *channelPdf = simPdf.getPdf(keptChannels[i].first.c_str());
+         RooAbsPdf const &binnedPdf = *RooHelpers::getBinnedL(*channelPdf).binnedPdf;
+         RooArgSet channelObs;
+         binnedPdf.getObservables(&normSet, channelObs);
+         if (channelObs.size() != 1) {
+            throw std::runtime_error("BinnedPdf optimization only works with a 1D pdf.");
+         }
+         auto *var = static_cast<RooRealVar *>(channelObs.first());
+         std::unique_ptr<std::list<double>> boundaries{binnedPdf.binBoundaries(*var, var->getMin(), var->getMax())};
+         auto &widths = binWidths.back();
+         widths.reserve(boundaries->size() - 1);
+         double lastBound = boundaries->front();
+         for (auto it = std::next(boundaries->begin()); it != boundaries->end(); ++it) {
+            widths.push_back(*it - lastBound);
+            lastBound = *it;
+         }
+      }
+      std::string volName = std::string(simPdf.GetName()) + "_mixtureBinVolumes";
+      auto volumes = std::make_unique<RooFit::Detail::RooMixtureBinVolumes>(volName.c_str(), volName.c_str(),
+                                                                            compiledIndicators, std::move(binWidths));
+      volumes->setAttribute("MixtureBinVolumes");
+      ctx.markAsCompiled(*volumes);
+      compiled->addServer(*volumes, true, false);
+      compiled->addOwnedComponents(std::move(volumes));
    }
 
    // The per-channel binned likelihoods of the channel-splitting path each

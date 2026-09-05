@@ -1859,3 +1859,74 @@ TEST(RooSimultaneous, MixtureCompilationChi2)
       EXPECT_THAT(chi2Mix->getVal(), RelativeNear(refVal, 1e-12)) << label << ", after parameter reset";
    }
 }
+
+/// Validate the binned-likelihood mixture compilation for channels without
+/// RooBinWidthFunctions (like models from before ROOT 6.26): their compiled
+/// values are probability densities, and the concatenated likelihood
+/// multiplies each row with the bin volume provided by the mixture.
+TEST(RooSimultaneous, BinnedMixtureCompilationNoBinWidthFunctions)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   RooRealVar x1{"x1", "x1", 0, 10};
+   RooRealVar x2{"x2", "x2", -5, 5};
+   x1.setBins(15);
+   x2.setBins(12);
+
+   RooGaussian gSig1{"g_sig_1", "g_sig_1", x1, 5.0, 0.7};
+   RooGaussian gSig2{"g_sig_2", "g_sig_2", x2, 0.0, 0.8};
+   std::unique_ptr<RooDataHist> hSig1{gSig1.generateBinned(x1, 500)};
+   std::unique_ptr<RooDataHist> hSig2{gSig2.generateBinned(x2, 300)};
+   RooHistFunc hfSig1{"hf_sig_1", "hf_sig_1", x1, *hSig1};
+   RooHistFunc hfSig2{"hf_sig_2", "hf_sig_2", x2, *hSig2};
+
+   RooRealVar mu1{"mu_1", "mu_1", 1.0, 0.0, 5.0};
+   RooRealVar mu2{"mu_2", "mu_2", 1.0, 0.0, 5.0};
+
+   // Plain sums of histogram shapes, with no RooBinWidthFunctions.
+   RooRealSumPdf model1{"model_1", "model_1", {hfSig1}, {mu1}};
+   RooRealSumPdf model2{"model_2", "model_2", {hfSig2}, {mu2}};
+   model1.setAttribute("BinnedLikelihood");
+   model2.setAttribute("BinnedLikelihood");
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &model1}, {"two", &model2}}, sample};
+
+   std::unique_ptr<RooDataSet> data{simPdf.generate({x1, x2, sample}, AllBinned())};
+
+   auto setParams = [&](bool alternative) {
+      mu1.setVal(alternative ? 1.5 : 1.0);
+      mu2.setVal(alternative ? 0.8 : 1.0);
+   };
+
+   double refVal = 0.0;
+   double refValAlt = 0.0;
+   {
+      std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(*data, EvalBackend::Cpu())};
+      refVal = nllRef->getVal();
+      setParams(true);
+      refValAlt = nllRef->getVal();
+      setParams(false);
+   }
+
+   RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+   ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+   std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(*data, EvalBackend::Cpu())};
+
+   EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+      << "the mixture compilation fell back to channel splitting:\n"
+      << hijack.str();
+
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14));
+   setParams(true);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << "after parameter change";
+   setParams(false);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
+}
