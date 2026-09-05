@@ -1562,19 +1562,13 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    for (auto const &catState : indexCat) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
       auto [seenIt, inserted] = seenChannelPdfs.emplace(channelPdf->GetName(), channelPdf);
-      if (!inserted) {
-         if (seenIt->second != channelPdf) {
-            // Two different pdf objects with the same name would collide in
-            // the name-keyed deduplication of the graph compilation.
-            return fallBack("two channels use different pdfs with the same name \"" + seenIt->first + "\"");
-         }
-         if (ctx.extendedMode()) {
-            // The same pdf attached to several channels means several
-            // identically-named expected-events functions, which also
-            // collide. The constant coefficients of the non-extended case
-            // are not affected.
-            return fallBack("the same pdf \"" + seenIt->first + "\" is used in several channels of an extended fit");
-         }
+      if (!inserted && seenIt->second != channelPdf) {
+         // Two different pdf objects with the same name would collide in
+         // the name-keyed deduplication of the graph compilation. Attaching
+         // the same pdf object to several channels is fine: also the
+         // identically-named expected-events functions of an extended fit
+         // are deduplicated to one shared clone.
+         return fallBack("two channels use different pdfs with the same name \"" + seenIt->first + "\"");
       }
       allExtendable &= channelPdf->canBeExtended();
       minIndex = std::min(minIndex, catState.second);

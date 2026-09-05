@@ -53,6 +53,18 @@ void RooFit::Detail::CompileContext::compileServer(RooAbsArg &server, RooAbsArg 
 RooAbsArg *RooFit::Detail::CompileContext::compileImpl(RooAbsArg &arg, RooAbsArg &owner, RooArgSet const &normSet)
 {
    if (auto existingServerClone = this->find(arg)) {
+      // A node with this name was already compiled. It can be a different
+      // object than the one that was compiled before, e.g. the per-channel
+      // expected-events functions created by RooAddPdf::compileForNormSet()
+      // when the same extendable pdf is attached to several channels of a
+      // simultaneous mixture: distinct objects with the same name and the
+      // same content. Record the replacement also for this object, so that
+      // the caller redirects its server proxy to the shared clone instead of
+      // leaving it pointing to an uncompiled (and possibly soon dangling)
+      // node.
+      if (existingServerClone != &arg) {
+         _replacements[&arg] = existingServerClone;
+      }
       return existingServerClone;
    }
    if (arg.isFundamental() && !_topLevelNormSet.find(arg)) {

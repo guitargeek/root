@@ -1082,6 +1082,69 @@ TEST(RooSimultaneous, MixtureCompilation)
    }
 }
 
+/// Validate the mixture compilation when the same pdf object is attached to
+/// several channels of the simultaneous pdf. In the extended case, this used
+/// to be a fallback to channel splitting: the identically-named
+/// expected-events functions of the shared pdf must be deduplicated to one
+/// shared clone in the compiled graph.
+TEST(RooSimultaneous, MixtureCompilationSharedPdf)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   RooRealVar x{"x", "x", -8, 8};
+   RooRealVar m{"m", "m", 0., -3., 3.};
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10.};
+   RooGaussian gauss{"gauss", "gauss", x, m, sigma};
+   RooRealVar n{"n", "n", 1000., 0., 100000.};
+   RooExtendPdf model{"model", "model", gauss, n};
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &model}, {"two", &model}}, sample};
+
+   std::unique_ptr<RooDataSet> data1{gauss.generate(x, 1000)};
+   std::unique_ptr<RooDataSet> data2{gauss.generate(x, 1200)};
+   RooDataSet combData{"combData", "combData", x, Index(sample), Import({{"one", data1.get()}, {"two", data2.get()}})};
+
+   auto setParams = [&](bool alternative) {
+      sigma.setVal(alternative ? 1.5 : 1.0);
+      m.setVal(alternative ? 0.5 : 0.0);
+   };
+
+   for (bool extended : {false, true}) {
+      double refVal = 0.0;
+      double refValAlt = 0.0;
+      {
+         std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(combData, EvalBackend::Cpu(), Extended(extended))};
+         refVal = nllRef->getVal();
+         setParams(true);
+         refValAlt = nllRef->getVal();
+         setParams(false);
+      }
+
+      RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+      ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+      std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(combData, EvalBackend::Cpu(), Extended(extended))};
+
+      const char *label = extended ? "extended" : "non-extended";
+
+      EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+         << label << ": the mixture compilation fell back to channel splitting:\n"
+         << hijack.str();
+
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << label;
+      setParams(true);
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << label << ", after parameter change";
+      setParams(false);
+   }
+}
+
 /// Validate the binned-likelihood variant of the experimental mixture
 /// compilation (opt-in via ROOFIT_SIM_COMPILE_MIXTURE=1): a simultaneous pdf
 /// whose channels all use the binned likelihood optimization is compiled into
