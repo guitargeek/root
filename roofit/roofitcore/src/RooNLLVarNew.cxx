@@ -66,6 +66,30 @@ std::unique_ptr<RooConstVar> dummyVar(const char *name)
 
 } // namespace
 
+void RooMixtureBinVolumes::doEval(RooFit::EvalContext &ctx) const
+{
+   std::span<double> output = ctx.output();
+
+   // Rows that belong to no channel with a width vector keep a unit volume.
+   std::fill(output.begin(), output.end(), 1.0);
+
+   for (std::size_t c = 0; c < _binWidths.size(); ++c) {
+      if (_binWidths[c].empty()) {
+         continue;
+      }
+      std::span<const double> mask = ctx.at(static_cast<RooAbsReal const *>(&_indicators[c]));
+      std::size_t bin = 0;
+      for (std::size_t i = 0; i < output.size(); ++i) {
+         if (mask[mask.size() == 1 ? 0 : i] > 0.5) {
+            // The rows of a channel are its bins in order, like in the
+            // per-channel likelihoods of the channel-splitting path.
+            output[i] = _binWidths[c][std::min(bin, _binWidths[c].size() - 1)];
+            ++bin;
+         }
+      }
+   }
+}
+
 void RooChannelWeightSum::doEval(RooFit::EvalContext &ctx) const
 {
    std::span<const double> mask = ctx.at(_mask);
@@ -222,9 +246,20 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
       // In the "BinnedLikelihoodActiveYields" mode, the pdf values can
       // directly be interpreted as yields and don't need to be multiplied by
       // the bin widths. That's why we don't need to even fill them in this
-      // case.
-      if (_binnedL && !pdf->getAttribute("BinnedLikelihoodActiveYields")) {
-         fillBinWidthsFromPdfBoundaries(*pdf, obs);
+      // case. A simultaneous pdf compiled into a binned mixture provides its
+      // per-row bin volumes as a node in its computation graph instead, when
+      // not all of its channels are in yields mode.
+      if (_binnedL) {
+         std::unique_ptr<RooArgSet> components{pdf->getComponents()};
+         for (RooAbsArg *component : *components) {
+            if (component->getAttribute("MixtureBinVolumes")) {
+               _mixtureBinVolumes = std::make_unique<RooTemplateProxy<RooAbsReal>>(
+                  "mixtureBinVolumes", "mixtureBinVolumes", this, static_cast<RooAbsReal &>(*component));
+            }
+         }
+         if (!_mixtureBinVolumes && !pdf->getAttribute("BinnedLikelihoodActiveYields")) {
+            fillBinWidthsFromPdfBoundaries(*pdf, obs);
+         }
       }
 
       enableOffsetting(cfg.offsetMode == RooFit::OffsetMode::Initial);
@@ -304,6 +339,10 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
    if (other._binnedRowsMask) {
       _binnedRowsMask = std::make_unique<RooTemplateProxy<RooAbsReal>>("binnedRowsMask", this, *other._binnedRowsMask);
    }
+   if (other._mixtureBinVolumes) {
+      _mixtureBinVolumes =
+         std::make_unique<RooTemplateProxy<RooAbsReal>>("mixtureBinVolumes", this, *other._mixtureBinVolumes);
+   }
    if (other._binVolumes) {
       _binVolumes = std::make_unique<RooTemplateProxy<RooAbsReal>>(binVolumeVarName, this, *other._binVolumes);
    }
@@ -344,7 +383,8 @@ void RooNLLVarNew::fillBinWidthsFromPdfBoundaries(RooAbsReal const &pdf, RooArgS
 void RooNLLVarNew::doEvalBinnedL(RooFit::EvalContext &ctx, std::span<const double> preds,
                                  std::span<const double> weights) const
 {
-   const bool predsAreYields = _binw.empty();
+   const bool predsAreYields = _binw.empty() && !_mixtureBinVolumes;
+   std::span<const double> binVolumes = _mixtureBinVolumes ? ctx.at(*_mixtureBinVolumes) : std::span<const double>{};
 
    // If the evaluator tracks in which event range the pdf values changed,
    // reduce the binned likelihood in fixed-size chunks and cache the partial
@@ -388,7 +428,7 @@ void RooNLLVarNew::doEvalBinnedL(RooFit::EvalContext &ctx, std::span<const doubl
             const double N = weights[i];
             double mu = preds[i];
             if (!predsAreYields) {
-               mu *= _binw[i];
+               mu *= binVolumes.empty() ? _binw[i] : binVolumes[i];
             }
             if (mu <= 0 && N > 0) {
                ++nErrors;
@@ -431,7 +471,7 @@ void RooNLLVarNew::doEvalBinnedL(RooFit::EvalContext &ctx, std::span<const doubl
       double N = weights[i];
       double mu = preds[i];
       if (!predsAreYields) {
-         mu *= _binw[i];
+         mu *= binVolumes.empty() ? _binw[i] : binVolumes[i];
       }
 
       if (mu <= 0 && N > 0) {
