@@ -213,7 +213,9 @@ TEST_F(LikelihoodSerialTest, SimBinned)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   // See the SimUnbinned test for why the comparison allows for
+   // floating-point summation-order differences.
+   EXPECT_DOUBLE_EQ(nll0, nll1.Sum());
 }
 
 TEST_F(LikelihoodSerialTest, BinnedConstrained)
@@ -289,7 +291,10 @@ TEST_F(LikelihoodSerialTest, SimUnbinned)
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
 
-   EXPECT_EQ(nll0, nll1.Sum());
+   // The likelihoods can differ at the level of the floating-point summation
+   // order, e.g. when the simultaneous pdf is compiled into a mixture that
+   // reduces the concatenated rows in one pass instead of per channel.
+   EXPECT_DOUBLE_EQ(nll0, nll1.Sum());
 }
 
 TEST_F(LikelihoodSerialTest, SimUnbinnedNonExtended)
