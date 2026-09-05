@@ -4,9 +4,11 @@
 #include <Roo1DTable.h>
 #include <RooAddPdf.h>
 #include <RooAddition.h>
+#include <RooBinWidthFunction.h>
 #include <RooCategory.h>
 #include <RooChebychev.h>
 #include <RooConstVar.h>
+#include <RooDataHist.h>
 #include <RooDataSet.h>
 #include <RooExponential.h>
 #include <RooExtendPdf.h>
@@ -14,10 +16,13 @@
 #include <RooGaussian.h>
 #include <RooGenericPdf.h>
 #include <RooHelpers.h>
+#include <RooHistFunc.h>
 #include <RooMinimizer.h>
 #include <RooPlot.h>
 #include <RooProdPdf.h>
+#include <RooProduct.h>
 #include <RooRandom.h>
+#include <RooRealSumPdf.h>
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>
 #include <RooThresholdCategory.h>
@@ -1075,4 +1080,174 @@ TEST(RooSimultaneous, MixtureCompilation)
       setParams(false);
       EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << label << ", after parameter reset";
    }
+}
+
+/// Validate the binned-likelihood variant of the experimental mixture
+/// compilation (opt-in via ROOFIT_SIM_COMPILE_MIXTURE=1): a simultaneous pdf
+/// whose channels all use the binned likelihood optimization is compiled into
+/// a single concatenated binned likelihood, whose values must reproduce the
+/// sum of the per-channel binned likelihoods of the channel-splitting
+/// backend.
+TEST(RooSimultaneous, BinnedMixtureCompilation)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   // Two channels over different observables, in the HistFactory style:
+   // RooRealSumPdf of template histogram shapes divided by the bin width,
+   // with a shared signal strength. The narrow signal shapes leave empty
+   // outer bins in the data, checking that the zero-weight entries are
+   // retained and contribute their expected yields to the likelihood.
+   RooRealVar x1{"x1", "x1", 0, 10};
+   RooRealVar x2{"x2", "x2", -5, 5};
+   x1.setBins(15);
+   x2.setBins(12);
+
+   RooGaussian gSig1{"g_sig_1", "g_sig_1", x1, 5.0, 0.7};
+   RooUniform uBkg1{"u_bkg_1", "u_bkg_1", x1};
+   RooGaussian gSig2{"g_sig_2", "g_sig_2", x2, 0.0, 0.8};
+   RooUniform uBkg2{"u_bkg_2", "u_bkg_2", x2};
+
+   std::unique_ptr<RooDataHist> hSig1{gSig1.generateBinned(x1, 500)};
+   std::unique_ptr<RooDataHist> hBkg1{uBkg1.generateBinned(x1, 200)};
+   std::unique_ptr<RooDataHist> hSig2{gSig2.generateBinned(x2, 300)};
+   std::unique_ptr<RooDataHist> hBkg2{uBkg2.generateBinned(x2, 150)};
+
+   RooHistFunc hfSig1{"hf_sig_1", "hf_sig_1", x1, *hSig1};
+   RooHistFunc hfBkg1{"hf_bkg_1", "hf_bkg_1", x1, *hBkg1};
+   RooHistFunc hfSig2{"hf_sig_2", "hf_sig_2", x2, *hSig2};
+   RooHistFunc hfBkg2{"hf_bkg_2", "hf_bkg_2", x2, *hBkg2};
+
+   RooBinWidthFunction bw1{"bw_1", "bw_1", hfSig1, true};
+   RooBinWidthFunction bw2{"bw_2", "bw_2", hfSig2, true};
+
+   RooProduct pSig1{"p_sig_1", "p_sig_1", {hfSig1, bw1}};
+   RooProduct pBkg1{"p_bkg_1", "p_bkg_1", {hfBkg1, bw1}};
+   RooProduct pSig2{"p_sig_2", "p_sig_2", {hfSig2, bw2}};
+   RooProduct pBkg2{"p_bkg_2", "p_bkg_2", {hfBkg2, bw2}};
+
+   RooRealVar muSig{"mu_sig", "mu_sig", 1.0, 0.0, 5.0};
+   RooRealVar muBkg1{"mu_bkg_1", "mu_bkg_1", 1.0, 0.0, 5.0};
+   RooRealVar muBkg2{"mu_bkg_2", "mu_bkg_2", 1.0, 0.0, 5.0};
+
+   RooRealSumPdf model1{"model_1", "model_1", {pSig1, pBkg1}, {muSig, muBkg1}};
+   RooRealSumPdf model2{"model_2", "model_2", {pSig2, pBkg2}, {muSig, muBkg2}};
+   model1.setAttribute("BinnedLikelihood");
+   model2.setAttribute("BinnedLikelihood");
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &model1}, {"two", &model2}}, sample};
+
+   std::unique_ptr<RooDataSet> data{simPdf.generate({x1, x2, sample}, AllBinned())};
+
+   auto setParams = [&](bool alternative) {
+      muSig.setVal(alternative ? 1.5 : 1.0);
+      muBkg1.setVal(alternative ? 0.8 : 1.0);
+   };
+
+   double refVal = 0.0;
+   double refValAlt = 0.0;
+   {
+      std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(*data, EvalBackend::Cpu())};
+      refVal = nllRef->getVal();
+      setParams(true);
+      refValAlt = nllRef->getVal();
+      setParams(false);
+   }
+
+   // Hijack the informational fit messages to verify that the mixture
+   // compilation really engaged: if it silently fell back to the
+   // channel-splitting path, the value comparison below would be vacuous.
+   RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+   ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+   std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(*data, EvalBackend::Cpu())};
+
+   EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+      << "the mixture compilation fell back to channel splitting:\n"
+      << hijack.str();
+
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14));
+   setParams(true);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << "after parameter change";
+   setParams(false);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
+}
+
+/// A channel pdf with a MAIN_MEASUREMENT-tagged component (as used by
+/// RooFit::TestStatistics-style workspaces) is classified as not using the
+/// binned likelihood, so it takes the unbinned mixture path. The stripping
+/// of the channel product to the main-measurement component happens in
+/// RooProdPdf::compileForNormSet() in both the mixture and the
+/// channel-splitting path, so the compiled likelihoods are identical.
+TEST(RooSimultaneous, MixtureCompilationMainMeasurement)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   RooRealVar x1{"x1", "x1", -8, 8};
+   RooRealVar x2{"x2", "x2", 0, 10};
+   RooRealVar m1{"m1", "m1", 0., -3., 3.};
+   RooRealVar m2{"m2", "m2", 5., 2., 8.};
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10.};
+   RooGaussian g1{"g1", "g1", x1, m1, sigma};
+   RooGaussian g2{"g2", "g2", x2, m2, sigma};
+
+   // Subsidiary measurement constraining the shared width parameter.
+   RooRealVar sigmaGlob{"sigma_glob", "sigma_glob", 1.0};
+   sigmaGlob.setConstant(true);
+   RooGaussian constraint{"constraint", "constraint", sigmaGlob, sigma, RooConst(0.1)};
+
+   g1.setAttribute("MAIN_MEASUREMENT");
+   g2.setAttribute("MAIN_MEASUREMENT");
+   RooProdPdf channel1{"channel1", "channel1", {g1, constraint}};
+   RooProdPdf channel2{"channel2", "channel2", {g2, constraint}};
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &channel1}, {"two", &channel2}}, sample};
+
+   std::unique_ptr<RooDataSet> data1{g1.generate(x1, 1000)};
+   std::unique_ptr<RooDataSet> data2{g2.generate(x2, 2000)};
+   RooDataSet combData{
+      "combData", "combData", {x1, x2}, Index(sample), Import({{"one", data1.get()}, {"two", data2.get()}})};
+
+   auto setParams = [&](bool alternative) {
+      sigma.setVal(alternative ? 1.5 : 1.0);
+      m1.setVal(alternative ? 0.5 : 0.0);
+   };
+
+   double refVal = 0.0;
+   double refValAlt = 0.0;
+   {
+      std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(combData, EvalBackend::Cpu())};
+      refVal = nllRef->getVal();
+      setParams(true);
+      refValAlt = nllRef->getVal();
+      setParams(false);
+   }
+
+   RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+   ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+   std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(combData, EvalBackend::Cpu())};
+
+   EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+      << "the mixture compilation fell back to channel splitting:\n"
+      << hijack.str();
+
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14));
+   setParams(true);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << "after parameter change";
+   setParams(false);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
 }
