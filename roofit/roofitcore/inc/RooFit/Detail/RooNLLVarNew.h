@@ -140,7 +140,8 @@ private:
       std::size_t nEvents = 0;
       std::vector<double> sums;
       std::vector<double> carrys;
-      std::vector<std::size_t> counts; ///< 3 entries per chunk: infinite, non-positive, NaN
+      std::vector<std::size_t> counts; ///< 3 entries per chunk: infinite, non-positive, NaN (1 per chunk for binned)
+      std::vector<double> weightSums;  ///< per-chunk weight sums (binned likelihood only)
    };
    mutable ChunkCache _chunkCache; ///<!
 

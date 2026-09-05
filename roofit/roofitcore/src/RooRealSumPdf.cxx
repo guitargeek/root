@@ -50,6 +50,7 @@ to the fractions of the various functions. **This requires setting the last argu
 #include "RooRealIntegral.h"
 #include "RooRealProxy.h"
 #include "RooRealVar.h"
+#include "RooBatchCompute.h"
 #include "RooMsgService.h"
 #include "RooNaNPacker.h"
 
@@ -265,6 +266,57 @@ void RooRealSumPdf::doEval(RooFit::EvalContext & ctx) const
 {
   std::span<double> output = ctx.output();
   std::size_t nEvents = output.size();
+
+  // If some function values are known to be exactly zero outside of a
+  // limited support range (e.g. the indicator-gated channel terms of a
+  // simultaneous pdf compiled into a binned mixture), skip the events
+  // outside of those ranges: adding an exact zero doesn't change the sum.
+  //
+  // In addition, if the evaluator declared in which event range the inputs
+  // changed with respect to the previous evaluation, only that range of the
+  // output is recomputed: the output buffer is persistent, so the values
+  // outside of the changed range are still valid.
+  //
+  // Only implemented for the simple case without a remainder coefficient and
+  // without value floors, which covers the compiled mixture pdfs.
+  if (_funcList.size() == _coefList.size() && !_doFloor && !_doFloorGlobal && !ctx.config(this).useCuda()) {
+    bool anyLimitedSupport = false;
+    for (unsigned int i = 0; i < _funcList.size(); ++i) {
+      auto support = ctx.supportRange(&_funcList[i]);
+      anyLimitedSupport |= ctx.at(&_funcList[i]).size() == nEvents && (support.second - support.first) < nEvents;
+    }
+    if (anyLimitedSupport) {
+      std::size_t evalBegin = 0;
+      std::size_t evalEnd = nEvents;
+      if (ctx.changeTrackingEnabled()) {
+        auto changed = ctx.changedRange(this);
+        evalBegin = std::min(changed.first, evalEnd);
+        evalEnd = std::min(changed.second, evalEnd);
+      }
+      std::fill(output.begin() + evalBegin, output.begin() + evalEnd, 0.0);
+      for (unsigned int i = 0; i < _funcList.size(); ++i) {
+        const auto func = static_cast<RooAbsReal*>(&_funcList[i]);
+        if (!func->isSelectedComp()) {
+          continue;
+        }
+        const double coefVal = ctx.at(&_coefList[i])[0];
+        auto funcValues = ctx.at(func);
+        if (funcValues.size() == 1) {
+          for (std::size_t j = evalBegin; j < evalEnd; ++j) {
+            output[j] += coefVal * funcValues[0];
+          }
+          continue;
+        }
+        auto support = ctx.supportRange(func);
+        const std::size_t begin = std::max(support.first, evalBegin);
+        const std::size_t end = std::min(support.second, evalEnd);
+        for (std::size_t j = begin; j < end; ++j) {
+          output[j] += coefVal * funcValues[j];
+        }
+      }
+      return;
+    }
+  }
 
   // Do running sum of coef/func pairs, calculate lastCoef.
   std::fill(output.begin(), output.end(), 0.);
