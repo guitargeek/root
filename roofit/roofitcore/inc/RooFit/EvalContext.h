@@ -105,6 +105,13 @@ public:
    void setSupportRange(RooAbsArg const *arg, std::size_t begin, std::size_t end);
    std::pair<std::size_t, std::size_t> supportRange(RooAbsArg const *arg) const;
 
+   void setChangedRange(RooAbsArg const *arg, std::size_t begin, std::size_t end);
+   std::pair<std::size_t, std::size_t> changedRange(RooAbsArg const *arg) const;
+   /// Whether the evaluator maintains the changedRange() information. Only
+   /// then can consumers cache partial results for the unchanged events; see
+   /// RooNLLVarNew::doEval().
+   bool changeTrackingEnabled() const { return _changeTracking; }
+
    void setConfig(RooAbsArg const *arg, RooBatchCompute::Config const &config);
 
    std::span<const double> at(RooAbsArg const *arg, RooAbsArg const *caller = nullptr);
@@ -151,6 +158,10 @@ private:
    // channel indicator, see Evaluator::rangeRestrictionAnalysis()). Nodes can
    // use this to skip the events outside of the support of their inputs.
    std::vector<std::pair<std::size_t, std::size_t>> _supportRanges;
+   // For each registered span, the range outside of which the values are
+   // unchanged with respect to the previous computation of the node.
+   std::vector<std::pair<std::size_t, std::size_t>> _changedRanges;
+   bool _changeTracking = false;
    bool _enableVectorBuffers = false;
    std::vector<std::vector<double>> _buffers;
    std::size_t _bufferIdx = 0;
