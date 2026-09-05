@@ -17,7 +17,6 @@
 #include <RooAbsData.h>
 #include <RooDataHist.h>
 #include <RooRealVar.h>
-#include <RooSimultaneous.h>
 
 #include "RooFitImplHelpers.h"
 #include "RooFit/Detail/RooNLLVarNew.h"
@@ -36,20 +35,20 @@ void assignSpan(std::span<T> &to, std::span<T> const &from)
 }
 
 std::map<RooFit::Detail::DataKey, std::span<const double>>
-getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::string const &prefix,
-                   std::stack<std::vector<double>> &buffers, bool skipZeroWeights)
+getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stack<std::vector<double>> &buffers,
+                   bool skipZeroWeights)
 {
    std::map<RooFit::Detail::DataKey, std::span<const double>> dataSpans; // output variable
 
    auto &nameReg = RooNameReg::instance();
 
    auto insert = [&](const char *key, std::span<const double> span) {
-      const TNamed *namePtr = nameReg.constPtr((prefix + key).c_str());
+      const TNamed *namePtr = nameReg.constPtr(key);
       dataSpans[namePtr] = span;
    };
 
    auto retrieve = [&](const char *key) {
-      const TNamed *namePtr = nameReg.constPtr((prefix + key).c_str());
+      const TNamed *namePtr = nameReg.constPtr(key);
       return dataSpans.at(namePtr);
    };
 
@@ -218,9 +217,6 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
 /// \param[in] data The input dataset.
 /// \param[in] rangeName Select only entries from the data in a given range
 ///            (empty string for no range).
-/// \param[in] simPdf A simultaneous pdf to use as a guide for splitting the
-///            dataset. The spans from each channel data will be prefixed with
-///            the channel name.
 /// \param[in] skipZeroWeights Skip entries with zero weight when filling the
 ///            data spans. Be very careful with enabling it, because the user
 ///            might not expect that the batch results are not aligned with the
@@ -232,53 +228,11 @@ getSingleDataSpans(RooAbsData const &data, std::string_view rangeName, std::stri
 ///            object can't be used directly (e.g. because you used the range
 ///            selection or the splitting by categories).
 std::map<RooFit::Detail::DataKey, std::span<const double>>
-RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string const &rangeName,
-                                           RooSimultaneous const *simPdf, bool skipZeroWeights,
+RooFit::BatchModeDataHelpers::getDataSpans(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights,
                                            bool takeGlobalObservablesFromData, std::stack<std::vector<double>> &buffers)
 {
-   // If the index category is not among the data columns, the RooSimultaneous
-   // doesn't split the data into channels but acts as a "switch" selecting the
-   // component given by the current index state (analogous to RooMultiPdf).
-   // The data is then loaded like for any ordinary pdf.
-   if (simPdf && !simPdf->indexCatIsObservable(*data.get())) {
-      simPdf = nullptr;
-   }
-
-   std::vector<std::pair<std::string, RooAbsData const *>> datasets;
-   std::vector<bool> isBinnedL;
-   bool splitRange = false;
-
-   // The split datasets need to be kept alive because the datamap points to their content
-   std::vector<std::unique_ptr<RooAbsData>> splitDataSets;
-
-   if (simPdf) {
-      splitDataSets = data.split(*simPdf, true);
-      for (auto const &d : splitDataSets) {
-         RooAbsPdf *simComponent = simPdf->getPdf(d->GetName());
-         // If there is no PDF for that component, we also don't need to fill the data
-         if (!simComponent) {
-            continue;
-         }
-         datasets.emplace_back(std::string("_") + d->GetName() + "_", d.get());
-         isBinnedL.emplace_back(simComponent->getAttribute("BinnedLikelihoodActive"));
-      }
-      splitRange = simPdf->getAttribute("SplitRange");
-   } else {
-      datasets.emplace_back("", &data);
-      isBinnedL.emplace_back(false);
-   }
-
-   std::map<RooFit::Detail::DataKey, std::span<const double>> dataSpans; // output variable
-
-   for (std::size_t iData = 0; iData < datasets.size(); ++iData) {
-      auto const &toAdd = datasets[iData];
-      auto spans = getSingleDataSpans(
-         *toAdd.second, RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, toAdd.second->GetName()),
-         toAdd.first, buffers, skipZeroWeights && !isBinnedL[iData]);
-      for (auto const &item : spans) {
-         dataSpans.insert(item);
-      }
-   }
+   std::map<RooFit::Detail::DataKey, std::span<const double>> dataSpans =
+      getSingleDataSpans(data, rangeName, buffers, skipZeroWeights);
 
    if (takeGlobalObservablesFromData && data.getGlobalObservables()) {
       buffers.emplace();
