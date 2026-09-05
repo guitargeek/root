@@ -524,6 +524,11 @@ void Evaluator::prepareInputSpans(NodeInfo &info)
       } else {
          _evalContextCPU.set(server->absArg, canonical);
       }
+      // Registering a span resets its support declaration, so it has to be
+      // re-published. Only spans in the global frame carry it.
+      if (server->isMaskedProduct && info.sliceBegin == server->frameBegin) {
+         _evalContextCPU.setSupportRange(server->absArg, server->sliceBegin, server->sliceBegin + server->computeSize);
+      }
    }
 }
 
@@ -581,6 +586,9 @@ void Evaluator::computeCPUNode(const RooAbsArg *node, NodeInfo &info)
    const std::size_t nRegister = info.isMaskedProduct ? nOut : nCompute;
    assignSpan(_evalContextCPU._currentOutput, {buffer + (info.isMaskedProduct ? info.sliceBegin : 0), nCompute});
    _evalContextCPU.set(node, {buffer, nRegister});
+   if (info.isMaskedProduct) {
+      _evalContextCPU.setSupportRange(node, info.sliceBegin, info.sliceBegin + info.computeSize);
+   }
    assignSpan(info.canonicalSpan, {buffer, nRegister});
    if (nCompute > 1) {
       _evalContextCPU.enableVectorBuffers(true);
