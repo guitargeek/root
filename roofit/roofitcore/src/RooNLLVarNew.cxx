@@ -64,64 +64,49 @@ std::unique_ptr<RooConstVar> dummyVar(const char *name)
    return std::make_unique<RooConstVar>(name, name, 1.0);
 }
 
-// Helper class to represent a template pdf based on the fit dataset.
-class RooOffsetPdf : public RooAbsPdf {
-public:
-   RooOffsetPdf(const char *name, const char *title, RooArgSet const &observables, RooAbsReal &weightVar)
-      : RooAbsPdf(name, title),
-        _observables("!observables", "List of observables", this),
-        _weightVar{"!weightVar", "weightVar", this, weightVar, true, false}
-   {
-      for (RooAbsArg *obs : observables) {
-         _observables.add(*obs);
-      }
-   }
-   RooOffsetPdf(const RooOffsetPdf &other, const char *name = nullptr)
-      : RooAbsPdf(other, name),
-        _observables("!servers", this, other._observables),
-        _weightVar{"!weightVar", this, other._weightVar}
-   {
-   }
-   TObject *clone(const char *newname) const override { return new RooOffsetPdf(*this, newname); }
-
-   void doEval(RooFit::EvalContext &ctx) const override
-   {
-      std::span<double> output = ctx.output();
-      std::size_t nEvents = output.size();
-
-      std::span<const double> weights = ctx.at(_weightVar);
-
-      // Create the template histogram from the data. This operation is very
-      // expensive, but since the offset only depends on the observables it
-      // only has to be done once.
-
-      RooDataHist dataHist{"data", "data", _observables};
-      // Loop over events to fill the histogram
-      for (std::size_t i = 0; i < nEvents; ++i) {
-         for (auto *var : static_range_cast<RooRealVar *>(_observables)) {
-            var->setVal(ctx.at(var)[i]);
-         }
-         dataHist.add(_observables, weights[weights.size() == 1 ? 0 : i]);
-      }
-
-      // Lookup bin weights via RooHistPdf
-      RooHistPdf pdf{"offsetPdf", "offsetPdf", _observables, dataHist};
-      for (std::size_t i = 0; i < nEvents; ++i) {
-         for (auto *var : static_range_cast<RooRealVar *>(_observables)) {
-            var->setVal(ctx.at(var)[i]);
-         }
-         output[i] = pdf.getVal(_observables);
-      }
-   }
-
-private:
-   double evaluate() const override { return 0.0; } // should never be called
-
-   RooSetProxy _observables;
-   RooTemplateProxy<RooAbsReal> _weightVar;
-};
-
 } // namespace
+
+void RooOffsetPdf::doEval(RooFit::EvalContext &ctx) const
+{
+   std::span<double> output = ctx.output();
+   std::size_t nEvents = output.size();
+
+   std::span<const double> weights = ctx.at(_weightVar);
+   std::span<const double> mask = _mask ? ctx.at(*_mask) : std::span<const double>{};
+
+   // Create the template histogram from the data. This operation is very
+   // expensive, but since the offset only depends on the observables it
+   // only has to be done once. Rows excluded by the mask (e.g. the rows of
+   // foreign channels in a simultaneous mixture) don't enter the template.
+
+   RooDataHist dataHist{"data", "data", _observables};
+   // Loop over events to fill the histogram
+   for (std::size_t i = 0; i < nEvents; ++i) {
+      if (!mask.empty() && mask[mask.size() == 1 ? 0 : i] < 0.5) {
+         continue;
+      }
+      for (auto *var : static_range_cast<RooRealVar *>(_observables)) {
+         var->setVal(ctx.at(var)[i]);
+      }
+      dataHist.add(_observables, weights[weights.size() == 1 ? 0 : i]);
+   }
+
+   // Scaling the template by sumOfWeights/e reproduces, together with the
+   // yield-scaled rows of an extended gated-sum mixture, exactly the
+   // per-channel offset extended terms of the channel-splitting path,
+   // (nu - W) - W*(log(nu) - log(W)) per channel: the row sum of the scaled
+   // logarithms contributes sum_i w_i*log(T) + W*log(W) - W.
+   const double scale = _scaleByWeightSum ? dataHist.sumEntries() / std::exp(1.0) : 1.0;
+
+   // Lookup bin weights via RooHistPdf
+   RooHistPdf pdf{"offsetPdf", "offsetPdf", _observables, dataHist};
+   for (std::size_t i = 0; i < nEvents; ++i) {
+      for (auto *var : static_range_cast<RooRealVar *>(_observables)) {
+         var->setVal(ctx.at(var)[i]);
+      }
+      output[i] = scale * pdf.getVal(_observables);
+   }
+}
 
 /// Construct either an NLL or a chi-squared test statistic.
 /// \param func The pdf or function to evaluate. For `Statistic::NLL` a
@@ -218,9 +203,29 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
       // In the binned likelihood code path, we directly use that data weights
       // for the offsetting.
       if (!_binnedL && _doBinOffset) {
-         auto offsetPdf = std::make_unique<RooOffsetPdf>("_offset_func", "_offset_func", obs, *_weightVar);
-         _offsetPdf = std::make_unique<RooTemplateProxy<RooAbsPdf>>("offsetPdf", "offsetPdf", this, *offsetPdf);
-         addOwnedComponents(std::move(offsetPdf));
+         // A simultaneous pdf compiled into a mixture provides its own
+         // per-channel offset templates (see
+         // RooSimultaneous::compileForNormSet()); discover them and connect
+         // this likelihood's weight variable to them. Otherwise, build the
+         // template pdf over all rows here.
+         RooAbsPdf *mixtureOffset = nullptr;
+         if (pdf) {
+            std::unique_ptr<RooArgSet> components{pdf->getComponents()};
+            for (RooAbsArg *component : *components) {
+               if (component->getAttribute("MixtureBinOffsetPdf")) {
+                  mixtureOffset = static_cast<RooAbsPdf *>(component);
+               } else if (auto *channelOffset = dynamic_cast<RooOffsetPdf *>(component)) {
+                  channelOffset->setWeightVar(*_weightVar);
+               }
+            }
+         }
+         if (mixtureOffset) {
+            _offsetPdf = std::make_unique<RooTemplateProxy<RooAbsPdf>>("offsetPdf", "offsetPdf", this, *mixtureOffset);
+         } else {
+            auto offsetPdf = std::make_unique<RooOffsetPdf>("_offset_func", "_offset_func", obs, *_weightVar);
+            _offsetPdf = std::make_unique<RooTemplateProxy<RooAbsPdf>>("offsetPdf", "offsetPdf", this, *offsetPdf);
+            addOwnedComponents(std::move(offsetPdf));
+         }
       }
    } else {
       // Chi2-only proxies: per-bin volumes, plus per-bin asymmetric errors
@@ -734,7 +739,9 @@ void RooNLLVarNew::resetWeightVarNames()
 {
    _weightVar->SetName((_prefix + weightVarName).c_str());
    _weightSquaredVar->SetName((_prefix + weightVarNameSumW2).c_str());
-   if (_offsetPdf) {
+   if (_offsetPdf && !(*_offsetPdf)->getAttribute("MixtureBinOffsetPdf")) {
+      // Only the template pdf built by this class is renamed; a discovered
+      // mixture offset node keeps its name in the compiled graph.
       (*_offsetPdf)->SetName((_prefix + "_offset_func").c_str());
    }
    if (_binVolumes) {
