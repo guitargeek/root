@@ -161,6 +161,15 @@ void CodegenContext::addToCodeBody(std::string const &in, bool isScopeIndep /* =
 /// @param in A pointer to the calling class, used to determine the loop dependent variables.
 std::unique_ptr<CodegenContext::LoopScope> CodegenContext::beginLoop(RooAbsArg const *in)
 {
+   return beginLoop(in, "", "");
+}
+
+/// @brief Like beginLoop(RooAbsArg const *), but iterating over an explicit range of row indices
+/// instead of the full dataset. The bound expressions must evaluate to integers in the generated
+/// code; empty strings mean the full range.
+std::unique_ptr<CodegenContext::LoopScope>
+CodegenContext::beginLoop(RooAbsArg const *in, std::string const &beginExpr, std::string const &endExpr)
+{
    pushScope();
    unsigned loopLevel = _code.size() - 2; // subtract global + function scope.
    std::string idx = "loopIdx" + std::to_string(loopLevel);
@@ -209,10 +218,12 @@ std::unique_ptr<CodegenContext::LoopScope> CodegenContext::beginLoop(RooAbsArg c
       throw std::runtime_error("Trying to loop over variables that are not observables!");
    }
 
+   std::string begin = beginExpr.empty() ? "0" : beginExpr;
+   std::string end = endExpr.empty() ? "obs[" + std::to_string(2 * firstObsIdx + 1) + "]" : endExpr;
+
    // Make sure that the name of this variable doesn't clash with other stuff
    addToCodeBody(in, "#pragma clad checkpoint loop\n");
-   addToCodeBody(in, "for(int " + idx + " = 0; " + idx + " < obs[" + std::to_string(2 * firstObsIdx + 1) + "]; " + idx +
-                        "++) {\n");
+   addToCodeBody(in, "for(int " + idx + " = " + begin + "; " + idx + " < " + end + "; " + idx + "++) {\n");
 
    return std::make_unique<LoopScope>(*this, std::move(vars));
 }
@@ -355,6 +366,16 @@ void CodegenContext::collectFunction(std::string const &name)
 std::string
 CodegenContext::buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::Detail::DataKey> const &dependsOnData)
 {
+   return buildFunction([&arg](CodegenContext &ctx) { return ctx.getResult(arg); }, dependsOnData);
+}
+
+/// @brief Like buildFunction(RooAbsArg const&, ...), but with a caller-provided body generator that
+/// emits code into a fresh sub-context and returns the expression for the function's return value.
+/// This allows generating functions whose body is not the plain result of a single node, like the
+/// per-channel partial likelihoods of a compiled simultaneous mixture.
+std::string CodegenContext::buildFunction(std::function<std::string(CodegenContext &)> const &bodyGen,
+                                          std::unordered_set<RooFit::Detail::DataKey> const &dependsOnData)
+{
    CodegenContext ctx;
    ctx.pushScope(); // push our global scope.
    ctx._dependsOnData = dependsOnData;
@@ -373,7 +394,7 @@ CodegenContext::buildFunction(RooAbsArg const &arg, std::unordered_set<RooFit::D
    auto funcName = "roo_codegen_" + std::to_string(iCodegen++);
 
    ctx.pushScope();
-   std::string funcBody = ctx.getResult(arg);
+   std::string funcBody = bodyGen(ctx);
    ctx.popScope();
    funcBody = ctx._code[0] + "\n return " + funcBody + ";\n";
 
