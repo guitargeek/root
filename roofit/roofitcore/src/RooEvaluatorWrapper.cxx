@@ -751,14 +751,32 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
    bool isInitializing = _paramSet.empty();
    const std::size_t oldSize = _dataSpans.size();
 
+   // If the compiled pdf declares that it only describes a subset of the
+   // data rows, evaluate on a reduced copy of the dataset. This is how a
+   // simultaneous pdf compiled into a mixture reproduces e.g. the
+   // channel-splitting behavior of dropping the entries of index states that
+   // have no pdf attached.
+   _selectedData.reset();
+   if (_pdf) {
+      if (const char *cut = _pdf->getStringAttribute("DataSelectionCut")) {
+         // Known limitation: reduce() also drops entries where any column
+         // lies outside its variable's current range, a validity filter that
+         // the plain span-based data loading does not apply.
+         _selectedData = std::unique_ptr<RooAbsData>{data.reduce(RooFit::Cut(cut))};
+         if (data.getGlobalObservables()) {
+            _selectedData->setGlobalObservables(*data.getGlobalObservables());
+         }
+      }
+   }
+
    std::stack<std::vector<double>>{}.swap(_vectorBuffers);
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
    bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
    auto simPdf = dynamic_cast<RooSimultaneous const *>(_pdf);
-   _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*_data, _rangeName, simPdf, skipZeroWeights,
+   _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*dataForEval(), _rangeName, simPdf, skipZeroWeights,
                                                            _takeGlobalObservablesFromData, _vectorBuffers);
    if (_rangeName.empty()) {
-      validateObservableRanges(_pdf, *_data, _dataSpans);
+      validateObservableRanges(_pdf, *dataForEval(), _dataSpans);
    }
    if (!isInitializing && _dataSpans.size() != oldSize) {
       coutE(DataHandling) << errMsg << std::endl;
@@ -773,7 +791,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
       }
    }
    if (_funcWrapper) {
-      _funcWrapper->loadData(*_data, simPdf, _rangeName, skipZeroWeights);
+      _funcWrapper->loadData(*dataForEval(), simPdf, _rangeName, skipZeroWeights);
    }
    return true;
 }
@@ -786,8 +804,8 @@ void RooEvaluatorWrapper::createFuncWrapper()
 
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
    const bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
-   _funcWrapper = std::make_unique<RooFuncWrapper>(*_topNode, _data, dynamic_cast<RooSimultaneous const *>(_pdf),
-                                                   paramSet, _rangeName, skipZeroWeights);
+   _funcWrapper = std::make_unique<RooFuncWrapper>(
+      *_topNode, dataForEval(), dynamic_cast<RooSimultaneous const *>(_pdf), paramSet, _rangeName, skipZeroWeights);
 }
 
 void RooEvaluatorWrapper::generateGradient()
