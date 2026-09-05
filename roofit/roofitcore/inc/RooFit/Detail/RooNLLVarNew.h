@@ -193,8 +193,6 @@ public:
    bool canComputeBatchWithCuda() const override { return _statistic == Statistic::NLL && !_binnedL && !_mixedBinnedL; }
    bool isReducerNode() const override { return true; }
 
-   void setPrefix(std::string const &prefix);
-
    void applyWeightSquared(bool flag) override;
 
    void enableOffsetting(bool) override;
@@ -228,7 +226,6 @@ public:
 
 private:
    double evaluate() const override { return _value; }
-   void resetWeightVarNames();
    double sumOfWeights(RooFit::EvalContext &, std::span<const double> weights, bool squared) const;
    void finalizeResult(RooFit::EvalContext &, ROOT::Math::KahanSum<double> result, double weightSum) const;
    void fillBinWidthsFromPdfBoundaries(RooAbsReal const &pdf, RooArgSet const &observables);
@@ -260,7 +257,6 @@ private:
    FuncMode _funcMode = FuncMode::Pdf;
    RooDataHist::ErrorType _chi2ErrorType = RooDataHist::Expected;
    int _simCount = 1;
-   std::string _prefix;
    std::vector<double> _binw;
    mutable ROOT::Math::KahanSum<double> _offset{0.}; ///<! Offset as KahanSum to avoid loss of precision
    mutable std::size_t _sumWeightGen = 0;            ///<! Input data generation of the cached weight sum
