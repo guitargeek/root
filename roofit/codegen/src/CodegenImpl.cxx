@@ -29,6 +29,7 @@
 #include <RooExponential.h>
 #include <RooExtendPdf.h>
 #include <RooFit/Detail/RooNLLVarNew.h>
+#include <RooFit/Detail/RooChannelIndicatorPdf.h>
 #include <RooFit/Detail/RooNormalizedPdf.h>
 #include <RooFormulaVar.h>
 #include <RooFunctor1DBinding.h>
@@ -696,6 +697,19 @@ void codegenImpl(RooFit::Detail::RooNormalizedPdf &arg, CodegenContext &ctx)
 {
    // For now just return function/normalization integral.
    ctx.addResult(&arg, ctx.getResult(arg.pdf()) + "/" + ctx.getResult(arg.normIntegral()));
+}
+
+void codegenImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, CodegenContext &ctx)
+{
+   ctx.addResult(&arg, "(std::abs(" + ctx.getResult(arg.indexVar()) + " - " + std::to_string(arg.state()) +
+                          ".0) < 0.5 ? 1.0 : 0.0)");
+}
+
+std::string codegenIntegralImpl(RooFit::Detail::RooChannelIndicatorPdf &, int /*code*/, const char * /*rangeName*/,
+                                CodegenContext &)
+{
+   // Unit integral with respect to the counting measure on the channel index.
+   return "1.0";
 }
 
 void codegenImpl(RooParamHistFunc &arg, CodegenContext &ctx)
