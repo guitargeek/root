@@ -384,15 +384,73 @@ void RooNLLVarNew::doEval(RooFit::EvalContext &ctx) const
    auto config = ctx.config(this);
 
    auto probas = ctx.at(_func);
+   std::span<const double> weightSpan = _weightSquared ? weightsSumW2 : weights;
 
+   // The weight sums only depend on the input data, so they are cached in the
+   // RooNLLVarNew keyed on the evaluation context's input generation.
    double sumWeight = sumOfWeights(ctx, weights, false);
    double sumWeight2 = 0.;
    if (_expectedEvents && _weightSquared) {
       sumWeight2 = sumOfWeights(ctx, weightsSumW2, true);
    }
 
-   auto nllOut = RooBatchCompute::reduceNLL(config, probas, _weightSquared ? weightsSumW2 : weights,
-                                            _doBinOffset ? ctx.at(*_offsetPdf) : std::span<const double>{});
+   // If the evaluator tracks in which event range the pdf values changed,
+   // reduce the NLL in fixed-size chunks and cache the partial results, so
+   // that only the chunks with changed pdf values have to be reduced again.
+   const bool incremental = !config.useCuda() && !_doBinOffset && ctx.changeTrackingEnabled() && probas.size() > 1;
+
+   RooBatchCompute::ReduceNLLOutput nllOut;
+
+   if (!incremental) {
+      nllOut = RooBatchCompute::reduceNLL(config, probas, weightSpan,
+                                          _doBinOffset ? ctx.at(*_offsetPdf) : std::span<const double>{});
+   } else {
+      constexpr std::size_t chunkSize = 4096;
+      const std::size_t n = probas.size();
+      const std::size_t nChunks = (n + chunkSize - 1) / chunkSize;
+      ChunkCache &cache = _chunkCache;
+
+      auto [changedBegin, changedEnd] = ctx.changedRange(&*_func);
+
+      const bool rebuild = cache.probasPtr != probas.data() || cache.weightsPtr != weightSpan.data() ||
+                           cache.nEvents != n || cache.sums.size() != nChunks;
+      if (rebuild) {
+         cache.probasPtr = probas.data();
+         cache.weightsPtr = weightSpan.data();
+         cache.nEvents = n;
+         cache.sums.assign(nChunks, 0.0);
+         cache.carrys.assign(nChunks, 0.0);
+         cache.counts.assign(3 * nChunks, 0);
+         changedBegin = 0;
+         changedEnd = n;
+      }
+
+      const std::size_t firstChunk = changedBegin / chunkSize;
+      const std::size_t endChunk = changedEnd == 0 ? 0 : (std::min(changedEnd, n) - 1) / chunkSize + 1;
+      for (std::size_t c = firstChunk; c < endChunk; ++c) {
+         const std::size_t begin = c * chunkSize;
+         const std::size_t len = std::min(chunkSize, n - begin);
+         std::span<const double> probasChunk{probas.data() + begin, len};
+         std::span<const double> weightsChunk =
+            weightSpan.size() == 1 ? weightSpan : std::span<const double>{weightSpan.data() + begin, len};
+         auto out = RooBatchCompute::reduceNLL(config, probasChunk, weightsChunk, {});
+         cache.sums[c] = out.nllSum;
+         cache.carrys[c] = out.nllSumCarry;
+         cache.counts[3 * c] = out.nInfiniteValues;
+         cache.counts[3 * c + 1] = out.nNonPositiveValues;
+         cache.counts[3 * c + 2] = out.nNaNValues;
+      }
+
+      ROOT::Math::KahanSum<double> total;
+      for (std::size_t c = 0; c < nChunks; ++c) {
+         total += ROOT::Math::KahanSum<double>{cache.sums[c], cache.carrys[c]};
+         nllOut.nInfiniteValues += cache.counts[3 * c];
+         nllOut.nNonPositiveValues += cache.counts[3 * c + 1];
+         nllOut.nNaNValues += cache.counts[3 * c + 2];
+      }
+      nllOut.nllSum = total.Sum();
+      nllOut.nllSumCarry = total.Carry();
+   }
 
    if (nllOut.nInfiniteValues > 0) {
       oocoutW(&*_func, Eval) << "RooAbsPdf::getLogVal(" << _func->GetName()
