@@ -80,6 +80,7 @@ in each category.
 #include "RooFitImplHelpers.h"
 
 #include <RooFit/Detail/RooChannelIndicatorPdf.h>
+#include <RooFit/Detail/RooNLLVarNew.h>
 
 #include <ROOT/StringUtils.hxx>
 
@@ -1766,6 +1767,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
    RooArgList coefs;
    std::vector<RooAbsArg *> binnedTerms;
    std::vector<RooAbsArg *> unbinnedTerms;
+   std::vector<bool> channelHasYield; ///< aligned with the function list
    RooArgList expectedFuncs;
    RooArgList ownedCoefs;
    // Unit coefficient for the terms without a yield scaling. An owned
@@ -1872,6 +1874,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
             }
          }
          term->addOwnedComponents(std::move(indicator));
+         channelHasYield.push_back(coef != nullptr);
          if (coef) {
             expectedFuncs.add(*coef);
             coefs.add(*coef);
@@ -2034,6 +2037,76 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       mixture->addOwnedComponents(std::move(total));
    }
 
+   if (ctx.binOffsetMode() && binnedTerms.empty()) {
+      // Per-channel offset templates for the bin-by-bin likelihood
+      // offsetting, replacing the single global template that RooNLLVarNew
+      // would build over all rows: the template of each channel is built
+      // only from the rows of that channel (via the indicator mask), so it
+      // is normalized over the channel's own weight sum, exactly like the
+      // per-channel templates of the channel-splitting path. For channels
+      // with a yield coefficient, the template additionally absorbs the
+      // weight-sum-dependent parts of the offset extended term (see
+      // RooOffsetPdf). The combined gated sum of the templates is declared
+      // via the "MixtureBinOffsetPdf" attribute; RooNLLVarNew picks it up
+      // and connects its own weight variable to the templates.
+      std::string weightName = std::string(simPdf.GetName()) + "_mixtureOffsetWeight";
+      auto offsetWeight = std::make_unique<RooConstVar>(weightName.c_str(), weightName.c_str(), 1.0);
+      ctx.markAsCompiled(*offsetWeight);
+      std::string offsetCoefName = std::string(simPdf.GetName()) + "_mixtureOffsetCoef";
+      auto offsetCoef = std::make_unique<RooConstVar>(offsetCoefName.c_str(), offsetCoefName.c_str(), 1.0);
+      ctx.markAsCompiled(*offsetCoef);
+      RooArgList offsetProds;
+      RooArgList offsetCoefs;
+      for (std::size_t i = 0; i < keptChannels.size(); ++i) {
+         RooAbsArg *compiledTerm = &mixture->funcList()[i];
+         RooAbsReal *indicator = nullptr;
+         for (RooAbsArg *server : compiledTerm->servers()) {
+            if (server->getAttribute("BinaryMask") && server->isValueServer(*compiledTerm)) {
+               indicator = static_cast<RooAbsReal *>(server);
+               break;
+            }
+         }
+         if (!indicator) {
+            throw std::runtime_error("RooSimultaneous::compileForNormSet(): the gated-sum mixture compilation "
+                                     "lost track of the compiled channel indicators");
+         }
+         // The template must be built on the observables of the *compiled*
+         // term: the graph compilation clones the observables, and a
+         // reference to the original ones would put a second, identically-
+         // named observable object into the computation graph, corrupting
+         // the name-keyed data feeding. The observables of the gated term
+         // also include the index stand-ins (through the indicator), which
+         // don't belong in the template.
+         RooArgSet channelObs;
+         compiledTerm->getObservables(&normSet, channelObs);
+         RooArgSet indexObs;
+         indicator->getObservables(&normSet, indexObs);
+         channelObs.remove(indexObs, /*silent=*/true, /*matchByNameOnly=*/true);
+         std::string baseName = std::string(simPdf.GetName()) + "_" + keptChannels[i].first;
+         std::string templName = baseName + "_mixtureOffsetTemplate";
+         auto channelOffset = std::make_unique<RooFit::Detail::RooOffsetPdf>(
+            templName.c_str(), templName.c_str(), channelObs, *offsetWeight, indicator, channelHasYield[i]);
+         ctx.markAsCompiled(*channelOffset);
+         std::string prodName = baseName + "_mixtureOffsetTerm";
+         auto prod =
+            std::make_unique<RooProduct>(prodName.c_str(), prodName.c_str(), RooArgList(*indicator, *channelOffset));
+         prod->addOwnedComponents(std::move(channelOffset));
+         ctx.markAsCompiled(*prod);
+         offsetProds.addOwned(std::move(prod));
+         offsetCoefs.add(*offsetCoef);
+      }
+      std::string offsetName = std::string(simPdf.GetName()) + "_mixtureOffset";
+      auto offsetSum =
+         std::make_unique<RooRealSumPdf>(offsetName.c_str(), offsetName.c_str(), offsetProds, offsetCoefs);
+      ctx.markAsCompiled(*offsetSum);
+      offsetSum->setAttribute("MixtureBinOffsetPdf");
+      offsetSum->addOwnedComponents(std::move(offsetProds));
+      offsetSum->addOwnedComponents(std::move(offsetWeight));
+      offsetSum->addOwnedComponents(std::move(offsetCoef));
+      mixture->addServer(*offsetSum, true, false);
+      mixture->addOwnedComponents(std::move(offsetSum));
+   }
+
    for (RooAbsArg *term : funcs) {
       term->SetName((std::string("_") + term->GetName()).c_str());
    }
@@ -2177,19 +2250,18 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, std::move(indexStandIns), keptChannels,
                                           dataSelectionCut, fallBack);
    }
-   if (ctx.binOffsetMode()) {
-      // The bin-by-bin offsetting of RooNLLVarNew builds a template pdf from
-      // the dataset that is normalized over all events, while the
-      // channel-splitting path uses per-channel templates with per-channel
-      // weight-sum normalizations. Reproducing that in the mixture would need
-      // an offset template that is conditional on the index variable. Note
-      // that the all-binned compilation above doesn't have this problem: the
-      // binned likelihood offsets each Poisson term with the observed bin
-      // content directly, with no template pdf involved.
-      return fallBack("bin-by-bin likelihood offsetting is not supported yet");
-   }
-   if (nBinnedL > 0 && !rangeName.empty()) {
-      return fallBack("ranged fits with binned-likelihood channels are not supported yet");
+   if (nBinnedL > 0) {
+      if (!rangeName.empty()) {
+         return fallBack("ranged fits with binned-likelihood channels are not supported yet");
+      }
+      if (ctx.binOffsetMode()) {
+         // The unbinned rows are offset with per-channel template pdfs (see
+         // the offset construction in compileSimPdfAsGatedSum()), which is
+         // not combined yet with the direct per-bin offsetting that the
+         // binned rows use.
+         return fallBack("bin-by-bin likelihood offsetting is not supported yet for mixed binned and unbinned "
+                         "channels");
+      }
    }
    return compileSimPdfAsGatedSum(simPdf, normSet, ctx, std::move(indexStandIns), keptChannels, dataSelectionCut,
                                   rangeName, splitRange, fallBack);
