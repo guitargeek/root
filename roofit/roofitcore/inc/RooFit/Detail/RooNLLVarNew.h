@@ -20,12 +20,14 @@
 #include <RooAbsReal.h>
 #include <RooDataHist.h>
 #include <RooGlobalFunc.h>
+#include <RooListProxy.h>
 #include <RooSetProxy.h>
 #include <RooTemplateProxy.h>
 
 #include <Math/Util.h>
 
 #include <memory>
+#include <vector>
 
 namespace RooFit {
 namespace Detail {
@@ -81,6 +83,39 @@ private:
    RooTemplateProxy<RooAbsReal> _weightVar;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _mask;
    bool _scaleByWeightSum = false;
+};
+
+/// Per-row bin volumes for the concatenated binned likelihood of a
+/// simultaneous mixture whose channels don't (all) use RooBinWidthFunctions
+/// (e.g. models from before ROOT 6.26): the compiled values of such channels
+/// are probability densities, and the likelihood multiplies each row by the
+/// volume of the corresponding bin (see RooNLLVarNew::doEvalBinnedL()). The
+/// rows of a channel are its bins in order, selected by the channel
+/// indicator mask; rows of channels without a width vector (whose values are
+/// already yields) get a unit volume.
+class RooMixtureBinVolumes : public RooAbsReal {
+public:
+   RooMixtureBinVolumes(const char *name, const char *title, RooArgList const &indicators,
+                        std::vector<std::vector<double>> binWidths)
+      : RooAbsReal(name, title),
+        _indicators{"!indicators", "channel indicators", this},
+        _binWidths{std::move(binWidths)}
+   {
+      _indicators.add(indicators);
+   }
+   RooMixtureBinVolumes(const RooMixtureBinVolumes &other, const char *name = nullptr)
+      : RooAbsReal(other, name), _indicators{"!indicators", this, other._indicators}, _binWidths{other._binWidths}
+   {
+   }
+   TObject *clone(const char *newname) const override { return new RooMixtureBinVolumes(*this, newname); }
+
+   void doEval(RooFit::EvalContext &ctx) const override;
+
+private:
+   double evaluate() const override { return _value; } // should never be called
+
+   RooListProxy _indicators;
+   std::vector<std::vector<double>> _binWidths; ///< per indicator, empty for unit volumes
 };
 
 /// Sum of the event weights of one channel of a simultaneous mixture,
@@ -186,6 +221,7 @@ public:
    RooDataHist::ErrorType chi2ErrorType() const { return _chi2ErrorType; }
    RooAbsReal const *expectedEvents() const { return _expectedEvents ? &**_expectedEvents : nullptr; }
    RooAbsReal const *binnedRowsMask() const { return _binnedRowsMask ? &**_binnedRowsMask : nullptr; }
+   RooAbsReal const *mixtureBinVolumes() const { return _mixtureBinVolumes ? &**_mixtureBinVolumes : nullptr; }
    RooAbsReal const *binVolumes() const { return _binVolumes ? &**_binVolumes : nullptr; }
    RooAbsReal const *weightErrLo() const { return _weightErrLo ? &**_weightErrLo : nullptr; }
    RooAbsReal const *weightErrHi() const { return _weightErrHi ? &**_weightErrHi : nullptr; }
@@ -207,6 +243,7 @@ private:
    RooTemplateProxy<RooAbsReal> _weightSquaredVar;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _expectedEvents;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _binnedRowsMask;
+   std::unique_ptr<RooTemplateProxy<RooAbsReal>> _mixtureBinVolumes;
    std::unique_ptr<RooTemplateProxy<RooAbsPdf>> _offsetPdf;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _binVolumes;
    std::unique_ptr<RooTemplateProxy<RooAbsReal>> _weightErrLo;
