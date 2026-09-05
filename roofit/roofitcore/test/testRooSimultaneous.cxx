@@ -25,6 +25,7 @@
 #include <RooRealSumPdf.h>
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>
+#include <RooSuperCategory.h>
 #include <RooThresholdCategory.h>
 #include <RooUniform.h>
 #include <RooWorkspace.h>
@@ -1143,6 +1144,94 @@ TEST(RooSimultaneous, MixtureCompilationSharedPdf)
       EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << label << ", after parameter change";
       setParams(false);
    }
+}
+
+/// Validate the mixture compilation for a simultaneous pdf whose index is a
+/// RooSuperCategory, like it is created when combining simultaneous pdfs.
+/// The channel indicators are then multi-dimensional: one real-valued
+/// stand-in per input category of the super category, which are the actual
+/// data columns.
+TEST(RooSimultaneous, MixtureCompilationSuperCategory)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   RooRealVar x{"x", "x", -8, 8};
+   RooCategory region{"region", "region", {{"regA", 0}, {"regB", 1}}};
+   RooCategory type{"type", "type", {{"typX", 0}, {"typY", 1}}};
+   RooSuperCategory super{"super", "super", {region, type}};
+
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10.};
+   std::vector<std::unique_ptr<RooRealVar>> means;
+   std::vector<std::unique_ptr<RooGaussian>> gausses;
+   for (int i = 0; i < 4; ++i) {
+      std::string mName = "m" + std::to_string(i);
+      means.emplace_back(std::make_unique<RooRealVar>(mName.c_str(), mName.c_str(), -3. + 2. * i, -4., 4.));
+      std::string gName = "g" + std::to_string(i);
+      gausses.emplace_back(std::make_unique<RooGaussian>(gName.c_str(), gName.c_str(), x, *means.back(), sigma));
+   }
+
+   auto labelFor = [&](const char *r, const char *t) {
+      region.setLabel(r);
+      type.setLabel(t);
+      return std::string{super.getCurrentLabel()};
+   };
+
+   RooSimultaneous simPdf{"simPdf", "simPdf", super};
+   simPdf.addPdf(*gausses[0], labelFor("regA", "typX").c_str());
+   simPdf.addPdf(*gausses[1], labelFor("regA", "typY").c_str());
+   simPdf.addPdf(*gausses[2], labelFor("regB", "typX").c_str());
+   simPdf.addPdf(*gausses[3], labelFor("regB", "typY").c_str());
+
+   RooDataSet combData{"combData", "combData", {x, region, type}};
+   auto fill = [&](RooAbsPdf &pdf, const char *r, const char *t, int nEvents) {
+      std::unique_ptr<RooDataSet> d{pdf.generate(x, nEvents)};
+      region.setLabel(r);
+      type.setLabel(t);
+      for (int i = 0; i < d->numEntries(); ++i) {
+         x.setVal(static_cast<RooRealVar *>(d->get(i)->find("x"))->getVal());
+         combData.add({x, region, type});
+      }
+   };
+   fill(*gausses[0], "regA", "typX", 500);
+   fill(*gausses[1], "regA", "typY", 700);
+   fill(*gausses[2], "regB", "typX", 600);
+   fill(*gausses[3], "regB", "typY", 800);
+
+   auto setParams = [&](bool alternative) {
+      sigma.setVal(alternative ? 1.5 : 1.0);
+      means[0]->setVal(alternative ? -2.5 : -3.0);
+   };
+
+   double refVal = 0.0;
+   double refValAlt = 0.0;
+   {
+      std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(combData, EvalBackend::Cpu())};
+      refVal = nllRef->getVal();
+      setParams(true);
+      refValAlt = nllRef->getVal();
+      setParams(false);
+   }
+
+   RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+   ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+   std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(combData, EvalBackend::Cpu())};
+
+   EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+      << "the mixture compilation fell back to channel splitting:\n"
+      << hijack.str();
+
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14));
+   setParams(true);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << "after parameter change";
+   setParams(false);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
 }
 
 /// Validate the binned-likelihood variant of the experimental mixture

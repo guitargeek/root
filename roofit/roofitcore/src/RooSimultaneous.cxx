@@ -1288,6 +1288,111 @@ bool simMixtureCompileRequested()
    return env && *env && std::string_view{env} != "0";
 }
 
+/// Real-valued stand-ins for the index of a simultaneous mixture: one per
+/// fundamental category making up the index -- the index category itself, or
+/// the input categories of a RooSuperCategory (as created e.g. when combining
+/// simultaneous pdfs). Data columns are keyed by name, so the stand-ins take
+/// the names of the categories they replace. For each channel,
+/// `channelTargets` holds the target index of every stand-in, for building
+/// the channel indicator.
+struct MixtureIndexStandIns {
+   std::vector<std::unique_ptr<RooRealVar>> standIns;
+   std::map<RooAbsCategory::value_type, std::vector<int>> channelTargets;
+   std::string error; ///< non-empty: configuration not supported, fall back
+
+   RooArgList standInList() const
+   {
+      RooArgList out;
+      for (auto const &standIn : standIns) {
+         out.add(*standIn);
+      }
+      return out;
+   }
+
+   /// The normalization set for the mixture, with the index categories
+   /// replaced by their real-valued stand-ins.
+   RooArgSet mixtureNormSet(RooArgSet const &normSet) const
+   {
+      RooArgSet out;
+      for (RooAbsArg *arg : normSet) {
+         RooAbsArg *repl = arg;
+         for (auto const &standIn : standIns) {
+            if (arg->namePtr() == standIn->namePtr()) {
+               repl = standIn.get();
+               break;
+            }
+         }
+         out.add(*repl);
+      }
+      return out;
+   }
+};
+
+MixtureIndexStandIns makeIndexStandIns(RooAbsCategoryLValue const &indexCat, RooArgSet const &normSet)
+{
+   MixtureIndexStandIns out;
+
+   std::vector<RooAbsCategory const *> components;
+   if (indexCat.isFundamental()) {
+      if (!normSet.find(indexCat)) {
+         out.error = "the index category is not one of the observables";
+         return out;
+      }
+      components.push_back(&indexCat);
+   } else if (auto *superCat = dynamic_cast<RooSuperCategory const *>(&indexCat)) {
+      for (RooAbsArg *arg : superCat->inputCatList()) {
+         auto *cat = dynamic_cast<RooAbsCategory const *>(arg);
+         if (!cat || !cat->isFundamental() || !normSet.find(*cat)) {
+            out.error = std::string("the input category \"") + arg->GetName() +
+                        "\" of the super index category is not a fundamental observable";
+            return out;
+         }
+         components.push_back(cat);
+      }
+   } else {
+      out.error = "the index category is not a fundamental observable";
+      return out;
+   }
+
+   // Determine the per-channel target index of each component category. For a
+   // RooSuperCategory, the component states are read back after setting each
+   // state on the category, whose original state is restored afterwards.
+   if (components.size() == 1 && components[0] == &indexCat) {
+      for (auto const &catState : indexCat) {
+         out.channelTargets[catState.second] = {catState.second};
+      }
+   } else {
+      auto &mutableCat = const_cast<RooAbsCategoryLValue &>(indexCat);
+      const auto origIndex = indexCat.getCurrentIndex();
+      for (auto const &catState : indexCat) {
+         mutableCat.setIndex(catState.second);
+         std::vector<int> targets;
+         targets.reserve(components.size());
+         for (RooAbsCategory const *cat : components) {
+            targets.push_back(cat->getCurrentIndex());
+         }
+         out.channelTargets[catState.second] = std::move(targets);
+      }
+      mutableCat.setIndex(origIndex);
+   }
+
+   for (std::size_t i = 0; i < components.size(); ++i) {
+      int minIndex = std::numeric_limits<int>::max();
+      int maxIndex = std::numeric_limits<int>::min();
+      for (auto const &item : out.channelTargets) {
+         minIndex = std::min(minIndex, item.second[i]);
+         maxIndex = std::max(maxIndex, item.second[i]);
+      }
+      RooAbsCategory const &cat = *components[i];
+      auto standIn = std::make_unique<RooRealVar>(cat.GetName(), cat.GetTitle(), 0.0);
+      standIn->setRange(minIndex - 0.5, maxIndex + 0.5);
+      standIn->setVal(cat.getCurrentIndex());
+      out.standIns.emplace_back(std::move(standIn));
+   }
+
+   return out;
+}
+
 /// Variant of the mixture compilation for a simultaneous pdf whose channels
 /// all use the binned likelihood optimization. The compiled pdf is a single
 /// unnormalized sum of the indicator-gated channel yields,
@@ -1307,17 +1412,12 @@ bool simMixtureCompileRequested()
 template <typename FallBackFunc>
 std::unique_ptr<RooAbsArg>
 compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet,
-                             RooFit::Detail::CompileContext &ctx, FallBackFunc const &fallBack)
+                             RooFit::Detail::CompileContext &ctx, MixtureIndexStandIns indexStandIns,
+                             FallBackFunc const &fallBack)
 {
    RooAbsCategoryLValue const &indexCat = simPdf.indexCat();
 
-   // The stand-in for the index category. The range is set once all state
-   // indices are known.
-   auto standIn = std::make_unique<RooRealVar>(indexCat.GetName(), indexCat.GetTitle(), 0.0);
-
    RooArgList prods;
-   int minIndex = std::numeric_limits<int>::max();
-   int maxIndex = std::numeric_limits<int>::min();
 
    std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
 
@@ -1355,14 +1455,12 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
                          "\" has no RooBinWidthFunction, so its values can't be interpreted as bin yields");
       }
 
-      minIndex = std::min(minIndex, catState.second);
-      maxIndex = std::max(maxIndex, catState.second);
-
       // The suffixes make the names collision-safe, see the unbinned mixture
       // compilation below.
       std::string baseName = std::string(simPdf.GetName()) + "_" + catState.first;
       auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
-         (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(), *standIn, catState.second);
+         (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(),
+         indexStandIns.standInList(), indexStandIns.channelTargets.at(catState.second));
       // Declare to the RooFit::Evaluator that this node is a data-only
       // {0,1}-valued mask, so that it can restrict the evaluation of the
       // other factors in the gated product to the events of this channel (see
@@ -1376,9 +1474,6 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
    }
 
    const std::size_t nChannels = prods.size();
-
-   standIn->setRange(minIndex - 0.5, maxIndex + 0.5);
-   standIn->setVal(indexCat.getCurrentIndex());
 
    // Unit coefficients for the sum of the gated channel yields. An owned
    // constant is used instead of RooFit::RooConst(), because the global
@@ -1396,14 +1491,11 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
    // mixture sum itself.
    mixture->setAttribute("BinnedLikelihood");
 
-   // The normalization set for the mixture, with the index category replaced
-   // by its real-valued stand-in.
-   RooArgSet mixtureNormSet;
-   for (RooAbsArg *arg : normSet) {
-      mixtureNormSet.add(arg->namePtr() == indexCat.namePtr() ? *standIn : *arg);
-   }
+   RooArgSet mixtureNormSet = indexStandIns.mixtureNormSet(normSet);
 
-   mixture->addOwnedComponents(std::move(standIn));
+   for (auto &standIn : indexStandIns.standIns) {
+      mixture->addOwnedComponents(std::move(standIn));
+   }
    mixture->addOwnedComponents(std::move(prods));
    mixture->addOwnedComponents(std::move(coefVar));
 
@@ -1496,8 +1588,9 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
 
    RooAbsCategoryLValue const &indexCat = simPdf.indexCat();
 
-   if (!indexCat.isFundamental() || !normSet.find(indexCat)) {
-      return fallBack("the index category is not a fundamental observable");
+   MixtureIndexStandIns indexStandIns = makeIndexStandIns(indexCat, normSet);
+   if (!indexStandIns.error.empty()) {
+      return fallBack(indexStandIns.error);
    }
    if (simPdf.getStringAttribute("RangeName")) {
       return fallBack("ranged fits are not supported yet");
@@ -1531,7 +1624,7 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       return fallBack("there are no channels");
    }
    if (nBinnedL == nChannels) {
-      return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, fallBack);
+      return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, std::move(indexStandIns), fallBack);
    }
    if (nBinnedL > 0) {
       return fallBack("mixed binned-likelihood and unbinned channels are not supported yet");
@@ -1548,14 +1641,8 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       return fallBack("bin-by-bin likelihood offsetting is not supported yet");
    }
 
-   // The stand-in for the index category. The range is set once all state
-   // indices are known.
-   auto standIn = std::make_unique<RooRealVar>(indexCat.GetName(), indexCat.GetTitle(), 0.0);
-
    RooArgList prods;
    bool allExtendable = true;
-   int minIndex = std::numeric_limits<int>::max();
-   int maxIndex = std::numeric_limits<int>::min();
 
    std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
 
@@ -1571,8 +1658,6 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
          return fallBack("two channels use different pdfs with the same name \"" + seenIt->first + "\"");
       }
       allExtendable &= channelPdf->canBeExtended();
-      minIndex = std::min(minIndex, catState.second);
-      maxIndex = std::max(maxIndex, catState.second);
 
       // The suffixes make the names collision-safe: a plain "<sim>_<cat>"
       // can easily coincide with the name of an existing pdf (e.g. a channel
@@ -1580,7 +1665,8 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       // names in the compiled computation graph are not allowed.
       std::string baseName = std::string(simPdf.GetName()) + "_" + catState.first;
       auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
-         (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(), *standIn, catState.second);
+         (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(),
+         indexStandIns.standInList(), indexStandIns.channelTargets.at(catState.second));
       // Declare to the RooFit::Evaluator that this node is a data-only
       // {0,1}-valued mask: the evaluator can then restrict the evaluation of
       // the other factors in the gated product to the events selected by the
@@ -1596,9 +1682,6 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    if (ctx.extendedMode() && !allExtendable) {
       return fallBack("extended fit with non-extendable channel pdfs");
    }
-
-   standIn->setRange(minIndex - 0.5, maxIndex + 0.5);
-   standIn->setVal(indexCat.getCurrentIndex());
 
    std::unique_ptr<RooAddPdf> mixture;
    std::unique_ptr<RooConstVar> coefVar;
@@ -1620,14 +1703,11 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       mixture = std::make_unique<RooAddPdf>(simPdf.GetName(), simPdf.GetTitle(), prods, coefs);
    }
 
-   // The normalization set for the mixture, with the index category replaced
-   // by its real-valued stand-in.
-   RooArgSet mixtureNormSet;
-   for (RooAbsArg *arg : normSet) {
-      mixtureNormSet.add(arg->namePtr() == indexCat.namePtr() ? *standIn : *arg);
-   }
+   RooArgSet mixtureNormSet = indexStandIns.mixtureNormSet(normSet);
 
-   mixture->addOwnedComponents(std::move(standIn));
+   for (auto &standIn : indexStandIns.standIns) {
+      mixture->addOwnedComponents(std::move(standIn));
+   }
    mixture->addOwnedComponents(std::move(prods));
    if (coefVar) {
       mixture->addOwnedComponents(std::move(coefVar));

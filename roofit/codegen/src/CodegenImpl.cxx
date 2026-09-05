@@ -728,15 +728,39 @@ void codegenImpl(RooFit::Detail::RooNormalizedPdf &arg, CodegenContext &ctx)
 
 void codegenImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, CodegenContext &ctx)
 {
-   ctx.addResult(&arg, "(std::abs(" + ctx.getResult(arg.indexVar()) + " - " + std::to_string(arg.state()) +
-                          ".0) < 0.5 ? 1.0 : 0.0)");
+   std::string conditions;
+   for (std::size_t i = 0; i < arg.states().size(); ++i) {
+      if (i > 0) {
+         conditions += " && ";
+      }
+      conditions += "std::abs(" + ctx.getResult(static_cast<RooAbsReal const &>(arg.indexVars()[i])) + " - " +
+                    std::to_string(arg.states()[i]) + ".0) < 0.5";
+   }
+   ctx.addResult(&arg, "(" + conditions + " ? 1.0 : 0.0)");
 }
 
-std::string codegenIntegralImpl(RooFit::Detail::RooChannelIndicatorPdf &, int /*code*/, const char * /*rangeName*/,
-                                CodegenContext &)
+std::string codegenIntegralImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, int code, const char * /*rangeName*/,
+                                CodegenContext &ctx)
 {
-   // Unit integral with respect to the counting measure on the channel index.
-   return "1.0";
+   // Integrated index variables contribute an exact factor of one with
+   // respect to the counting measure on the channel index; the others keep
+   // their indicator factor.
+   const int mask = code - 1;
+   std::string conditions;
+   for (std::size_t i = 0; i < arg.states().size(); ++i) {
+      if (mask & (1 << i)) {
+         continue;
+      }
+      if (!conditions.empty()) {
+         conditions += " && ";
+      }
+      conditions += "std::abs(" + ctx.getResult(static_cast<RooAbsReal const &>(arg.indexVars()[i])) + " - " +
+                    std::to_string(arg.states()[i]) + ".0) < 0.5";
+   }
+   if (conditions.empty()) {
+      return "1.0";
+   }
+   return "(" + conditions + " ? 1.0 : 0.0)";
 }
 
 void codegenImpl(RooParamHistFunc &arg, CodegenContext &ctx)
