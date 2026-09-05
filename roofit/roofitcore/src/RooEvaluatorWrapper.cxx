@@ -771,7 +771,9 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
 
    std::stack<std::vector<double>>{}.swap(_vectorBuffers);
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
-   bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
+   bool skipZeroWeights =
+      !isChi2 &&
+      (!_pdf || !(_pdf->getAttribute("BinnedLikelihoodActive") || _pdf->getAttribute("MixedBinnedLikelihoodActive")));
    auto simPdf = dynamic_cast<RooSimultaneous const *>(_pdf);
    // When the compiled pdf declares a data selection cut, that cut encodes
    // the complete row selection, including any fit-range selection, so the
