@@ -138,6 +138,7 @@ set(ROOFITCORE_HEADERS
   RooFit/Config.h
   RooFit/Detail/MathFuncs.h
   RooFit/Detail/NormalizationHelpers.h
+  RooFit/Detail/RooChannelIndicatorPdf.h
   RooFit/Detail/RooNLLVarNew.h
   RooFit/Detail/RooNormalizedPdf.h
   RooFit/EvalContext.h
@@ -316,6 +317,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooCachedReal.cxx
     src/RooCategory.cxx
     src/RooChangeTracker.cxx
+    src/RooChannelIndicatorPdf.cxx
     src/RooClassFactory.cxx
     src/RooCmdArg.cxx
     src/RooCmdConfig.cxx
