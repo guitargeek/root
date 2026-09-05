@@ -773,7 +773,13 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
    bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
    auto simPdf = dynamic_cast<RooSimultaneous const *>(_pdf);
-   _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*dataForEval(), _rangeName, simPdf, skipZeroWeights,
+   // When the compiled pdf declares a data selection cut, that cut encodes
+   // the complete row selection, including any fit-range selection, so the
+   // generic range-based selection of the data loading must not be applied
+   // on top of it.
+   const std::string rangeNameForLoading = _selectedData ? "" : _rangeName;
+
+   _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*dataForEval(), rangeNameForLoading, simPdf, skipZeroWeights,
                                                            _takeGlobalObservablesFromData, _vectorBuffers);
    if (_rangeName.empty()) {
       validateObservableRanges(_pdf, *dataForEval(), _dataSpans);
@@ -791,7 +797,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
       }
    }
    if (_funcWrapper) {
-      _funcWrapper->loadData(*dataForEval(), simPdf, _rangeName, skipZeroWeights);
+      _funcWrapper->loadData(*dataForEval(), simPdf, rangeNameForLoading, skipZeroWeights);
    }
    return true;
 }
@@ -804,8 +810,9 @@ void RooEvaluatorWrapper::createFuncWrapper()
 
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
    const bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
-   _funcWrapper = std::make_unique<RooFuncWrapper>(
-      *_topNode, dataForEval(), dynamic_cast<RooSimultaneous const *>(_pdf), paramSet, _rangeName, skipZeroWeights);
+   _funcWrapper =
+      std::make_unique<RooFuncWrapper>(*_topNode, dataForEval(), dynamic_cast<RooSimultaneous const *>(_pdf), paramSet,
+                                       _selectedData ? std::string{} : _rangeName, skipZeroWeights);
 }
 
 void RooEvaluatorWrapper::generateGradient()

@@ -1147,6 +1147,91 @@ TEST(RooSimultaneous, MixtureCompilationSharedPdf)
    }
 }
 
+/// Validate the mixture compilation for ranged fits: the per-channel range
+/// selection of the data entries is encoded in the data selection cut of the
+/// compiled pdf, and the per-channel normalization ranges are set during the
+/// compilation. Covers a plain shared range, a multi-range fit with
+/// SplitRange(), and the extended case.
+TEST(RooSimultaneous, MixtureCompilationRangedFit)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   // Two channels with disjoint observables, like in the
+   // MixtureCompilation test. The frozen values of the foreign observable
+   // columns in the combined dataset must not affect the range selection.
+   RooRealVar x1{"x1", "x1", 0, 10};
+   RooRealVar x2{"x2", "x2", 0, 10};
+   RooRealVar m1{"m1", "m1", 4., 0., 10.};
+   RooRealVar m2{"m2", "m2", 6., 0., 10.};
+   RooRealVar sigma{"sigma", "sigma", 1.5, 0.1, 10.};
+   RooGaussian g1{"g1", "g1", x1, m1, sigma};
+   RooGaussian g2{"g2", "g2", x2, m2, sigma};
+   RooRealVar n1{"n1", "n1", 1000., 0., 100000.};
+   RooRealVar n2{"n2", "n2", 2000., 0., 100000.};
+   RooExtendPdf e1{"e1", "e1", g1, n1};
+   RooExtendPdf e2{"e2", "e2", g2, n2};
+
+   // A shared range and per-channel split ranges.
+   x1.setRange("peak", 2, 8);
+   x2.setRange("peak", 2, 8);
+   x1.setRange("SideBandLo_one", 0, 2);
+   x1.setRange("SideBandHi_one", 6, 10);
+   x2.setRange("SideBandLo_two", 0, 4);
+   x2.setRange("SideBandHi_two", 8, 10);
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &e1}, {"two", &e2}}, sample};
+
+   std::unique_ptr<RooDataSet> data1{g1.generate(x1, 1000)};
+   std::unique_ptr<RooDataSet> data2{g2.generate(x2, 2000)};
+   RooDataSet combData{
+      "combData", "combData", {x1, x2}, Index(sample), Import({{"one", data1.get()}, {"two", data2.get()}})};
+
+   auto setParams = [&](bool alternative) {
+      sigma.setVal(alternative ? 2.0 : 1.5);
+      m1.setVal(alternative ? 4.5 : 4.0);
+   };
+
+   auto checkCase = [&](const char *label, auto makeNLL) {
+      double refVal = 0.0;
+      double refValAlt = 0.0;
+      {
+         std::unique_ptr<RooAbsReal> nllRef{makeNLL()};
+         refVal = nllRef->getVal();
+         setParams(true);
+         refValAlt = nllRef->getVal();
+         setParams(false);
+      }
+
+      RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+      ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+      std::unique_ptr<RooAbsReal> nllMix{makeNLL()};
+
+      EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+         << label << ": the mixture compilation fell back to channel splitting:\n"
+         << hijack.str();
+
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << label;
+      setParams(true);
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << label << ", after parameter change";
+      setParams(false);
+   };
+
+   checkCase("shared range", [&]() { return simPdf.createNLL(combData, Range("peak"), EvalBackend::Cpu()); });
+   checkCase("shared range, extended",
+             [&]() { return simPdf.createNLL(combData, Range("peak"), Extended(true), EvalBackend::Cpu()); });
+   checkCase("multi-range with SplitRange", [&]() {
+      return simPdf.createNLL(combData, Range("SideBandLo,SideBandHi"), SplitRange(), EvalBackend::Cpu());
+   });
+}
+
 /// Validate the mixture compilation when the dataset has entries for index
 /// states that have no pdf attached: the channel-splitting path silently
 /// drops those entries, which the mixture pdf reproduces with a data

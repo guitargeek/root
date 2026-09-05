@@ -59,14 +59,17 @@ in each category.
 #include "RooCompositeDataStore.h"
 #include "RooConstVar.h"
 #include "RooDataHist.h"
+#include "RooExtendPdf.h"
 #include "RooDataSet.h"
 #include "RooGlobalFunc.h"
 #include "RooMsgService.h"
 #include "RooNameReg.h"
+#include "RooNumber.h"
 #include "RooPlot.h"
 #include "RooProdPdf.h"
 #include "RooProduct.h"
 #include "RooRandom.h"
+#include "RooRatio.h"
 #include "RooRealSumPdf.h"
 #include "RooRealVar.h"
 #include "RooSimGenContext.h"
@@ -79,10 +82,15 @@ in each category.
 
 #include <ROOT/StringUtils.hxx>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <limits>
+#include <locale>
 #include <map>
+#include <sstream>
 #include <string_view>
 
 namespace {
@@ -1423,6 +1431,95 @@ MixtureIndexStandIns makeIndexStandIns(RooAbsCategoryLValue const &indexCat, Roo
    return out;
 }
 
+/// Whether a name can be spliced into a data-selection cut formula verbatim:
+/// formula metacharacters (like '-', '.', or spaces) in a name would be
+/// misinterpreted as operators by the cut parser.
+bool isFormulaSafeName(std::string_view name)
+{
+   if (name.empty() || std::isdigit(static_cast<unsigned char>(name.front()))) {
+      return false;
+   }
+   for (char c : name) {
+      if (!std::isalnum(static_cast<unsigned char>(c)) && c != '_') {
+         return false;
+      }
+   }
+   return true;
+}
+
+/// Format a range bound for use in a data-selection cut formula, with enough
+/// digits for an exact round trip. The formatting must not depend on the
+/// global locale: a comma decimal separator (e.g. from a German locale)
+/// would corrupt the cut expression.
+std::string boundToCutString(double val)
+{
+   std::stringstream ss;
+   ss.imbue(std::locale::classic());
+   ss << std::setprecision(std::numeric_limits<double>::max_digits10) << val;
+   return ss.str();
+}
+
+/// Build the "DataSelectionCut" expression for a ranged simultaneous fit: a
+/// data row is kept if it belongs to one of the kept channels and every
+/// real-valued observable of that channel lies inside one of the
+/// comma-separated subranges of the fit range (with per-channel range names
+/// when SplitRange() is used). This reproduces exactly the per-channel range
+/// selection that the channel-splitting path applies to the split datasets,
+/// including the closed range bounds and the fallback to the full variable
+/// range for observables on which a subrange is not defined.
+std::string rangeSelectionCut(RooSimultaneous const &simPdf,
+                              std::vector<std::pair<std::string, RooAbsCategory::value_type>> const &keptChannels,
+                              MixtureIndexStandIns const &indexStandIns, RooArgSet const &normSet,
+                              std::string const &rangeName, bool splitRange)
+{
+   std::string cut;
+   for (auto const &[catName, catIndex] : keptChannels) {
+      RooAbsPdf const &channelPdf = *simPdf.getPdf(catName.c_str());
+      RooArgSet channelObs;
+      channelPdf.getObservables(&normSet, channelObs);
+
+      std::string channelMatch;
+      auto const &targets = indexStandIns.channelTargets.at(catIndex);
+      for (std::size_t i = 0; i < indexStandIns.standIns.size(); ++i) {
+         if (i > 0) {
+            channelMatch += " && ";
+         }
+         channelMatch += std::string(indexStandIns.standIns[i]->GetName()) + " == " + std::to_string(targets[i]);
+      }
+
+      std::string rangesCut;
+      for (auto const &token : ROOT::Split(rangeName, ",", /*skipEmpty=*/true)) {
+         const std::string channelToken = splitRange ? token + "_" + catName : token;
+         std::string tokenCut;
+         for (RooAbsArg *arg : channelObs) {
+            auto *lval = dynamic_cast<RooAbsRealLValue const *>(arg);
+            if (!lval) {
+               continue;
+            }
+            RooAbsBinning const &binning = lval->getBinning(channelToken.c_str(), /*verbose=*/false);
+            if (!RooNumber::isInfinite(binning.lowBound())) {
+               tokenCut += (tokenCut.empty() ? "" : " && ") + std::string(lval->GetName()) +
+                           " >= " + boundToCutString(binning.lowBound());
+            }
+            if (!RooNumber::isInfinite(binning.highBound())) {
+               tokenCut += (tokenCut.empty() ? "" : " && ") + std::string(lval->GetName()) +
+                           " <= " + boundToCutString(binning.highBound());
+            }
+         }
+         if (tokenCut.empty()) {
+            tokenCut = "1";
+         }
+         rangesCut += (rangesCut.empty() ? "" : " || ") + ("(" + tokenCut + ")");
+      }
+      if (rangesCut.empty()) {
+         rangesCut = "1";
+      }
+
+      cut += (cut.empty() ? "" : " || ") + ("(" + channelMatch + " && (" + rangesCut + "))");
+   }
+   return cut;
+}
+
 /// Variant of the mixture compilation for a simultaneous pdf whose channels
 /// all use the binned likelihood optimization. The compiled pdf is a single
 /// unnormalized sum of the indicator-gated channel yields,
@@ -1443,20 +1540,15 @@ template <typename FallBackFunc>
 std::unique_ptr<RooAbsArg>
 compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet,
                              RooFit::Detail::CompileContext &ctx, MixtureIndexStandIns indexStandIns,
+                             std::vector<std::pair<std::string, RooAbsCategory::value_type>> const &keptChannels,
                              std::string const &dataSelectionCut, FallBackFunc const &fallBack)
 {
-   RooAbsCategoryLValue const &indexCat = simPdf.indexCat();
-
    RooArgList prods;
 
    std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
 
-   for (auto const &catState : indexCat) {
+   for (auto const &catState : keptChannels) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
-      if (!channelPdf) {
-         // Handled by the data selection cut, see compileSimPdfAsMixture().
-         continue;
-      }
 
       auto [seenIt, inserted] = seenChannelPdfs.emplace(channelPdf->GetName(), channelPdf);
       if (!inserted && seenIt->second != channelPdf) {
@@ -1630,9 +1722,9 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    if (!indexStandIns.error.empty()) {
       return fallBack(indexStandIns.error);
    }
-   if (simPdf.getStringAttribute("RangeName")) {
-      return fallBack("ranged fits are not supported yet");
-   }
+   const char *rangeNamePtr = simPdf.getStringAttribute("RangeName");
+   const std::string rangeName = rangeNamePtr ? rangeNamePtr : "";
+   const bool splitRange = simPdf.getAttribute("SplitRange");
    for (RooAbsArg *arg : normSet) {
       if (arg->getAttribute("__conditional__") && arg->isCategory()) {
          // Conditioning on continuous observables just excludes them from
@@ -1647,10 +1739,19 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    // optimization, the simultaneous pdf is compiled into a single
    // concatenated binned likelihood instead of a normalized mixture pdf.
    // Mixed binned/unbinned configurations are not supported.
-   std::size_t nChannels = 0;
    std::size_t nBinnedL = 0;
    std::vector<RooAbsCategory::value_type> droppedStates;
+   std::vector<std::pair<std::string, RooAbsCategory::value_type>> keptChannels;
+   auto const *indexCatAsRooCategory = dynamic_cast<RooCategory const *>(&indexCat);
    for (auto const &catState : indexCat) {
+      // Skip channels excluded by a category range (only RooCategory
+      // supports ranges on categorical values), like the channel-splitting
+      // path does.
+      if (!rangeName.empty() && indexCatAsRooCategory &&
+          !indexCatAsRooCategory->isStateInRange(rangeName.c_str(), catState.second)) {
+         droppedStates.push_back(catState.second);
+         continue;
+      }
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
       if (!channelPdf) {
          // The channel-splitting path silently drops the data entries of
@@ -1660,17 +1761,49 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
          droppedStates.push_back(catState.second);
          continue;
       }
-      ++nChannels;
+      keptChannels.emplace_back(catState.first, catState.second);
       if (RooHelpers::getBinnedL(*channelPdf).isBinnedL) {
          ++nBinnedL;
       }
    }
+   const std::size_t nChannels = keptChannels.size();
    if (nChannels == 0) {
       return fallBack("there are no channels");
    }
-   const std::string dataSelectionCut = indexStandIns.exclusionCut(droppedStates);
+   // The data selection is expressed as a cut formula, so any name spliced
+   // into it must parse as a plain identifier.
+   if (!droppedStates.empty() || !rangeName.empty()) {
+      for (auto const &standIn : indexStandIns.standIns) {
+         if (!isFormulaSafeName(standIn->GetName())) {
+            return fallBack("the index category name \"" + std::string(standIn->GetName()) +
+                            "\" can't be used in a data selection cut formula");
+         }
+      }
+   }
+   if (!rangeName.empty()) {
+      for (auto const &catState : keptChannels) {
+         RooArgSet channelObs;
+         simPdf.getPdf(catState.first.c_str())->getObservables(&normSet, channelObs);
+         for (RooAbsArg *arg : channelObs) {
+            if (dynamic_cast<RooAbsRealLValue const *>(arg) && !isFormulaSafeName(arg->GetName())) {
+               return fallBack("the observable name \"" + std::string(arg->GetName()) +
+                               "\" can't be used in a data selection cut formula");
+            }
+         }
+      }
+   }
+   // With a fit range, the complete row selection is encoded in the data
+   // selection cut. Without one, only the entries of the dropped states have
+   // to be excluded.
+   const std::string dataSelectionCut =
+      rangeName.empty() ? indexStandIns.exclusionCut(droppedStates)
+                        : rangeSelectionCut(simPdf, keptChannels, indexStandIns, normSet, rangeName, splitRange);
    if (nBinnedL == nChannels) {
-      return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, std::move(indexStandIns), dataSelectionCut, fallBack);
+      if (!rangeName.empty()) {
+         return fallBack("ranged fits with binned-likelihood channels are not supported yet");
+      }
+      return compileSimPdfAsBinnedMixture(simPdf, normSet, ctx, std::move(indexStandIns), keptChannels,
+                                          dataSelectionCut, fallBack);
    }
    if (nBinnedL > 0) {
       return fallBack("mixed binned-likelihood and unbinned channels are not supported yet");
@@ -1692,12 +1825,8 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
 
    std::map<std::string, RooAbsPdf const *> seenChannelPdfs;
 
-   for (auto const &catState : indexCat) {
+   for (auto const &catState : keptChannels) {
       RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
-      if (!channelPdf) {
-         // Handled by the data selection cut, see above.
-         continue;
-      }
       auto [seenIt, inserted] = seenChannelPdfs.emplace(channelPdf->GetName(), channelPdf);
       if (!inserted && seenIt->second != channelPdf) {
          // Two different pdf objects with the same name would collide in
@@ -1733,9 +1862,94 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       return fallBack("extended fit with non-extendable channel pdfs");
    }
 
+   if (!rangeName.empty() && splitRange && seenChannelPdfs.size() < keptChannels.size()) {
+      // With per-channel fit ranges, a pdf object shared between channels
+      // would need several normalization ranges at the same time, and in
+      // extended fits, the per-channel range fractions would be
+      // identically-named integrals with different ranges that the
+      // name-keyed deduplication of the graph compilation would wrongly
+      // merge.
+      return fallBack("the same pdf is used in several channels of a fit with per-channel ranges");
+   }
+
    std::unique_ptr<RooAddPdf> mixture;
    std::unique_ptr<RooConstVar> coefVar;
-   if (ctx.extendedMode()) {
+   RooArgList rangedCoefs;
+   if (ctx.extendedMode() && !rangeName.empty()) {
+      // For a ranged extended fit, the coefficients are the expected events
+      // inside the fit range: the full-range expected events of each channel,
+      // scaled by the fraction of the channel pdf inside the (possibly split)
+      // range. They are built explicitly here, because the all-extendable
+      // compilation of RooAddPdf would create the expected-events functions
+      // from the still-uncompiled channel pdfs, where the range correction
+      // (which relies on range-normalized component pdfs) does not apply.
+      RooArgList coefs;
+      for (auto const &catState : keptChannels) {
+         RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
+         RooArgSet channelObs;
+         channelPdf->getObservables(&normSet, channelObs);
+         const std::string channelRange =
+            RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, catState.first);
+
+         // Resolve the pdf that carries the extension, unwrapping RooProdPdfs
+         // (the common way to attach constraint terms) recursively, because
+         // products can be nested in layered constraint attachment.
+         RooAbsPdf const *extendCore = channelPdf;
+         while (auto *prod = dynamic_cast<RooProdPdf const *>(extendCore)) {
+            RooAbsPdf const *extendComponent = nullptr;
+            for (auto *component : static_range_cast<RooAbsPdf *>(prod->pdfList())) {
+               if (component->canBeExtended()) {
+                  extendComponent = component;
+                  break;
+               }
+            }
+            if (!extendComponent) {
+               break;
+            }
+            extendCore = extendComponent;
+         }
+
+         std::unique_ptr<RooAbsReal> coef;
+         if (auto *extendPdf = dynamic_cast<RooExtendPdf const *>(extendCore)) {
+            if (extendPdf->getRangeName()) {
+               return fallBack("RooExtendPdf with a range to interpret the yield in is not supported yet in ranged "
+                               "extended fits");
+            }
+            // The yield of a plain RooExtendPdf directly means the expected
+            // number of events in the fit range, with no range correction.
+            coef = channelPdf->createExpectedEventsFunc(&channelObs);
+            coef->SetName((std::string(simPdf.GetName()) + "_" + catState.first + "_mixtureExpected").c_str());
+         } else {
+            // For coefficient-extended pdfs like RooAddPdf, the yields mean
+            // the expected events over the full observable range, and the
+            // expected events in the fit range are obtained by scaling with
+            // the fraction of the channel pdf inside the (possibly split)
+            // range. The fraction is a ratio of two integrals over the
+            // channel pdf, instead of a single normalized integral over the
+            // fit range: the ratio is invariant under any rescaling of the
+            // integrand, so it stays correct when the graph compilation
+            // redirects the integrals to the compiled channel pdf, which is
+            // normalized over the fit range.
+            std::unique_ptr<RooAbsReal> rawYield{channelPdf->createExpectedEventsFunc(&channelObs)};
+            std::unique_ptr<RooAbsReal> intRange{
+               channelPdf->createIntegral(channelObs, channelObs, channelRange.c_str())};
+            std::unique_ptr<RooAbsReal> intFull{channelPdf->createIntegral(channelObs, channelObs)};
+            std::string fracName = std::string(simPdf.GetName()) + "_" + catState.first + "_mixtureRangeFrac";
+            auto frac = std::make_unique<RooRatio>(fracName.c_str(), fracName.c_str(), *intRange, *intFull);
+            frac->addOwnedComponents(std::move(intRange));
+            frac->addOwnedComponents(std::move(intFull));
+            std::string coefName = std::string(simPdf.GetName()) + "_" + catState.first + "_mixtureExpected";
+            auto coefProd =
+               std::make_unique<RooProduct>(coefName.c_str(), coefName.c_str(), RooArgList(*rawYield, *frac));
+            coefProd->addOwnedComponents(std::move(rawYield));
+            coefProd->addOwnedComponents(std::move(frac));
+            coef = std::move(coefProd);
+         }
+         coefs.add(*coef);
+         rangedCoefs.addOwned(std::move(coef));
+      }
+      mixture = std::make_unique<RooAddPdf>(simPdf.GetName(), simPdf.GetTitle(), prods, coefs);
+   } else if (ctx.extendedMode()) {
       // All-extendable mode: the coefficients are the expected event yields.
       mixture = std::make_unique<RooAddPdf>(simPdf.GetName(), simPdf.GetTitle(), prods);
    } else {
@@ -1761,6 +1975,41 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    mixture->addOwnedComponents(std::move(prods));
    if (coefVar) {
       mixture->addOwnedComponents(std::move(coefVar));
+   }
+   if (!rangedCoefs.empty()) {
+      mixture->addOwnedComponents(std::move(rangedCoefs));
+   }
+
+   // Set the per-channel normalization ranges while the mixture is compiled,
+   // like the channel-splitting path does on its channel clones. Unlike that
+   // path, which only mutates the clones, this acts on the original channel
+   // pdfs, so the RAII guard restores the original settings afterwards, also
+   // when the compilation throws. A pdf object shared by several channels is
+   // recorded and set only once: recording it again would capture the range
+   // set in the first iteration instead of the user's original setting. The
+   // shared pdf gets the same range for all its channels anyway, because
+   // per-channel split ranges with shared pdfs fall back to channel
+   // splitting.
+   struct NormRangeRestorer {
+      std::vector<std::pair<RooAbsPdf *, std::string>> entries;
+      ~NormRangeRestorer()
+      {
+         for (auto const &item : entries) {
+            item.first->setNormRange(item.second.empty() ? nullptr : item.second.c_str());
+         }
+      }
+   } normRangeRestorer;
+   if (!rangeName.empty()) {
+      for (auto const &catState : keptChannels) {
+         RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
+         auto &entries = normRangeRestorer.entries;
+         if (std::any_of(entries.begin(), entries.end(), [&](auto const &item) { return item.first == channelPdf; })) {
+            continue;
+         }
+         entries.emplace_back(channelPdf, channelPdf->normRange() ? channelPdf->normRange() : "");
+         channelPdf->setNormRange(
+            RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, catState.first).c_str());
+      }
    }
 
    std::unique_ptr<RooAbsArg> compiled = mixture->compileForNormSet(mixtureNormSet, ctx);
