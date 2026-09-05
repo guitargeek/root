@@ -1741,7 +1741,8 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
          // expected-events functions) deduplicate to one shared clone.
          return fallBack("two channels use different pdfs with the same name \"" + seenIt->first + "\"");
       }
-      if (RooHelpers::getBinnedL(*channelPdf).isBinnedL && !binnedChannelHasBinWidthFunction(*channelPdf)) {
+      if (ctx.likelihoodMode() && RooHelpers::getBinnedL(*channelPdf).isBinnedL &&
+          !binnedChannelHasBinWidthFunction(*channelPdf)) {
          // See compileSimPdfAsBinnedMixture().
          return fallBack("the binned-likelihood pdf of channel \"" + catState.first +
                          "\" has no RooBinWidthFunction, so its values can't be interpreted as bin yields");
@@ -1776,11 +1777,19 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
    // (concurrent evaluators would clash on its data token).
    std::string coefName = std::string(simPdf.GetName()) + "_mixtureCoef";
    auto coefVar = std::make_unique<RooConstVar>(coefName.c_str(), coefName.c_str(), 1.0);
+   // Weight-variable placeholder for the per-channel weight sums of a
+   // chi-squared mixture; the chi-squared likelihood connects its own weight
+   // variable to the compiled weight-sum nodes (see RooChannelWeightSum).
+   std::unique_ptr<RooConstVar> chi2WeightVar;
+   if (ctx.chi2Mode()) {
+      std::string weightName = std::string(simPdf.GetName()) + "_mixtureChi2Weight";
+      chi2WeightVar = std::make_unique<RooConstVar>(weightName.c_str(), weightName.c_str(), 1.0);
+   }
 
    for (const bool binnedPass : {true, false}) {
       for (auto const &catState : keptChannels) {
          RooAbsPdf *channelPdf = simPdf.getPdf(catState.first.c_str());
-         if (RooHelpers::getBinnedL(*channelPdf).isBinnedL != binnedPass) {
+         if ((ctx.likelihoodMode() && RooHelpers::getBinnedL(*channelPdf).isBinnedL) != binnedPass) {
             continue;
          }
          std::string baseName = std::string(simPdf.GetName()) + "_" + catState.first;
@@ -1871,6 +1880,15 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
                      coef = std::move(coefProd);
                   }
                }
+            } else if (ctx.chi2Mode()) {
+               // For a chi-squared without a yield coefficient, the expected
+               // channel count is the sum of the data weights of the channel
+               // rows, mirroring the per-channel weight-sum normalization
+               // factor of the channel-splitting path (see
+               // RooNLLVarNew::doEvalChi2() for FuncMode::Pdf).
+               std::string wsName = baseName + "_mixtureWeightSum";
+               coef = std::make_unique<RooFit::Detail::RooChannelWeightSum>(wsName.c_str(), wsName.c_str(), *indicator,
+                                                                            *chi2WeightVar);
             }
          }
          term->addOwnedComponents(std::move(indicator));
@@ -1957,10 +1975,17 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
    }
    ctx.compileServers(*mixture, {}); // the remaining servers: the coefficients
 
-   // The per-channel likelihoods of the channel-splitting path each add the
-   // legacy sumOfWeights * log(nChannels) term, so the concatenated
-   // likelihood has to be asked to do the same.
-   mixture->setStringAttribute("SimCount", std::to_string(keptChannels.size()).c_str());
+   if (ctx.chi2Mode()) {
+      // The chi-squared likelihood uses the row values directly: the
+      // per-channel normalization factors (yields or data weight sums) are
+      // already folded into the coefficients above.
+      mixture->setAttribute("MixtureChi2Active");
+   } else {
+      // The per-channel likelihoods of the channel-splitting path each add
+      // the legacy sumOfWeights * log(nChannels) term, so the concatenated
+      // likelihood has to be asked to do the same.
+      mixture->setStringAttribute("SimCount", std::to_string(keptChannels.size()).c_str());
+   }
    if (!dataSelectionCut.empty()) {
       mixture->setStringAttribute("DataSelectionCut", dataSelectionCut.c_str());
    }
@@ -2010,7 +2035,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       ctx.markAsCompiled(*mask);
       mixture->addServer(*mask, true, false);
       mixture->addOwnedComponents(std::move(mask));
-   } else if (ctx.extendedMode()) {
+   } else if (ctx.extendedMode() && !ctx.chi2Mode()) {
       // For a purely unbinned gated sum, the standard unbinned likelihood
       // reduction applies; only the extended-term handling changes, because
       // the rows already carry the per-channel -log(expected yield) parts.
@@ -2021,7 +2046,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       mixture->setAttribute("MixtureFoldedExtendedEvents");
    }
 
-   if (!expectedFuncs.empty()) {
+   if (!expectedFuncs.empty() && !ctx.chi2Mode()) {
       // The summed expected events of the extendable channels, added to the
       // likelihood by RooNLLVarNew. The sum is built over the template
       // expected-events functions and compiled, so that its inputs
@@ -2114,6 +2139,10 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
       coef->SetName((std::string("_") + coef->GetName()).c_str());
    }
    coefVar->SetName((std::string("_") + coefVar->GetName()).c_str());
+   if (chi2WeightVar) {
+      chi2WeightVar->SetName((std::string("_") + chi2WeightVar->GetName()).c_str());
+      mixture->addOwnedComponents(std::move(chi2WeightVar));
+   }
    mixture->addOwnedComponents(std::move(funcs));
    if (!ownedCoefs.empty()) {
       mixture->addOwnedComponents(std::move(ownedCoefs));
@@ -2207,7 +2236,7 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
          continue;
       }
       keptChannels.emplace_back(catState.first, catState.second);
-      if (RooHelpers::getBinnedL(*channelPdf).isBinnedL) {
+      if (ctx.likelihoodMode() && RooHelpers::getBinnedL(*channelPdf).isBinnedL) {
          ++nBinnedL;
       }
    }
@@ -2315,7 +2344,7 @@ RooSimultaneous::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::Com
    // downstream likelihood machinery needs no special treatment of the
    // simultaneous case. Only for likelihood compilation; unsupported
    // configurations fall through to the channel-splitting path below.
-   if (ctx.likelihoodMode() && simMixtureCompileRequested()) {
+   if ((ctx.likelihoodMode() || ctx.chi2Mode()) && simMixtureCompileRequested()) {
       if (std::unique_ptr<RooAbsArg> mixture = compileSimPdfAsMixture(*this, normSet, ctx)) {
          return mixture;
       }

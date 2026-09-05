@@ -750,6 +750,38 @@ void codegenImpl(RooFit::Detail::RooNormalizedPdf &arg, CodegenContext &ctx)
    ctx.addResult(&arg, ctx.getResult(arg.pdf()) + "/" + ctx.getResult(arg.normIntegral()));
 }
 
+void codegenImpl(RooFit::Detail::RooChannelWeightSum &arg, CodegenContext &ctx)
+{
+   // The weight sum needs its own loop over all events, which must not be
+   // emitted at the point of use: that can lie inside the event loop of the
+   // likelihood, where a nested accumulation would re-run per event.
+   // Generate a separate function instead, and cache its value once in the
+   // outermost scope of the calling function. The thread-local marker
+   // distinguishes the outer request from the recursive one that
+   // buildFunction() makes to generate the body of the separate function.
+   static thread_local RooAbsArg const *generatingBody = nullptr;
+   std::string resName = RooFit::Detail::makeValidVarName(arg.GetName()) + "Result";
+   if (generatingBody != &arg) {
+      generatingBody = &arg;
+      struct MarkerGuard {
+         RooAbsArg const *&marker;
+         ~MarkerGuard() { marker = nullptr; }
+      } guard{generatingBody};
+      std::string funcName = ctx.buildFunction(arg, ctx.dependsOnData());
+      ctx.addToGlobalScope("const double " + resName + " = " + funcName + "(params, obs, xlArr);\n");
+      ctx.addResult(&arg, resName);
+      return;
+   }
+   // Body of the separate function: sum of the data weights over the rows
+   // selected by the channel indicator mask.
+   ctx.addResult(&arg, resName);
+   ctx.addToGlobalScope("double " + resName + " = 0.0;\n");
+   {
+      auto scope = ctx.beginLoop(&arg);
+      ctx.addToCodeBody(resName + " += " + ctx.getResult(arg.mask()) + " * " + ctx.getResult(arg.weightVar()) + ";\n");
+   }
+}
+
 void codegenImpl(RooFit::Detail::RooChannelIndicatorPdf &arg, CodegenContext &ctx)
 {
    std::string conditions;

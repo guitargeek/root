@@ -83,6 +83,45 @@ private:
    bool _scaleByWeightSum = false;
 };
 
+/// Sum of the event weights of one channel of a simultaneous mixture,
+/// selected by the channel indicator mask. Used as the per-channel expected
+/// count in non-extended chi-squared fits of simultaneous pdfs compiled into
+/// a mixture, where it plays the role that the dataset weight sum plays for
+/// a single-channel chi-squared (see RooNLLVarNew::doEvalChi2()). The weight
+/// variable is a placeholder until the chi-squared likelihood connects its
+/// own weight variable via setWeightVar().
+class RooChannelWeightSum : public RooAbsReal {
+public:
+   RooChannelWeightSum(const char *name, const char *title, RooAbsReal &mask, RooAbsReal &weightVar)
+      : RooAbsReal(name, title),
+        _mask{"!mask", "mask", this, mask, true, false},
+        _weightVar{"!weightVar", "weightVar", this, weightVar, true, false}
+   {
+   }
+   RooChannelWeightSum(const RooChannelWeightSum &other, const char *name = nullptr)
+      : RooAbsReal(other, name), _mask{"!mask", this, other._mask}, _weightVar{"!weightVar", this, other._weightVar}
+   {
+   }
+   TObject *clone(const char *newname) const override { return new RooChannelWeightSum(*this, newname); }
+
+   /// Point the weight proxy to the weight variable of the likelihood.
+   void setWeightVar(RooAbsReal &weightVar) { _weightVar.setArg(weightVar); }
+
+   RooAbsReal const &mask() const { return *_mask; }
+   RooAbsReal const &weightVar() const { return *_weightVar; }
+
+   bool isReducerNode() const override { return true; }
+   void doEval(RooFit::EvalContext &ctx) const override;
+
+private:
+   double evaluate() const override { return _value; } // should never be called
+
+   RooTemplateProxy<RooAbsReal> _mask;
+   RooTemplateProxy<RooAbsReal> _weightVar;
+
+   ClassDefOverride(RooFit::Detail::RooChannelWeightSum, 0);
+};
+
 class RooNLLVarNew : public RooAbsReal {
 
 public:

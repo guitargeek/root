@@ -56,6 +56,11 @@ public:
    // Only meaningful if likelihoodMode() is also true.
    void setBinOffsetMode(bool flag) { _binOffsetMode = flag; }
    bool binOffsetMode() const { return _binOffsetMode; }
+   // Whether this computation graph is compiled for a chi-squared fit. Like
+   // likelihoodMode(), this enables the simultaneous mixture compilation;
+   // the two modes are mutually exclusive.
+   void setChi2Mode(bool flag) { _chi2Mode = flag; }
+   bool chi2Mode() const { return _chi2Mode; }
    void setBinnedLikelihoodMode(bool flag) { _binnedLikelihoodMode = flag; }
    bool binnedLikelihoodMode() const { return _binnedLikelihoodMode; }
    void setBinWidthFuncFlag(bool flag) { _binWidthFuncFlag = flag; }
@@ -73,6 +78,7 @@ private:
 
    bool _likelihoodMode = false;
    bool _extendedMode = false;
+   bool _chi2Mode = false;
    bool _binOffsetMode = false;
    bool _binnedLikelihoodMode = false;
    bool _binWidthFuncFlag = false;

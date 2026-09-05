@@ -66,6 +66,21 @@ std::unique_ptr<RooConstVar> dummyVar(const char *name)
 
 } // namespace
 
+void RooChannelWeightSum::doEval(RooFit::EvalContext &ctx) const
+{
+   std::span<const double> mask = ctx.at(_mask);
+   std::span<const double> weights = ctx.at(_weightVar);
+
+   ROOT::Math::KahanSum<double> sum;
+   const std::size_t n = std::max(mask.size(), weights.size());
+   for (std::size_t i = 0; i < n; ++i) {
+      if (mask[mask.size() == 1 ? 0 : i] > 0.5) {
+         sum += weights[weights.size() == 1 ? 0 : i];
+      }
+   }
+   ctx.output()[0] = sum.Sum();
+}
+
 void RooOffsetPdf::doEval(RooFit::EvalContext &ctx) const
 {
    std::span<double> output = ctx.output();
@@ -128,6 +143,21 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
       // empty).
       setAttribute("Chi2EvaluationActive");
       _funcMode = !pdf ? FuncMode::Function : (cfg.extended ? FuncMode::ExtendedPdf : FuncMode::Pdf);
+      if (pdf && pdf->getAttribute("MixtureChi2Active")) {
+         // A simultaneous pdf compiled into a chi-squared mixture folds the
+         // per-channel normalization factors (the expected channel yields,
+         // or the per-channel data weight sums via RooChannelWeightSum
+         // nodes) into its rows, so the values are used directly. The
+         // weight-summing nodes still need this likelihood's weight
+         // variable.
+         _funcMode = FuncMode::Function;
+         std::unique_ptr<RooArgSet> components{pdf->getComponents()};
+         for (RooAbsArg *component : *components) {
+            if (auto *weightSum = dynamic_cast<RooChannelWeightSum *>(component)) {
+               weightSum->setWeightVar(*_weightVar);
+            }
+         }
+      }
    } else {
       _binnedL = pdf && pdf->getAttribute("BinnedLikelihoodActive");
       _mixedBinnedL = pdf && pdf->getAttribute("MixedBinnedLikelihoodActive");

@@ -1785,3 +1785,77 @@ TEST(RooSimultaneous, MixtureCompilationPartiallyExtended)
    setParams(false);
    EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
 }
+
+/// Validate the mixture compilation for chi-squared fits of simultaneous
+/// pdfs, in both the non-extended mode (where the per-channel normalization
+/// factors are the channel data weight sums) and the extended mode (where
+/// they are the expected channel yields).
+TEST(RooSimultaneous, MixtureCompilationChi2)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   // The channels share the observable, so that the per-channel histograms
+   // have a consistent layout for the combined dataset.
+   RooRealVar x{"x", "x", -8, 8};
+   x.setBins(16);
+   RooRealVar m1{"m1", "m1", 0., -3., 3.};
+   RooRealVar m2{"m2", "m2", 3., 0., 6.};
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10.};
+   RooGaussian g1{"g1", "g1", x, m1, sigma};
+   RooGaussian g2{"g2", "g2", x, m2, sigma};
+   RooRealVar n1{"n1", "n1", 1000., 0., 100000.};
+   RooRealVar n2{"n2", "n2", 2000., 0., 100000.};
+   RooExtendPdf e1{"e1", "e1", g1, n1};
+   RooExtendPdf e2{"e2", "e2", g2, n2};
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &e1}, {"two", &e2}}, sample};
+
+   std::unique_ptr<RooDataSet> data1{g1.generate(x, 1000)};
+   std::unique_ptr<RooDataSet> data2{g2.generate(x, 2000)};
+   std::unique_ptr<RooDataHist> hist1{data1->binnedClone("hist1")};
+   std::unique_ptr<RooDataHist> hist2{data2->binnedClone("hist2")};
+   RooDataHist combHist("combHist", "combHist", x, sample,
+                        std::map<std::string, RooDataHist *>{{"one", hist1.get()}, {"two", hist2.get()}});
+
+   auto setParams = [&](bool alternative) {
+      sigma.setVal(alternative ? 1.5 : 1.0);
+      m1.setVal(alternative ? 0.5 : 0.0);
+      n1.setVal(alternative ? 900. : 1000.);
+   };
+
+   for (bool extended : {false, true}) {
+      double refVal = 0.0;
+      double refValAlt = 0.0;
+      {
+         std::unique_ptr<RooAbsReal> chi2Ref{simPdf.createChi2(combHist, EvalBackend::Cpu(), Extended(extended))};
+         refVal = chi2Ref->getVal();
+         setParams(true);
+         refValAlt = chi2Ref->getVal();
+         setParams(false);
+      }
+
+      RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+      ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+      std::unique_ptr<RooAbsReal> chi2Mix{simPdf.createChi2(combHist, EvalBackend::Cpu(), Extended(extended))};
+
+      const char *label = extended ? "extended" : "non-extended";
+
+      EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+         << label << ": the mixture compilation fell back to channel splitting:\n"
+         << hijack.str();
+
+      EXPECT_THAT(chi2Mix->getVal(), RelativeNear(refVal, 1e-12)) << label;
+      setParams(true);
+      EXPECT_THAT(chi2Mix->getVal(), RelativeNear(refValAlt, 1e-12)) << label << ", after parameter change";
+      setParams(false);
+      EXPECT_THAT(chi2Mix->getVal(), RelativeNear(refVal, 1e-12)) << label << ", after parameter reset";
+   }
+}
