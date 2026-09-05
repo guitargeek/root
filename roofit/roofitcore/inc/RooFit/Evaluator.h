@@ -65,12 +65,15 @@ private:
    void syncDataTokens();
    void setupLogEvaluation();
    void updateOutputSizes();
+   void rangeRestrictionAnalysis();
+   void prepareInputSpans(NodeInfo &info);
 
    std::unique_ptr<RooBatchCompute::AbsBufferManager> _bufferManager;
    RooAbsReal &_topNode;
    const bool _useGPU = false;
    int _nEvaluations = 0;
    bool _needToUpdateOutputSizes = false;
+   bool _hasRestrictedNodes = false;
    RooFit::EvalContext _evalContextCPU;
    RooFit::EvalContext _evalContextCUDA;
    std::vector<NodeInfo> _nodes;                             // the ordered computation graph
