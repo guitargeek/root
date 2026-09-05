@@ -833,6 +833,14 @@ double RooAddPdf::expectedEvents(const RooArgSet* nset) const
 
 std::unique_ptr<RooAbsReal> RooAddPdf::createExpectedEventsFunc(const RooArgSet *nset) const
 {
+   // Restrict to the observables that this pdf actually depends on: variables
+   // in nset that are not dependents (e.g. the channel index stand-in when
+   // this pdf is the component of a simultaneous mixture) must not enter the
+   // normalization integrals below.
+   RooArgSet obs;
+   getObservables(nset, obs);
+   nset = &obs;
+
    std::unique_ptr<RooAbsReal> out;
 
    auto name = std::string(GetName()) + "_expectedEvents";
