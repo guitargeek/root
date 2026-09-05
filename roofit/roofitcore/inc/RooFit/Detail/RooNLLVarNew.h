@@ -20,12 +20,68 @@
 #include <RooAbsReal.h>
 #include <RooDataHist.h>
 #include <RooGlobalFunc.h>
+#include <RooSetProxy.h>
 #include <RooTemplateProxy.h>
 
 #include <Math/Util.h>
 
+#include <memory>
+
 namespace RooFit {
 namespace Detail {
+
+/// Template pdf built from the fit dataset, used for the bin-by-bin
+/// likelihood offsetting (the Offset("bin") option of createNLL()). With a
+/// mask, only the unmasked rows enter the template histogram, so that a
+/// simultaneous pdf compiled into a mixture can build one template per
+/// channel, normalized over the channel's own weight sum. With
+/// `scaleByWeightSum`, the template values are scaled by sumOfWeights/e,
+/// which absorbs the weight-sum-dependent parts of the per-channel offset
+/// extended term of the channel-splitting path (see the implementation of
+/// doEval()).
+class RooOffsetPdf : public RooAbsPdf {
+public:
+   RooOffsetPdf(const char *name, const char *title, RooArgSet const &observables, RooAbsReal &weightVar,
+                RooAbsReal *mask = nullptr, bool scaleByWeightSum = false)
+      : RooAbsPdf(name, title),
+        _observables("!observables", "List of observables", this),
+        _weightVar{"!weightVar", "weightVar", this, weightVar, true, false},
+        _scaleByWeightSum{scaleByWeightSum}
+   {
+      for (RooAbsArg *obs : observables) {
+         _observables.add(*obs);
+      }
+      if (mask) {
+         _mask = std::make_unique<RooTemplateProxy<RooAbsReal>>("!mask", "mask", this, *mask, true, false);
+      }
+   }
+   RooOffsetPdf(const RooOffsetPdf &other, const char *name = nullptr)
+      : RooAbsPdf(other, name),
+        _observables("!servers", this, other._observables),
+        _weightVar{"!weightVar", this, other._weightVar},
+        _scaleByWeightSum{other._scaleByWeightSum}
+   {
+      if (other._mask) {
+         _mask = std::make_unique<RooTemplateProxy<RooAbsReal>>("!mask", this, *other._mask);
+      }
+   }
+   TObject *clone(const char *newname) const override { return new RooOffsetPdf(*this, newname); }
+
+   /// Point the weight proxy to the weight variable of the likelihood; used
+   /// when the offset pdf was created before the likelihood, by the
+   /// simultaneous mixture compilation.
+   void setWeightVar(RooAbsReal &weightVar) { _weightVar.setArg(weightVar); }
+
+   void doEval(RooFit::EvalContext &ctx) const override;
+
+private:
+   double evaluate() const override { return 0.0; } // should never be called
+
+   RooSetProxy _observables;
+   RooTemplateProxy<RooAbsReal> _weightVar;
+   std::unique_ptr<RooTemplateProxy<RooAbsReal>> _mask;
+   bool _scaleByWeightSum = false;
+};
 
 class RooNLLVarNew : public RooAbsReal {
 
