@@ -78,11 +78,17 @@ protected:
 
 private:
    void createFuncWrapper();
+   RooAbsData *dataForEval() const { return _selectedData ? _selectedData.get() : _data; }
 
    std::shared_ptr<RooFit::Evaluator> _evaluator;
    std::shared_ptr<RooFuncWrapper> _funcWrapper;
    RooRealProxy _topNode;
    RooAbsData *_data = nullptr;
+   /// Reduced copy of the dataset, created when the compiled pdf declares
+   /// with the "DataSelectionCut" attribute that it only describes a subset
+   /// of the data rows (e.g. a simultaneous mixture with states that have no
+   /// pdf attached).
+   std::unique_ptr<RooAbsData> _selectedData;
    RooSetProxy _paramSet;
    std::string _rangeName;
    RooAbsPdf const *_pdf = nullptr;
