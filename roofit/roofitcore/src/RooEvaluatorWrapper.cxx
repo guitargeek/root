@@ -23,11 +23,11 @@ Wraps a RooFit::Evaluator that evaluates a RooAbsReal back into a RooAbsReal.
 
 #include "RooEvaluatorWrapper.h"
 
-#include <Roo1DTable.h>
 #include <RooAbsData.h>
 #include <RooAbsPdf.h>
-#include <RooCategory.h>
 #include <RooMsgService.h>
+#include <RooFit/Detail/RooChannelIndicatorPdf.h>
+#include <RooRealSumPdf.h>
 #include <RooRealVar.h>
 #include <RooSimultaneous.h>
 
@@ -38,6 +38,7 @@ Wraps a RooFit::Evaluator that evaluates a RooAbsReal back into a RooAbsReal.
 #include <TInterpreter.h>
 
 #include <algorithm>
+#include <deque>
 #include <fstream>
 #include <functional>
 #include <limits>
@@ -131,13 +132,15 @@ void validateObservableRanges(RooAbsPdf const *pdf, RooAbsData const &data,
 // fastest). The optimization takes each entry as a bin, so any other layout
 // gives a wrong likelihood. Only bins that are not fully in the fit range can
 // be missing, and empty data is accepted, e.g. for a channel that is not in
-// the dataset. The `observables` are the ones of the pdf, named like the data
-// variables with a `prefix`, which is not empty for a RooSimultaneous channel.
+// the dataset. The `observables` are the ones of the pdf, and the `dataSpans`
+// have their values for the entries that the pdf is evaluated for, which are
+// the ones of the channel with the name `channelName` if that is not empty.
+// `givesYields` tells if the pdf values are bin yields and not densities.
 // `hasEntries` tells if there are entries before the range selection.
-void checkBinnedLikelihoodData(RooAbsPdf const &pdf, RooArgSet const &observables, RooAbsData const &data,
-                               std::string const &prefix, std::string const &channelName, std::string const &rangeName,
+void checkBinnedLikelihoodData(RooAbsReal const &pdf, RooArgSet const &observables, RooAbsData const &data,
+                               std::string const &channelName, std::string const &rangeName,
                                std::map<RooFit::Detail::DataKey, std::span<const double>> const &dataSpans,
-                               std::function<bool()> const &hasEntries)
+                               bool givesYields, std::function<bool()> const &hasEntries)
 {
    auto fail = [&](std::string const &reason) {
       std::stringstream errMsg;
@@ -182,8 +185,7 @@ void checkBinnedLikelihoodData(RooAbsPdf const &pdf, RooArgSet const &observable
 
    std::size_t nBins = 1;
    for (auto *dataVar : dynamic_range_cast<RooAbsRealLValue *>(*data.get())) {
-      auto *obs =
-         dataVar ? dynamic_cast<RooRealVar *>(observables.find((prefix + dataVar->GetName()).c_str())) : nullptr;
+      auto *obs = dataVar ? dynamic_cast<RooRealVar *>(observables.find(dataVar->GetName())) : nullptr;
       if (!obs)
          continue;
       auto found = dataSpans.find(RooFit::Detail::DataKey(obs));
@@ -279,7 +281,7 @@ void checkBinnedLikelihoodData(RooAbsPdf const &pdf, RooArgSet const &observable
 
    // Without RooBinWidthFunctions in the pdf, the likelihood multiplies the
    // pdf values with the width of the bin at the position of the entry
-   const bool usesBinWidths = !pdf.getAttribute("BinnedLikelihoodActiveYields") && dims.size() == 1;
+   const bool usesBinWidths = !givesYields && dims.size() == 1;
 
    // The bins that the next entry can be in start at one of these positions.
    // There is more than one if an entry at a bin boundary could be in a bin
@@ -334,46 +336,96 @@ void checkBinnedLikelihoodData(RooAbsPdf const &pdf, RooArgSet const &observable
 }
 
 // Runs checkBinnedLikelihoodData() for the pdf, or for the channels of a
-// RooSimultaneous, where the binned likelihood optimization is active.
+// simultaneous pdf that was compiled into a mixture, where the binned
+// likelihood optimization is active. In the mixture, the entries of a channel
+// are the ones that its indicator selects from the concatenated dataset, and
+// they have to be the bins of the channel in order, wherever they are in the
+// dataset (see RooSimultaneous::compileForNormSet()).
 void validateBinnedLikelihoodData(RooAbsPdf const *pdf, RooAbsData const &data, std::string const &rangeName,
                                   std::map<RooFit::Detail::DataKey, std::span<const double>> const &dataSpans)
 {
    if (!pdf)
       return;
 
-   auto const *simPdf = dynamic_cast<RooSimultaneous const *>(pdf);
-   if (simPdf && simPdf->indexCatIsObservable(*data.get())) {
-      RooAbsCategoryLValue const &simCat = simPdf->indexCat();
-      auto *simCatAsRooCategory = dynamic_cast<RooCategory const *>(&simCat);
-      const bool splitRange = simPdf->getAttribute("SplitRange");
-      // Only filled if needed, because it requires a loop over the data
-      std::unique_ptr<Roo1DTable> table;
-      for (auto const &nameIdx : simCat) {
-         std::string const &channelName = nameIdx.first;
-         RooAbsPdf *channelPdf = simPdf->getPdf(channelName);
-         if (!channelPdf || !channelPdf->getAttribute("BinnedLikelihoodActive"))
+   bool isMixture = false;
+   auto const *sumPdf = dynamic_cast<RooRealSumPdf const *>(pdf);
+   const RooArgList noTerms;
+   for (RooAbsArg *term : sumPdf ? sumPdf->funcList() : noTerms) {
+      const char *channelName = term->getStringAttribute("MixtureBinnedChannel");
+      if (!channelName)
+         continue;
+      isMixture = true;
+
+      // The term is the product of the channel indicator and the channel pdf
+      RooFit::Detail::RooChannelIndicatorPdf const *indicator = nullptr;
+      RooAbsReal const *channelPdf = nullptr;
+      for (RooAbsArg *server : term->servers()) {
+         if (!server->isValueServer(*term))
             continue;
-         // Channels excluded by a category range are not in the likelihood
-         if (!rangeName.empty() && simCatAsRooCategory &&
-             !simCatAsRooCategory->isStateInRange(rangeName.c_str(), nameIdx.second))
-            continue;
-         auto hasEntries = [&]() {
-            if (!table) {
-               table.reset(data.table(simCat));
-            }
-            return table->get(channelName.c_str(), /*silent=*/true) != 0.;
-         };
-         // See validateObservableRanges() for the observables and their prefix
-         std::unique_ptr<RooArgSet> vars{channelPdf->getVariables()};
-         std::unique_ptr<RooArgSet> obs{vars->selectByAttrib("__obs__", true)};
-         checkBinnedLikelihoodData(*channelPdf, *obs, data, "_" + channelName + "_", channelName,
-                                   RooHelpers::getRangeNameForSimComponent(rangeName, splitRange, channelName),
-                                   dataSpans, hasEntries);
+         if (server->getAttribute("BinaryMask")) {
+            indicator = dynamic_cast<RooFit::Detail::RooChannelIndicatorPdf const *>(server);
+         } else {
+            channelPdf = dynamic_cast<RooAbsReal const *>(server);
+         }
       }
-   } else if (pdf->getAttribute("BinnedLikelihoodActive")) {
+      if (!indicator || !channelPdf) {
+         throw std::logic_error(std::string("RooEvaluatorWrapper: the mixture term \"") + term->GetName() +
+                                "\" is not the product of a channel indicator and a channel pdf");
+      }
+
+      // The entries of the channel, selected like in RooChannelIndicatorPdf
+      std::vector<std::span<const double>> indexSpans;
+      std::size_t nEntries = 0;
+      for (RooAbsArg *indexVar : indicator->indexVars()) {
+         auto found = dataSpans.find(RooFit::Detail::DataKey(indexVar));
+         if (found == dataSpans.end()) {
+            throw std::logic_error(std::string("RooEvaluatorWrapper: the index \"") + indexVar->GetName() +
+                                   "\" of the simultaneous pdf is not in the data");
+         }
+         indexSpans.push_back(found->second);
+         nEntries = std::max(nEntries, found->second.size());
+      }
+      std::vector<std::size_t> entries;
+      for (std::size_t i = 0; i < nEntries; ++i) {
+         bool isInChannel = true;
+         for (std::size_t iVar = 0; iVar < indexSpans.size(); ++iVar) {
+            auto const &span = indexSpans[iVar];
+            isInChannel &= std::abs(span[span.size() == 1 ? 0 : i] - indicator->states()[iVar]) < 0.5;
+         }
+         if (isInChannel) {
+            entries.push_back(i);
+         }
+      }
+
+      RooArgSet obs;
+      channelPdf->getObservables(data.get(), obs);
+      std::deque<std::vector<double>> buffers;
+      std::map<RooFit::Detail::DataKey, std::span<const double>> channelSpans;
+      for (RooAbsArg *arg : obs) {
+         auto found = dataSpans.find(RooFit::Detail::DataKey(arg));
+         if (found == dataSpans.end())
+            continue;
+         auto const &span = found->second;
+         std::vector<double> &buffer = buffers.emplace_back();
+         buffer.reserve(entries.size());
+         for (std::size_t i : entries) {
+            buffer.push_back(span[span.size() == 1 ? 0 : i]);
+         }
+         channelSpans[found->first] = buffer;
+      }
+
+      // No range selection: the mixture compilation doesn't support ranged
+      // fits with channels that use the binned likelihood optimization.
+      checkBinnedLikelihoodData(*channelPdf, obs, data, channelName, "", channelSpans,
+                                term->getAttribute("MixtureBinnedChannelYields"), [&]() { return !entries.empty(); });
+   }
+
+   if (!isMixture && pdf->getAttribute("BinnedLikelihoodActive")) {
       RooArgSet obs;
       pdf->getObservables(data.get(), obs);
-      checkBinnedLikelihoodData(*pdf, obs, data, "", "", rangeName, dataSpans, [&]() { return data.numEntries() > 0; });
+      checkBinnedLikelihoodData(*pdf, obs, data, "", rangeName, dataSpans,
+                                pdf->getAttribute("BinnedLikelihoodActiveYields"),
+                                [&]() { return data.numEntries() > 0; });
    }
 }
 
