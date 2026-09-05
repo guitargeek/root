@@ -73,7 +73,7 @@ TEST(ParamHistFunc, ValidateND)
    std::unique_ptr<RooAbsReal> clone = RooFit::Detail::compileForNormSet<RooAbsReal>(paramHistFunc, *data.get());
    RooFit::Evaluator evaluator(*clone);
    std::stack<std::vector<double>> vectorBuffers;
-   auto dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(data, "", nullptr, /*skipZeroWeights=*/true,
+   auto dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(data, "", /*skipZeroWeights=*/true,
                                                                /*takeGlobalObservablesFromData=*/false, vectorBuffers);
    for (auto const &item : dataSpans) {
       evaluator.setInput(item.first->GetName(), item.second, false);

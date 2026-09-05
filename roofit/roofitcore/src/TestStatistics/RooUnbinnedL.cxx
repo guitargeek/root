@@ -67,7 +67,7 @@ RooUnbinnedL::RooUnbinnedL(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended e
       // the weights obtained from RooAbsData::getWeightBatch(). Events with
       // zero weight are skipped in the summation instead.
       auto dataSpans =
-         RooFit::BatchModeDataHelpers::getDataSpans(*data, "", nullptr, /*skipZeroWeights=*/false,
+         RooFit::BatchModeDataHelpers::getDataSpans(*data, "", /*skipZeroWeights=*/false,
                                                     /*takeGlobalObservablesFromData=*/false, _vectorBuffers);
       for (auto const &item : dataSpans) {
          evaluator_->setInput(item.first->GetName(), item.second, false);

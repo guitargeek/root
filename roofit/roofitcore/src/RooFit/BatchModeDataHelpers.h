@@ -25,12 +25,11 @@
 #include <vector>
 
 class RooAbsData;
-class RooSimultaneous;
 
 namespace RooFit::BatchModeDataHelpers {
 
 std::map<RooFit::Detail::DataKey, std::span<const double>>
-getDataSpans(RooAbsData const &data, std::string const &rangeName, RooSimultaneous const *simPdf, bool skipZeroWeights,
+getDataSpans(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights,
              bool takeGlobalObservablesFromData, std::stack<std::vector<double>> &buffers);
 
 std::map<RooFit::Detail::DataKey, std::size_t>

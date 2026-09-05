@@ -35,7 +35,6 @@ RooAbsPdf::fitTo() is called and gets destroyed when the fitting ends.
 #include <RooBatchCompute.h>
 #include <RooMsgService.h>
 #include <RooNameReg.h>
-#include <RooSimultaneous.h>
 
 #include <RooBatchCompute.h>
 

@@ -368,84 +368,6 @@ void resetFitrangeAttributes(RooAbsArg &pdf, RooAbsData const &data, std::string
    pdf.setStringAttribute("fitrange", fitrangeValue.substr(0, fitrangeValue.size() - 1).c_str());
 }
 
-/// Iterate the simultaneous pdf's categories and build one test-statistic term
-/// per channel via `makeTerm`. Channels excluded by the (optional) category
-/// range are skipped. The per-channel term's special variables are prefixed
-/// with `_<catName>_`. The terms are summed into a RooAddition named
-/// `combinedName`.
-template <typename TermFactory>
-std::unique_ptr<RooAddition> createSimultaneousStat(RooSimultaneous const &simPdf, std::string const &rangeName,
-                                                    std::string const &combinedName, TermFactory &&makeTerm)
-{
-   RooAbsCategoryLValue const &simCat = simPdf.indexCat();
-
-   RooArgList terms;
-   for (auto const &catState : simCat) {
-      std::string const &catName = catState.first;
-      RooAbsCategory::value_type catIndex = catState.second;
-
-      // Skip channels excluded by a category range (only RooCategory supports
-      // ranges on categorical values).
-      if (!rangeName.empty()) {
-         auto simCatAsRooCategory = dynamic_cast<RooCategory const *>(&simCat);
-         if (simCatAsRooCategory && !simCatAsRooCategory->isStateInRange(rangeName.c_str(), catIndex)) {
-            continue;
-         }
-      }
-
-      RooAbsPdf *channelPdf = simPdf.getPdf(catName.c_str());
-      if (!channelPdf) {
-         continue;
-      }
-      std::unique_ptr<RooArgSet> observables{
-         std::unique_ptr<RooArgSet>(channelPdf->getVariables())->selectByAttrib("__obs__", true)};
-      std::unique_ptr<RooNLLVarNew> term = makeTerm(*channelPdf, *observables);
-      term->setPrefix(std::string("_") + catName + "_");
-      terms.addOwned(std::move(term));
-   }
-
-   auto combined = std::make_unique<RooAddition>(combinedName.c_str(), combinedName.c_str(), terms);
-   combined->addOwnedComponents(std::move(terms));
-   return combined;
-}
-
-std::unique_ptr<RooAbsArg> createSimultaneousChi2(RooSimultaneous const &simPdf, std::string const &rangeName,
-                                                  bool isSimPdfExtended, RooDataHist::ErrorType etype)
-{
-   auto chi2 =
-      createSimultaneousStat(simPdf, rangeName, "simChi2", [&](RooAbsPdf &channelPdf, RooArgSet const &observables) {
-         RooNLLVarNew::Config cfg;
-         cfg.statistic = RooNLLVarNew::Statistic::Chi2;
-         cfg.extended = isSimPdfExtended && channelPdf.extendMode() != RooAbsPdf::CanNotBeExtended;
-         cfg.chi2ErrorType = etype;
-         auto name = std::string("chi2_") + channelPdf.GetName();
-         return std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), channelPdf, observables, cfg);
-      });
-   // Flag the top node so RooEvaluatorWrapper knows not to skip zero-weight bins
-   chi2->setAttribute("Chi2EvaluationActive");
-   return chi2;
-}
-
-std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, bool isSimPdfExtended,
-                                                 std::string const &rangeName, RooFit::OffsetMode offset)
-{
-   auto nll =
-      createSimultaneousStat(simPdf, rangeName, "mynll", [&](RooAbsPdf &channelPdf, RooArgSet const &observables) {
-         RooNLLVarNew::Config cfg;
-         // Only request extended NLLs for channels that can be extended.
-         cfg.extended = isSimPdfExtended && channelPdf.extendMode() != RooAbsPdf::CanNotBeExtended;
-         cfg.offsetMode = offset;
-         auto name = std::string("nll_") + channelPdf.GetName();
-         return std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), channelPdf, observables, cfg);
-      });
-
-   const int simCount = nll->list().size();
-   for (auto *child : static_range_cast<RooNLLVarNew *>(nll->list())) {
-      child->setSimCount(simCount);
-   }
-   return nll;
-}
-
 /// Apply the `IntegrateBins` precision to either a single pdf or in-place to
 /// the component pdfs of a RooSimultaneous. Newly-allocated wrapper pdfs are
 /// appended to `ownedOut`. The returned reference points either at one of
@@ -542,23 +464,15 @@ std::unique_ptr<RooAbsReal> createNLLNew(RooAbsPdf &pdf, RooAbsData &data, std::
    RooAbsPdf &finalPdf = applyIntegrateBinsWrapping(pdf, data, integrateOverBinsPrecision, binSamplingPdfs);
 
    RooArgList nllTerms;
-   auto *simPdf = dynamic_cast<RooSimultaneous *>(&finalPdf);
-   // A RooSimultaneous whose index category is not among the data columns is
-   // a "switch" pdf selecting the component given by the current index state
-   // (analogous to RooMultiPdf): there are no channels to split the NLL into,
-   // so it is treated like an ordinary pdf.
-   if (simPdf && simPdf->indexCatIsObservable(*data.get())) {
-      nllTerms.addOwned(createSimultaneousNLL(*simPdf, isExtended, rangeName, offset));
-   } else {
+   {
       RooNLLVarNew::Config cfg;
       cfg.extended = isExtended;
       cfg.offsetMode = offset;
       auto nllVar = std::make_unique<RooNLLVarNew>("RooNLLVarNew", "RooNLLVarNew", finalPdf, observables, cfg);
       // A pdf can request the legacy convention of adding sumOfWeights *
-      // log(simCount) to the NLL, like the per-channel NLLs of a simultaneous
-      // fit do. This is used by the experimental compilation of a
-      // RooSimultaneous into a mixture pdf to reproduce exactly the same NLL
-      // values as the channel-splitting likelihood.
+      // log(simCount) to the NLL. This is used by the mixture compilation of
+      // a RooSimultaneous to reproduce exactly the values of the historical
+      // per-channel simultaneous likelihoods.
       if (const char *simCount = finalPdf.getStringAttribute("SimCount")) {
          nllVar->setSimCount(std::atoi(simCount));
       }
@@ -1167,22 +1081,13 @@ std::unique_ptr<RooAbsReal> createChi2(RooAbsReal &real, RooDataHist &data, cons
          RooAbsPdf &finalPdf =
             applyIntegrateBinsWrapping(*pdfClone, data, pc.getDouble("integrate_bins"), binSamplingPdfs);
 
-         std::unique_ptr<RooAbsReal> chi2;
-         auto *simPdfClone = dynamic_cast<RooSimultaneous *>(&finalPdf);
-         // Like in createNLLNew(): a "switch"-mode RooSimultaneous (index
-         // category not among the data columns) is treated as an ordinary pdf.
-         if (simPdfClone && simPdfClone->indexCatIsObservable(*data.get())) {
-            chi2 = std::unique_ptr<RooAbsReal>{dynamic_cast<RooAbsReal *>(
-               createSimultaneousChi2(*simPdfClone, rangeName ? rangeName : "", extended, etype).release())};
-         } else {
-            RooArgSet observables;
-            finalPdf.getObservables(data.get(), observables);
-            RooNLLVarNew::Config cfg;
-            cfg.statistic = RooNLLVarNew::Statistic::Chi2;
-            cfg.extended = extended;
-            cfg.chi2ErrorType = etype;
-            chi2 = std::make_unique<RooNLLVarNew>(baseName.c_str(), baseName.c_str(), finalPdf, observables, cfg);
-         }
+         RooArgSet observables;
+         finalPdf.getObservables(data.get(), observables);
+         RooNLLVarNew::Config cfg;
+         cfg.statistic = RooNLLVarNew::Statistic::Chi2;
+         cfg.extended = extended;
+         cfg.chi2ErrorType = etype;
+         auto chi2 = std::make_unique<RooNLLVarNew>(baseName.c_str(), baseName.c_str(), finalPdf, observables, cfg);
 
          wrapper = std::make_unique<RooFit::Experimental::RooEvaluatorWrapper>(
             *chi2, &data, evalBackend == RooFit::EvalBackend::Value::Cuda, rangeName ? rangeName : "", pdfClone.get(),

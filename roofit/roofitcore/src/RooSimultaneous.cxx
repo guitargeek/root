@@ -1859,10 +1859,10 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
          } else {
             term =
                std::make_unique<RooProdPdf>(termName.c_str(), termName.c_str(), RooArgList(*indicator, *channelPdf));
-            // Mirror the per-channel extended flag of the legacy channel-splitting
-            // path (see FitHelpers::createSimultaneousNLL()): in an extended
-            // fit, only the extendable channels get yield coefficients and
-            // contribute to the expected-events total.
+            // Mirror the per-channel extended flag of the legacy
+            // channel-splitting evaluation: in an extended fit, only the
+            // extendable channels get yield coefficients and contribute to
+            // the expected-events total.
             if (ctx.extendedMode() && channelPdf->canBeExtended()) {
                RooArgSet channelObs;
                channelPdf->getObservables(&normSet, channelObs);
