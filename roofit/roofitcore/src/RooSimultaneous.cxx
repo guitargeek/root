@@ -1310,11 +1310,17 @@ struct MixtureIndexStandIns {
    }
 
    /// The normalization set for the mixture, with the index categories
-   /// replaced by their real-valued stand-ins.
+   /// replaced by their real-valued stand-ins. Conditional observables
+   /// (projected dependents) are excluded, like the channel-splitting path
+   /// excludes them from the per-channel normalization sets; they still feed
+   /// the compiled graph as data inputs.
    RooArgSet mixtureNormSet(RooArgSet const &normSet) const
    {
       RooArgSet out;
       for (RooAbsArg *arg : normSet) {
+         if (arg->getAttribute("__conditional__")) {
+            continue;
+         }
          RooAbsArg *repl = arg;
          for (auto const &standIn : standIns) {
             if (arg->namePtr() == standIn->namePtr()) {
@@ -1596,8 +1602,12 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
       return fallBack("ranged fits are not supported yet");
    }
    for (RooAbsArg *arg : normSet) {
-      if (arg->getAttribute("__conditional__")) {
-         return fallBack("conditional observables (projected dependents) are not supported yet");
+      if (arg->getAttribute("__conditional__") && arg->isCategory()) {
+         // Conditioning on continuous observables just excludes them from
+         // the normalization sets, but conditioning on the index category
+         // would contradict the mixture interpretation (and conditioning on
+         // other category observables is untested).
+         return fallBack("the category \"" + std::string(arg->GetName()) + "\" is a conditional observable");
       }
    }
 

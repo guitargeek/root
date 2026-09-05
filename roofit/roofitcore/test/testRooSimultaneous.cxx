@@ -13,6 +13,7 @@
 #include <RooExponential.h>
 #include <RooExtendPdf.h>
 #include <RooFitResult.h>
+#include <RooFormulaVar.h>
 #include <RooGaussian.h>
 #include <RooGenericPdf.h>
 #include <RooHelpers.h>
@@ -1144,6 +1145,72 @@ TEST(RooSimultaneous, MixtureCompilationSharedPdf)
       EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << label << ", after parameter change";
       setParams(false);
    }
+}
+
+/// Validate the mixture compilation with conditional observables (the
+/// ProjectedObservables command argument of createNLL): the conditional
+/// observables are excluded from the mixture normalization, reproducing the
+/// per-channel conditional normalization of the channel-splitting path.
+TEST(RooSimultaneous, MixtureCompilationConditionalObs)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   RooRealVar x{"x", "x", -10, 10};
+   RooRealVar y{"y", "y", 0.5, 2.0};
+   RooRealVar m1{"m1", "m1", 0., -3., 3.};
+   RooRealVar m2{"m2", "m2", 1., -3., 3.};
+   RooRealVar s{"s", "s", 1.0, 0.1, 10.};
+   // The width of the Gaussians scales with the conditional observable y.
+   RooFormulaVar sigma{"sigma", "s * y", {s, y}};
+   RooGaussian g1{"g1", "g1", x, m1, sigma};
+   RooGaussian g2{"g2", "g2", x, m2, sigma};
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &g1}, {"two", &g2}}, sample};
+
+   RooUniform yPdf{"yPdf", "yPdf", y};
+   RooProdPdf gen1{"gen1", "gen1", yPdf, Conditional(g1, x)};
+   RooProdPdf gen2{"gen2", "gen2", yPdf, Conditional(g2, x)};
+   std::unique_ptr<RooDataSet> data1{gen1.generate({x, y}, 600)};
+   std::unique_ptr<RooDataSet> data2{gen2.generate({x, y}, 800)};
+   RooDataSet combData{
+      "combData", "combData", {x, y}, Index(sample), Import({{"one", data1.get()}, {"two", data2.get()}})};
+
+   auto setParams = [&](bool alternative) {
+      s.setVal(alternative ? 1.5 : 1.0);
+      m1.setVal(alternative ? 0.5 : 0.0);
+   };
+
+   double refVal = 0.0;
+   double refValAlt = 0.0;
+   {
+      std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(combData, ProjectedObservables(y), EvalBackend::Cpu())};
+      refVal = nllRef->getVal();
+      setParams(true);
+      refValAlt = nllRef->getVal();
+      setParams(false);
+   }
+
+   RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+   ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+   std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(combData, ProjectedObservables(y), EvalBackend::Cpu())};
+
+   EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+      << "the mixture compilation fell back to channel splitting:\n"
+      << hijack.str();
+
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14));
+   setParams(true);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << "after parameter change";
+   setParams(false);
+   EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
 }
 
 /// Validate the mixture compilation for a simultaneous pdf whose index is a
