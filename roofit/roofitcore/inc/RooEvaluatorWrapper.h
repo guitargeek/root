@@ -96,6 +96,9 @@ private:
    bool _useGeneratedFunctionCode = false;
    std::stack<std::vector<double>> _vectorBuffers; // used for preserving resources
    std::map<RooFit::Detail::DataKey, std::span<const double>> _dataSpans;
+   /// Number of data columns consumed by the computation graph, for the
+   /// structural-compatibility check when resetting the data.
+   std::size_t _nUsedDataSpans = 0;
 };
 
 } // namespace RooFit::Experimental

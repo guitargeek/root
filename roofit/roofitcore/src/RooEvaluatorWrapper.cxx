@@ -749,7 +749,6 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
 
    _data = &data;
    bool isInitializing = _paramSet.empty();
-   const std::size_t oldSize = _dataSpans.size();
 
    // If the compiled pdf declares that it only describes a subset of the
    // data rows, evaluate on a reduced copy of the dataset. This is how a
@@ -786,18 +785,29 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
    if (_rangeName.empty()) {
       validateObservableRanges(_pdf, *dataForEval(), _dataSpans);
    }
-   if (!isInitializing && _dataSpans.size() != oldSize) {
-      coutE(DataHandling) << errMsg << std::endl;
-      throw std::runtime_error(errMsg);
-   }
+   // For the structure comparison, only the columns that the computation
+   // graph actually consumes matter: datasets can carry auxiliary columns
+   // (like the weight variable of a weighted dataset, whose values reach the
+   // graph via the dedicated weight spans) that are irrelevant for the
+   // evaluation and can legitimately differ between e.g. an observed dataset
+   // and generated toys.
+   std::size_t nUsedSpans = 0;
    for (auto const &item : _dataSpans) {
       const char *name = item.first->GetName();
-      _evaluator->setInput(name, item.second, false);
+      if (!_evaluator->setInput(name, item.second, false)) {
+         continue;
+      }
+      ++nUsedSpans;
       if (_paramSet.find(name)) {
          coutE(DataHandling) << errMsg << std::endl;
          throw std::runtime_error(errMsg);
       }
    }
+   if (!isInitializing && nUsedSpans != _nUsedDataSpans) {
+      coutE(DataHandling) << errMsg << std::endl;
+      throw std::runtime_error(errMsg);
+   }
+   _nUsedDataSpans = nUsedSpans;
    if (_funcWrapper) {
       _funcWrapper->loadData(*dataForEval(), simPdf, rangeNameForLoading, skipZeroWeights);
    }

@@ -273,7 +273,9 @@ void Evaluator::syncDataTokens()
    }
 }
 
-void Evaluator::setInput(std::string const &name, std::span<const double> inputArray, bool isOnDevice)
+/// Returns whether the name corresponds to a node of the computation graph,
+/// i.e. whether the input is consumed by the evaluation.
+bool Evaluator::setInput(std::string const &name, std::span<const double> inputArray, bool isOnDevice)
 {
    if (isOnDevice && !_useGPU) {
       throw std::runtime_error("Evaluator can only take device array as input in CUDA mode!");
@@ -285,7 +287,7 @@ void Evaluator::setInput(std::string const &name, std::span<const double> inputA
    auto found = _nodesMap.find(RooNameReg::ptr(name.c_str()));
 
    if (found == _nodesMap.end())
-      return;
+      return false;
 
    _needToUpdateOutputSizes = true;
 
@@ -309,7 +311,7 @@ void Evaluator::setInput(std::string const &name, std::span<const double> inputA
       _evalContextCPU.set(info.absArg, inputArray);
       info.canonicalSpan = inputArray;
       info.frameBegin = 0;
-      return;
+      return true;
    }
 
    if (info.outputSize <= 1) {
@@ -317,7 +319,7 @@ void Evaluator::setInput(std::string const &name, std::span<const double> inputA
       // copied to the GPU.
       _evalContextCPU.set(info.absArg, inputArray);
       _evalContextCUDA.set(info.absArg, inputArray);
-      return;
+      return true;
    }
 
    // For simplicity, we put the data on both host and device for
@@ -336,6 +338,7 @@ void Evaluator::setInput(std::string const &name, std::span<const double> inputA
       info.buffer->assignFromHost(cpuSpan);
       _evalContextCUDA.set(info.absArg, {info.buffer->deviceReadPtr(), cpuSpan.size()});
    }
+   return true;
 }
 
 void Evaluator::updateOutputSizes()

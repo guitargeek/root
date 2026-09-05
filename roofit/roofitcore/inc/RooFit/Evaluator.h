@@ -41,7 +41,7 @@ public:
    ~Evaluator();
 
    std::span<const double> run();
-   void setInput(std::string const &name, std::span<const double> inputArray, bool isOnDevice);
+   bool setInput(std::string const &name, std::span<const double> inputArray, bool isOnDevice);
    RooArgSet getParameters() const;
    void print(std::ostream &os);
 
