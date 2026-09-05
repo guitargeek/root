@@ -149,9 +149,36 @@ void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx)
 {
    if (arg.isRearranged()) {
       ctx.addResult(&arg, ctx.buildCall(mathFunc("ratio"), *arg.rearrangedNum(), *arg.rearrangedDen()));
-   } else {
-      ctx.addResult(&arg, ctx.buildCall(mathFunc("product"), *arg.partList(), arg.partList()->size()));
+      return;
    }
+
+   // If the product is gated by a channel indicator (like the mixture terms
+   // of a compiled simultaneous pdf), emit a ternary expression, so that the
+   // other factors are not evaluated for the events of the other channels
+   // (to the extent that their results are inline expressions and not
+   // eagerly-computed code-body variables).
+   RooArgList const &parts = *arg.partList();
+   RooAbsArg *indicator = nullptr;
+   for (RooAbsArg *part : parts) {
+      if (dynamic_cast<RooFit::Detail::RooChannelIndicatorPdf *>(part)) {
+         indicator = part;
+         break;
+      }
+   }
+   if (indicator) {
+      RooArgList others;
+      for (RooAbsArg *part : parts) {
+         if (part != indicator) {
+            others.add(*part);
+         }
+      }
+      std::string othersCode =
+         others.size() == 1 ? ctx.getResult(others[0]) : ctx.buildCall(mathFunc("product"), others, others.size());
+      ctx.addResult(&arg, "(" + ctx.getResult(*indicator) + " != 0.0 ? " + othersCode + " : 0.0)");
+      return;
+   }
+
+   ctx.addResult(&arg, ctx.buildCall(mathFunc("product"), parts, parts.size()));
 }
 
 void codegenImpl(ParamHistFunc &arg, CodegenContext &ctx)
