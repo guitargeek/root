@@ -83,6 +83,37 @@ void EvalContext::resize(std::size_t n)
 {
    _cfgs.resize(n);
    _ctx.resize(n);
+   _supportRanges.resize(n, {0, std::numeric_limits<std::size_t>::max()});
+}
+
+/// \brief Declare that the values of the span registered for `arg` are
+/// exactly zero outside of the index range [begin, end).
+///
+/// Consumers of the span can then skip the events outside of that range; see
+/// e.g. RooAddPdf::doEval(). The declaration is reset whenever a new span is
+/// registered for `arg`.
+void EvalContext::setSupportRange(RooAbsArg const *arg, std::size_t begin, std::size_t end)
+{
+   if (!arg->hasDataToken())
+      return;
+   std::size_t idx = arg->dataToken();
+   if (idx < _supportRanges.size()) {
+      _supportRanges[idx] = {begin, end};
+   }
+}
+
+/// \brief The index range outside of which the values of the span registered
+/// for `arg` are known to be exactly zero, clamped to the span size.
+///
+/// For spans without a support declaration, this is simply the full range.
+std::pair<std::size_t, std::size_t> EvalContext::supportRange(RooAbsArg const *arg) const
+{
+   if (!arg->hasDataToken() || arg->dataToken() >= _supportRanges.size()) {
+      return {0, std::numeric_limits<std::size_t>::max()};
+   }
+   std::size_t idx = arg->dataToken();
+   std::size_t size = _ctx[idx].size();
+   return {std::min(_supportRanges[idx].first, size), std::min(_supportRanges[idx].second, size)};
 }
 
 /// \brief Sets the output value with an offset.
