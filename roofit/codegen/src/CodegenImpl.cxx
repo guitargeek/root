@@ -734,15 +734,40 @@ void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
    // brackets of the loop is written at the end of the scopes lifetime.
    {
       auto scope = ctx.beginLoop(&arg);
-      // The unbinned likelihood takes the logarithm of the pdf directly, so
-      // that e.g. products of many factors don't underflow.
-      std::string term = arg.binnedL() ? ctx.buildCall(mathFunc("nll"), arg.func(), arg.weightVar(), 0)
-                                       : "-(" + ctx.getResult(arg.weightVar()) + ") * " + ctx.getLogResult(arg.func());
-      ctx.addToCodeBody(&arg, resName + " += " + term + ";");
+      if (arg.mixedBinnedL()) {
+         // Mixed binned/unbinned simultaneous mixture: the mask selects the
+         // rows of the binned channels, which contribute Poisson terms with
+         // the pdf values as yields; the other rows contribute unbinned
+         // likelihood terms. Zero-weight rows of the unbinned channels are
+         // skipped like in the CPU reduction: on a retained zero-weight row
+         // the density can be zero, and 0 * log(0) would poison the sum. The
+         // log stays inside the ternary; getLogResult() would compute it on
+         // every row.
+         std::string mask = ctx.getResult(*arg.binnedRowsMask());
+         std::string weight = ctx.getResult(arg.weightVar());
+         std::string binnedTerm = ctx.buildCall(mathFunc("nll"), arg.func(), arg.weightVar(), 0);
+         std::string unbinnedTerm = "-(" + weight + ") * std::log(" + ctx.getResult(arg.func()) + ")";
+         ctx.addToCodeBody(&arg, resName + " += (" + mask + " > 0.5 ? (" + binnedTerm + ") : (" + weight +
+                                    " == 0.0 ? 0.0 : (" + unbinnedTerm + ")));");
+      } else {
+         // The unbinned likelihood takes the logarithm of the pdf directly, so
+         // that e.g. products of many factors don't underflow.
+         std::string term = arg.binnedL()
+                               ? ctx.buildCall(mathFunc("nll"), arg.func(), arg.weightVar(), 0)
+                               : "-(" + ctx.getResult(arg.weightVar()) + ") * " + ctx.getLogResult(arg.func());
+         ctx.addToCodeBody(&arg, resName + " += " + term + ";");
+      }
    }
    if (arg.expectedEvents()) {
       std::string expected = ctx.getResult(*arg.expectedEvents());
-      ctx.addToCodeBody(resName + " += " + expected + " - " + weightSumName + " * std::log(" + expected + ");\n");
+      if (arg.mixedBinnedL()) {
+         // The unbinned rows carry -weight * log(expectedChannelYield *
+         // density) terms, so only the summed expected events of the unbinned
+         // channels remain (see RooNLLVarNew::doEvalMixed()).
+         ctx.addToCodeBody(resName + " += " + expected + ";\n");
+      } else {
+         ctx.addToCodeBody(resName + " += " + expected + " - " + weightSumName + " * std::log(" + expected + ");\n");
+      }
    }
 }
 
