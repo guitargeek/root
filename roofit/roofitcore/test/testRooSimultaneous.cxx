@@ -9,6 +9,7 @@
 #include <RooConstVar.h>
 #include <RooDataSet.h>
 #include <RooExponential.h>
+#include <RooExtendPdf.h>
 #include <RooFitResult.h>
 #include <RooGaussian.h>
 #include <RooGenericPdf.h>
@@ -23,10 +24,14 @@
 #include <RooUniform.h>
 #include <RooWorkspace.h>
 
+#include <TSystem.h>
+
 #include "gtest_wrapper.h"
 
 #include <cmath>
 #include <memory>
+#include <optional>
+#include <string>
 
 /// Forum issue
 /// https://root-forum.cern.ch/t/roofit-failed-to-create-nll-for-simultaneous-pdfs-with-multiple-range-names/49363.
@@ -961,5 +966,113 @@ TEST(RooSimultaneous, ParameterIndexTopLevelNLL)
       EXPECT_THAT(nll->getVal(), RelativeNear(refNll0->getVal(), 1e-10)) << backend.name() << ", index 0";
       cat.setIndex(1);
       EXPECT_THAT(nll->getVal(), RelativeNear(refNll1->getVal(), 1e-10)) << backend.name() << ", index 1";
+   }
+}
+
+/// Validate the experimental compilation of a RooSimultaneous into an
+/// ordinary mixture pdf (opt-in via ROOFIT_SIM_COMPILE_MIXTURE=1): the NLL
+/// values must reproduce the channel-splitting backend, both non-extended
+/// (via the constant mixture weights of one over the number of channels,
+/// which generate the legacy sumOfWeights * log(nChannels) convention term)
+/// and extended (via the "SimCount" attribute on the compiled pdf).
+namespace {
+
+/// Sets or unsets an environment variable for the lifetime of the object and
+/// restores the previous state on destruction, also when the code under test
+/// throws. Restoring (instead of unconditionally unsetting) keeps an
+/// externally-set variable intact for the rest of the test suite.
+class ScopedEnvVar {
+public:
+   ScopedEnvVar(const char *name, const char *value) : _name{name}
+   {
+      if (const char *old = gSystem->Getenv(name)) {
+         _oldValue = old;
+      }
+      if (value) {
+         gSystem->Setenv(name, value);
+      } else {
+         gSystem->Unsetenv(name);
+      }
+   }
+   ~ScopedEnvVar()
+   {
+      if (_oldValue) {
+         gSystem->Setenv(_name.c_str(), _oldValue->c_str());
+      } else {
+         gSystem->Unsetenv(_name.c_str());
+      }
+   }
+
+private:
+   std::string _name;
+   std::optional<std::string> _oldValue;
+};
+
+} // namespace
+
+TEST(RooSimultaneous, MixtureCompilation)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   // Make sure the reference is really built with the channel-splitting
+   // path, also when the suite runs with the variable set externally.
+   ScopedEnvVar clearMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", nullptr};
+
+   // Two channels with disjoint observables and a shared width parameter,
+   // like in HistFactory-style models.
+   RooRealVar x1{"x1", "x1", -8, 8};
+   RooRealVar x2{"x2", "x2", 0, 10};
+   RooRealVar m1{"m1", "m1", 0., -3., 3.};
+   RooRealVar m2{"m2", "m2", 5., 2., 8.};
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10.};
+   RooGaussian g1{"g1", "g1", x1, m1, sigma};
+   RooGaussian g2{"g2", "g2", x2, m2, sigma};
+   RooRealVar n1{"n1", "n1", 1000., 0., 100000.};
+   RooRealVar n2{"n2", "n2", 2000., 0., 100000.};
+   RooExtendPdf e1{"e1", "e1", g1, n1};
+   RooExtendPdf e2{"e2", "e2", g2, n2};
+
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"two", 1}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &e1}, {"two", &e2}}, sample};
+
+   std::unique_ptr<RooDataSet> data1{g1.generate(x1, 1000)};
+   std::unique_ptr<RooDataSet> data2{g2.generate(x2, 2000)};
+   RooDataSet combData{
+      "combData", "combData", {x1, x2}, Index(sample), Import({{"one", data1.get()}, {"two", data2.get()}})};
+
+   auto setParams = [&](bool alternative) {
+      sigma.setVal(alternative ? 1.5 : 1.0);
+      m1.setVal(alternative ? 0.5 : 0.0);
+   };
+
+   for (bool extended : {false, true}) {
+      double refVal = 0.0;
+      double refValAlt = 0.0;
+      {
+         std::unique_ptr<RooAbsReal> nllRef{simPdf.createNLL(combData, EvalBackend::Cpu(), Extended(extended))};
+         refVal = nllRef->getVal();
+         setParams(true);
+         refValAlt = nllRef->getVal();
+         setParams(false);
+      }
+
+      RooHelpers::HijackMessageStream hijack{RooFit::INFO, RooFit::Fitting};
+
+      ScopedEnvVar setMixtureEnv{"ROOFIT_SIM_COMPILE_MIXTURE", "1"};
+      std::unique_ptr<RooAbsReal> nllMix{simPdf.createNLL(combData, EvalBackend::Cpu(), Extended(extended))};
+
+      const char *label = extended ? "extended" : "non-extended";
+
+      EXPECT_TRUE(hijack.str().find("falling back") == std::string::npos)
+         << label << ": the mixture compilation fell back to channel splitting:\n"
+         << hijack.str();
+
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << label;
+      setParams(true);
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refValAlt, 1e-14)) << label << ", after parameter change";
+      setParams(false);
+      EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << label << ", after parameter reset";
    }
 }
