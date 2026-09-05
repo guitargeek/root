@@ -51,6 +51,11 @@ public:
    // extended likelihood. Only meaningful if likelihoodMode() is also true.
    void setExtendedMode(bool flag) { _extendedMode = flag; }
    bool extendedMode() const { return _extendedMode; }
+   // Whether the likelihood that this computation graph is compiled for uses
+   // bin-by-bin offsetting, i.e. the Offset("bin") option of createNLL().
+   // Only meaningful if likelihoodMode() is also true.
+   void setBinOffsetMode(bool flag) { _binOffsetMode = flag; }
+   bool binOffsetMode() const { return _binOffsetMode; }
    void setBinnedLikelihoodMode(bool flag) { _binnedLikelihoodMode = flag; }
    bool binnedLikelihoodMode() const { return _binnedLikelihoodMode; }
    void setBinWidthFuncFlag(bool flag) { _binWidthFuncFlag = flag; }
@@ -68,6 +73,7 @@ private:
 
    bool _likelihoodMode = false;
    bool _extendedMode = false;
+   bool _binOffsetMode = false;
    bool _binnedLikelihoodMode = false;
    bool _binWidthFuncFlag = false;
 };

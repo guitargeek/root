@@ -501,13 +501,14 @@ private:
 /// `fixAddCoefRange` already applied when `addCoefRangeName` is non-empty.
 std::unique_ptr<RooAbsPdf> compilePdfForFit(RooAbsPdf &pdf, RooArgSet const &normSet, const char *rangeName,
                                             bool splitRange, const char *addCoefRangeName, bool likelihoodMode,
-                                            bool extendedFit)
+                                            bool extendedFit, bool binOffset)
 {
    NormRangeScope scope{pdf, rangeName, splitRange};
 
    RooFit::Detail::CompileContext ctx{normSet};
    ctx.setLikelihoodMode(likelihoodMode);
    ctx.setExtendedMode(extendedFit);
+   ctx.setBinOffsetMode(binOffset);
    std::unique_ptr<RooAbsArg> head = pdf.compileForNormSet(normSet, ctx);
    std::unique_ptr<RooAbsPdf> pdfClone{&dynamic_cast<RooAbsPdf &>(*head.release())};
 
@@ -918,7 +919,8 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       }
 
       std::unique_ptr<RooAbsPdf> pdfClone =
-         compilePdfForFit(pdf, normSet, rangeName, splitRange, addCoefRangeName, /*likelihoodMode=*/true, ext);
+         compilePdfForFit(pdf, normSet, rangeName, splitRange, addCoefRangeName, /*likelihoodMode=*/true, ext,
+                          offset == RooFit::OffsetMode::Bin);
 
       if (addCoefRangeName) {
          oocxcoutI(&pdf, Fitting) << "RooAbsPdf::fitTo(" << pdf.GetName()
@@ -1158,7 +1160,7 @@ std::unique_ptr<RooAbsReal> createChi2(RooAbsReal &real, RooDataHist &data, cons
 
          std::unique_ptr<RooAbsPdf> pdfClone =
             compilePdfForFit(*pdf, normSet, rangeName, splitRange, pc.getString("addCoefRange", nullptr, true),
-                             /*likelihoodMode=*/false, extended);
+                             /*likelihoodMode=*/false, extended, /*binOffset=*/false);
 
          RooArgList binSamplingPdfs;
          RooAbsPdf &finalPdf =

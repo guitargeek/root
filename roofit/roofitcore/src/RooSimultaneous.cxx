@@ -1512,6 +1512,17 @@ compileSimPdfAsMixture(RooSimultaneous const &simPdf, RooArgSet const &normSet, 
    if (nBinnedL > 0) {
       return fallBack("mixed binned-likelihood and unbinned channels are not supported yet");
    }
+   if (ctx.binOffsetMode()) {
+      // The bin-by-bin offsetting of RooNLLVarNew builds a template pdf from
+      // the dataset that is normalized over all events, while the
+      // channel-splitting path uses per-channel templates with per-channel
+      // weight-sum normalizations. Reproducing that in the mixture would need
+      // an offset template that is conditional on the index variable. Note
+      // that the all-binned compilation above doesn't have this problem: the
+      // binned likelihood offsets each Poisson term with the observed bin
+      // content directly, with no template pdf involved.
+      return fallBack("bin-by-bin likelihood offsetting is not supported yet");
+   }
 
    // The stand-in for the index category. The range is set once all state
    // indices are known.
