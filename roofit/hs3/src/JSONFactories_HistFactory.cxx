@@ -669,7 +669,12 @@ bool importHistSample(RooJSONFactoryWSTool &tool, RooDataHist &dh, RooArgSet con
             // this is dealt with at a different place, ignore it for now
          } else if (modtype == "normfactor") {
             RooRealVar &constrParam = getOrCreate<RooRealVar>(ws, sysname, 1., -3, 5);
-            constrParam.setError(0.0);
+            // Norm factors get an initial zero error like in
+            // HistoToWorkspaceFactoryFast, unless an error was already set,
+            // e.g. by the constraint of another occurrence of this parameter.
+            if (!constrParam.hasError()) {
+               constrParam.setError(0.0);
+            }
             normElems.add(constrParam);
             if (mod.has_child("constraint") || mod.has_child("constraint_name") || mod.has_child("constraint_type")) {
                // for norm factors, constraints are optional
