@@ -14,6 +14,7 @@
 
 #include <RooAbsBinning.h>
 #include <RooBinning.h>
+#include <RooRangeBinning.h>
 #include <RooFitHS3/RooJSONFactoryWSTool.h>
 #include <RooNumber.h>
 #include <RooRealVar.h>
@@ -127,6 +128,12 @@ void Domains::ProductDomain::readBinning(ProductDomainElement &elem, RooAbsBinni
    elem.nBins = 0;
    elem.edges.clear();
 
+   // A RooRangeBinning is a plain named range without bin structure, fully
+   // described by the min/max bounds.
+   if (dynamic_cast<RooRangeBinning const *>(&binning)) {
+      return;
+   }
+
    const int nBins = binning.numBins();
    if (nBins <= 0) {
       return;
@@ -139,6 +146,15 @@ void Domains::ProductDomain::readBinning(ProductDomainElement &elem, RooAbsBinni
       elem.edges.push_back(binning.binLow(0));
       for (int i = 0; i < nBins; ++i) {
          elem.edges.push_back(binning.binHigh(i));
+      }
+      // Infinite edges can't be represented as JSON numbers. Unlike for the
+      // min/max bounds, there is no null-based convention for edges, so such
+      // a binning can only be stored as a plain range.
+      for (double edge : elem.edges) {
+         if (RooNumber::isInfinite(edge)) {
+            elem.edges.clear();
+            return;
+         }
       }
    }
 }
