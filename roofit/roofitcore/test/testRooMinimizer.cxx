@@ -3,7 +3,9 @@
 
 #include <RooAddition.h>
 #include <RooAddPdf.h>
+#include <RooCategory.h>
 #include <RooDataSet.h>
+#include <RooExtendPdf.h>
 #include <RooFitResult.h>
 #include <RooFormulaVar.h>
 #include <RooGaussian.h>
@@ -11,6 +13,9 @@
 #include <RooMinimizer.h>
 #include <RooRandom.h>
 #include <RooRealVar.h>
+#include <RooSimultaneous.h>
+
+#include <TMatrixDSym.h>
 
 #include <cmath>
 
@@ -245,5 +250,181 @@ TEST(RooMinimizer, SecondDerivativeAlwaysVanishesHesse)
       m.hesse();
       EXPECT_NEAR(b.getError(), std::sqrt(0.6), tol) << "fixAfterConstruction = " << fixAfterConstruction;
       EXPECT_NEAR(c.getError(), std::sqrt(0.4), tol) << "fixAfterConstruction = " << fixAfterConstruction;
+   }
+}
+
+// The same optimization for a simultaneous fit, whose likelihood
+// RooSimultaneous::compileForNormSet() compiles into a mixture over the
+// channels. The per-channel additive structure is not a RooAddition there but
+// the gated terms of that mixture, and missing it silently gives up all
+// cross-channel independence, which is exactly the many-channel case the
+// optimization is meant for.
+//
+// Both directions matter and are covered here: independence that is there must
+// be exploited, and coupling that is there must survive. The references are
+// analytical, so they are independent of RooFit's own Hessian.
+TEST(RooMinimizer, SecondDerivativeAlwaysVanishesHesseSimultaneous)
+{
+   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
+   RooRandom::randomGenerator()->SetSeed(1337ul);
+
+   const int nEvents = 5000;
+
+   // Part 1: channels that share no parameter at all. For an (extended)
+   // Gaussian fit, the observed information at the maximum-likelihood point is
+   // exact: var(mean) = s^2/N, var(sigma) = s^2/(2N) and var(yield) = N, with
+   // vanishing mixed terms. The range is wide enough that the truncation of
+   // the Gaussian normalization is far below the tolerance.
+   {
+      RooRealVar x("x", "x", -30, 30);
+      RooCategory cat("cat", "cat");
+      RooSimultaneous sim("sim", "sim", cat);
+
+      std::vector<std::unique_ptr<RooAbsArg>> keep;
+      std::vector<RooRealVar *> means;
+      std::vector<RooRealVar *> sigmas;
+      std::vector<RooRealVar *> yields;
+
+      RooDataSet data{"data", "data", {x, cat}};
+
+      for (int i = 0; i < 3; ++i) {
+         const std::string ch = "ch" + std::to_string(i);
+         cat.defineType(ch.c_str(), i);
+
+         auto mean = std::make_unique<RooRealVar>(("m_" + ch).c_str(), "", 0.5 * i, -10, 10);
+         auto sigma = std::make_unique<RooRealVar>(("s_" + ch).c_str(), "", 1.0 + 0.2 * i, 0.1, 10);
+         auto gauss = std::make_unique<RooGaussian>(("g_" + ch).c_str(), "", x, *mean, *sigma);
+         auto yield = std::make_unique<RooRealVar>(("n_" + ch).c_str(), "", nEvents, 0., 10. * nEvents);
+         auto ext = std::make_unique<RooExtendPdf>(("e_" + ch).c_str(), "", *gauss, *yield);
+
+         cat.setIndex(i);
+         std::unique_ptr<RooDataSet> chanData{gauss->generate(x, nEvents)};
+         for (int j = 0; j < chanData->numEntries(); ++j) {
+            x.setVal(chanData->get(j)->getRealValue("x"));
+            data.add({x, cat});
+         }
+
+         sim.addPdf(*ext, ch.c_str());
+         means.push_back(mean.get());
+         sigmas.push_back(sigma.get());
+         yields.push_back(yield.get());
+         keep.emplace_back(std::move(mean));
+         keep.emplace_back(std::move(sigma));
+         keep.emplace_back(std::move(gauss));
+         keep.emplace_back(std::move(yield));
+         keep.emplace_back(std::move(ext));
+      }
+
+      std::unique_ptr<RooAbsReal> nll{sim.createNLL(data)};
+      RooMinimizer m{*nll};
+      m.setPrintLevel(-1);
+      m.migrad();
+      m.zeroEvalCount();
+      m.hesse();
+      const int nEvals = m.evalCounter();
+
+      for (std::size_t i = 0; i < means.size(); ++i) {
+         const double s = sigmas[i]->getVal();
+         const double n = yields[i]->getVal();
+         EXPECT_NEAR(means[i]->getError(), s / std::sqrt(n), 1e-3 * s / std::sqrt(n)) << "channel " << i;
+         EXPECT_NEAR(sigmas[i]->getError(), s / std::sqrt(2. * n), 1e-3 * s / std::sqrt(2. * n)) << "channel " << i;
+         EXPECT_NEAR(yields[i]->getError(), std::sqrt(n), 1e-3 * std::sqrt(n)) << "channel " << i;
+      }
+
+      // The values above are also what the unoptimized Hessian gives, so check
+      // that the independence was actually exploited. MnHesse spends one
+      // function evaluation per parameter pair it does not skip; of the 36
+      // pairs of the nine parameters here, the 27 that cross a channel
+      // boundary are skipped, which takes the count from 73 down to 46. The
+      // bound leaves room for MnHesse's own bookkeeping to change.
+      EXPECT_LT(nEvals, 60);
+   }
+
+   // Part 2: a parameter shared by all channels must stay coupled to each of
+   // them. With the widths held constant, the channel means m_i + shift make
+   // the likelihood an exact quadratic form in (shift, m_1, m_2), so the
+   // covariance is the inverse of a Hessian that can be written down: with
+   // a_i = N_i / s_i^2, the mean of the anchor channel held constant, and the
+   // parameters ordered (shift, m_1, m_2),
+   //
+   //     H = [[a_0 + a_1 + a_2, a_1, a_2], [a_1, a_1, 0], [a_2, 0, a_2]].
+   //
+   // The off-diagonal (shift, m_i) entries are large, so wrongly advertising
+   // them as vanishing would show up immediately.
+   {
+      RooRealVar x("x", "x", -30, 30);
+      RooCategory cat("cat", "cat");
+      RooSimultaneous sim("sim", "sim", cat);
+      RooRealVar shift("shift", "", 0.0, -5, 5);
+
+      std::vector<std::unique_ptr<RooAbsArg>> keep;
+      std::vector<RooRealVar *> offsets;
+      std::vector<double> a;
+
+      RooDataSet data{"data", "data", {x, cat}};
+
+      for (int i = 0; i < 3; ++i) {
+         const std::string ch = "ch" + std::to_string(i);
+         cat.defineType(ch.c_str(), i);
+
+         auto offset = std::make_unique<RooRealVar>(("m_" + ch).c_str(), "", 0.4 * i, -10, 10);
+         // The first channel anchors the absolute scale, so that the common
+         // shift is identifiable instead of exactly degenerate with the means.
+         offset->setConstant(i == 0);
+         auto mean = std::make_unique<RooFormulaVar>(("mean_" + ch).c_str(), "", "@0+@1", RooArgList{*offset, shift});
+         auto sigma = std::make_unique<RooRealVar>(("s_" + ch).c_str(), "", 1.0 + 0.2 * i, 0.1, 10);
+         sigma->setConstant(true);
+         auto gauss = std::make_unique<RooGaussian>(("g_" + ch).c_str(), "", x, *mean, *sigma);
+
+         cat.setIndex(i);
+         std::unique_ptr<RooDataSet> chanData{gauss->generate(x, nEvents)};
+         for (int j = 0; j < chanData->numEntries(); ++j) {
+            x.setVal(chanData->get(j)->getRealValue("x"));
+            data.add({x, cat});
+         }
+
+         sim.addPdf(*gauss, ch.c_str());
+         a.push_back(nEvents / (sigma->getVal() * sigma->getVal()));
+         if (i != 0) {
+            offsets.push_back(offset.get());
+         }
+         keep.emplace_back(std::move(offset));
+         keep.emplace_back(std::move(mean));
+         keep.emplace_back(std::move(sigma));
+         keep.emplace_back(std::move(gauss));
+      }
+
+      std::unique_ptr<RooAbsReal> nll{sim.createNLL(data)};
+      RooMinimizer m{*nll};
+      m.setPrintLevel(-1);
+      m.migrad();
+      m.hesse();
+      std::unique_ptr<RooFitResult> res{m.save()};
+
+      TMatrixDSym hessian(3);
+      hessian(0, 0) = a[0] + a[1] + a[2];
+      hessian(0, 1) = hessian(1, 0) = a[1];
+      hessian(0, 2) = hessian(2, 0) = a[2];
+      hessian(1, 1) = a[1];
+      hessian(2, 2) = a[2];
+      hessian(1, 2) = hessian(2, 1) = 0.0;
+      TMatrixDSym reference{hessian};
+      reference.Invert();
+
+      EXPECT_NEAR(shift.getError(), std::sqrt(reference(0, 0)), 1e-3 * std::sqrt(reference(0, 0)));
+      for (std::size_t i = 0; i < offsets.size(); ++i) {
+         const double ref = std::sqrt(reference(i + 1, i + 1));
+         EXPECT_NEAR(offsets[i]->getError(), ref, 1e-3 * ref) << "channel " << i + 1;
+      }
+
+      // The correlation that couples the channels must not be lost, while the
+      // two channel means stay uncorrelated with each other.
+      const RooArgList &pars = res->floatParsFinal();
+      auto corr = [&](const char *n1, const char *n2) {
+         return res->correlation(pars.find(n1)->GetName(), pars.find(n2)->GetName());
+      };
+      const double refCorr01 = reference(0, 1) / std::sqrt(reference(0, 0) * reference(1, 1));
+      EXPECT_NEAR(corr("shift", "m_ch1"), refCorr01, 1e-3);
+      EXPECT_NEAR(corr("m_ch1", "m_ch2"), reference(1, 2) / std::sqrt(reference(1, 1) * reference(2, 2)), 1e-3);
    }
 }

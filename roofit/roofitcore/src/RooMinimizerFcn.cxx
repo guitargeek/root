@@ -28,16 +28,20 @@
 #include "RooArgSet.h"
 #include "RooConstraintSum.h"
 #include "RooEvaluatorWrapper.h"
+#include "RooFit/Detail/RooChannelIndicatorPdf.h"
+#include "RooFit/Detail/RooNLLVarNew.h"
 #include "RooMinimizer.h"
 #include "RooMsgService.h"
 #include "RooNaNPacker.h"
 #include "RooCategory.h"
+#include "RooRealSumPdf.h"
 #include "RooRealVar.h"
 
 #include "Math/Functor.h"
 #include "Minuit2/Minuit2Minimizer.h"
 #include "TMatrixDSym.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <unordered_map>
@@ -105,6 +109,98 @@ private:
    int _nextIndex = 0;
 };
 
+// Add the leaves of the computation graph under `arg` to `out`. The detour
+// via RooArgList avoids the deduplication done after adding each element.
+void addLeaves(RooAbsArg const &arg, RooArgSet &out)
+{
+   RooArgList leafList;
+   arg.treeNodeServerList(&leafList, nullptr, /*branches*/ false, /*leaves*/ true, /*valueOnly*/ false,
+                          /*recurseFundamental*/ true);
+   out.add(leafList.begin(), leafList.end());
+}
+
+// If `arg` is the mixture that RooSimultaneous::compileForNormSet() compiles a
+// simultaneous pdf into, return it, and nullptr otherwise.
+//
+// The compiled form is an ordinary mixture over the channels,
+// \f$ \sum_s c_s \, \mathbf{1}[c = s] \, f_s(x) \f$, i.e. a RooRealSumPdf
+// whose every func is gated by a RooChannelIndicatorPdf.
+RooRealSumPdf const *channelMixturePdf(RooAbsArg const &arg)
+{
+   auto const *sumPdf = dynamic_cast<RooRealSumPdf const *>(&arg);
+   if (!sumPdf || sumPdf->funcList().size() < 2) {
+      return nullptr;
+   }
+   for (RooAbsArg const *func : sumPdf->funcList()) {
+      auto isIndicator = [](RooAbsArg const *server) {
+         return dynamic_cast<RooFit::Detail::RooChannelIndicatorPdf const *>(server) != nullptr;
+      };
+      if (std::none_of(func->servers().begin(), func->servers().end(), isIndicator)) {
+         return nullptr;
+      }
+   }
+   return sumPdf;
+}
+
+// Register one additive term per channel for a likelihood over a
+// mixture-compiled simultaneous pdf, and report whether `arg` was such a
+// likelihood.
+//
+// The channel indicators are mutually exclusive: for any index state exactly
+// one of them is one and all others are zero. Every data row therefore
+// contributes to exactly one channel, and the likelihood is the strictly
+// additive sum over the channels of their per-channel likelihoods. This is
+// the mixture-compiled equivalent of the sum over per-channel terms that a
+// RooAddition exposes directly.
+bool fillMixtureVariableGroups(RooAbsArg const &arg, VariableGroups &out)
+{
+   if (!dynamic_cast<RooFit::Detail::RooNLLVarNew const *>(&arg)) {
+      return false;
+   }
+
+   RooRealSumPdf const *mixture = nullptr;
+   for (RooAbsArg const *server : arg.servers()) {
+      if ((mixture = channelMixturePdf(*server))) {
+         break;
+      }
+   }
+   if (!mixture) {
+      return false;
+   }
+
+   RooArgList const &funcs = mixture->funcList();
+   RooArgList const &coefs = mixture->coefList();
+
+   // The leaves of a channel are those of its gated term plus those of its
+   // coefficient, which carries the expected number of events in extended
+   // fits. A pdf shared by several channels correctly ends up in each of
+   // their groups, which keeps its parameters coupled.
+   std::vector<RooArgSet> channelLeaves(funcs.size());
+   RooArgSet attributed;
+   for (std::size_t i = 0; i < funcs.size(); ++i) {
+      addLeaves(*funcs.at(i), channelLeaves[i]);
+      if (i < coefs.size()) {
+         addLeaves(*coefs.at(i), channelLeaves[i]);
+      }
+      attributed.add(channelLeaves[i], /*silent*/ true);
+   }
+
+   // Whatever else the likelihood depends on cannot be attributed to a single
+   // channel, so it goes into every group to stay coupled with everything.
+   // The offsetting and expected-events nodes are additive over the channels
+   // as well, but they are not worth the extra bookkeeping: their parameters
+   // already appear in the channels they belong to.
+   RooArgSet unattributed;
+   addLeaves(arg, unattributed);
+   unattributed.remove(attributed, /*silent*/ true, /*matchByNameOnly*/ true);
+
+   for (RooArgSet &leaves : channelLeaves) {
+      leaves.add(unattributed, /*silent*/ true);
+      out.registerTerm(leaves);
+   }
+   return true;
+}
+
 // Fill the map from computation-graph leaves to the additive terms of the
 // minimized function they appear in.
 //
@@ -132,14 +228,12 @@ void fillVariableGroups(RooAbsArg const &arg, VariableGroups &out)
       fillVariableGroups(wrapper->topNode(), out);
       return;
    }
+   if (fillMixtureVariableGroups(arg, out)) {
+      return;
+   }
 
-   // Get the set of leaves in the computation graph. Do the detour via
-   // RooArgList to avoid deduplication done after adding each element.
    RooArgSet leafSet;
-   RooArgList leafList;
-   arg.treeNodeServerList(&leafList, nullptr, /*branches*/ false, /*leaves*/ true, /*valueOnly*/ false,
-                          /*recurseFundamental*/ true);
-   leafSet.add(leafList.begin(), leafList.end());
+   addLeaves(arg, leafSet);
    out.registerTerm(leafSet);
 }
 
