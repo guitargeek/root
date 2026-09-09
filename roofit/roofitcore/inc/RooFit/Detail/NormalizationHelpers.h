@@ -13,6 +13,7 @@
 #ifndef RooFit_Detail_NormalizationHelpers_h
 #define RooFit_Detail_NormalizationHelpers_h
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -46,6 +47,10 @@ public:
    void markAsCompiled(RooAbsArg &arg) const;
    void markSubtreeAsCompiled(RooAbsArg &arg) const;
 
+   RooAbsArg *sharedNode(std::string const &key) const;
+   void registerSharedNode(std::string const &key, RooAbsArg &arg);
+   std::size_t sharedNodeCount() const { return _sharedNodes.size(); }
+
    // This information is used for the binned likelihood optimization.
    void setLikelihoodMode(bool flag) { _likelihoodMode = flag; }
    bool likelihoodMode() const { return _likelihoodMode; }
@@ -63,6 +68,7 @@ private:
    RooArgSet const &_topLevelNormSet;
    std::unordered_map<TNamed const *, RooAbsArg *> _clonedArgsSet;
    std::unordered_map<RooAbsArg *, RooAbsArg *> _replacements;
+   std::unordered_map<std::string, RooAbsArg *> _sharedNodes;
 
    bool _likelihoodMode = false;
    bool _binnedLikelihoodMode = false;
