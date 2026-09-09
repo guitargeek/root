@@ -18,6 +18,7 @@
 
 #include "RooAbsPdf.h"
 #include "RooRealProxy.h"
+#include "RooListProxy.h"
 #include "RooSetProxy.h"
 #include "RooDataHist.h"
 
@@ -96,6 +97,13 @@ public:
 
   RooArgSet const &variables() const { return _pdfObsList; }
 
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const override;
+
+  /// Returns true if a shared external bin index node is attached (internal use in compiled computation graphs).
+  bool hasExternalBinIndex() const { return !_externalBinIndex.empty(); }
+  /// The shared external node representing the bin index (internal use in compiled computation graphs).
+  RooAbsReal const &externalBinIndex() const { return static_cast<RooAbsReal const &>(_externalBinIndex[0]); }
+
 protected:
   bool areIdentical(const RooDataHist& dh1, const RooDataHist& dh2) ;
 
@@ -114,6 +122,7 @@ protected:
   bool _cdfBoundaries = false;                 ///< Use boundary conditions for CDFs.
   mutable double _totVolume = 0.0;             ///<! Total volume of space (product of ranges of observables)
   bool _unitNorm  = false;                     ///< Assume contents is unit normalized (for use as pdf cache)
+  RooListProxy _externalBinIndex{"externalBinIndex", "External bin index for compiled computation graphs", this}; ///< Optional shared bin index node (internal use in compiled computation graphs)
 
 private:
 
@@ -155,7 +164,7 @@ private:
 
   void clampNegativeBins();
 
-  ClassDefOverride(RooHistPdf,4) // Histogram based PDF
+  ClassDefOverride(RooHistPdf,5) // Histogram based PDF
 };
 
 #endif

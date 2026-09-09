@@ -41,6 +41,8 @@
 #include "RooConstVar.h"
 #include "RooBinning.h"
 #include "RooErrorHandler.h"
+#include "RooFit/Detail/NormalizationHelpers.h"
+#include "RooFit/Detail/RooBinIndex.h"
 #include "RooArgSet.h"
 #include "RooMsgService.h"
 #include "RooRealVar.h"
@@ -174,6 +176,7 @@ ParamHistFunc::ParamHistFunc(const ParamHistFunc& other, const char* name) :
   _normIntMgr(other._normIntMgr, this),
   _dataVars("!dataVars", this, other._dataVars ),
   _paramSet("!paramSet", this, other._paramSet),
+  _externalBinIndex("externalBinIndex", this, other._externalBinIndex),
   _numBins( other._numBins ),
   _dataSet( other._dataSet )
 {
@@ -564,6 +567,17 @@ void ParamHistFunc::doEval(RooFit::EvalContext & ctx) const
   std::span<double> output = ctx.output();
   std::size_t size = output.size();
 
+  // If a shared external bin index node is attached (only happens in
+  // computation graphs created by compileForNormSet()), the parameters are
+  // looked up directly.
+  if (hasExternalBinIndex()) {
+    std::span<const double> binIndices = ctx.at(&externalBinIndex());
+    for (std::size_t i = 0; i < size; ++i) {
+      output[i] = static_cast<RooAbsReal const&>(_paramSet[static_cast<int>(binIndices[i])]).getVal();
+    }
+    return;
+  }
+
   auto const& n = _numBinsPerDim;
   // check if _numBins needs to be filled
   if(n.x == 0) {
@@ -592,6 +606,33 @@ void ParamHistFunc::doEval(RooFit::EvalContext & ctx) const
   for (std::size_t i = 0; i < size; ++i) {
     output[i] = static_cast<RooAbsReal const&>(_paramSet[indexBuffer[i]]).getVal();
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// In addition to the default compilation of the object, attach a shared bin
+/// index node to the compiled clone if possible, such that the bin index
+/// calculation can be reused by other histogram-based objects with the same
+/// observables and binnings in the compiled computation graph.
+///
+/// Note that for the one-dimensional case that is supported right now, the
+/// bin index in the RooDataHist convention that the shared node represents is
+/// identical to the index into the parameter list (the orderings only differ
+/// for more dimensions).
+
+std::unique_ptr<RooAbsArg>
+ParamHistFunc::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const
+{
+   auto newArg = std::unique_ptr<ParamHistFunc>{static_cast<ParamHistFunc *>(Clone())};
+   ctx.markAsCompiled(*newArg);
+   ctx.compileServers(*newArg, normSet);
+
+   if (!hasExternalBinIndex()) {
+      if (auto *binIndex =
+             RooFit::Detail::RooBinIndex::getOrCreateForDataHist(ctx, *newArg, newArg->_dataVars, _dataSet)) {
+         newArg->_externalBinIndex.add(*binIndex);
+      }
+   }
+   return newArg;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

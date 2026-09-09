@@ -65,6 +65,13 @@ public:
 
   const RooArgList& dataVars() const { return _dataVars; }
 
+  std::unique_ptr<RooAbsArg> compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const override;
+
+  /// Returns true if a shared external bin index node is attached (internal use in compiled computation graphs).
+  bool hasExternalBinIndex() const { return !_externalBinIndex.empty(); }
+  /// The shared external node representing the bin index (internal use in compiled computation graphs).
+  RooAbsReal const &externalBinIndex() const { return static_cast<RooAbsReal const &>(_externalBinIndex[0]); }
+
 protected:
 
   class CacheElem : public RooAbsCacheElement {
@@ -84,6 +91,7 @@ protected:
 
   RooListProxy _dataVars;             ///< The RooRealVars
   RooListProxy _paramSet ;            ///< interpolation parameters
+  RooListProxy _externalBinIndex{"externalBinIndex", "External bin index for compiled computation graphs", this}; ///< Optional shared bin index node (internal use in compiled computation graphs)
 
   Int_t _numBins = 0;
   struct NumBins {
@@ -109,7 +117,7 @@ protected:
   private:
   static NumBins getNumBinsPerDim(RooArgSet const& vars);
 
-  ClassDefOverride(ParamHistFunc, 7)
+  ClassDefOverride(ParamHistFunc, 8)
 };
 
 #endif

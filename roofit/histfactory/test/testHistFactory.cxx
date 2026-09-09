@@ -32,6 +32,7 @@
 
 #include "../../roofitcore/test/gtest_wrapper.h"
 
+#include <fstream>
 #include <regex>
 #include <set>
 
@@ -495,6 +496,56 @@ TEST_P(HFFixtureEval, Evaluation)
    }
 
    EXPECT_TRUE(evalMessages.str().empty()) << "RooFit issued " << evalMessages.str().substr(0, 1000) << " [...]";
+}
+
+/// Verify that the codegen backend emits only a single bin index calculation
+/// per channel in the generated likelihood code: all template histograms of a
+/// channel share one RooFit::Detail::RooBinIndex node in the compiled
+/// computation graph.
+TEST_P(HFFixture, CodegenBinIndexDeduplication)
+{
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   RooAbsPdf *simPdf = ws->pdf("simPdf");
+   ASSERT_NE(simPdf, nullptr);
+   RooAbsData *data = ws->data("obsData");
+   ASSERT_NE(data, nullptr);
+   auto mc = dynamic_cast<RooStats::ModelConfig *>(ws->obj("ModelConfig"));
+   ASSERT_NE(mc, nullptr);
+
+   using namespace RooFit;
+
+   std::unique_ptr<RooAbsReal> nll{simPdf->createNLL(*data, EvalBackend::CodegenNoGrad(),
+                                                     GlobalObservables(*mc->GetGlobalObservables()))};
+
+   // Dump the generated likelihood code with the codegen debug macro facility.
+   const std::string macroName = "codegenDebug_" + getName(GetParam(), /*ignoreBackend=*/true);
+   RooFit::Experimental::writeCodegenDebugMacro(*nll, macroName);
+
+   std::ifstream macroFile{macroName + ".C"};
+   ASSERT_TRUE(macroFile.is_open());
+   std::stringstream buf;
+   buf << macroFile.rdbuf();
+   const std::string code = buf.str();
+
+   auto countOccurrences = [&](std::string const &sub) {
+      std::size_t count = 0;
+      for (std::size_t pos = code.find(sub); pos != std::string::npos; pos = code.find(sub, pos + sub.size())) {
+         ++count;
+      }
+      return count;
+   };
+
+   // Count how many bin index calculations were emitted (custom bins use
+   // MathFuncs::binNumber(), equidistant bins MathFuncs::uniformBinNumber()).
+   const std::size_t nBinIndexCalculations =
+      countOccurrences("MathFuncs::binNumber(") + countOccurrences("MathFuncs::uniformBinNumber(");
+
+   EXPECT_EQ(nBinIndexCalculations, 1) << "The likelihood of a single-channel model should compute the bin index "
+                                          "exactly once. Generated code:\n"
+                                       << code;
+
+   gSystem->Unlink((macroName + ".C").c_str());
 }
 
 void setInitialFitParameters(RooWorkspace &ws, MakeModelMode makeModelMode)
