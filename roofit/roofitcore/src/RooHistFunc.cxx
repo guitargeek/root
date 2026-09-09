@@ -32,6 +32,8 @@ discrete dimensions and may have negative values.
 #include "RooWorkspace.h"
 #include "RooHistPdf.h"
 #include "RooFitImplHelpers.h"
+#include "RooFit/Detail/NormalizationHelpers.h"
+#include "RooFit/Detail/RooBinIndex.h"
 
 #include "TError.h"
 #include "TBuffer.h"
@@ -138,7 +140,8 @@ RooHistFunc::RooHistFunc(const RooHistFunc& other, const char* name) :
   _intOrder(other._intOrder),
   _cdfBoundaries(other._cdfBoundaries),
   _totVolume(other._totVolume),
-  _unitNorm(other._unitNorm)
+  _unitNorm(other._unitNorm),
+  _externalBinIndex("externalBinIndex",this,other._externalBinIndex)
 {
 
   _histObsList.addClone(other._histObsList) ;
@@ -187,6 +190,18 @@ void RooHistFunc::doEval(RooFit::EvalContext & ctx) const
   std::span<double> output = ctx.output();
   std::size_t nEvents = output.size();
 
+  // If a shared external bin index node is attached (only happens in
+  // computation graphs created by compileForNormSet(), where _intOrder is
+  // known to be zero), the histogram weights are looked up directly.
+  if (hasExternalBinIndex()) {
+    std::span<const double> binIndices = ctx.at(&externalBinIndex());
+    double const *weightArr = _dataHist->weightArray();
+    for (std::size_t i = 0; i < nEvents; ++i) {
+      output[i] = weightArr[static_cast<int>(binIndices[i])];
+    }
+    return;
+  }
+
   if (_depList.size() == 1) {
     auto xVals = ctx.at(_depList[0]);
     _dataHist->weights(output.data(), xVals, _intOrder, false, _cdfBoundaries);
@@ -222,6 +237,30 @@ void RooHistFunc::doEval(RooFit::EvalContext & ctx) const
   }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// In addition to the default compilation of the object, attach a shared bin
+/// index node to the compiled clone if possible, such that the bin index
+/// calculation can be reused by other histogram-based objects with the same
+/// observables and binnings in the compiled computation graph.
+
+std::unique_ptr<RooAbsArg>
+RooHistFunc::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const
+{
+   auto newArg = std::unique_ptr<RooHistFunc>{static_cast<RooHistFunc *>(Clone())};
+   ctx.markAsCompiled(*newArg);
+   ctx.compileServers(*newArg, normSet);
+
+   // The shared bin index can only stand in for the direct weight lookup
+   // without interpolation.
+   if (_intOrder == 0 && !hasExternalBinIndex()) {
+      if (auto *binIndex = RooFit::Detail::RooBinIndex::getOrCreateForDataHist(ctx, *newArg,
+                                                                              RooArgList(newArg->_depList), *_dataHist)) {
+         newArg->_externalBinIndex.add(*binIndex);
+      }
+   }
+   return newArg;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Only handle case of maximum in all variables

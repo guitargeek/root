@@ -105,7 +105,8 @@ std::string mathFunc(std::string const &name)
 }
 
 void rooHistTranslateImpl(RooAbsArg const &arg, CodegenContext &ctx, int intOrder, RooDataHist const &dataHist,
-                          const RooArgSet &obs, bool correctForBinSize, bool cdfBoundaries)
+                          const RooArgSet &obs, bool correctForBinSize, bool cdfBoundaries,
+                          RooAbsReal const *extBinIndex)
 {
    if (intOrder != 0 && !(!cdfBoundaries && !correctForBinSize && intOrder == 1 && obs.size() == 1)) {
       ooccoutE(&arg, InputArguments) << "RooHistPdf::weight(" << arg.GetName()
@@ -121,7 +122,9 @@ void rooHistTranslateImpl(RooAbsArg const &arg, CodegenContext &ctx, int intOrde
                                         binning.numBins(), weightArr));
       return;
    }
-   std::string const &offset = dataHist.calculateTreeIndexForCodeSquash(ctx, obs);
+   // If a shared external bin index node is attached, use its result instead
+   // of emitting a separate bin index calculation.
+   std::string offset = extBinIndex ? ctx.getResult(*extBinIndex) : dataHist.calculateTreeIndexForCodeSquash(ctx, obs);
    std::string weightArr = dataHist.declWeightArrayForCodeSquash(ctx, correctForBinSize);
    ctx.addResult(&arg, "(" + weightArr + ")[" + offset + "]");
 }
@@ -203,7 +206,11 @@ void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx)
 
 void codegenImpl(ParamHistFunc &arg, CodegenContext &ctx)
 {
-   std::string const &idx = arg.dataHist().calculateTreeIndexForCodeSquash(ctx, arg.dataVars(), true);
+   // If a shared external bin index node is attached, use its result instead
+   // of emitting a separate bin index calculation.
+   std::string idx = arg.hasExternalBinIndex()
+                        ? ctx.getResult(arg.externalBinIndex())
+                        : arg.dataHist().calculateTreeIndexForCodeSquash(ctx, arg.dataVars(), true);
    std::string const &paramNames = ctx.buildArg(arg.paramList());
 
    ctx.addResult(&arg, paramNames + "[" + idx + "]");
@@ -259,10 +266,14 @@ void codegenImpl(PiecewiseInterpolation &arg, CodegenContext &ctx)
    std::string lowName = ctx.getTmpVarName();
    std::string highName = ctx.getTmpVarName();
    std::string nominalName = ctx.getTmpVarName();
-   code +=
-      "unsigned int " + idxName + " = " +
-      nomHist.calculateTreeIndexForCodeSquash(ctx, dynamic_cast<RooHistFunc const &>(*arg.nominalHist()).variables()) +
-      ";\n";
+   auto const &nominalHistFunc = dynamic_cast<RooHistFunc const &>(*arg.nominalHist());
+   // If a shared external bin index node is attached to the nominal
+   // histogram function, use its result instead of emitting a separate bin
+   // index calculation.
+   std::string idxExpr = nominalHistFunc.hasExternalBinIndex()
+                            ? ctx.getResult(nominalHistFunc.externalBinIndex())
+                            : nomHist.calculateTreeIndexForCodeSquash(ctx, nominalHistFunc.variables());
+   code += "unsigned int " + idxName + " = " + idxExpr + ";\n";
    code += "double const* " + lowName + " = " + valsLowStr + " + " + nStr + " * " + idxName + ";\n";
    code += "double const* " + highName + " = " + valsHighStr + " + " + nStr + " * " + idxName + ";\n";
    code += "double " + nominalName + " = *(" + valsNominalStr + " + " + idxName + ");\n";
@@ -616,13 +627,13 @@ void codegenImpl(RooGenericPdf &arg, CodegenContext &ctx)
 void codegenImpl(RooHistFunc &arg, CodegenContext &ctx)
 {
    rooHistTranslateImpl(arg, ctx, arg.getInterpolationOrder(), arg.dataHist(), arg.variables(), false,
-                        arg.getCdfBoundaries());
+                        arg.getCdfBoundaries(), arg.hasExternalBinIndex() ? &arg.externalBinIndex() : nullptr);
 }
 
 void codegenImpl(RooHistPdf &arg, CodegenContext &ctx)
 {
    rooHistTranslateImpl(arg, ctx, arg.getInterpolationOrder(), arg.dataHist(), arg.variables(), !arg.haveUnitNorm(),
-                        arg.getCdfBoundaries());
+                        arg.getCdfBoundaries(), arg.hasExternalBinIndex() ? &arg.externalBinIndex() : nullptr);
 }
 
 void codegenImpl(RooLandau &arg, CodegenContext &ctx)

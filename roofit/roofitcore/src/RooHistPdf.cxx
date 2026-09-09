@@ -32,6 +32,9 @@ The input histogram is not modified.
 #include "RooCategory.h"
 #include "RooCurve.h"
 #include "RooDataHist.h"
+#include "RooFit/Detail/NormalizationHelpers.h"
+#include "RooFit/Detail/RooBinIndex.h"
+#include "RooFit/Detail/RooNormalizedPdf.h"
 #include "RooFitImplHelpers.h"
 #include "RooGlobalFunc.h"
 #include "RooHistPdf.h"
@@ -172,7 +175,8 @@ RooHistPdf::RooHistPdf(const RooHistPdf& other, const char* name) :
   _intOrder(other._intOrder),
   _cdfBoundaries(other._cdfBoundaries),
   _totVolume(other._totVolume),
-  _unitNorm(other._unitNorm)
+  _unitNorm(other._unitNorm),
+  _externalBinIndex("externalBinIndex",this,other._externalBinIndex)
 {
   _histObsList.addClone(other._histObsList) ;
 }
@@ -233,6 +237,19 @@ void RooHistPdf::doEval(RooFit::EvalContext &ctx) const
 {
    std::span<double> output = ctx.output();
 
+   // If a shared external bin index node is attached (only happens in
+   // computation graphs created by compileForNormSet(), where _intOrder is
+   // known to be zero and _unitNorm to be false), the bin-size-corrected
+   // histogram weights are looked up directly.
+   if (hasExternalBinIndex()) {
+      std::span<const double> binIndices = ctx.at(&externalBinIndex());
+      for (std::size_t i = 0; i < output.size(); ++i) {
+         auto idx = static_cast<std::size_t>(binIndices[i]);
+         output[i] = std::max(_dataHist->weight(idx) / _dataHist->binVolume(idx), 0.0);
+      }
+      return;
+   }
+
    // For interpolation and histograms of higher dimension, use base function
    if (_pdfObsList.size() > 1) {
       RooAbsReal::doEval(ctx);
@@ -271,6 +288,37 @@ double RooHistPdf::evaluate() const
   double ret = _dataHist->weightFast(_histObsList, _intOrder, !_unitNorm, _cdfBoundaries);
 
   return std::max(ret, 0.0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// In addition to the default compilation of a pdf, attach a shared bin index
+/// node to the compiled RooHistPdf clone if possible, such that the bin index
+/// calculation can be reused by other histogram-based objects with the same
+/// observables and binnings in the compiled computation graph.
+
+std::unique_ptr<RooAbsArg>
+RooHistPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const
+{
+   std::unique_ptr<RooAbsArg> newArg = RooAbsPdf::compileForNormSet(normSet, ctx);
+
+   // Depending on the normalization set, the base class either returned a
+   // plain clone or a normalized pdf wrapping the clone.
+   RooHistPdf *pdfClone = nullptr;
+   if (auto *normPdf = dynamic_cast<RooFit::Detail::RooNormalizedPdf *>(newArg.get())) {
+      pdfClone = const_cast<RooHistPdf *>(static_cast<RooHistPdf const *>(&normPdf->pdf()));
+   } else {
+      pdfClone = static_cast<RooHistPdf *>(newArg.get());
+   }
+
+   // The shared bin index can only stand in for the direct weight lookup
+   // without interpolation and with bin size correction.
+   if (_intOrder == 0 && !_unitNorm && !pdfClone->hasExternalBinIndex()) {
+      if (auto *binIndex = RooFit::Detail::RooBinIndex::getOrCreateForDataHist(
+             ctx, *pdfClone, RooArgList(pdfClone->_pdfObsList), *_dataHist)) {
+         pdfClone->_externalBinIndex.add(*binIndex);
+      }
+   }
+   return newArg;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
