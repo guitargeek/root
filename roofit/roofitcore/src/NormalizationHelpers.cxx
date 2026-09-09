@@ -95,3 +95,20 @@ bool RooFit::Detail::CompileContext::isMarkedAsCompiled(RooAbsArg const &arg) co
 {
    return arg.getAttribute("_COMPILED");
 }
+
+/// Find a shared node that was registered under the given content-based key
+/// with registerSharedNode(), or `nullptr` if there is none.
+RooAbsArg *RooFit::Detail::CompileContext::sharedNode(std::string const &key) const
+{
+   auto found = _sharedNodes.find(key);
+   return found != _sharedNodes.end() ? found->second : nullptr;
+}
+
+/// Register a node under a content-based key, such that it can be shared by
+/// several clients in the compiled computation graph (see also sharedNode()).
+/// This is used to deduplicate common subexpressions like bin index
+/// calculations, implemented by the RooFit::Detail::RooBinIndex class.
+void RooFit::Detail::CompileContext::registerSharedNode(std::string const &key, RooAbsArg &arg)
+{
+   _sharedNodes.emplace(key, &arg);
+}

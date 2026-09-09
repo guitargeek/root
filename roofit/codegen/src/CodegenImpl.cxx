@@ -28,6 +28,7 @@
 #include <RooEfficiency.h>
 #include <RooExponential.h>
 #include <RooExtendPdf.h>
+#include <RooFit/Detail/RooBinIndex.h>
 #include <RooFit/Detail/RooNLLVarNew.h>
 #include <RooFit/Detail/RooNormalizedPdf.h>
 #include <RooFormulaVar.h>
@@ -143,6 +144,24 @@ std::string realSumPdfTranslateImpl(CodegenContext &ctx, RooAbsArg const &arg, R
 }
 
 } // namespace
+
+void codegenImpl(RooFit::Detail::RooBinIndex &arg, CodegenContext &ctx)
+{
+   std::string expr;
+   for (std::size_t i = 0; i < arg.binnings().size(); ++i) {
+      if (i > 0) {
+         expr += " + ";
+      }
+      expr += arg.binnings()[i]->translateBinNumber(ctx, arg.vars()[i], arg.coefs()[i]);
+   }
+   // Emit the bin index into a named temporary variable. Since results are
+   // memoized by node in the CodegenContext, all clients of the shared bin
+   // index node will refer to the same variable, and the bin index
+   // calculation is emitted only once.
+   std::string idxName = ctx.getTmpVarName();
+   ctx.addToCodeBody(&arg, "const unsigned int " + idxName + " = " + expr + ";\n");
+   ctx.addResult(&arg, idxName);
+}
 
 void codegenImpl(RooFit::Detail::RooFixedProdPdf &arg, CodegenContext &ctx)
 {

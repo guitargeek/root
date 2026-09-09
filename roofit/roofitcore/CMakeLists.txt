@@ -138,6 +138,7 @@ set(ROOFITCORE_HEADERS
   RooFit/Config.h
   RooFit/Detail/MathFuncs.h
   RooFit/Detail/NormalizationHelpers.h
+  RooFit/Detail/RooBinIndex.h
   RooFit/Detail/RooNLLVarNew.h
   RooFit/Detail/RooNormalizedPdf.h
   RooFit/EvalContext.h
@@ -305,6 +306,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooArgList.cxx
     src/RooArgProxy.cxx
     src/RooArgSet.cxx
+    src/RooBinIndex.cxx
     src/RooBinIntegrator.cxx
     src/RooBinSamplingPdf.cxx
     src/RooBinWidthFunction.cxx
