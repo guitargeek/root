@@ -616,6 +616,11 @@ void codegenChi2(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
       normFactor = "1.0";
    } else if (arg.funcMode() == FuncMode::ExtendedPdf) {
       normFactor = ctx.getResult(*arg.expectedEvents());
+      if (arg.expectedEventsScale() != 1.0) {
+         // The channel pdf was replicated across index states by the
+         // nested-simultaneous flattening: its yield counts only once.
+         normFactor = "(" + normFactor + " * " + std::to_string(arg.expectedEventsScale()) + ")";
+      }
    } else { // Pdf
       std::string weightSumName = RooFit::Detail::makeValidVarName(arg.GetName()) + "WeightSum";
       ctx.addToGlobalScope("double " + weightSumName + " = 0.0;\n");
@@ -688,6 +693,11 @@ void codegenImpl(RooFit::Detail::RooNLLVarNew &arg, CodegenContext &ctx)
    }
    if (arg.expectedEvents()) {
       std::string expected = ctx.getResult(*arg.expectedEvents());
+      if (arg.expectedEventsScale() != 1.0) {
+         // The channel pdf was replicated across index states by the
+         // nested-simultaneous flattening: its yield counts only once.
+         expected = "(" + expected + " * " + std::to_string(arg.expectedEventsScale()) + ")";
+      }
       ctx.addToCodeBody(resName + " += " + expected + " - " + weightSumName + " * std::log(" + expected + ");\n");
    }
 }

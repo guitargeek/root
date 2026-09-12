@@ -9,6 +9,7 @@
 #include <RooConstVar.h>
 #include <RooDataSet.h>
 #include <RooExponential.h>
+#include <RooExtendPdf.h>
 #include <RooFitResult.h>
 #include <RooGaussian.h>
 #include <RooGenericPdf.h>
@@ -27,6 +28,7 @@
 
 #include <cmath>
 #include <memory>
+#include <tuple>
 
 /// Forum issue
 /// https://root-forum.cern.ch/t/roofit-failed-to-create-nll-for-simultaneous-pdfs-with-multiple-range-names/49363.
@@ -962,4 +964,68 @@ TEST(RooSimultaneous, ParameterIndexTopLevelNLL)
       cat.setIndex(1);
       EXPECT_THAT(nll->getVal(), RelativeNear(refNll1->getVal(), 1e-10)) << backend.name() << ", index 1";
    }
+}
+
+/// When a RooSimultaneous is nested inside another RooSimultaneous, the
+/// construction is flattened into a single simultaneous p.d.f. over a
+/// super-category. A component that does not depend on the inner category is
+/// then replicated over the states of that category, but its expected number
+/// of events must still count only once. Otherwise expectedEvents(), toy
+/// generation and extended fits see a silently inflated yield
+/// (GitHub issue #23342).
+TEST(RooSimultaneous, NestedSimPdfExtendedYields)
+{
+   using namespace RooFit;
+
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+
+   RooRealVar x{"x", "x", -8., 8.};
+   RooGaussian shape{"shape", "shape", x, RooConst(0.0), RooConst(2.0)};
+
+   // Analysis A: a signal and a control region; analysis B: one region only.
+   double nA_SR_true = 10.0;
+   double nA_CR_true = 50.0;
+   double nB_true = 40.0;
+   RooRealVar nA_SR{"nA_SR", "nA_SR", nA_SR_true, 0, 1e6};
+   RooRealVar nA_CR{"nA_CR", "nA_CR", nA_CR_true, 0, 1e6};
+   RooRealVar nB{"nB", "nB", nB_true, 0, 1e6};
+   RooExtendPdf pdf_A_SR{"pdf_A_SR", "pdf_A_SR", shape, nA_SR};
+   RooExtendPdf pdf_A_CR{"pdf_A_CR", "pdf_A_CR", shape, nA_CR};
+   RooExtendPdf pdf_B{"pdf_B", "pdf_B", shape, nB};
+
+   RooCategory region{"region", "region", {{"SR", 0}, {"CR", 1}}};
+   RooCategory analysis{"analysis", "analysis", {{"A", 0}, {"B", 1}}};
+
+   RooSimultaneous anaA{"anaA", "anaA", {{"SR", &pdf_A_SR}, {"CR", &pdf_A_CR}}, region};
+   RooSimultaneous comb{"comb", "comb", {{"A", &anaA}, {"B", &pdf_B}}, analysis};
+
+   // The yield of pdf_B is counted only once, not once per replicated state.
+   RooArgSet fullNormSet{x, comb.indexCat()};
+   EXPECT_DOUBLE_EQ(comb.expectedEvents(&fullNormSet), nA_SR_true + nA_CR_true + nB_true);
+
+   // Toy generation follows the intended analysis fractions.
+   RooRandom::randomGenerator()->SetSeed(64);
+   std::unique_ptr<RooDataSet> toy{comb.generate({x, analysis, region}, 100000)};
+   double fracB = toy->sumEntries("analysis==analysis::B") / toy->numEntries();
+   EXPECT_NEAR(fracB, nB_true / 100., 0.01);
+
+   // An extended fit to the dataset the combination intends (A contributes
+   // 10 and 50 events, B 40 events in its only region, nothing in the
+   // non-existent {B;CR} state) recovers all three yields.
+   RooRealVar w{"w", "w", 0, 1e6};
+   RooDataSet data{"data", "data", {x, analysis, region, w}, WeightVar(w)};
+   for (auto const &[a, r, n] : std::vector<std::tuple<std::string, std::string, double>>{
+           {"A", "SR", nA_SR_true}, {"A", "CR", nA_CR_true}, {"B", "SR", nB_true}}) {
+      analysis.setLabel(a.c_str());
+      region.setLabel(r.c_str());
+      x.setVal(0.0);
+      data.add({x, analysis, region}, n);
+   }
+
+   std::unique_ptr<RooFitResult> res{comb.fitTo(data, Extended(true), PrintLevel(-1), PrintEvalErrors(-1), Save(true))};
+   ASSERT_TRUE(res);
+
+   EXPECT_NEAR(nA_SR.getVal(), nA_SR_true, 1e-3);
+   EXPECT_NEAR(nA_CR.getVal(), nA_CR_true, 1e-3);
+   EXPECT_NEAR(nB.getVal(), nB_true, 1e-3);
 }

@@ -132,7 +132,8 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
      _weightVar{"weightVar", "weightVar", this, dummyVar(weightVarName)},
      _weightSquaredVar{weightVarNameSumW2, weightVarNameSumW2, this, dummyVar("weightSquardVar")},
      _statistic{cfg.statistic},
-     _chi2ErrorType{cfg.chi2ErrorType}
+     _chi2ErrorType{cfg.chi2ErrorType},
+     _expectedEventsScale{cfg.expectedEventsScale}
 {
    auto *pdf = dynamic_cast<RooAbsPdf *>(&func);
 
@@ -220,6 +221,7 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
      _funcMode{other._funcMode},
      _chi2ErrorType{other._chi2ErrorType},
      _simCount{other._simCount},
+     _expectedEventsScale{other._expectedEventsScale},
      _prefix{other._prefix},
      _binw{other._binw}
 {
@@ -327,7 +329,7 @@ void RooNLLVarNew::doEvalChi2(RooFit::EvalContext &ctx, std::span<const double> 
    double normFactor = 1.0;
    switch (_funcMode) {
    case FuncMode::Pdf: normFactor = sumWeight; break;
-   case FuncMode::ExtendedPdf: normFactor = ctx.at(*_expectedEvents)[0]; break;
+   case FuncMode::ExtendedPdf: normFactor = ctx.at(*_expectedEvents)[0] * _expectedEventsScale; break;
    case FuncMode::Function: normFactor = 1.0; break;
    }
 
@@ -409,7 +411,8 @@ void RooNLLVarNew::doEval(RooFit::EvalContext &ctx) const
       // The unbinned NLL path is only reached for pdf inputs, so the cast is safe.
       auto &pdf = static_cast<RooAbsPdf &>(const_cast<RooAbsReal &>(*_func));
       std::span<const double> expected = ctx.at(*_expectedEvents);
-      nllOut.nllSum += pdf.extendedTerm(sumWeight, expected[0], _weightSquared ? sumWeight2 : 0.0, _doBinOffset);
+      nllOut.nllSum += pdf.extendedTerm(sumWeight, expected[0] * _expectedEventsScale,
+                                        _weightSquared ? sumWeight2 : 0.0, _doBinOffset);
    }
 
    finalizeResult(ctx, {nllOut.nllSum, nllOut.nllSumCarry}, sumWeight);

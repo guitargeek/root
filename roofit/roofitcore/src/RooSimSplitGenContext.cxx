@@ -187,7 +187,9 @@ RooDataSet* RooSimSplitGenContext::generate(double nEvents, bool skipInit, bool 
   double nExpectedTotal = 0.;
   for(auto * proxy : static_range_cast<RooRealProxy*>(_pdf->_pdfProxyList)) {
     RooAbsPdf* pdf=static_cast<RooAbsPdf*>(proxy->absArg()) ;
-    nExpected.push_back(pdf->expectedEvents(&_allVarsPdf));
+    // The component yield scale splits the yield of pdfs that
+    // nested-simultaneous flattening replicated over multiple index states.
+    nExpected.push_back(_pdf->componentYieldScale(proxy->name()) * pdf->expectedEvents(&_allVarsPdf));
     nExpectedTotal += nExpected.back();
   }
 

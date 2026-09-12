@@ -103,8 +103,11 @@ RooSimGenContext::RooSimGenContext(const RooSimultaneous &model, const RooArgSet
 
     _gcIndex.push_back(idxCat.lookupIndex(proxy->name()));
 
-    // Fill fraction threshold array
-    _fracThresh[i] = _fracThresh[i-1] + (_haveIdxProto?0:pdf->expectedEvents(&allPdfVars)) ;
+    // Fill fraction threshold array. The component yield scale corrects the
+    // fractions of pdfs that nested-simultaneous flattening replicated over
+    // multiple index states.
+    _fracThresh[i] = _fracThresh[i - 1] +
+                     (_haveIdxProto ? 0 : model.componentYieldScale(proxy->name()) * pdf->expectedEvents(&allPdfVars));
     i++ ;
   }
 
@@ -254,8 +257,9 @@ void RooSimGenContext::updateFractions()
   for(auto * proxy : static_range_cast<RooRealProxy*>(_pdf->_pdfProxyList)) {
     auto* pdf = static_cast<RooAbsPdf*>(proxy->absArg());
 
-    // Fill fraction threshold array
-    _fracThresh[i] = _fracThresh[i-1] + (_haveIdxProto?0:pdf->expectedEvents(&_allVarsPdf)) ;
+    // Fill fraction threshold array (see ctor for the component yield scale)
+    _fracThresh[i] = _fracThresh[i - 1] +
+                     (_haveIdxProto ? 0 : _pdf->componentYieldScale(proxy->name()) * pdf->expectedEvents(&_allVarsPdf));
     i++ ;
   }
 

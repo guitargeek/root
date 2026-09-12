@@ -29,6 +29,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 class RooAbsCategoryLValue ;
 class RooFitResult ;
@@ -49,6 +50,10 @@ public:
 
      std::vector<RooAbsPdf const *> finalPdfs;
      std::vector<std::string> finalCatLabels;
+     /// Yield scale for each entry: 1/N if the pdf is replicated across N
+     /// index states by the nested-simultaneous flattening, 1 otherwise.
+     /// Empty means all scales are 1.
+     std::vector<double> finalYieldScales;
      RooAbsCategoryLValue *indexCat = nullptr;
      std::unique_ptr<RooSuperCategory> superIndex;
   };
@@ -87,6 +92,11 @@ public:
   RooPlot* plotOn(RooPlot* frame, RooLinkedList& cmdList) const override ;
 
   RooAbsPdf* getPdf(RooStringView catName) const ;
+  /// Scaling factor for the yield of the p.d.f. associated with index state
+  /// `catName`. Is `1/N` if the flattening of a nested RooSimultaneous
+  /// replicated that p.d.f. over `N` index states, otherwise `1`. Returns `1`
+  /// for unknown states.
+  double componentYieldScale(RooStringView catName) const;
   const RooAbsCategoryLValue& indexCat() const { return (RooAbsCategoryLValue&) _indexCat.arg() ; }
 
 
@@ -148,7 +158,12 @@ private:
 
   mutable std::unique_ptr<RooArgSet> _indexCatSet ; ///<! Index category wrapped in a RooArgSet if needed internally
 
-  ClassDefOverride(RooSimultaneous,3)  // Simultaneous operator p.d.f, functions like C++  'switch()' on input p.d.fs operating on index category5A
+  std::vector<double> _yieldScales; ///< Per-proxy yield scale for components replicated by nested-simultaneous
+                                    ///< flattening (1/N where N is the number of replicas); empty if all 1
+
+  ClassDefOverride(
+     RooSimultaneous,
+     4) // Simultaneous operator p.d.f, functions like C++  'switch()' on input p.d.fs operating on index category5A
 };
 
 #endif

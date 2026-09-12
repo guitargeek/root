@@ -109,8 +109,39 @@ void RooSimultaneous::InitializationOutput::addPdf(const RooAbsPdf &pdf, std::st
 
 using std::string;
 
+namespace {
 
+/// Assign a yield scale to each final component such that the expected number
+/// of events of a p.d.f. that was replicated over multiple index states by
+/// the nested-RooSimultaneous flattening is counted only once: each replica
+/// gets a share of 1/N of the yield, where N is the number of states the
+/// p.d.f. instance appears in. Without this, extended quantities that sum
+/// over the index states (total expected events, extended likelihood terms,
+/// generation fractions) count the yield N times, silently changing the model
+/// (see GitHub issue #23342).
+std::vector<double> computeYieldScales(std::string const &msgPrefix, std::vector<RooAbsPdf const *> const &finalPdfs)
+{
+   std::vector<double> scales(finalPdfs.size(), 1.0);
+   std::map<RooAbsPdf const *, std::size_t> pdfCounts;
+   for (auto *pdf : finalPdfs) {
+      ++pdfCounts[pdf];
+   }
+   for (auto const &[pdf, count] : pdfCounts) {
+      if (count > 1) {
+         oocoutI(nullptr, InputArguments)
+            << msgPrefix << "INFO: component p.d.f. " << pdf->GetName() << " was replicated over " << count
+            << " index states by the flattening of the nested construction; its expected number of events "
+               "will be split equally between these states to preserve the model"
+            << std::endl;
+      }
+   }
+   for (std::size_t i = 0; i < finalPdfs.size(); ++i) {
+      scales[i] = 1.0 / static_cast<double>(pdfCounts[finalPdfs[i]]);
+   }
+   return scales;
+}
 
+} // namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor with index category. PDFs associated with indexCat
@@ -176,6 +207,10 @@ RooSimultaneous::RooSimultaneous(const char *name, const char *title, RooSimulta
 {
    for (std::size_t i = 0; i < initInfo.finalPdfs.size(); ++i) {
       addPdf(*initInfo.finalPdfs[i], initInfo.finalCatLabels[i].c_str());
+   }
+
+   if (initInfo.finalYieldScales.size() == initInfo.finalPdfs.size()) {
+      _yieldScales = std::move(initInfo.finalYieldScales);
    }
 
    // Take ownership of eventual super category
@@ -338,6 +373,8 @@ RooSimultaneous::initialize(std::string const& name, RooAbsCategoryLValue &inInd
     }
   }
 
+  out->finalYieldScales = computeYieldScales(msgPrefix, out->finalPdfs);
+
   return out;
 }
 
@@ -345,13 +382,14 @@ RooSimultaneous::initialize(std::string const& name, RooAbsCategoryLValue &inInd
 ////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
-RooSimultaneous::RooSimultaneous(const RooSimultaneous& other, const char* name) :
-  RooAbsPdf(other,name),
-  _plotCoefNormSet("!plotCoefNormSet",this,other._plotCoefNormSet),
-  _plotCoefNormRange(other._plotCoefNormRange),
-  _partIntMgr(other._partIntMgr,this),
-  _indexCat("indexCat",this,other._indexCat),
-  _numPdf(other._numPdf)
+RooSimultaneous::RooSimultaneous(const RooSimultaneous &other, const char *name)
+   : RooAbsPdf(other, name),
+     _plotCoefNormSet("!plotCoefNormSet", this, other._plotCoefNormSet),
+     _plotCoefNormRange(other._plotCoefNormRange),
+     _partIntMgr(other._partIntMgr, this),
+     _indexCat("indexCat", this, other._indexCat),
+     _numPdf(other._numPdf),
+     _yieldScales(other._yieldScales)
 {
   // Copy proxy list
   for(auto* proxy : static_range_cast<RooRealProxy*>(other._pdfProxyList)) {
@@ -380,7 +418,14 @@ RooAbsPdf* RooSimultaneous::getPdf(RooStringView catName) const
   return proxy ? static_cast<RooAbsPdf*>(proxy->absArg()) : nullptr;
 }
 
-
+double RooSimultaneous::componentYieldScale(RooStringView catName) const
+{
+   if (_yieldScales.empty()) {
+      return 1.0;
+   }
+   int idx = _pdfProxyList.IndexOf(_pdfProxyList.FindObject(catName.c_str()));
+   return idx >= 0 && idx < static_cast<int>(_yieldScales.size()) ? _yieldScales[idx] : 1.0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Associate given PDF with index category state label 'catLabel'.
@@ -426,6 +471,12 @@ bool RooSimultaneous::addPdf(const RooAbsPdf& pdf, const char* catLabel)
     TObject* proxy = new RooRealProxy(catLabel,catLabel,this,const_cast<RooAbsPdf&>(pdf));
     _pdfProxyList.Add(proxy) ;
     _numPdf += 1 ;
+    // Keep the yield scales aligned with the proxy list. Scales different
+    // from one are only set from initialization info of nested constructions
+    // in the constructor; plain addPdf() always implies a scale of one.
+    if (!_yieldScales.empty()) {
+       _yieldScales.push_back(1.0);
+    }
   }
 
   return false ;
@@ -470,6 +521,7 @@ double RooSimultaneous::evaluate() const
       nEvtTot = 0;
       nEvtCat = 0;
 
+      std::size_t iProxy = 0;
       for (auto *proxy2 : static_range_cast<RooRealProxy *>(_pdfProxyList)) {
          auto &pdf2 = static_cast<RooAbsPdf const &>(proxy2->arg());
          if(!pdf2.canBeExtended()) {
@@ -479,13 +531,18 @@ double RooSimultaneous::evaluate() const
             nEvtCat = 1.0;
             break;
          }
-         const double nEvt = pdf2.expectedEvents(_normSet);
+         // The yield scale accounts for component p.d.f.s that were replicated
+         // over multiple index states by nested-simultaneous flattening: their
+         // expected number of events counts only once in the total.
+         const double scale = iProxy < _yieldScales.size() ? _yieldScales[iProxy] : 1.0;
+         const double nEvt = scale * pdf2.expectedEvents(_normSet);
          nEvtTot += nEvt;
          if (proxy == proxy2) {
             // Matching by proxy by pointer rather than pdfs, because it's
             // possible to have the same pdf used in different states.
             nEvtCat += nEvt;
          }
+         ++iProxy;
       }
    }
    double catFrac = nEvtCat / nEvtTot;
@@ -507,8 +564,14 @@ double RooSimultaneous::expectedEvents(const RooArgSet* nset) const
 
     double sum(0) ;
 
+    std::size_t iProxy = 0;
     for(auto * proxy : static_range_cast<RooRealProxy*>(_pdfProxyList)) {
-      sum += (static_cast<RooAbsPdf*>(proxy->absArg()))->expectedEvents(nset) ;
+       // Scale down the yield of component p.d.f.s that were replicated over
+       // multiple index states by nested-simultaneous flattening, so that each
+       // of them counts only once in the total.
+       const double scale = iProxy < _yieldScales.size() ? _yieldScales[iProxy] : 1.0;
+       sum += scale * (static_cast<RooAbsPdf *>(proxy->absArg()))->expectedEvents(nset);
+       ++iProxy;
     }
 
     return sum ;
@@ -522,7 +585,9 @@ double RooSimultaneous::expectedEvents(const RooArgSet* nset) const
     if (proxy==nullptr) return 0 ;
 
     // Return the selected PDF value, normalized by the number of index states
-    return (static_cast<RooAbsPdf*>(proxy->absArg()))->expectedEvents(nset);
+    const int idx = _pdfProxyList.IndexOf(proxy);
+    const double scale = idx >= 0 && idx < static_cast<int>(_yieldScales.size()) ? _yieldScales[idx] : 1.0;
+    return scale * (static_cast<RooAbsPdf *>(proxy->absArg()))->expectedEvents(nset);
   }
 }
 

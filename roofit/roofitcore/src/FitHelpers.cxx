@@ -399,7 +399,7 @@ std::unique_ptr<RooAddition> createSimultaneousStat(RooSimultaneous const &simPd
       }
       std::unique_ptr<RooArgSet> observables{
          std::unique_ptr<RooArgSet>(channelPdf->getVariables())->selectByAttrib("__obs__", true)};
-      std::unique_ptr<RooNLLVarNew> term = makeTerm(*channelPdf, *observables);
+      std::unique_ptr<RooNLLVarNew> term = makeTerm(*channelPdf, *observables, catName);
       term->setPrefix(std::string("_") + catName + "_");
       terms.addOwned(std::move(term));
    }
@@ -412,11 +412,13 @@ std::unique_ptr<RooAddition> createSimultaneousStat(RooSimultaneous const &simPd
 std::unique_ptr<RooAbsArg> createSimultaneousChi2(RooSimultaneous const &simPdf, std::string const &rangeName,
                                                   bool isSimPdfExtended, RooDataHist::ErrorType etype)
 {
-   auto chi2 =
-      createSimultaneousStat(simPdf, rangeName, "simChi2", [&](RooAbsPdf &channelPdf, RooArgSet const &observables) {
+   auto chi2 = createSimultaneousStat(
+      simPdf, rangeName, "simChi2",
+      [&](RooAbsPdf &channelPdf, RooArgSet const &observables, std::string const &catName) {
          RooNLLVarNew::Config cfg;
          cfg.statistic = RooNLLVarNew::Statistic::Chi2;
          cfg.extended = isSimPdfExtended && channelPdf.extendMode() != RooAbsPdf::CanNotBeExtended;
+         cfg.expectedEventsScale = simPdf.componentYieldScale(catName);
          cfg.chi2ErrorType = etype;
          auto name = std::string("chi2_") + channelPdf.GetName();
          return std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), channelPdf, observables, cfg);
@@ -429,11 +431,15 @@ std::unique_ptr<RooAbsArg> createSimultaneousChi2(RooSimultaneous const &simPdf,
 std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, bool isSimPdfExtended,
                                                  std::string const &rangeName, RooFit::OffsetMode offset)
 {
-   auto nll =
-      createSimultaneousStat(simPdf, rangeName, "mynll", [&](RooAbsPdf &channelPdf, RooArgSet const &observables) {
+   auto nll = createSimultaneousStat(
+      simPdf, rangeName, "mynll", [&](RooAbsPdf &channelPdf, RooArgSet const &observables, std::string const &catName) {
          RooNLLVarNew::Config cfg;
          // Only request extended NLLs for channels that can be extended.
          cfg.extended = isSimPdfExtended && channelPdf.extendMode() != RooAbsPdf::CanNotBeExtended;
+         // If the flattened nested-simultaneous construction replicated a
+         // channel p.d.f. over multiple index states, its yield must be split
+         // between the replicated channels and not counted per state.
+         cfg.expectedEventsScale = simPdf.componentYieldScale(catName);
          cfg.offsetMode = offset;
          auto name = std::string("nll_") + channelPdf.GetName();
          return std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), channelPdf, observables, cfg);

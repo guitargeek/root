@@ -50,6 +50,10 @@ public:
       bool extended = false;
       RooFit::OffsetMode offsetMode = RooFit::OffsetMode::None;
       RooDataHist::ErrorType chi2ErrorType = RooDataHist::Expected;
+      /// Scale factor for the expected number of events. Only relevant for
+      /// extended terms. Used to account for channel p.d.f.s that a nested
+      /// RooSimultaneous replicated over multiple index states when flattened.
+      double expectedEventsScale = 1.0;
    };
 
    RooNLLVarNew(const char *name, const char *title, RooAbsReal &func, RooArgSet const &observables, Config const &cfg);
@@ -88,6 +92,7 @@ public:
    FuncMode funcMode() const { return _funcMode; }
    RooDataHist::ErrorType chi2ErrorType() const { return _chi2ErrorType; }
    RooAbsReal const *expectedEvents() const { return _expectedEvents ? &**_expectedEvents : nullptr; }
+   double expectedEventsScale() const { return _expectedEventsScale; }
    RooAbsReal const *binVolumes() const { return _binVolumes ? &**_binVolumes : nullptr; }
    RooAbsReal const *weightErrLo() const { return _weightErrLo ? &**_weightErrLo : nullptr; }
    RooAbsReal const *weightErrHi() const { return _weightErrHi ? &**_weightErrHi : nullptr; }
@@ -118,6 +123,7 @@ private:
    FuncMode _funcMode = FuncMode::Pdf;
    RooDataHist::ErrorType _chi2ErrorType = RooDataHist::Expected;
    int _simCount = 1;
+   double _expectedEventsScale = 1.0;
    std::string _prefix;
    std::vector<double> _binw;
    mutable ROOT::Math::KahanSum<double> _offset{0.}; ///<! Offset as KahanSum to avoid loss of precision
