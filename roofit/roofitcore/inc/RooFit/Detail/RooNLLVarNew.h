@@ -50,6 +50,8 @@ public:
       bool extended = false;
       RooFit::OffsetMode offsetMode = RooFit::OffsetMode::None;
       RooDataHist::ErrorType chi2ErrorType = RooDataHist::Expected;
+      RooFit::ZeroPredictionMode zeroPredMode = RooFit::ZeroPredictionMode::NaN;
+      double zeroPredDelta = 1e-4;
    };
 
    RooNLLVarNew(const char *name, const char *title, RooAbsReal &func, RooArgSet const &observables, Config const &cfg);
@@ -88,6 +90,8 @@ public:
    RooAbsReal const &weightVar() const { return *_weightVar; }
    RooAbsReal const &weightSquaredVar() const { return *_weightSquaredVar; }
    bool binnedL() const { return _binnedL; }
+   RooFit::ZeroPredictionMode zeroPredMode() const { return _zeroPredMode; }
+   double zeroPredDelta() const { return _zeroPredDelta; }
    int simCount() const { return _simCount; }
    Statistic statistic() const { return _statistic; }
    FuncMode funcMode() const { return _funcMode; }
@@ -124,6 +128,9 @@ private:
    RooDataHist::ErrorType _chi2ErrorType = RooDataHist::Expected;
    int _simCount = 1;
    double _logSimCount = 0.;
+   RooFit::ZeroPredictionMode _zeroPredMode = RooFit::ZeroPredictionMode::NaN;
+   double _zeroPredDelta = 1e-4;
+   mutable bool _zeroPredWarned = false; ///<! Whether we already warned about hitting the zero-prediction floor
    std::string _prefix;
    std::vector<double> _binw;
    mutable ROOT::Math::KahanSum<double> _offset{0.}; ///<! Offset as KahanSum to avoid loss of precision
