@@ -13,6 +13,7 @@
 #include <RooHelpers.h>
 #include <RooHistFunc.h>
 #include <RooHistPdf.h>
+#include <RooFit/Detail/MathFuncs.h>
 #ifdef ROOFIT_LEGACY_EVAL_BACKEND
 #include "../src/RooNLLVar.h"
 #endif
@@ -794,6 +795,123 @@ TEST_P(TestStatisticTest, BinnedLikelihood)
    // with the one of the RooSimultaneous.
    EXPECT_DOUBLE_EQ(realSumNllVal, simNllVal);
    EXPECT_DOUBLE_EQ(prodNllVal, simNllVal);
+}
+
+// The C2-smooth continuation of the log used by the "smooth" mode of
+// RooFit::ZeroPrediction().
+TEST(ZeroPrediction, SmoothContinuationDerivatives)
+{
+   using RooFit::Detail::MathFuncs::nllBinnedRegularized;
+
+   const double delta = 1e-4;
+   const double N = 5.;
+   constexpr int smooth = static_cast<int>(RooFit::ZeroPredictionMode::Smooth);
+   constexpr int nan = static_cast<int>(RooFit::ZeroPredictionMode::NaN);
+
+   // Above the threshold, "smooth" must be identical to the unmodified term.
+   EXPECT_DOUBLE_EQ(nllBinnedRegularized(delta, N, false, smooth, delta),
+                    nllBinnedRegularized(delta, N, false, nan, delta));
+   EXPECT_DOUBLE_EQ(nllBinnedRegularized(3 * delta, N, false, smooth, delta),
+                    nllBinnedRegularized(3 * delta, N, false, nan, delta));
+
+   // Value, first and second derivative of the continuation must match the
+   // log term at delta. Analytic values of the term mu - N * log(mu) and its
+   // derivatives: T(delta) = delta - N log(delta), T'(delta) = 1 - N/delta,
+   // T''(delta) = N/delta^2.
+   const double h = 1e-3 * delta;
+   const double f0 = nllBinnedRegularized(delta, N, false, smooth, delta);
+   const double fm1 = nllBinnedRegularized(delta - h, N, false, smooth, delta);
+   const double fm2 = nllBinnedRegularized(delta - 2 * h, N, false, smooth, delta);
+   EXPECT_DOUBLE_EQ(f0, delta - N * std::log(delta) + TMath::LnGamma(N + 1));
+   EXPECT_NEAR((f0 - fm1) / h, 1. - N / delta, 1e-3 * N / delta);
+   EXPECT_NEAR((f0 - 2 * fm1 + fm2) / (h * h), N / (delta * delta), 1e-3 * N / (delta * delta));
+
+   // At mu = 0 the continuation must be finite and evaluate to the quadratic
+   // at t = -1: logMu = log(delta) - 1.5.
+   EXPECT_DOUBLE_EQ(nllBinnedRegularized(0.0, N, false, smooth, delta),
+                    -N * (std::log(delta) - 1.5) + TMath::LnGamma(N + 1));
+}
+
+// Verify the four modes of the RooFit::ZeroPrediction() command argument.
+TEST(ZeroPrediction, BinnedLikelihoodModes)
+{
+   using namespace RooFit;
+
+   RooRealVar x{"x", "x", 0, 4};
+   x.setBins(4);
+
+   // Model histogram with zero prediction in the first bin.
+   RooDataHist modelHist{"model_hist", "model_hist", x};
+   modelHist.set(0, 0.0, -1);
+   for (int iBin = 1; iBin < 4; ++iBin) {
+      modelHist.set(iBin, 100.0, -1);
+   }
+   RooHistFunc histFunc{"hist_func", "hist_func", x, modelHist};
+   RooRealSumPdf pdf{"pdf", "pdf", histFunc, RooArgList{RooConst(1.0)}};
+   pdf.setAttribute("BinnedLikelihood");
+
+   // Data with entries in the zero-prediction bin. The bins where the model
+   // supports the data agree exactly.
+   RooDataHist data{"data", "data", x};
+   data.set(0, 5.0, -1);
+   for (int iBin = 1; iBin < 4; ++iBin) {
+      data.set(iBin, 100.0, -1);
+   }
+
+   const double delta = 1e-3;
+   const auto term = [](double mu, double N) { return mu - N * std::log(mu) + TMath::LnGamma(N + 1); };
+
+   // The regularized NLLs must agree with the exact one in the bins where the
+   // model supports the data; only the first bin differs.
+   const double restRef = 3 * term(100.0, 100.0);
+
+   // Default mode: an evaluation error is logged (the "error wall") and the
+   // bin is skipped.
+   {
+      std::unique_ptr<RooAbsReal> nll{pdf.createNLL(data)};
+      RooHelpers::LocalChangeMsgLevel silence{RooFit::FATAL};
+      const double val = nll->getVal();
+      EXPECT_DOUBLE_EQ(val, restRef);
+   }
+
+   // "clamp" mode
+   {
+      std::unique_ptr<RooAbsReal> nll{pdf.createNLL(data, ZeroPrediction("clamp"), ZeroPredictionDelta(delta))};
+      const double val = nll->getVal();
+      const double ref = term(delta, 5.0) + restRef;
+      EXPECT_NEAR(val, ref, 1e-10 * ref);
+   }
+
+   // "smooth" mode
+   {
+      std::unique_ptr<RooAbsReal> nll{pdf.createNLL(data, ZeroPrediction("smooth"), ZeroPredictionDelta(delta))};
+      const double val = nll->getVal();
+      const double ref = -5.0 * (std::log(delta) - 1.5) + TMath::LnGamma(6) + restRef;
+      EXPECT_NEAR(val, ref, 1e-10 * ref);
+   }
+
+   // The delta hyperparameter changes the result in the "clamp" mode.
+   {
+      std::unique_ptr<RooAbsReal> nll{pdf.createNLL(data, ZeroPrediction("clamp"), ZeroPredictionDelta(2.0 * delta))};
+      const double ref = term(2.0 * delta, 5.0) + restRef;
+      EXPECT_NEAR(nll->getVal(), ref, 1e-10 * ref);
+   }
+
+   // "error" mode
+   {
+      std::unique_ptr<RooAbsReal> nll{pdf.createNLL(data, ZeroPrediction("error"))};
+      EXPECT_THROW(nll->getVal(), std::runtime_error);
+   }
+
+   // The modular likelihood (RooFit::TestStatistics::RooBinnedL) must honor
+   // the setting as well.
+   {
+      std::unique_ptr<RooAbsReal> nll{
+         pdf.createNLL(data, ModularL(true), ZeroPrediction("smooth"), ZeroPredictionDelta(delta))};
+      const double val = nll->getVal();
+      const double ref = -5.0 * (std::log(delta) - 1.5) + TMath::LnGamma(6) + restRef;
+      EXPECT_NEAR(val, ref, 1e-10 * ref);
+   }
 }
 
 // Make sure that the offset is correctly hidden for the likelihoods, even if

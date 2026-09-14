@@ -74,6 +74,17 @@ constexpr static auto NumIntegration = NumericIntegration;
 /// RooAbsPdf::fitTo()
 enum class OffsetMode { None, Initial, Bin };
 
+/// How to treat bins of a binned likelihood where the model prediction is zero
+/// or negative while the data is not. Selectable with the ZeroPrediction()
+/// command argument to RooAbsPdf::fitTo() / RooAbsPdf::createNLL().
+enum class ZeroPredictionMode {
+   NaN,    ///< Log an evaluation error, letting the minimizer recover from the undefined likelihood (the default)
+   Clamp,  ///< Clamp the prediction of such bins to a small positive value (see ZeroPredictionDelta()); prefer Smooth
+           ///< in practice, because clamping removes the gradient and the fit can deadlock
+   Smooth, ///< Continue the log of the prediction C2-smoothly below ZeroPredictionDelta() with a quadratic
+   Error   ///< Throw an exception to abort the fit
+};
+
 namespace Experimental {
 
 /// Configuration options for parallel minimization with multiprocessing library
@@ -350,6 +361,8 @@ RooCmdArg Offset(std::string const& mode);
 inline RooCmdArg Offset(const char * mode) { return Offset(std::string(mode)); }
 // For backwards compatibility
 inline RooCmdArg Offset(bool flag=true) { return flag ? Offset("initial") : Offset("off"); }
+RooCmdArg ZeroPrediction(std::string const &mode);
+RooCmdArg ZeroPredictionDelta(double delta);
 RooCmdArg RecoverFromUndefinedRegions(double strength);
 /** @} */
 

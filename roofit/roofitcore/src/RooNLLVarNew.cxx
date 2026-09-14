@@ -132,7 +132,9 @@ RooNLLVarNew::RooNLLVarNew(const char *name, const char *title, RooAbsReal &func
      _weightVar{"weightVar", "weightVar", this, dummyVar(weightVarName)},
      _weightSquaredVar{weightVarNameSumW2, weightVarNameSumW2, this, dummyVar("weightSquardVar")},
      _statistic{cfg.statistic},
-     _chi2ErrorType{cfg.chi2ErrorType}
+     _chi2ErrorType{cfg.chi2ErrorType},
+     _zeroPredMode{cfg.zeroPredMode},
+     _zeroPredDelta{cfg.zeroPredDelta}
 {
    auto *pdf = dynamic_cast<RooAbsPdf *>(&func);
 
@@ -220,6 +222,8 @@ RooNLLVarNew::RooNLLVarNew(const RooNLLVarNew &other, const char *name)
      _funcMode{other._funcMode},
      _chi2ErrorType{other._chi2ErrorType},
      _simCount{other._simCount},
+     _zeroPredMode{other._zeroPredMode},
+     _zeroPredDelta{other._zeroPredDelta},
      _prefix{other._prefix},
      _binw{other._binw}
 {
@@ -280,7 +284,27 @@ void RooNLLVarNew::doEvalBinnedL(RooFit::EvalContext &ctx, std::span<const doubl
          mu *= _binw[i];
       }
 
-      if (mu <= 0 && N > 0) {
+      if (_zeroPredMode != RooFit::ZeroPredictionMode::NaN) {
+         // The zero-prediction regularization requested with
+         // RooFit::ZeroPrediction() is active.
+         if (N > 0. && mu < _zeroPredDelta) {
+            if (_zeroPredMode == RooFit::ZeroPredictionMode::Error) {
+               throw std::runtime_error(std::string{GetName()} + ": observed " + std::to_string(N) + " events in bin " +
+                                        std::to_string(i) + " where the model " + _func->GetName() + " predicts " +
+                                        std::to_string(mu) + " (ZeroPrediction(\"error\") is active)");
+            }
+            if (!_zeroPredWarned) {
+               _zeroPredWarned = true;
+               oocoutW(this, Eval) << GetName() << ": bin " << i << " has a zero or tiny model prediction (" << mu
+                                   << ") with nonzero data (" << N
+                                   << "): the likelihood is regularized according to RooFit::ZeroPrediction (delta="
+                                   << _zeroPredDelta << ").\n";
+            }
+         }
+         result += RooFit::Detail::MathFuncs::nllBinnedRegularized(mu, N, _doBinOffset, static_cast<int>(_zeroPredMode),
+                                                                   _zeroPredDelta);
+         sumWeightKahanSum += N;
+      } else if (mu <= 0 && N > 0) {
          // Catch error condition: data present where zero events are predicted
          logEvalError(Form("Observed %f events in bin %lu with zero event yield", N, (unsigned long)i));
       } else {

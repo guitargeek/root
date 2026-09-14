@@ -464,6 +464,45 @@ inline double nll(double pdf, double weight, int binnedL, int doBinOffset)
    }
 }
 
+/// Like the binned-likelihood term of nll(), but with a regularization for
+/// bins with a nonzero data weight `N` and a model prediction `mu` below
+/// `delta`, where the likelihood is infinite (`mu <= 0`) or numerically
+/// unusable. The reference point for the regularization is delta = 1e-4.
+/// \param zeroPredMode selects the regularization. The values map to
+///        RooFit::ZeroPredictionMode. 0 ("nan") : no regularization, the
+///        caller is responsible for the error handling; 1 ("clamp") : below
+///        delta, the prediction is clamped to delta; 2 ("smooth") : below
+///        delta, log(mu) is replaced by a quadratic that matches log(mu) in
+///        value and first two derivatives at delta, i.e. the regularization
+///        is C2-smooth and keeps a gradient that pushes the prediction up.
+inline double nllBinnedRegularized(double mu, double weight, int doBinOffset, int zeroPredMode, double delta)
+{
+   // Special handling of this case since std::log(Poisson(0,0)=0 but can't be
+   // calculated with usual log-formula since std::log(mu)=0. No update of
+   // the result is required since term=0.
+   if (std::abs(mu) < 1e-10 && std::abs(weight) < 1e-10) {
+      return 0.0;
+   }
+
+   double logMu;
+   if (zeroPredMode == 0 || weight <= 0. || mu >= delta) {
+      logMu = std::log(mu);
+   } else if (zeroPredMode == 1) {
+      // "clamp"
+      mu = delta;
+      logMu = std::log(delta);
+   } else {
+      // "smooth": C2-smooth quadratic continuation of log(mu) below delta
+      const double t = mu / delta - 1.;
+      logMu = std::log(delta) + t - 0.5 * t * t;
+   }
+
+   if (doBinOffset) {
+      return mu - weight - weight * (logMu - std::log(weight));
+   }
+   return mu - weight * logMu + TMath::LnGamma(weight + 1);
+}
+
 template <typename DoubleArray>
 double recursiveFraction(DoubleArray a, unsigned int n)
 {

@@ -30,7 +30,8 @@ namespace TestStatistics {
 
 class RooBinnedL : public RooAbsL {
 public:
-   RooBinnedL(RooAbsPdf *pdf, RooAbsData *data);
+   RooBinnedL(RooAbsPdf *pdf, RooAbsData *data,
+              RooFit::ZeroPredictionMode zeroPredMode = RooFit::ZeroPredictionMode::NaN, double zeroPredDelta = 1e-4);
    ~RooBinnedL() override;
    ROOT::Math::KahanSum<double>
    evaluatePartition(Section bins, std::size_t components_begin, std::size_t components_end) override;
@@ -40,6 +41,9 @@ public:
 private:
    mutable bool _first = true;        ///<!
    mutable std::vector<double> _binw; ///<!
+   RooFit::ZeroPredictionMode const _zeroPredMode;
+   double const _zeroPredDelta;
+   mutable bool _zeroPredWarned = false; ///< whether we already warned about hitting the zero-prediction floor
    std::unique_ptr<RooChangeTracker> paramTracker_;
    Section lastSection_ = {0, 0}; // used for cache together with the parameter tracker
    mutable ROOT::Math::KahanSum<double> cachedResult_{0.};

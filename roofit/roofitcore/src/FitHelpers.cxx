@@ -427,7 +427,8 @@ std::unique_ptr<RooAbsArg> createSimultaneousChi2(RooSimultaneous const &simPdf,
 }
 
 std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, bool isSimPdfExtended,
-                                                 std::string const &rangeName, RooFit::OffsetMode offset)
+                                                 std::string const &rangeName, RooFit::OffsetMode offset,
+                                                 RooFit::ZeroPredictionMode zeroPredMode, double zeroPredDelta)
 {
    auto nll =
       createSimultaneousStat(simPdf, rangeName, "mynll", [&](RooAbsPdf &channelPdf, RooArgSet const &observables) {
@@ -435,6 +436,8 @@ std::unique_ptr<RooAbsArg> createSimultaneousNLL(RooSimultaneous const &simPdf, 
          // Only request extended NLLs for channels that can be extended.
          cfg.extended = isSimPdfExtended && channelPdf.extendMode() != RooAbsPdf::CanNotBeExtended;
          cfg.offsetMode = offset;
+         cfg.zeroPredMode = zeroPredMode;
+         cfg.zeroPredDelta = zeroPredDelta;
          auto name = std::string("nll_") + channelPdf.GetName();
          return std::make_unique<RooNLLVarNew>(name.c_str(), name.c_str(), channelPdf, observables, cfg);
       });
@@ -517,7 +520,8 @@ std::unique_ptr<RooAbsPdf> compilePdfForFit(RooAbsPdf &pdf, RooArgSet const &nor
 
 std::unique_ptr<RooAbsReal> createNLLNew(RooAbsPdf &pdf, RooAbsData &data, std::unique_ptr<RooAbsReal> &&constraints,
                                          std::string const &rangeName, RooArgSet const &projDeps, bool isExtended,
-                                         double integrateOverBinsPrecision, RooFit::OffsetMode offset)
+                                         double integrateOverBinsPrecision, RooFit::OffsetMode offset,
+                                         RooFit::ZeroPredictionMode zeroPredMode, double zeroPredDelta)
 {
    if (constraints) {
       // The computation graph for the constraints is very small, no need to do
@@ -544,11 +548,13 @@ std::unique_ptr<RooAbsReal> createNLLNew(RooAbsPdf &pdf, RooAbsData &data, std::
    // (analogous to RooMultiPdf): there are no channels to split the NLL into,
    // so it is treated like an ordinary pdf.
    if (simPdf && simPdf->indexCatIsObservable(*data.get())) {
-      nllTerms.addOwned(createSimultaneousNLL(*simPdf, isExtended, rangeName, offset));
+      nllTerms.addOwned(createSimultaneousNLL(*simPdf, isExtended, rangeName, offset, zeroPredMode, zeroPredDelta));
    } else {
       RooNLLVarNew::Config cfg;
       cfg.extended = isExtended;
       cfg.offsetMode = offset;
+      cfg.zeroPredMode = zeroPredMode;
+      cfg.zeroPredDelta = zeroPredDelta;
       nllTerms.addOwned(std::make_unique<RooNLLVarNew>("RooNLLVarNew", "RooNLLVarNew", finalPdf, observables, cfg));
    }
    if (constraints) {
@@ -786,6 +792,8 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
    pc.defineMutex("Range", "RangeWithName");
    pc.defineMutex("GlobalObservables", "GlobalObservablesTag");
    pc.defineInt("ModularL", "ModularL", 0, 0);
+   pc.defineInt("zeroPred", "ZeroPrediction", 0, static_cast<int>(RooFit::ZeroPredictionMode::NaN));
+   pc.defineDouble("zeroPredDelta", "ZeroPredictionDelta", 0, 1e-4);
 
    // New style likelihoods define parallelization through Parallelize(...) on fitTo or attributes on
    // RooMinimizer::Config.
@@ -826,7 +834,8 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
          .ExternalConstraints(extConsSet)
          .GlobalObservables(glObsSet)
          .GlobalObservablesTag(rangeName.c_str())
-         .EvalBackend(RooFit::EvalBackend(static_cast<RooFit::EvalBackend::Value>(pc.getInt("EvalBackend"))));
+         .EvalBackend(RooFit::EvalBackend(static_cast<RooFit::EvalBackend::Value>(pc.getInt("EvalBackend"))))
+         .ZeroPrediction(static_cast<RooFit::ZeroPredictionMode>(pc.getInt("zeroPred")), pc.getDouble("zeroPredDelta"));
 
       return std::make_unique<RooFit::TestStatistics::RooRealL>("likelihood", "", builder.build());
    }
@@ -922,8 +931,10 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
          compiledConstr->addOwnedComponents(std::move(constr));
       }
 
-      auto nll = createNLLNew(*pdfClone, data, std::move(compiledConstr), rangeName ? rangeName : "", projDeps, ext,
-                              pc.getDouble("IntegrateBins"), offset);
+      auto nll =
+         createNLLNew(*pdfClone, data, std::move(compiledConstr), rangeName ? rangeName : "", projDeps, ext,
+                      pc.getDouble("IntegrateBins"), offset,
+                      static_cast<RooFit::ZeroPredictionMode>(pc.getInt("zeroPred")), pc.getDouble("zeroPredDelta"));
 
       const double correction = pdfClone->getCorrection();
 
@@ -1254,7 +1265,7 @@ std::unique_ptr<RooFitResult> fitTo(RooAbsReal &real, RooAbsData &data, const Ro
       nllCmdListString = "ProjectedObservables,Extended,Range,"
                          "RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,"
                          "CloneData,GlobalObservables,GlobalObservablesSource,GlobalObservablesTag,"
-                         "EvalBackend,IntegrateBins,ModularL";
+                         "EvalBackend,IntegrateBins,ModularL,ZeroPrediction,ZeroPredictionDelta";
 
       if (!parallelRequested && !cmdEnabled("ModularL")) {
          nllCmdListString += ",OffsetLikelihood";

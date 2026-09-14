@@ -907,6 +907,25 @@ double RooAbsPdf::extendedTerm(RooAbsData const& data, bool weightSquared, bool 
  *                         which can drastically improve numeric stability.
  *                         Furthermore, \f$2\cdot \text{NLL}\f$ defined like this is approximately chi-square distributed, allowing for goodness-of-fit tests.
  *   </table>
+ * <tr><td> `ZeroPrediction(std::string const& mode)` <td> How to treat bins of a binned likelihood where the model
+ *                                                 prediction is zero or negative while the bin contains data, which makes the likelihood infinite.
+ *                                                 Supported modes:
+ *   <table>
+ *   <tr><th> Mode <th> Description
+ *   <tr><td> **nan** - *default* <td> Log an evaluation error, which makes the minimizer treat these parameter points
+ *                                     with the eval-error "recovery wall".
+ *   <tr><td> **clamp** <td> Clamp the prediction of such bins to a small positive value (see `ZeroPredictionDelta()`).
+ *                            For compatibility with frameworks that use clamping and for debugging; in practice it
+ *                            should be avoided, because the likelihood is flat below the threshold and the fit can
+ *                            deadlock without gradient information. Use **smooth** instead.
+ *   <tr><td> **smooth** <td> Like **clamp**, but C2-smooth: below the delta, the log of the prediction is continued
+ *                             by a matching quadratic, keeping Minuit HESSE accurate.
+ *   <tr><td> **error** <td> Throw an exception to abort the fit, for debugging the data/model inconsistency.
+ *   </table>
+ *                                                 The setting is ignored by the **codegen** backends, which always evaluate the unregularized likelihood.
+ * <tr><td> `ZeroPredictionDelta(double delta)` <td> The prediction threshold below which the `ZeroPrediction()`
+ *                                                 regularization applies, in units of the expected event yield
+ *                                                 (default 1e-4).
  * <tr><td> `IntegrateBins(double precision)` <td> In binned fits, integrate the PDF over the bins instead of using the probability density at the bin centre.
  *                                                 This can reduce the bias observed when fitting functions with high curvature to binned data.
  *                                                 - precision > 0: Activate bin integration everywhere. Use precision between 0.01 and 1.E-6, depending on binning.

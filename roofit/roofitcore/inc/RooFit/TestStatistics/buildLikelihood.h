@@ -36,6 +36,7 @@ public:
    NLLFactory &GlobalObservables(const RooArgSet &globalObservables);
    NLLFactory &GlobalObservablesTag(const char *globalObservablesTag);
    NLLFactory &EvalBackend(RooFit::EvalBackend evalBackend);
+   NLLFactory &ZeroPrediction(RooFit::ZeroPredictionMode mode, double delta);
 
 private:
    std::vector<std::unique_ptr<RooAbsL>> getSimultaneousComponents();
@@ -49,6 +50,8 @@ private:
    RooArgSet _globalObservables;
    std::string _globalObservablesTag;
    RooFit::EvalBackend _evalBackend = RooFit::EvalBackend(RooFit::EvalBackend::Value::Legacy);
+   RooFit::ZeroPredictionMode _zeroPredMode = RooFit::ZeroPredictionMode::NaN;
+   double _zeroPredDelta = 1e-4;
 };
 
 /// Delegating function to build a likelihood without additional arguments.

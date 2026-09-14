@@ -790,6 +790,61 @@ RooCmdArg Offset(std::string const &mode)
    return RooCmdArg("OffsetLikelihood", static_cast<int>(modeVal));
 }
 
+/// How to treat bins of a binned likelihood where the model prediction is zero
+/// or negative while the bin contains data, which makes the likelihood
+/// infinite. Select one of the following modes:
+///   - "nan" (default) : log an evaluation error and return a large penalty
+///     to the minimizer ("error recovery wall"), hoping that it finds its way
+///     out of the problematic parameter region. This works if the
+///     zero-prediction bins are not hit at the minimum.
+///   - "clamp" : clamp the prediction of such bins to the value set with
+///     ZeroPredictionDelta() to make the likelihood finite. Intended for
+///     debugging and for reproducing fits with other frameworks that use
+///     clamping. In practice, "clamp" should be avoided: the likelihood is
+///     flat below the threshold, so a bin loses its gradient information and
+///     the fit can deadlock if a parameter only affects clamped bins. Use
+///     "smooth" instead.
+///   - "smooth" : like "clamp", but the regularization is C2-smooth: below
+///     the value set with ZeroPredictionDelta(), the log of the prediction is
+///     continued by a quadratic polynomial that matches the log in value and
+///     first two derivatives. The smoothness keeps the Minuit HESSE step
+///     accurate, and the continuation keeps a gradient that pushes the
+///     minimizer out of the problematic region.
+///   - "error" : throw an exception to abort the fit, printing the offending
+///     bin, the data content, and the model prediction. Should be used to
+///     debug inconsistencies between data and model, not for regular fitting.
+/// The "clamp" and "smooth" modes change the likelihood compared to what the
+/// Poisson statistics imply, so they are only useful if the zero-prediction
+/// bins are not relevant for the physics result.
+RooCmdArg ZeroPrediction(std::string const &mode)
+{
+   std::string lower = mode;
+   std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+   if (lower == "nan") {
+      return RooCmdArg("ZeroPrediction", static_cast<int>(ZeroPredictionMode::NaN));
+   }
+   if (lower == "clamp") {
+      return RooCmdArg("ZeroPrediction", static_cast<int>(ZeroPredictionMode::Clamp));
+   }
+   if (lower == "smooth") {
+      return RooCmdArg("ZeroPrediction", static_cast<int>(ZeroPredictionMode::Smooth));
+   }
+   if (lower == "error") {
+      return RooCmdArg("ZeroPrediction", static_cast<int>(ZeroPredictionMode::Error));
+   }
+   throw std::invalid_argument("RooFit::ZeroPrediction(): unknown mode \"" + mode +
+                               "\". Supported modes: \"nan\", \"clamp\", \"smooth\", \"error\"");
+}
+
+/// \see RooFit::ZeroPrediction()
+RooCmdArg ZeroPredictionDelta(double delta)
+{
+   if (!(delta > 0.)) {
+      throw std::invalid_argument("RooFit::ZeroPredictionDelta(): the delta must be positive");
+   }
+   return RooCmdArg("ZeroPredictionDelta", 0, 0, delta, 0, nullptr, nullptr, nullptr, nullptr);
+}
+
 /// When parameters are chosen such that a PDF is undefined, try to indicate to the minimiser how to leave this region.
 /// \param strength Strength of hints for minimiser. Set to zero to switch off.
 RooCmdArg RecoverFromUndefinedRegions(double strength)
