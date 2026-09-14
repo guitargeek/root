@@ -26,20 +26,28 @@ In extended mode, a
 
 #include <RooFit/TestStatistics/RooBinnedL.h>
 
+#include <RooFit/Detail/MathFuncs.h>
+
 #include "RooAbsData.h"
 #include "RooAbsPdf.h"
 #include "RooAbsDataStore.h"
 #include "RooRealSumPdf.h"
 #include "RooRealVar.h"
 #include "RooChangeTracker.h"
+#include "RooMsgService.h"
 
 #include "TMath.h"
+
+#include <stdexcept>
+#include <string>
 
 namespace RooFit {
 namespace TestStatistics {
 
-RooBinnedL::RooBinnedL(RooAbsPdf *pdf, RooAbsData *data)
-   : RooAbsL(RooAbsL::ClonePdfData{pdf, data}, data->numEntries(), 1)
+RooBinnedL::RooBinnedL(RooAbsPdf *pdf, RooAbsData *data, RooFit::ZeroPredictionMode zeroPredMode, double zeroPredDelta)
+   : RooAbsL(RooAbsL::ClonePdfData{pdf, data}, data->numEntries(), 1),
+     _zeroPredMode{zeroPredMode},
+     _zeroPredDelta{zeroPredDelta}
 {
    // pdf must be a RooRealSumPdf representing a yield vector for a binned likelihood calculation
    if (!dynamic_cast<RooRealSumPdf *>(pdf)) {
@@ -111,7 +119,31 @@ RooBinnedL::evaluatePartition(Section bins, std::size_t /*components_begin*/, st
       double N = eventWeight;
       double mu = pdf_->getVal() * _binw[i];
 
-      if (mu <= 0 && N > 0) {
+      if (_zeroPredMode != RooFit::ZeroPredictionMode::NaN) {
+         // The zero-prediction regularization requested with
+         // RooFit::ZeroPrediction() is active.
+         if (N > 0. && mu < _zeroPredDelta) {
+            if (_zeroPredMode == RooFit::ZeroPredictionMode::Error) {
+               throw std::runtime_error(std::string{"RooBinnedL("} + pdf_->GetName() + "): observed " +
+                                        std::to_string(N) + " events in bin " + std::to_string(i) +
+                                        " where the model predicts " + std::to_string(mu) +
+                                        " (ZeroPrediction(\"error\") is active)");
+            }
+            if (!_zeroPredWarned) {
+               _zeroPredWarned = true;
+               RooMsgService::instance().log(nullptr, RooFit::WARNING, RooFit::Eval)
+                  << "RooBinnedL(" << pdf_->GetName() << "): bin " << i << " has a zero or tiny model prediction ("
+                  << mu << ") with nonzero data (" << N
+                  << "): the likelihood is regularized according to RooFit::ZeroPrediction (delta=" << _zeroPredDelta
+                  << ")." << std::endl;
+            }
+         }
+
+         double term = RooFit::Detail::MathFuncs::nllBinnedRegularized(mu, N, false, static_cast<int>(_zeroPredMode),
+                                                                       _zeroPredDelta);
+         sumWeight += eventWeight;
+         result += term;
+      } else if (mu <= 0 && N > 0) {
 
          // Catch error condition: data present where zero events are predicted
          RooAbsReal::logEvalError(nullptr, GetName().c_str(),

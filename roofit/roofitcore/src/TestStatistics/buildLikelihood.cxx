@@ -277,7 +277,8 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
          // Below here directly pass binnedPdf instead of PROD(binnedPdf,constraints) as constraints are evaluated
          // elsewhere anyway and omitting them reduces model complexity and associated handling/cloning times
          if (binnedL) {
-            components.push_back(std::make_unique<RooBinnedL>((binnedPdf ? binnedPdf : component_pdf), dset));
+            components.push_back(std::make_unique<RooBinnedL>(binnedPdf ? binnedPdf : component_pdf, dset,
+                                                              _zeroPredMode, _zeroPredDelta));
          } else {
             components.push_back(
                std::make_unique<RooUnbinnedL>((binnedPdf ? binnedPdf : component_pdf), dset, _extended, _evalBackend));
@@ -350,7 +351,7 @@ std::unique_ptr<RooAbsL> NLLFactory::build()
    if (dynamic_cast<RooSimultaneous const *>(&_pdf)) {
       components = getSimultaneousComponents();
    } else if (auto binnedPdf = getBinnedPdf(&_pdf)) {
-      likelihood = std::make_unique<RooBinnedL>(binnedPdf, &_data);
+      likelihood = std::make_unique<RooBinnedL>(binnedPdf, &_data, _zeroPredMode, _zeroPredDelta);
    } else { // unbinned
       likelihood = std::make_unique<RooUnbinnedL>(&_pdf, &_data, _extended, _evalBackend);
    }
@@ -420,6 +421,17 @@ NLLFactory &NLLFactory::GlobalObservablesTag(const char *globalObservablesTag)
 NLLFactory &NLLFactory::EvalBackend(RooFit::EvalBackend evalBackend)
 {
    _evalBackend = evalBackend;
+   return *this;
+}
+
+/// \param[in] mode How to treat bins with zero or tiny model prediction but
+///            nonzero data, which would make the likelihood infinite.
+/// \param[in] delta The prediction threshold below which the regularization
+///            applies for the "clamp" and "smooth" modes.
+NLLFactory &NLLFactory::ZeroPrediction(RooFit::ZeroPredictionMode mode, double delta)
+{
+   _zeroPredMode = mode;
+   _zeroPredDelta = delta;
    return *this;
 }
 

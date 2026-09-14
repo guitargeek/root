@@ -49,6 +49,12 @@ RenderCore, the WebGL engine of the REve client, is fetched at build time as the
 
 ## RooFit
 
+### Regularization of binned likelihoods with zero model prediction
+
+Binned likelihood fits where the model predicts zero events in a bin that contains data were so far handled with the "error recovery wall": an evaluation error is logged, and the minimizer is presented a large artificial function value that gives no useful gradient and causes slow convergence or getting stuck.
+The new `RooFit::ZeroPrediction()` command argument to `RooAbsPdf::createNLL()` and `RooAbsPdf::fitTo()` offers alternatives: `"clamp"` clamps the bin prediction to the value given with `RooFit::ZeroPredictionDelta()` (default `1e-4`), `"smooth"` additionally replaces the log below the delta by a matching quadratic such that the regularization is C2-smooth, and `"error"` throws an exception for debugging.
+The regularization is only active for the binned likelihood (`BinnedLikelihood` optimization), and a warning is printed the first time a bin hits the threshold.
+
 ### Removal of the legacy evaluation backend
 
 The `legacy` evaluation backend for likelihood and chi-square fits is removed.
