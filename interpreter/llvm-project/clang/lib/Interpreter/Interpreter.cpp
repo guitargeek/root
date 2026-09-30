@@ -523,8 +523,21 @@ llvm::Error Interpreter::CreateExecutor() {
   return ExecutorOrErr.takeError();
 }
 
+/// CodeGen emits the typeinfo and vtable of a class whose key function was
+/// defined in an earlier input again in every later module that references
+/// them (the TranslationUnit spans all inputs). Make these definitions weak
+/// so that the JIT does not report them as duplicate definitions.
+/// FIXME: CodeGen should emit them once (or available_externally later).
+static void makeTypeInfoAndVTablesWeak(llvm::Module &M) {
+  for (llvm::GlobalVariable &GV : M.globals())
+    if (GV.hasExternalLinkage() && !GV.isDeclaration() &&
+        GV.getName().starts_with("_ZT"))
+      GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
+}
+
 llvm::Error Interpreter::Execute(PartialTranslationUnit &T) {
   assert(T.TheModule);
+  makeTypeInfoAndVTablesWeak(*T.TheModule);
   LLVM_DEBUG(
       llvm::dbgs() << "execute-ptu "
                    << (llvm::is_contained(PTUs, T)
