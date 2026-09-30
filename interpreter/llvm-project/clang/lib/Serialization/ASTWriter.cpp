@@ -3408,6 +3408,19 @@ void ASTWriter::WriteType(ASTContext &Context, QualType T) {
 // Declaration Serialization
 //===----------------------------------------------------------------------===//
 
+/// All TranslationUnitDecls, oldest first. Incremental compilation
+/// (clang-repl) creates one per input, all redeclarations of the first.
+static SmallVector<const TranslationUnitDecl *, 4>
+getAllTranslationUnits(const ASTContext &Context) {
+  SmallVector<const TranslationUnitDecl *, 4> TUs;
+  for (const TranslationUnitDecl *TU =
+           Context.getTranslationUnitDecl()->getMostRecentDecl();
+       TU; TU = TU->getPreviousDecl())
+    TUs.push_back(TU);
+  std::reverse(TUs.begin(), TUs.end());
+  return TUs;
+}
+
 static bool IsInternalDeclFromFileContext(const Decl *D) {
   auto *ND = dyn_cast<NamedDecl>(D);
   if (!ND)
@@ -5614,8 +5627,13 @@ void ASTWriter::PrepareWritingSpecialDecls(Sema &SemaRef) {
       PredefinedDecls.insert(D);
     }
   };
-  RegisterPredefDecl(Context.getTranslationUnitDecl(),
-                     PREDEF_DECL_TRANSLATION_UNIT_ID);
+  // Incremental compilation (clang-repl) creates one TranslationUnitDecl per
+  // input, all redeclarations of the first one. They all denote the TU.
+  for (TranslationUnitDecl *TUD = Context.getTranslationUnitDecl()->getMostRecentDecl();
+       TUD; TUD = TUD->getPreviousDecl()) {
+    DeclIDs[TUD] = PREDEF_DECL_TRANSLATION_UNIT_ID;
+    PredefinedDecls.insert(TUD);
+  }
   RegisterPredefDecl(Context.ObjCIdDecl, PREDEF_DECL_OBJC_ID_ID);
   RegisterPredefDecl(Context.ObjCSelDecl, PREDEF_DECL_OBJC_SEL_ID);
   RegisterPredefDecl(Context.ObjCClassDecl, PREDEF_DECL_OBJC_CLASS_ID);
@@ -5642,12 +5660,11 @@ void ASTWriter::PrepareWritingSpecialDecls(Sema &SemaRef) {
   RegisterPredefDecl(Context.Decl##BTName, PREDEF_DECL##BTName##_ID);
 #include "clang/Basic/BuiltinTemplates.inc"
 
-  const TranslationUnitDecl *TU = Context.getTranslationUnitDecl();
-
   // Force all top level declarations to be emitted.
   //
   // We start emitting top level declarations from the module purview to
   // implement the eliding unreachable declaration feature.
+  for (const TranslationUnitDecl *TU : getAllTranslationUnits(Context))
   for (const auto *D : TU->noload_decls()) {
     if (D->isFromASTFile())
       continue;
@@ -6366,11 +6383,15 @@ void ASTWriter::WriteDeclAndTypes(ASTContext &Context) {
     PartialSpecializationsUpdates.clear();
   }
 
-  const TranslationUnitDecl *TU = Context.getTranslationUnitDecl();
+  // The primary context holds the TU's lookup table (with incremental
+  // compilation, the most recent TU is one of several redeclarations).
+  const TranslationUnitDecl *TU =
+      Context.getTranslationUnitDecl()->getFirstDecl();
   // Create a lexical update block containing all of the declarations in the
   // translation unit that do not come from other AST files.
   SmallVector<DeclID, 128> NewGlobalKindDeclPairs;
-  for (const auto *D : TU->noload_decls()) {
+  for (const TranslationUnitDecl *TUPart : getAllTranslationUnits(Context))
+  for (const auto *D : TUPart->noload_decls()) {
     if (D->isFromASTFile())
       continue;
 
