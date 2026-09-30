@@ -5709,9 +5709,11 @@ Parser::DeclGroupPtrTy Parser::ParseTopLevelStmtDecl() {
                                Scope::CompoundStmtScope);
   TopLevelStmtDecl *TLSD = Actions.ActOnStartTopLevelStmtDecl(getCurScope());
   StmtResult R = ParseStatementOrDeclaration(Stmts, SubStmtCtx);
-  Actions.ActOnFinishTopLevelStmtDecl(TLSD, R.get());
+  // A TopLevelStmtDecl must not have a null statement: CodeGen would crash
+  // on it if the error was not reported (e.g. a client filtered it).
   if (!R.isUsable())
     R = Actions.ActOnNullStmt(Tok.getLocation());
+  Actions.ActOnFinishTopLevelStmtDecl(TLSD, R.get());
 
   if (Tok.is(tok::annot_repl_input_end) &&
       Tok.getAnnotationValue() != nullptr) {
