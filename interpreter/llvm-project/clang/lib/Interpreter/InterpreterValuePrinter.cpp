@@ -618,6 +618,11 @@ llvm::Expected<Expr *> Interpreter::convertExprToValue(Expr *E) {
     SetValueE =
         S.ActOnCallExpr(Scope, ValuePrintingInfo[InterfaceKind::NoAlloc],
                         E->getBeginLoc(), AdjustedArgs, E->getEndLoc());
+    // A void expression is not an argument of the call above, but it must
+    // still be evaluated: `(E, __clang_Interpreter_SetValueNoAlloc(...))`.
+    if (DesugaredTy->isVoidType() && !SetValueE.isInvalid())
+      SetValueE = S.CreateBuiltinBinOp(E->getEndLoc(), BO_Comma, E,
+                                       SetValueE.get());
     break;
   }
   default:
