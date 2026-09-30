@@ -25,6 +25,7 @@
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
 #include "llvm/Support/Error.h"
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -132,7 +133,9 @@ protected:
   // Derived classes can use an extended interface of the Interpreter.
   Interpreter(std::unique_ptr<CompilerInstance> Instance, llvm::Error &Err,
               std::unique_ptr<IncrementalExecutorBuilder> IEB = nullptr,
-              std::unique_ptr<clang::ASTConsumer> Consumer = nullptr);
+              std::unique_ptr<clang::ASTConsumer> Consumer = nullptr,
+              std::function<std::unique_ptr<ASTConsumer>(CompilerInstance &)>
+                  ConsumerFactory = nullptr);
 
   // Create the internal IncrementalExecutor, or re-create it after calling
   // ResetExecutor().
@@ -147,6 +150,20 @@ public:
   static llvm::Expected<std::unique_ptr<Interpreter>>
   create(std::unique_ptr<CompilerInstance> CI,
          std::unique_ptr<IncrementalExecutorBuilder> IEB = nullptr);
+  /// Creates an additional ASTConsumer once the CompilerInstance has its
+  /// Preprocessor and ASTContext (i.e. when the incremental action creates
+  /// its consumers).
+  using ASTConsumerFactory =
+      std::function<std::unique_ptr<ASTConsumer>(CompilerInstance &)>;
+
+  /// Like create(CI, IEB), but also passes every top-level declaration (and
+  /// the other ASTConsumer callbacks) to the consumer made by \p Factory,
+  /// e.g. to track what each incremental input declared or to write a
+  /// module file. Value printing keeps working.
+  static llvm::Expected<std::unique_ptr<Interpreter>>
+  create(std::unique_ptr<CompilerInstance> CI,
+         std::unique_ptr<IncrementalExecutorBuilder> IEB,
+         ASTConsumerFactory Factory);
   static llvm::Expected<std::unique_ptr<Interpreter>>
   createWithCUDA(std::unique_ptr<CompilerInstance> CI,
                  std::unique_ptr<CompilerInstance> DCI);

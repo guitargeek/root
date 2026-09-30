@@ -250,7 +250,8 @@ IncrementalCompilerBuilder::CreateCudaHost() {
 Interpreter::Interpreter(std::unique_ptr<CompilerInstance> Instance,
                          llvm::Error &ErrOut,
                          std::unique_ptr<IncrementalExecutorBuilder> IEB,
-                         std::unique_ptr<clang::ASTConsumer> Consumer)
+                         std::unique_ptr<clang::ASTConsumer> Consumer,
+                         ASTConsumerFactory ConsumerFactory)
     : IncrExecutorBuilder(std::move(IEB)) {
   CI = std::move(Instance);
   llvm::ErrorAsOutParameter EAO(&ErrOut);
@@ -258,8 +259,9 @@ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> Instance,
   TSCtx = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(LLVMCtx));
 
   Act = TSCtx->withContextDo([&](llvm::LLVMContext *Ctx) {
-    return std::make_unique<IncrementalAction>(*CI, *Ctx, ErrOut, *this,
-                                               std::move(Consumer));
+    return std::make_unique<IncrementalAction>(
+        *CI, *Ctx, ErrOut, *this, std::move(Consumer),
+        std::move(ConsumerFactory));
   });
 
   if (ErrOut)
@@ -357,10 +359,18 @@ const char *const Runtimes = R"(
 llvm::Expected<std::unique_ptr<Interpreter>> Interpreter::create(
     std::unique_ptr<CompilerInstance> CI,
     std::unique_ptr<IncrementalExecutorBuilder> IEB /*=nullptr*/) {
+  return create(std::move(CI), std::move(IEB), ASTConsumerFactory());
+}
+
+llvm::Expected<std::unique_ptr<Interpreter>>
+Interpreter::create(std::unique_ptr<CompilerInstance> CI,
+                    std::unique_ptr<IncrementalExecutorBuilder> IEB,
+                    ASTConsumerFactory Factory) {
   llvm::Error Err = llvm::Error::success();
 
-  auto Interp = std::unique_ptr<Interpreter>(new Interpreter(
-      std::move(CI), Err, std::move(IEB), /*Consumer=*/nullptr));
+  auto Interp = std::unique_ptr<Interpreter>(
+      new Interpreter(std::move(CI), Err, std::move(IEB),
+                      /*Consumer=*/nullptr, std::move(Factory)));
   if (auto E = std::move(Err))
     return std::move(E);
 

@@ -12,6 +12,8 @@
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 
+#include <functional>
+
 namespace llvm {
 class Module;
 }
@@ -36,6 +38,8 @@ private:
   Interpreter &Interp;
   [[maybe_unused]] CompilerInstance &CI;
   std::unique_ptr<ASTConsumer> Consumer;
+  std::function<std::unique_ptr<ASTConsumer>(CompilerInstance &)>
+      ConsumerFactory;
 
   /// When CodeGen is created the first llvm::Module gets cached in many places
   /// and we must keep it alive.
@@ -44,7 +48,9 @@ private:
 public:
   IncrementalAction(CompilerInstance &Instance, llvm::LLVMContext &LLVMCtx,
                     llvm::Error &Err, Interpreter &I,
-                    std::unique_ptr<ASTConsumer> Consumer = nullptr);
+                    std::unique_ptr<ASTConsumer> Consumer = nullptr,
+                    std::function<std::unique_ptr<ASTConsumer>(CompilerInstance &)>
+                        ConsumerFactory = nullptr);
 
   FrontendAction *getWrapped() const { return WrappedAction.get(); }
 

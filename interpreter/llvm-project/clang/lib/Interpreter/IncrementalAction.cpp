@@ -25,7 +25,10 @@ namespace clang {
 IncrementalAction::IncrementalAction(CompilerInstance &Instance,
                                      llvm::LLVMContext &LLVMCtx,
                                      llvm::Error &Err, Interpreter &I,
-                                     std::unique_ptr<ASTConsumer> Consumer)
+                                     std::unique_ptr<ASTConsumer> Consumer,
+                                     std::function<std::unique_ptr<ASTConsumer>(
+                                         CompilerInstance &)>
+                                         ConsumerFactory)
     : WrapperFrontendAction([&]() {
         llvm::ErrorAsOutParameter EAO(&Err);
         std::unique_ptr<FrontendAction> Act;
@@ -53,7 +56,8 @@ IncrementalAction::IncrementalAction(CompilerInstance &Instance,
         }
         return Act;
       }()),
-      Interp(I), CI(Instance), Consumer(std::move(Consumer)) {}
+      Interp(I), CI(Instance), Consumer(std::move(Consumer)),
+      ConsumerFactory(std::move(ConsumerFactory)) {}
 
 std::unique_ptr<ASTConsumer>
 IncrementalAction::CreateASTConsumer(CompilerInstance & /*CI*/,
@@ -61,11 +65,17 @@ IncrementalAction::CreateASTConsumer(CompilerInstance & /*CI*/,
   std::unique_ptr<ASTConsumer> C =
       WrapperFrontendAction::CreateASTConsumer(this->CI, InFile);
 
+  // The Preprocessor and ASTContext exist now.
+  if (!Consumer && ConsumerFactory)
+    Consumer = ConsumerFactory(this->CI);
+
   if (Consumer) {
+    // Keep the value printing transformation (done by
+    // InProcessPrintingASTConsumer before forwarding) for both consumers.
     std::vector<std::unique_ptr<ASTConsumer>> Cs;
     Cs.push_back(std::move(Consumer));
     Cs.push_back(std::move(C));
-    return std::make_unique<MultiplexConsumer>(std::move(Cs));
+    C = std::make_unique<MultiplexConsumer>(std::move(Cs));
   }
 
   return std::make_unique<InProcessPrintingASTConsumer>(std::move(C), Interp);
