@@ -119,6 +119,10 @@ public:
       for (auto &&KV : Symbols) {
          llvm::orc::SymbolStringPtr name = KV.first;
 
+         if (gDebug > 5)
+            fprintf(stderr, "Info in <AutoloadLibraryGenerator>: searching a library for symbol %s\n",
+                    (*name).str().c_str());
+
          const cling::DynamicLibraryManager &DLM = *fInterpreter->getDynamicLibraryManager();
 
          std::string libName = DLM.searchLibrariesForSymbol((*name).str(),
@@ -968,7 +972,9 @@ void TClingCallbacks::Initialize() {
       // Before setting up the callbacks register what cling have seen during init.
       Sema& SemaR = m_Interpreter->getSema();
       cling::Transaction TPrev((cling::CompilationOptions(), SemaR));
-      TPrev.append(SemaR.getASTContext().getTranslationUnitDecl());
+      // With clang-repl there is one TranslationUnitDecl per incremental input.
+      for (clang::TranslationUnitDecl *TU : ROOT::TMetaUtils::GetAllTranslationUnits(SemaR.getASTContext()))
+         TPrev.append(TU);
       TCling__UpdateListsOnCommitted(TPrev, m_Interpreter);
 
       fFirstRun = false;

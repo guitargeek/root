@@ -86,6 +86,7 @@ ROOT_BUILD_OPTION(builtin_cfitsio OFF "Build CFITSIO from an automatically downl
 ROOT_BUILD_OPTION(builtin_clang ON "Build bundled copy of Clang (advanced option)")
 MARK_AS_ADVANCED(builtin_clang)
 ROOT_BUILD_OPTION(builtin_cling ON "Build bundled copy of Cling. Only build with an external cling if you know what you are doing: associating ROOT commits with cling commits is tricky. (advanced option)")
+ROOT_BUILD_OPTION(clang_repl OFF "Run the interpreter on clang-repl (clang::Interpreter) through interpreter/cling-compat instead of cling (experimental)")
 MARK_AS_ADVANCED(builtin_cling)
 ROOT_BUILD_OPTION(builtin_civetweb OFF "Build civetweb from an automatically downloaded source tarball (requires network)")
 ROOT_BUILD_OPTION(builtin_fftw3 OFF "Build FFTW3 from an automatically downloaded source tarball (requires network) [GPL]")

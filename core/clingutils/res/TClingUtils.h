@@ -64,6 +64,7 @@ namespace clang {
    class TemplateArgument;
    class TemplateArgumentList;
    class TemplateParameterList;
+   class TranslationUnitDecl;
    class Type;
    class TypeDecl;
    class TypedefNameDecl;
@@ -724,6 +725,12 @@ bool IsDeclReacheable(const clang::Decl &decl);
 //______________________________________________________________________________
 // Return true if the decl is part of the std namespace.
 bool IsStdClass(const clang::RecordDecl &cl);
+
+//______________________________________________________________________________
+// Return all TranslationUnitDecls, oldest first. cling has a single one;
+// clang-repl creates one per incremental input, and iterating the decls of
+// the translation unit must visit all of them.
+std::vector<clang::TranslationUnitDecl *> GetAllTranslationUnits(const clang::ASTContext &Ctx);
 
 //______________________________________________________________________________
 // Return true, if the decl is part of the std namespace and we want

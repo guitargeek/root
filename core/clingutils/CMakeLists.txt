@@ -128,7 +128,11 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/etc/cling/lib/clang/${CLANG_RESOURCE_DIR_V
 
 
 #---Install a bunch of files to /etc/cling------------------------------------
-set(clinginclude ${CMAKE_SOURCE_DIR}/interpreter/cling/include)
+if(clang_repl)
+  set(clinginclude ${CMAKE_SOURCE_DIR}/interpreter/cling-compat/include)
+else()
+  set(clinginclude ${CMAKE_SOURCE_DIR}/interpreter/cling/include)
+endif()
 
 set(custom_modulemaps)
 if (runtime_cxxmodules)

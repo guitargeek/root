@@ -477,7 +477,12 @@ if (builtin_cling)
   # ROOT only consumes the cling libraries (see CLING_LIBRARIES); skip the
   # cling driver, libcling and the Jupyter kernel.
   set(CLING_MINIMAL ON CACHE BOOL "" FORCE)
-  add_subdirectory(cling EXCLUDE_FROM_ALL)
+  if(clang_repl)
+    # The cling API that ROOT uses, implemented on clang::Interpreter.
+    add_subdirectory(cling-compat EXCLUDE_FROM_ALL)
+  else()
+    add_subdirectory(cling EXCLUDE_FROM_ALL)
+  endif()
   add_dependencies(CLING ${CLING_LIBRARIES})
 
 
@@ -555,9 +560,14 @@ mark_as_advanced(CLEAR LLVM_ENABLE_ASSERTIONS LLVM_BUILD_TYPE)
 
 ##################### CPPINTEROP ###########################
 
-# Set InterOp to build with Cling, can be toggled to use Clang-REPL
-set(CPPINTEROP_USE_CLING ON CACHE BOOL "" FORCE)
-set(CPPINTEROP_USE_REPL OFF CACHE BOOL "" FORCE)
+# Build InterOp on Cling, or on Clang-REPL together with cling-compat.
+if(clang_repl)
+  set(CPPINTEROP_USE_CLING OFF CACHE BOOL "" FORCE)
+  set(CPPINTEROP_USE_REPL ON CACHE BOOL "" FORCE)
+else()
+  set(CPPINTEROP_USE_CLING ON CACHE BOOL "" FORCE)
+  set(CPPINTEROP_USE_REPL OFF CACHE BOOL "" FORCE)
+endif()
 
 # Suppress CppInterOps install rules: ROOT ships CppInterOps public headers
 # under $ROOTSYS/etc/cppinterop and does not install any build artifacts.
@@ -573,6 +583,10 @@ endif()
 
 
 add_subdirectory(CppInterOp)
+if(clang_repl AND TARGET CppInterOpTableGen)
+  # cling-compat includes CppInterOp's (partly generated) internal headers.
+  add_dependencies(clingInterpreter CppInterOpTableGen)
+endif()
 if(TARGET CppInterOpUnitTests)
   set_target_properties(CppInterOpUnitTests PROPERTIES EXCLUDE_FROM_ALL OFF)
 endif()

@@ -1201,7 +1201,9 @@ static GlobalModuleIndex *loadGlobalModuleIndex(cling::Interpreter &interp)
                DefinitionIDs[ND->getName()].push_back(OwningModule->getASTFile());
             }
          };
-         DefinitionFinder defFinder(IDs, CI.getASTContext().getTranslationUnitDecl());
+         // With clang-repl there is one TranslationUnitDecl per incremental input.
+         for (clang::TranslationUnitDecl *TU : ROOT::TMetaUtils::GetAllTranslationUnits(CI.getASTContext()))
+            DefinitionFinder defFinder(IDs, TU);
 
          llvm::cantFail(GlobalModuleIndex::writeIndex(CI.getFileManager(),
                                                       CI.getPCHContainerReader(),
@@ -1598,8 +1600,14 @@ TCling::TCling(const char *name, const char *title, const char* const argv[], vo
 
    // Tell CppInterOp that the cling::Interpreter instance is managed externally by ROOT
    // Sets the interpreter by passing the fInterpreter handle as soon as TCling is initialized
-   if (!IsFromRootCling())
+   if (!IsFromRootCling()) {
+#ifdef CLING_COMPAT_CLANG_REPL
+      // CppInterOp on clang-repl wraps the clang::Interpreter itself.
+      Cpp::UseExternalInterpreter(fInterpreter->getCppInterOpInterpreter());
+#else
       Cpp::UseExternalInterpreter(fInterpreter.get());
+#endif
+   }
 
    // Don't check whether modules' files exist.
    fInterpreter->getCI()->getPreprocessorOpts().DisablePCHOrModuleValidation =
@@ -6998,13 +7006,13 @@ void TCling::UpdateListsOnCommitted(const cling::Transaction &T) {
    if (!HandleNewTransaction(T)) return;
 
    bool isTUTransaction = false;
-   if (!T.empty() && T.decls_begin() + 1 == T.decls_end() && !T.hasNestedTransactions()) {
-      clang::Decl* FirstDecl = *(T.decls_begin()->m_DGR.begin());
-      if (llvm::isa<clang::TranslationUnitDecl>(FirstDecl)) {
-         // The is the first transaction, we have to expose to meta
-         // what's already in the AST.
-         isTUTransaction = true;
-      }
+   if (!T.empty() && T.decls_begin() != T.decls_end() && !T.hasNestedTransactions()) {
+      // The is the first transaction, we have to expose to meta what's
+      // already in the AST. With clang-repl, it contains one
+      // TranslationUnitDecl per incremental input seen so far.
+      isTUTransaction = std::all_of(T.decls_begin(), T.decls_end(), [](const cling::Transaction::DelayCallInfo &DCI) {
+         return DCI.m_DGR.isSingleDecl() && llvm::isa<clang::TranslationUnitDecl>(DCI.m_DGR.getSingleDecl());
+      });
    }
 
    std::set<const void*> TransactionDeclSet;

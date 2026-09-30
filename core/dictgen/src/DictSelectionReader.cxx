@@ -23,13 +23,15 @@ DictSelectionReader::DictSelectionReader(cling::Interpreter &interp, SelectionRu
                                          const clang::ASTContext &C, ROOT::TMetaUtils::TNormalizedCtxt &normCtxt)
    : fSelectionRules(selectionRules), fIsFirstPass(true), fNormCtxt(normCtxt)
 {
-   clang::TranslationUnitDecl *translUnitDecl = C.getTranslationUnitDecl();
+   // With clang-repl there is one TranslationUnitDecl per incremental input.
+   const auto translUnitDecls = ROOT::TMetaUtils::GetAllTranslationUnits(C);
 
    {
       // We push a new transaction because we could deserialize decls here
       cling::Interpreter::PushTransactionRAII RAII(&interp);
       // Inspect the AST
-      TraverseDecl(translUnitDecl);
+      for (clang::TranslationUnitDecl *translUnitDecl : translUnitDecls)
+         TraverseDecl(translUnitDecl);
    }
 
    // Now re-inspect the AST to find autoselected classes (double-tap)
@@ -37,7 +39,8 @@ DictSelectionReader::DictSelectionReader(cling::Interpreter &interp, SelectionRu
    if (!fTemplateInfoMap.empty() ||
          !fAutoSelectedClassFieldNames.empty() ||
          !fNoAutoSelectedClassFieldNames.empty())
-      TraverseDecl(translUnitDecl);
+      for (clang::TranslationUnitDecl *translUnitDecl : translUnitDecls)
+         TraverseDecl(translUnitDecl);
 
    // Now push all the selection rules
    for (llvm::StringMap<ClassSelectionRule>::iterator it =

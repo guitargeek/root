@@ -1061,8 +1061,12 @@ void RScanner::Scan(const clang::ASTContext &C)
 
    cling::Interpreter::PushTransactionRAII RAII(const_cast<cling::Interpreter *>(&fInterpreter));
 
+   // With clang-repl there is one TranslationUnitDecl per incremental input.
+   const auto TUs = ROOT::TMetaUtils::GetAllTranslationUnits(C);
+
    if (fScanType == EScanType::kTwoPasses)
-      TraverseDecl(C.getTranslationUnitDecl());
+      for (clang::TranslationUnitDecl *TU : TUs)
+         TraverseDecl(TU);
 
    fFirstPass=false;
    fselectedRecordDecls.clear();
@@ -1070,7 +1074,8 @@ void RScanner::Scan(const clang::ASTContext &C)
    fSelectedTypedefs.clear();
    fSelectedVariables.clear();
    fSelectedFunctions.clear();
-   TraverseDecl(C.getTranslationUnitDecl());
+   for (clang::TranslationUnitDecl *TU : TUs)
+      TraverseDecl(TU);
 
    // The RecursiveASTVisitor uses range-based for; we must not modify the AST
    // during iteration / visitation. Instead, buffer the lookups that could

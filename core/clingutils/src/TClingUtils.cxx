@@ -5794,3 +5794,19 @@ int ROOT::TMetaUtils::AST2SourceTools::GetDefArg(const clang::ParmVarDecl& par,
    return 0;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return all TranslationUnitDecls, oldest first. cling has a single one;
+/// clang-repl creates one per incremental input (all redeclarations of the
+/// first one), so iterating the decls of the translation unit must visit all
+/// of them.
+
+std::vector<clang::TranslationUnitDecl *> ROOT::TMetaUtils::GetAllTranslationUnits(const clang::ASTContext &Ctx)
+{
+   std::vector<clang::TranslationUnitDecl *> TUs;
+   for (clang::TranslationUnitDecl *TU = Ctx.getTranslationUnitDecl()->getMostRecentDecl(); TU;
+        TU = TU->getPreviousDecl())
+      TUs.push_back(TU);
+   std::reverse(TUs.begin(), TUs.end());
+   return TUs;
+}

@@ -1,0 +1,68 @@
+//--------------------------------------------------------------------*- C++ -*-
+// CLING - the C++ LLVM-based InterpreterG :)
+// author:  Axel Naumann <axel@cern.ch>
+//
+// This file is dual-licensed: you can choose to license it under the University
+// of Illinois Open Source License or the GNU Lesser General Public License. See
+// LICENSE.TXT for details.
+//------------------------------------------------------------------------------
+
+#ifndef CLING_CIFACTORY_H
+#define CLING_CIFACTORY_H
+
+#include "clang/Frontend/CompilerInstance.h"
+
+#include "llvm/ADT/StringRef.h"
+
+namespace llvm {
+  class LLVMContext;
+  class MemoryBuffer;
+}
+
+namespace clang {
+  class ASTConsumer;
+  class DiagnosticsEngine;
+  class ModuleFileExtension;
+}
+
+namespace cling {
+  class InvocationOptions;
+
+  namespace CIFactory {
+    typedef std::unique_ptr<llvm::MemoryBuffer> MemBufPtr_t;
+    using ModuleFileExtensions =
+        std::vector<std::shared_ptr<clang::ModuleFileExtension>>;
+
+    // TODO: Add overload that takes file not MemoryBuffer
+
+    clang::CompilerInstance*
+    createCI(llvm::StringRef Code, const InvocationOptions& Opts,
+             const char* LLVMDir,
+             std::optional<std::unique_ptr<clang::ASTConsumer>> consumerOpt,
+             const ModuleFileExtensions& moduleExtensions,
+             bool AutoComplete = false);
+
+    clang::CompilerInstance*
+    createCI(MemBufPtr_t Buffer, int Argc, const char* const* Argv,
+             const char* LLVMDir,
+             std::optional<std::unique_ptr<clang::ASTConsumer>> consumerOpt,
+             const ModuleFileExtensions& moduleExtensions,
+             bool OnlyLex = false);
+
+    ///\brief Create a CompilerInstance for clang::Interpreter (clang-repl).
+    ///
+    /// Arguments, language, target and codegen options are set up the way
+    /// cling did, but the SourceManager, Preprocessor, ASTContext and Sema
+    /// are left to clang::Interpreter. Call finalizeForRepl() once the
+    /// interpreter exists.
+    std::unique_ptr<clang::CompilerInstance>
+    createCIForRepl(const InvocationOptions& Opts, const char* LLVMDir,
+                    const ModuleFileExtensions& moduleExtensions);
+
+    ///\brief Setup that needs the Preprocessor, e.g. mounting and loading the
+    /// modulemaps of the C and C++ standard libraries.
+    void finalizeForRepl(clang::CompilerInstance& CI,
+                         const InvocationOptions& Opts);
+  } // namespace CIFactory
+} // namespace cling
+#endif // CLING_CIFACTORY_H
