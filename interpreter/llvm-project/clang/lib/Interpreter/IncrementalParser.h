@@ -66,6 +66,8 @@ public:
 
   void CleanUpPTU(TranslationUnitDecl *MostRecentTU);
 
+  Parser &getParser() { return *P; }
+
   /// Register a PTU produced by Parse.
   PartialTranslationUnit &RegisterPTU(TranslationUnitDecl *TU,
                                       std::unique_ptr<llvm::Module> M = {});

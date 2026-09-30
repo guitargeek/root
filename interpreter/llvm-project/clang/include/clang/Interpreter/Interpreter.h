@@ -45,6 +45,7 @@ class CXXRecordDecl;
 class Decl;
 class IncrementalParser;
 class IncrementalCUDADeviceParser;
+class Parser;
 
 /// Create a pre-configured \c CompilerInstance for incremental processing.
 class IncrementalCompilerBuilder {
@@ -154,11 +155,21 @@ public:
   ASTContext &getASTContext();
   const CompilerInstance *getCompilerInstance() const;
   CompilerInstance *getCompilerInstance();
+
+  /// The parser used for the incremental inputs. Clients that parse
+  /// additional snippets on the side (e.g. to look up a type from its name)
+  /// must use this parser, as a second Parser cannot share the Preprocessor.
+  Parser &getParser();
   llvm::Expected<IncrementalExecutor &> getExecutionEngine();
 
   llvm::Expected<PartialTranslationUnit &> Parse(llvm::StringRef Code);
   llvm::Error Execute(PartialTranslationUnit &T);
   llvm::Error ParseAndExecute(llvm::StringRef Code, Value *V = nullptr);
+
+  /// Moves the value of the last executed expression statement that was
+  /// missing its semicolon into \p V (leaving it invalid if there is none).
+  /// For clients that call Parse() and Execute() separately.
+  void takeLastValue(Value &V);
 
   /// Undo N previous incremental inputs.
   llvm::Error Undo(unsigned N = 1);

@@ -421,6 +421,13 @@ Interpreter::createWithCUDA(std::unique_ptr<CompilerInstance> CI,
 }
 
 CompilerInstance *Interpreter::getCompilerInstance() { return CI.get(); }
+
+Parser &Interpreter::getParser() { return IncrParser->getParser(); }
+
+void Interpreter::takeLastValue(Value &V) {
+  V = std::move(LastValue);
+  LastValue.clear();
+}
 const CompilerInstance *Interpreter::getCompilerInstance() const {
   return const_cast<Interpreter *>(this)->getCompilerInstance();
 }
