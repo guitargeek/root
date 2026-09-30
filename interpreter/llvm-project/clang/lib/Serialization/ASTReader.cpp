@@ -3791,7 +3791,10 @@ llvm::Error ASTReader::ReadASTBlock(ModuleFile &F,
     }
 
     case TU_UPDATE_LEXICAL: {
-      DeclContext *TU = ContextObj->getTranslationUnitDecl();
+      // With incremental compilation (clang-repl) there is one
+      // TranslationUnitDecl per input; declarations from AST files belong to
+      // the first (primary) one.
+      DeclContext *TU = ContextObj->getTranslationUnitDecl()->getFirstDecl();
       LexicalContents Contents(
           reinterpret_cast<const unaligned_decl_id_t *>(Blob.data()),
           static_cast<unsigned int>(Blob.size() / sizeof(DeclID)));
@@ -8344,7 +8347,8 @@ Decl *ASTReader::getPredefinedDecl(PredefinedDeclIDs ID) {
     return nullptr;
 
   case PREDEF_DECL_TRANSLATION_UNIT_ID:
-    return Context.getTranslationUnitDecl();
+    // The primary TranslationUnitDecl (see TU_UPDATE_LEXICAL).
+    return Context.getTranslationUnitDecl()->getFirstDecl();
 
   case PREDEF_DECL_OBJC_ID_ID:
     if (Context.ObjCIdDecl)
