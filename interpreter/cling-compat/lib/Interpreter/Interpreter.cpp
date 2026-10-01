@@ -52,6 +52,7 @@
 #include "clang/Basic/DiagnosticParse.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/MultiplexConsumer.h"
@@ -61,6 +62,7 @@
 #include "clang/Interpreter/PartialTranslationUnit.h"
 #include "clang/Interpreter/Value.h"
 #include "clang/Lex/HeaderSearch.h"
+#include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Sema/Sema.h"
@@ -70,19 +72,25 @@
 
 #include "clang/Interpreter/IncrementalExecutor.h"
 
+#include "llvm/ExecutionEngine/JITLink/JITLinkMemoryManager.h"
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/ObjectLinkingLayer.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -157,6 +165,25 @@ namespace {
     interpretersWithJIT().front()->AddAtExitFunc(Func, Arg);
     return 0;
   }
+
+  /// From cling's IncrementalJIT: a JITLinkMemoryManager that never frees
+  /// its allocations. ROOT keeps pointers to JIT-ed code, e.g. TClingCallFunc's
+  /// wrappers, which survive unloading the inputs after them (root-project/root
+  /// issue 10898).
+  class NeverFreeingJITLinkMemoryManager
+      : public llvm::jitlink::InProcessMemoryManager {
+  public:
+    using InProcessMemoryManager::InProcessMemoryManager;
+
+    void deallocate(std::vector<FinalizedAlloc> Allocs,
+                    OnDeallocatedFunction OnDeallocated) override {
+      // Release the allocations (resets their addresses, as ~FinalizedAlloc
+      // asserts) without freeing them.
+      for (auto& Alloc : Allocs)
+        Alloc.release();
+      OnDeallocated(llvm::Error::success());
+    }
+  };
 
   std::deque<clang::Value>* keptAlive(void* P) {
     return static_cast<std::deque<clang::Value>*>(P);
@@ -343,7 +370,9 @@ namespace cling {
   }
 
   const Transaction* Interpreter::getCurrentTransaction() const {
-    return m_OpenTransactions.empty() ? nullptr : m_OpenTransactions.back();
+    if (!m_OpenTransactions.empty())
+      return m_OpenTransactions.back();
+    return m_ExecutingTransaction;
   }
 
   const Transaction* Interpreter::getLatestTransaction() const {
@@ -422,6 +451,13 @@ namespace cling {
       // loads libraries while linking JIT-ed code, and their initializers
       // run more code (see JITPlatform.cpp).
       JB->setPlatformSetUp(&setUpJITPlatform);
+      JB->setObjectLinkingLayerCreator(
+          [](llvm::orc::ExecutionSession& ES)
+              -> llvm::Expected<std::unique_ptr<llvm::orc::ObjectLayer>> {
+            unsigned PageSize = llvm::cantFail(llvm::sys::Process::getPageSize());
+            return std::make_unique<llvm::orc::ObjectLinkingLayer>(
+                ES, std::make_unique<NeverFreeingJITLinkMemoryManager>(PageSize));
+          });
       IEB->JITBuilder = std::move(JB);
     }
 
@@ -887,6 +923,10 @@ namespace cling {
 
     {
       EnterUserCodeRAII euc(getCallbacks());
+      // Like cling, the input stays the current transaction while it runs:
+      // e.g. TCling::AutoParse() ties the payloads it parses to it, so that
+      // undoing the input allows parsing them again.
+      llvm::SaveAndRestore<Transaction*> Executing(m_ExecutingTransaction, T);
       if (llvm::Error Err = m_ClangInterp->Execute(PTU)) {
         reportError(std::move(Err), "failed to execute");
         return kFailure;
@@ -1273,10 +1313,94 @@ namespace cling {
     return loadHeader(filename, T);
   }
 
+  /// Like cling's TransactionUnloader: undefine the macros that \p T defined
+  /// and forget the contents of the files it read. Loading an unloaded file
+  /// again then reads it again (instead of skipping it because its include
+  /// guard is still defined), and sees its changes.
+  static void unloadFromPreprocessor(Transaction& T, Sema& S) {
+    Preprocessor& PP = S.getPreprocessor();
+    SourceManager& SM = S.getSourceManager();
+    llvm::SmallSetVector<FileID, 4> Files;
+    auto Collect = [&](SourceLocation Loc) {
+      if (Loc.isInvalid())
+        return;
+      FileID FID = SM.getFileID(SM.getSpellingLoc(Loc));
+      if (FID.isInvalid() || FID == SM.getMainFileID())
+        return;
+      // Not the inputs themselves (included from the main file).
+      SourceLocation IncludeLoc = SM.getIncludeLoc(FID);
+      if (IncludeLoc.isInvalid() ||
+          SM.getFileID(IncludeLoc) == SM.getMainFileID())
+        return;
+      Files.insert(FID);
+    };
+    for (auto MI = T.rmacros_begin(), ME = T.rmacros_end(); MI != ME; ++MI) {
+      Collect(MI->m_MD->getLocation());
+      // An #undef has no definition to remove.
+      if (MI->m_MD->getMacroInfo())
+        PP.removeMacro(MI->m_II, const_cast<MacroDirective*>(MI->m_MD));
+    }
+    for (auto I = T.decls_begin(), E = T.decls_end(); I != E; ++I)
+      for (Decl* D : I->m_DGR)
+        Collect(D->getBeginLoc());
+    for (FileID FID : Files)
+      SM.invalidateCache(FID);
+  }
+
+  /// Like cling's DeclUnloader::MaybeRemoveDeclFromModule(): make CodeGen
+  /// forget the mangled names of the functions and variables of \p T.
+  /// Otherwise CodeGen keeps their deferred definitions, and emits them when
+  /// the name is used again, e.g. by the same template declared again after
+  /// the unloaded file is loaded once more ("definition with same mangled
+  /// name as another definition").
+  static void forgetCodeGenDecls(const Transaction& T, CodeGenerator& CG) {
+    llvm::SmallPtrSet<const Decl*, 32> Seen;
+    auto Forget = [&](GlobalDecl GD) {
+      std::string Name;
+      utils::Analyze::maybeMangleDeclName(GD, Name);
+      if (!Name.empty())
+        CG.forgetDecl(Name);
+    };
+    std::function<void(Decl*)> Visit = [&](Decl* D) {
+      if (!D || D->isInvalidDecl() || !Seen.insert(D).second)
+        return;
+      if (auto* FD = dyn_cast<FunctionDecl>(D)) {
+        if (FD->isDependentContext())
+          return;
+        if (auto* CD = dyn_cast<CXXConstructorDecl>(FD)) {
+          Forget(GlobalDecl(CD, Ctor_Complete));
+          Forget(GlobalDecl(CD, Ctor_Base));
+        } else if (auto* DD = dyn_cast<CXXDestructorDecl>(FD)) {
+          Forget(GlobalDecl(DD, Dtor_Deleting));
+          Forget(GlobalDecl(DD, Dtor_Complete));
+          Forget(GlobalDecl(DD, Dtor_Base));
+        } else {
+          Forget(GlobalDecl(FD));
+        }
+      } else if (auto* VD = dyn_cast<VarDecl>(D)) {
+        if (VD->hasGlobalStorage() && !VD->isStaticLocal() &&
+            !VD->getDeclContext()->isDependentContext() &&
+            !VD->getType()->isDependentType())
+          Forget(GlobalDecl(VD));
+      } else if (isa<NamespaceDecl>(D) || isa<LinkageSpecDecl>(D) ||
+                 isa<CXXRecordDecl>(D)) {
+        auto* DC = cast<DeclContext>(D);
+        if (!DC->isDependentContext())
+          for (Decl* Member : DC->decls())
+            Visit(Member);
+      }
+    };
+    for (auto I = T.decls_begin(), E = T.decls_end(); I != E; ++I)
+      for (Decl* D : I->m_DGR)
+        Visit(D);
+  }
+
   void Interpreter::unload(Transaction& T) {
-    // clang-repl can only undo the most recent inputs, in order.
+    // clang-repl can only undo the most recent inputs, in order. That is all
+    // ROOT needs: unloading a file (`.U`, TSystem::Unload(), ACLiC) reverts
+    // every transaction since the file was loaded, newest first.
     // FIXME: cling could unload any transaction (TransactionUnloader).
-    if (getLastTransaction() != &T || !T.getPTU()) {
+    if (getLastTransaction() != &T) {
       cling::errs() << "cling-compat: can only unload the last input\n";
       return;
     }
@@ -1284,9 +1408,18 @@ namespace cling {
     for (unsigned i = 0; i < kNumTransactions; ++i)
       if (m_CachedTrns[i] == &T)
         m_CachedTrns[i] = nullptr;
+    if (m_ExecutingTransaction == &T)
+      m_ExecutingTransaction = nullptr;
 
-    if (InterpreterCallbacks* callbacks = getCallbacks())
-      callbacks->TransactionUnloaded(T);
+    // Transactions without an input of their own (PushTransactionRAII, e.g.
+    // template instantiations made by a lookup) have nothing that clang-repl
+    // could undo: their declarations stay, like the instantiations made by
+    // an input that is undone. Just drop them. Unloading must always pop the
+    // transaction; callers revert until a given transaction is the last one.
+    const bool HasInput = T.getPTU();
+    if (HasInput)
+      if (InterpreterCallbacks* callbacks = getCallbacks())
+        callbacks->TransactionUnloaded(T);
 
     if (getOptions().ErrorOut) {
       // Tag the transaction as "won't need to be committed" (ROOT-10798).
@@ -1294,12 +1427,21 @@ namespace cling {
       return;
     }
 
-    if (InterpreterCallbacks* callbacks = getCallbacks())
-      callbacks->TransactionRollback(T);
-
-    if (llvm::Error Err = m_ClangInterp->Undo(1)) {
-      reportError(std::move(Err), "failed to unload");
-      T.setState(Transaction::kRolledBackWithErrors);
+    unloadFromPreprocessor(T, getSema());
+    if (HasInput)
+      if (CodeGenerator* CG = m_ClangInterp->getCodeGen())
+        forgetCodeGenDecls(T, *CG);
+    if (HasInput) {
+      // Destroy the input's globals while their code is still there.
+      runAtExitFuncs(T);
+      if (InterpreterCallbacks* callbacks = getCallbacks())
+        callbacks->TransactionRollback(T);
+      if (llvm::Error Err = m_ClangInterp->Undo(1)) {
+        reportError(std::move(Err), "failed to unload");
+        T.setState(Transaction::kRolledBackWithErrors);
+      } else {
+        T.setState(Transaction::kRolledBack);
+      }
     } else {
       T.setState(Transaction::kRolledBack);
     }
@@ -1309,14 +1451,20 @@ namespace cling {
   }
 
   void Interpreter::unload(unsigned numberOfTransactions) {
-    for (unsigned i = 0; i < numberOfTransactions; ++i) {
+    // `.undo N` reverts the last N inputs, and the transactions without an
+    // input of their own (e.g. made by lookups) in between: cling had
+    // nested those into the current transaction.
+    for (unsigned i = 0; i < numberOfTransactions;) {
       Transaction* T = const_cast<Transaction*>(getLastTransaction());
       if (!T || T == getFirstTransaction()) {
         cling::errs() << "cling: Can't unload first transaction!  Unloaded "
                       << i << " of " << numberOfTransactions << "\n";
         return;
       }
+      const bool IsInput = T->getPTU();
       unload(*T);
+      if (IsInput)
+        ++i;
     }
   }
 
@@ -1540,7 +1688,18 @@ namespace cling {
   }
 
   void Interpreter::AddAtExitFunc(void (*Func) (void*), void* Arg) {
-    m_AtExitFuncs.emplace_back(Func, Arg);
+    m_AtExitFuncs.push_back({Func, Arg, m_ExecutingTransaction});
+  }
+
+  void Interpreter::runAtExitFuncs(const Transaction& T) {
+    // Newest first; a destructor may register more.
+    for (size_t I = m_AtExitFuncs.size(); I-- > 0;) {
+      if (I >= m_AtExitFuncs.size() || m_AtExitFuncs[I].m_T != &T)
+        continue;
+      AtExitFunc F = m_AtExitFuncs[I];
+      m_AtExitFuncs.erase(m_AtExitFuncs.begin() + I);
+      (*F.m_Func)(F.m_Arg);
+    }
   }
 
   void Interpreter::runAtExitFuncs() {
@@ -1548,7 +1707,7 @@ namespace cling {
     auto Funcs = std::move(m_AtExitFuncs);
     m_AtExitFuncs.clear();
     for (auto I = Funcs.rbegin(), E = Funcs.rend(); I != E; ++I)
-      (*I->first)(I->second);
+      (*I->m_Func)(I->m_Arg);
     // The static destructors of JIT-ed code (registered through __cxa_atexit
     // with the JIT's platform support) run in deinitializeJITsAtExit().
   }

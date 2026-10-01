@@ -230,7 +230,9 @@ namespace cling {
             revertedFiles.push_back(Entry.first);
         for (const clang::FileEntry* RFE : revertedFiles)
           m_FEToTransaction.erase(RFE);
-        m_Interpreter.unload(/*numberOfTransactions=*/1);
+        // Exactly this one: unload(1) also reverts transactions without an
+        // input, and could go past `unloadPoint'.
+        m_Interpreter.unload(*const_cast<Transaction*>(T));
       }
 
       DynamicLibraryManager* DLM = m_Interpreter.getDynamicLibraryManager();

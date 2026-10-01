@@ -205,6 +205,8 @@ namespace cling {
     ///\brief Capture the value of the next input's expression statement
     /// even if it ends in ';' (see process()).
     bool m_CaptureValueOfExprStmt = false;
+    ///\brief The input whose code runs (see getCurrentTransaction()).
+    Transaction* m_ExecutingTransaction = nullptr;
     bool m_RawInputEnabled = false;
     bool m_SyntaxOnly = false;
     unsigned m_InputFlags{};
@@ -228,8 +230,14 @@ namespace cling {
     std::unique_ptr<clang::ASTConsumer>
     createModuleWriter(clang::CompilerInstance& CI);
 
-    ///\brief Registered atexit functions.
-    std::vector<std::pair<void (*)(void*), void*>> m_AtExitFuncs;
+    ///\brief Registered atexit functions, with the input whose code
+    /// registered them (if any): unloading it runs them, as with cling.
+    struct AtExitFunc {
+      void (*m_Func)(void*);
+      void* m_Arg;
+      const Transaction* m_T;
+    };
+    std::vector<AtExitFunc> m_AtExitFuncs;
 
     enum {
       kStdStringTransaction = 0, // Transaction known to contain std::string
@@ -430,6 +438,8 @@ namespace cling {
 
     void AddAtExitFunc(void (*Func) (void*), void* Arg);
     void runAtExitFuncs();
+    ///\brief Run (and forget) the atexit functions registered by \p T.
+    void runAtExitFuncs(const Transaction& T);
 
     void GenerateAutoLoadingMap(llvm::StringRef inFile, llvm::StringRef outFile,
                                 bool enableMacros = false, bool enableLogs = true);
