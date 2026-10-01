@@ -36,6 +36,7 @@
 #include "cling/Utils/Output.h"
 #include "cling/Utils/Paths.h"
 #include "cling/Utils/Platform.h"
+#include "cling/Utils/SourceNormalization.h"
 
 // Compatibility.h must come first: it includes CppInterOpInterpreter.h
 // once the types that header needs are declared.
@@ -178,6 +179,16 @@ namespace {
     while (S.ends_with(";"))
       S = S.drop_back().rtrim();
     return S.str();
+  }
+
+  /// cling compiled most inputs inside a wrapper function: it inserted
+  /// "void __cling_Un1Qu3N(void* vpClingValue) {\n " at \p WrapPoint. Lay
+  /// out \p Source the same way, so that diagnostics keep cling's lines and
+  /// columns (and reference outputs of tests match).
+  std::string withClingWrapperLayout(std::string Source, size_t WrapPoint) {
+    if (WrapPoint < Source.size())
+      Source.insert(WrapPoint, "\n ");
+    return Source;
   }
 
   /// Whether \p S is a single statement ending in ';' that may be an
@@ -929,7 +940,11 @@ namespace cling {
       disableValuePrinting = true;
       CO.ValuePrinting = CompilationOptions::VPDisabled;
     }
-    const std::string& Input = input;
+    // Where cling would have started its wrapper function (see
+    // withClingWrapperLayout()).
+    std::string Input = input;
+    size_t WrapPoint = utils::getWrapPoint(Input, getSema().getLangOpts());
+    Input = withClingWrapperLayout(std::move(Input), WrapPoint);
     // cling wrapped statements into a function, where `return` is valid (and
     // ROOT uses `root -e return`). clang-repl has no enclosing function.
     // FIXME: GAP - `return` in top-level statements (e.g. unnamed macros).
@@ -1045,8 +1060,9 @@ namespace cling {
     CO.ResultEvaluation = 1;
     CO.CheckPointerValidity = 0;
     CO.IgnorePromptDiags = 1;
-    return ParseAndExecute(stripTrailingSemicolons(input), CO, &V,
-                           /*print=*/false);
+    return ParseAndExecute(
+        withClingWrapperLayout(stripTrailingSemicolons(input), 0), CO, &V,
+        /*print=*/false);
   }
 
   Interpreter::CompilationResult
@@ -1055,15 +1071,17 @@ namespace cling {
     CO.ValuePrinting = CompilationOptions::VPEnabled;
     CO.ResultEvaluation = (bool)V;
     CO.IgnorePromptDiags = 1;
-    return ParseAndExecute(stripTrailingSemicolons(input), CO, V,
-                           /*print=*/true);
+    return ParseAndExecute(
+        withClingWrapperLayout(stripTrailingSemicolons(input), 0), CO, V,
+        /*print=*/true);
   }
 
   Interpreter::CompilationResult
   Interpreter::execute(const std::string& input) {
     CompilationOptions CO = makeDefaultCompilationOpts();
     CO.DynamicScoping = 0;
-    return ParseAndExecute(input, CO, nullptr, /*print=*/false);
+    return ParseAndExecute(withClingWrapperLayout(input, 0), CO, nullptr,
+                           /*print=*/false);
   }
 
   Interpreter::CompilationResult
