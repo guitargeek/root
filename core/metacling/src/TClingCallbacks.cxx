@@ -296,6 +296,48 @@ bool TClingCallbacks::FileNotFound(llvm::StringRef FileName) {
 }
 
 
+// Statements at the prompt and in unnamed macros: cling wraps them into
+// functions, clang-repl into TopLevelStmtDecls.
+static bool isFunctionOrTopLevelStmt(const DeclContext *DC)
+{
+   return isa<FunctionDecl>(DC) || isa<TopLevelStmtDecl>(DC);
+}
+
+// clang-repl does not wrap the prompt (or unnamed macros) into functions:
+// `auto n = tree->GetEntries();` declares a global. Its initializer may use
+// ROOT special objects and dynamic scopes, like it could in cling's
+// wrappers. Returns that global if the lookup of a name at NameLoc comes
+// from its initializer, as written in an incremental input (not in a header,
+// and not from templates instantiated for it).
+static VarDecl *replInputGlobalBeingInitialized(Sema &SemaR, SourceLocation NameLoc)
+{
+#ifndef CLING_COMPAT_CLANG_REPL
+   // cling's wrappers cover this; its EvaluateTSynthesizer only handles
+   // functions.
+   (void)SemaR;
+   (void)NameLoc;
+   return nullptr;
+#else
+   if (SemaR.ExprEvalContexts.empty() || SemaR.inTemplateInstantiation())
+      return nullptr;
+   const auto &EvalCtx = SemaR.currentEvaluationContext();
+   if (EvalCtx.ExprContext != Sema::ExpressionEvaluationContextRecord::EK_VariableInit)
+      return nullptr;
+   auto *VD = dyn_cast_or_null<VarDecl>(EvalCtx.ManglingContextDecl);
+   if (!VD || !VD->getDeclContext()->isTranslationUnit())
+      return nullptr;
+   // clang-repl includes each input from its (empty) main file.
+   const SourceManager &SM = SemaR.getSourceManager();
+   FileID InputFID = SM.getFileID(SM.getExpansionLoc(VD->getLocation()));
+   SourceLocation IncludeLoc = SM.getIncludeLoc(InputFID);
+   if (IncludeLoc.isInvalid() || SM.getFileID(IncludeLoc) != SM.getMainFileID())
+      return nullptr;
+   if (NameLoc.isInvalid() || SM.getFileID(SM.getExpansionLoc(NameLoc)) != InputFID)
+      return nullptr;
+   return VD;
+#endif
+}
+
 static bool topmostDCIsFunction(Scope* S) {
    if (!S)
       return false;
@@ -314,7 +356,7 @@ static bool topmostDCIsFunction(Scope* S) {
       DC = MaybeTU;
       MaybeTU = MaybeTU->getParent();
    }
-   return isa<FunctionDecl>(DC);
+   return isFunctionOrTopLevelStmt(DC);
 }
 
 // On a failed lookup we have to try to more things before issuing an error.
@@ -341,7 +383,7 @@ bool TClingCallbacks::LookupObject(LookupResult &R, Scope *S) {
    // The remaining lookup routines only work on global scope functions
    // ("macros"), not in classes, namespaces etc - anything that looks like
    // it has seen any trace of software development.
-   if (!topmostDCIsFunction(S))
+   if (!topmostDCIsFunction(S) && !replInputGlobalBeingInitialized(m_Interpreter->getSema(), R.getNameLoc()))
       return false;
 
    // If the autoload wasn't successful try ROOT specials.
@@ -677,7 +719,7 @@ bool TClingCallbacks::tryFindROOTSpecialInternal(LookupResult &R, Scope *S) {
    DeclarationName Name = R.getLookupName();
 
    // Make sure that the failed lookup comes from a function body.
-   if(!CurDC || !CurDC->isFunctionOrMethod())
+   if (!CurDC || !(CurDC->isFunctionOrMethod() || replInputGlobalBeingInitialized(SemaR, R.getNameLoc())))
       return false;
 
    // Save state of the PP, because TCling__GetObjectAddress may induce nested
@@ -715,8 +757,11 @@ bool TClingCallbacks::tryFindROOTSpecialInternal(LookupResult &R, Scope *S) {
          Expr* newInit = utils::Synthesize::IntegerLiteralExpr(C, (uint64_t)obj);
          CStyleCast->setSubExpr(newInit);
 
-         // The actual update happens here, directly in memory.
-         *address = obj;
+         // The actual update happens here, directly in memory. (With
+         // clang-repl, a decl created earlier in the same input is not
+         // compiled yet; its initializer already points to obj.)
+         if (address)
+            *address = obj;
       }
       else {
          // Save state of the PP
@@ -775,16 +820,25 @@ bool TClingCallbacks::tryResolveAtRuntimeInternal(LookupResult &R, Scope *S) {
    DeclContext* TU = C.getTranslationUnitDecl();
    assert(TU && "Must not be null.");
 
-   // DynamicLookup only happens inside wrapper functions:
-   clang::FunctionDecl* Wrapper = nullptr;
+   // DynamicLookup only happens inside wrapper functions (or clang-repl's
+   // top-level statements):
+   clang::Decl* Wrapper = nullptr;
    Scope* Cursor = S;
    do {
       DeclContext* DCCursor = Cursor->getEntity();
-      if (DCCursor == TU)
-         return false;
-      Wrapper = dyn_cast_or_null<FunctionDecl>(DCCursor);
-      if (Wrapper) {
-         if (utils::Analyze::IsWrapper(Wrapper)) {
+      if (DCCursor == TU) {
+         Wrapper = replInputGlobalBeingInitialized(SemaRef, Loc);
+         if (!Wrapper)
+            return false;
+         break;
+      }
+      if (auto *TLSD = dyn_cast_or_null<TopLevelStmtDecl>(DCCursor)) {
+         Wrapper = TLSD;
+         break;
+      }
+      if (auto *FD = dyn_cast_or_null<FunctionDecl>(DCCursor)) {
+         if (utils::Analyze::IsWrapper(FD)) {
+            Wrapper = FD;
             break;
          } else {
             // Can't have a function inside the wrapper:
@@ -873,11 +927,14 @@ bool TClingCallbacks::shouldResolveAtRuntime(LookupResult& R, Scope* S) {
       // TODO: check for . or -> in the cached token stream
    //   return false;
 
+   if (replInputGlobalBeingInitialized(R.getSema(), R.getNameLoc()))
+      return true;
+
    for (Scope* DepScope = S; DepScope; DepScope = DepScope->getParent()) {
       if (DeclContext* Ctx = static_cast<DeclContext*>(DepScope->getEntity())) {
          if (!Ctx->isDependentContext())
             // For now we support only the prompt.
-            if (isa<FunctionDecl>(Ctx))
+            if (isFunctionOrTopLevelStmt(Ctx))
                return true;
       }
    }

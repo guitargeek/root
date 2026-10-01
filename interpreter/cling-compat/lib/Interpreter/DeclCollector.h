@@ -11,11 +11,14 @@
 
 #include "clang/AST/ASTConsumer.h"
 
+#include <memory>
+
 namespace clang {
   class Preprocessor;
 }
 
 namespace cling {
+  class EvaluateTSynthesizer;
   class Interpreter;
   class Transaction;
 
@@ -23,19 +26,20 @@ namespace cling {
   /// consumers into the innermost open cling::Transaction.
   ///
   /// Unlike cling's DeclCollector it does not forward to CodeGen (clang-repl
-  /// multiplexes CodeGen itself) and runs no AST transformers: the inputs are
-  /// compiled as clang-repl sees them.
+  /// multiplexes CodeGen itself, after this consumer). The only AST
+  /// transformation is cling's dynamic scopes (EvaluateTSynthesizer).
   class DeclCollector : public clang::ASTConsumer {
     class PPAdapter;
 
     const Interpreter& m_Interp;
+    std::unique_ptr<EvaluateTSynthesizer> m_DynamicLookup;
 
     Transaction* getTransaction() const;
     bool comesFromASTReader(clang::DeclGroupRef DGR) const;
     void append(clang::DeclGroupRef DGR, int CCI) const;
 
   public:
-    DeclCollector(const Interpreter& I) : m_Interp(I) {}
+    DeclCollector(const Interpreter& I);
     ~DeclCollector() override;
 
     ///\brief Register the macro tracking with the preprocessor.

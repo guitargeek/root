@@ -79,6 +79,7 @@ add_cling_library(clingInterpreter OBJECT
   DeclCollector.cpp
   DynamicLibraryManager.cpp
   DynamicLibraryManagerSymbol.cpp
+  DynamicLookup.cpp
   Exception.cpp
   ForwardDeclPrinter.cpp
   Interpreter.cpp

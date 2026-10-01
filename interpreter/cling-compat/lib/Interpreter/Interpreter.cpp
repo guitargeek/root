@@ -81,6 +81,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 using namespace clang;
@@ -843,7 +844,13 @@ namespace cling {
       llvm::SaveAndRestore<bool> InParse(m_InIncrementalParse, true);
       FilteringDiagConsumer::RAAI IgnorePromptDiags(*m_DiagConsumer,
                                                     CO.IgnorePromptDiags);
-      return m_ClangInterp->Parse(input);
+      // See process(). Only for this input, not for nested ones.
+      bool PrevCapture = m_ClangInterp->capturesValueOfExprStmts();
+      m_ClangInterp->setCaptureValueOfExprStmts(
+          std::exchange(m_CaptureValueOfExprStmt, false));
+      auto Result = m_ClangInterp->Parse(input);
+      m_ClangInterp->setCaptureValueOfExprStmts(PrevCapture);
+      return Result;
     }();
     if (!PTUOrErr) {
       reportError(PTUOrErr.takeError(), "failed to parse");
@@ -912,18 +919,17 @@ namespace cling {
     // cling also returned the value of a last expression ending in ';'
     // (without printing it): TCling::ProcessLine("&f;") returns the address
     // of f, e.g. for RooFit's code generation. clang-repl captures a value
-    // only if the ';' is missing, so drop it where that may be the case
-    // (a declaration without ';' is handled below).
-    std::string WithoutSemi;
+    // only if the ';' is missing; ask it to capture it anyway. (Dropping the
+    // ';' made declarations like `std::map<int,std::string> p;` fail to
+    // parse once, and the retry lacked the template instantiations made by
+    // the failed attempt.)
+    llvm::SaveAndRestore<bool> CaptureValue(m_CaptureValueOfExprStmt, false);
     if (V && mayBeSingleExpressionStatement(Trimmed)) {
-      WithoutSemi = stripTrailingSemicolons(input);
+      m_CaptureValueOfExprStmt = true;
       disableValuePrinting = true;
       CO.ValuePrinting = CompilationOptions::VPDisabled;
-      Trimmed = llvm::StringRef(WithoutSemi).trim();
-      while (Trimmed.starts_with("#line"))
-        Trimmed = Trimmed.split('\n').second.trim();
     }
-    const std::string& Input = WithoutSemi.empty() ? input : WithoutSemi;
+    const std::string& Input = input;
     // cling wrapped statements into a function, where `return` is valid (and
     // ROOT uses `root -e return`). clang-repl has no enclosing function.
     // FIXME: GAP - `return` in top-level statements (e.g. unnamed macros).
@@ -1303,7 +1309,16 @@ namespace cling {
   void Interpreter::runAndRemoveStaticDestructors(unsigned) {}
 
   void Interpreter::enableDynamicLookup(bool value /*=true*/) {
-    // FIXME: dynamic scopes are not supported on clang-repl.
+    if (!m_DynamicLookupDeclared && value && !isInSyntaxOnlyMode()) {
+      // No dynlookup for the dynlookup header!
+      m_DynamicLookupEnabled = false;
+      if (declare("#include \"cling/Interpreter/DynamicLookupRuntimeUniverse.h\"")
+          != kSuccess)
+        return;
+      m_DynamicLookupDeclared = true;
+    }
+
+    // Enable it *after* parsing the headers.
     m_DynamicLookupEnabled = value;
   }
 

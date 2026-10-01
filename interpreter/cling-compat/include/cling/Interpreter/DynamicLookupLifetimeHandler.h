@@ -9,6 +9,8 @@
 #ifndef CLING_DYNAMIC_LOOKUP_LIFETIME_HANDLER_H
 #define CLING_DYNAMIC_LOOKUP_LIFETIME_HANDLER_H
 
+#include "cling/Interpreter/Visibility.h"
+
 #include <string>
 
 namespace clang {
@@ -43,7 +45,7 @@ namespace runtime {
     /// __unique("dep->Sybmol(*(int*)@)",(void*[]){&i}, DC, "MyClass");
     /// MyClass &my(*(MyClass*)__unique.getMemory());
     /// @endcode
-    class LifetimeHandler {
+    class CLING_LIB_EXPORT LifetimeHandler {
     private:
       /// \brief The Interpreter handling this storage element.
       Interpreter* m_Interpreter;

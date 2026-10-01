@@ -470,11 +470,17 @@ namespace cling {
     std::string unnamedMacroFunc;
     if (posOpenCurly != (size_t)-1 && !lineByLine &&
         containsReturnStatement(llvm::StringRef(content).substr(posOpenCurly))) {
-      static unsigned Counter = 0;
-      unnamedMacroFunc =
-          "__cling_compat_unnamed_macro_" + std::to_string(Counter++);
-      // Same line as the '{': keeps the line numbers of the file.
-      content.insert(posOpenCurly, "auto " + unnamedMacroFunc + "() ");
+      // A wrapper name (utils::Analyze::IsWrapper): names in it may be
+      // resolved at runtime (dynamic scopes), as in cling's wrappers.
+      m_Interp.createUniqueName(unnamedMacroFunc);
+      // Same line as the '{': keeps the line numbers of the file. Like
+      // cling's void wrappers, the macro may return a value on some paths
+      // only; DeclCollector adds the missing `return`.
+      content.insert(posOpenCurly,
+                     "_Pragma(\"clang diagnostic push\") "
+                     "_Pragma(\"clang diagnostic ignored \\\"-Wreturn-type\\\"\") "
+                     "auto " + unnamedMacroFunc + "() ");
+      content += "\n_Pragma(\"clang diagnostic pop\")";
       posOpenCurly = (size_t)-1; // keep the braces
     }
 

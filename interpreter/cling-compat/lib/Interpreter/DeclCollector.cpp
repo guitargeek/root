@@ -8,14 +8,21 @@
 
 #include "DeclCollector.h"
 
+#include "DynamicLookup.h"
+
 #include "cling/Interpreter/Interpreter.h"
 #include "cling/Interpreter/Transaction.h"
+#include "cling/Utils/AST.h"
 
 #include "clang/AST/Decl.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/ExprCXX.h"
+#include "clang/AST/Stmt.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/Token.h"
+#include "clang/Sema/Sema.h"
 
 using namespace clang;
 
@@ -48,6 +55,8 @@ namespace cling {
     }
   };
 
+  DeclCollector::DeclCollector(const Interpreter& I) : m_Interp(I) {}
+
   DeclCollector::~DeclCollector() = default;
 
   void DeclCollector::Setup(clang::Preprocessor& PP) {
@@ -70,7 +79,50 @@ namespace cling {
           DGR, static_cast<Transaction::ConsumerCallInfo>(CCI)));
   }
 
+  /// Unnamed macros that `return` are compiled as wrapper functions with a
+  /// deduced return type (see MetaProcessor::readInputFromFile()). They may
+  /// return on some paths only, as cling's void wrappers could: make falling
+  /// off the end return a value-initialized result instead of being
+  /// undefined.
+  static void addFinalReturn(Decl* D, const Interpreter& Interp) {
+    auto* FD = dyn_cast<FunctionDecl>(D);
+    if (!FD || !utils::Analyze::IsWrapper(FD) ||
+        Interp.getDiagnostics().hasErrorOccurred())
+      return;
+    auto* Body = dyn_cast_or_null<CompoundStmt>(FD->getBody());
+    QualType RetTy = FD->getReturnType();
+    if (!Body || !RetTy->isScalarType())
+      return;
+    if (!Body->body_empty() && isa<ReturnStmt>(Body->body_back()))
+      return;
+    ASTContext& Ctx = FD->getASTContext();
+    SourceLocation Loc = Body->getRBracLoc();
+    Expr* Zero = new (Ctx) CXXScalarValueInitExpr(
+        RetTy, Ctx.getTrivialTypeSourceInfo(RetTy, Loc), Loc);
+    llvm::SmallVector<Stmt*, 16> Stmts(Body->body());
+    Stmts.push_back(ReturnStmt::Create(Ctx, Loc, Zero, nullptr));
+    FD->setBody(CompoundStmt::Create(Ctx, Stmts, FPOptionsOverride(),
+                                     Body->getLBracLoc(), Loc));
+  }
+
   bool DeclCollector::HandleTopLevelDecl(DeclGroupRef DGR) {
+    // Dynamic scopes: replace what uses names that are resolved at runtime
+    // before CodeGen sees it. TClingCallbacks marks the functions and
+    // top-level statements that need it.
+    if (m_Interp.isDynamicLookupEnabled() &&
+        !m_Interp.getDiagnostics().hasErrorOccurred()) {
+      for (Decl* D : DGR) {
+        if (!D->hasAttrs())
+          continue;
+        if (!m_DynamicLookup)
+          m_DynamicLookup =
+              std::make_unique<EvaluateTSynthesizer>(&m_Interp.getSema());
+        if (!m_DynamicLookup->Transform(D))
+          return false;
+      }
+    }
+    for (Decl* D : DGR)
+      addFinalReturn(D, m_Interp);
     append(DGR, Transaction::kCCIHandleTopLevelDecl);
     return true;
   }

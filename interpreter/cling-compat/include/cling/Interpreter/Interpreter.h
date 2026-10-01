@@ -201,6 +201,10 @@ namespace cling {
 
     bool m_PrintDebug = false;
     bool m_DynamicLookupEnabled = false;
+    bool m_DynamicLookupDeclared = false;
+    ///\brief Capture the value of the next input's expression statement
+    /// even if it ends in ';' (see process()).
+    bool m_CaptureValueOfExprStmt = false;
     bool m_RawInputEnabled = false;
     bool m_SyntaxOnly = false;
     unsigned m_InputFlags{};
