@@ -41,6 +41,7 @@ namespace driver {
 class Compilation;
 } // namespace driver
 
+class CodeGenerator;
 class CompilerInstance;
 class CXXRecordDecl;
 class Decl;
@@ -202,6 +203,10 @@ public:
 
   /// Undo N previous incremental inputs.
   llvm::Error Undo(unsigned N = 1);
+
+  /// The code generator of the inputs (null in syntax-only mode). Clients
+  /// that undo inputs use it to make CodeGen forget their declarations.
+  CodeGenerator *getCodeGen() const;
 
   /// Link a dynamic library
   llvm::Error LoadDynamicLibrary(const char *name);

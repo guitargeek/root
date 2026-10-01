@@ -609,6 +609,10 @@ Interpreter::getSymbolAddressFromLinkerName(llvm::StringRef Name) const {
   return IncrExecutor->getSymbolAddress(Name, IncrementalExecutor::LinkerName);
 }
 
+CodeGenerator *Interpreter::getCodeGen() const {
+  return Act ? Act->getCodeGen() : nullptr;
+}
+
 llvm::Error Interpreter::Undo(unsigned N) {
 
   if (getEffectivePTUSize() == 0) {

@@ -13,6 +13,7 @@
 #ifndef LLVM_CLANG_LIB_INTERPRETER_INCREMENTALPARSER_H
 #define LLVM_CLANG_LIB_INTERPRETER_INCREMENTALPARSER_H
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
 
@@ -26,6 +27,8 @@ class Module;
 namespace clang {
 class ASTConsumer;
 class CompilerInstance;
+class DeclContext;
+class NamedDecl;
 class Parser;
 class Sema;
 class TranslationUnitDecl;
@@ -74,6 +77,15 @@ public:
 
 private:
   llvm::Expected<TranslationUnitDecl *> ParseOrWrapTopLevelDecl();
+
+  void unlinkDecls(DeclContext *DC, TranslationUnitDecl *DiscardedTU);
+  NamedDecl *withdrawRedecl(NamedDecl *D, TranslationUnitDecl *DiscardedTU);
+  bool hideFromLookup(NamedDecl *D);
+  void restoreLookup(NamedDecl *D, bool InScope);
+  template <typename DeclT>
+  NamedDecl *withdrawRedeclChain(DeclT *D, TranslationUnitDecl *DiscardedTU);
+  /// The survivors of the redeclarations withdrawn by an undo.
+  llvm::DenseMap<NamedDecl *, NamedDecl *> WithdrawnRedecls;
 };
 } // end namespace clang
 

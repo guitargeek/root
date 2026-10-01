@@ -170,6 +170,170 @@ IncrementalParser::Parse(llvm::StringRef input) {
   return PTU;
 }
 
+/// Whether DeclContext puts \p D into its lookup table (see shouldBeHidden()
+/// in DeclBase.cpp).
+static bool isVisibleToLookup(NamedDecl *D) {
+  if (!D->getDeclName() ||
+      (D->getIdentifierNamespace() == 0 && !isa<UsingDirectiveDecl>(D)) ||
+      D->isTemplateParameter())
+    return false;
+  if ((D->isLocalExternDecl() || D->getFriendObjectKind()) &&
+      D != D->getCanonicalDecl())
+    return false;
+  if (isa<ClassTemplateSpecializationDecl>(D))
+    return false;
+  if (auto *FD = dyn_cast<FunctionDecl>(D))
+    if (FD->isFunctionTemplateSpecialization())
+      return false;
+  return !(isa<CXXDestructorDecl>(D) && D->isInvalidDecl());
+}
+
+/// Removes \p D from the lookup tables and the scope chain. Returns whether
+/// it was on the scope chain.
+bool IncrementalParser::hideFromLookup(NamedDecl *D) {
+  if (!D->getDeclName())
+    return false;
+  DeclContext *DC = D->getDeclContext();
+  do {
+    if (StoredDeclsMap *Map = DC->getPrimaryContext()->getLookupPtr()) {
+      auto Pos = Map->find(D->getDeclName());
+      if (Pos != Map->end() &&
+          llvm::is_contained(Pos->second.getLookupResult(), D)) {
+        Pos->second.remove(D);
+        if (Pos->second.isNull())
+          Map->erase(Pos);
+      }
+    }
+  } while (DC->isTransparentContext() && (DC = DC->getParent()));
+  // Unqualified lookup at file scope (Sema::LookupName with the TU scope)
+  // finds the declarations in the scope chain first. Not all of them are
+  // there (e.g. out-of-line definitions).
+  bool WasInScope = false;
+  if (D->getDeclName().getFETokenInfo() && !D->getLangOpts().ObjC &&
+      llvm::is_contained(llvm::make_range(S.IdResolver.begin(D->getDeclName()),
+                                          S.IdResolver.end()),
+                         D)) {
+    S.IdResolver.RemoveDecl(D);
+    WasInScope = true;
+  }
+  if (S.TUScope)
+    S.TUScope->RemoveDecl(D);
+  return WasInScope;
+}
+
+/// Makes \p D visible again after an undone redeclaration that had replaced
+/// it in the lookup tables (and, if \p InScope, the scope chain) was hidden.
+void IncrementalParser::restoreLookup(NamedDecl *D, bool InScope) {
+  // The pattern of a template is not in the lookup tables; the template is.
+  if (!isVisibleToLookup(D) || D->getDescribedTemplate())
+    return;
+  // Like removeDecl(), update the tables directly: makeDeclVisibleInContext()
+  // would ask the external source for the name, which could parse code (e.g.
+  // ROOT's autoparsing) while the tables are half restored.
+  DeclContext *DC = D->getDeclContext();
+  do {
+    if (StoredDeclsMap *Map = DC->getPrimaryContext()->getLookupPtr())
+      (*Map)[D->getDeclName()].addOrReplaceDecl(D);
+  } while (DC->isTransparentContext() && (DC = DC->getParent()));
+  if (InScope) {
+    S.IdResolver.AddDecl(D);
+    if (S.TUScope)
+      S.TUScope->AddDecl(D);
+  }
+}
+
+/// Rebuilds the redeclaration chain of \p D as it was before \p DiscardedTU
+/// (the most recent input, which is undone) and returns the newest surviving
+/// declaration, or null if \p DiscardedTU introduced the name.
+template <typename DeclT>
+NamedDecl *
+IncrementalParser::withdrawRedeclChain(DeclT *D,
+                                       TranslationUnitDecl *DiscardedTU) {
+  // An earlier declaration of the input withdrew the chain already.
+  if (NamedDecl *Survivor = WithdrawnRedecls.lookup(D))
+    return Survivor;
+  DeclT *Latest = D->getMostRecentDecl();
+  if (Latest->getTranslationUnitDecl() != DiscardedTU)
+    return nullptr;
+  DeclT *Survivor = Latest->getPreviousDecl();
+  while (Survivor && Survivor->getTranslationUnitDecl() == DiscardedTU)
+    Survivor = Survivor->getPreviousDecl();
+  if (!Survivor)
+    return nullptr;
+
+  // Rebuild First -> ... -> Survivor -> ... -> Latest as
+  // First -> ... -> Survivor.
+  Latest->getFirstDecl()->RedeclLink.setLatest(Survivor);
+  // The chain is circular: give each withdrawn declaration a chain of its
+  // own, or redecls() on it would not terminate.
+  bool InScope = false;
+  for (DeclT *Dead = Latest; Dead != Survivor;) {
+    DeclT *Next = Dead->getPreviousDecl();
+    Dead->First = Dead;
+    Dead->RedeclLink = Redeclarable<DeclT>::LatestDeclLink(S.getASTContext());
+    WithdrawnRedecls[Dead] = Survivor;
+    // Not every undone declaration is reached through the declarations of
+    // the input (unlinkDecls()); none must stay visible.
+    InScope |= hideFromLookup(Dead);
+    Dead = Next;
+  }
+  // The undone declarations had replaced it in the lookup tables.
+  restoreLookup(Survivor, InScope);
+  return Survivor;
+}
+
+NamedDecl *IncrementalParser::withdrawRedecl(NamedDecl *D,
+                                             TranslationUnitDecl *DiscardedTU) {
+  if (auto *TD = dyn_cast<TagDecl>(D)) {
+    NamedDecl *Survivor = withdrawRedeclChain(TD, DiscardedTU);
+    // A class definition is kept in DefinitionData, shared by the chain.
+    if (auto *RD = dyn_cast_or_null<CXXRecordDecl>(Survivor))
+      if (CXXRecordDecl *Def = RD->getDefinition();
+          Def && Def->getTranslationUnitDecl() == DiscardedTU)
+        for (auto *R : RD->redecls())
+          cast<CXXRecordDecl>(R)->DefinitionData = nullptr;
+    return Survivor;
+  }
+  if (auto *FD = dyn_cast<FunctionDecl>(D))
+    return withdrawRedeclChain(FD, DiscardedTU);
+  if (auto *VD = dyn_cast<VarDecl>(D))
+    return withdrawRedeclChain(VD, DiscardedTU);
+  if (auto *TND = dyn_cast<TypedefNameDecl>(D))
+    return withdrawRedeclChain(TND, DiscardedTU);
+  if (auto *NSD = dyn_cast<NamespaceDecl>(D))
+    return withdrawRedeclChain(NSD, DiscardedTU);
+  if (auto *NAD = dyn_cast<NamespaceAliasDecl>(D))
+    return withdrawRedeclChain(NAD, DiscardedTU);
+  if (auto *USD = dyn_cast<UsingShadowDecl>(D))
+    return withdrawRedeclChain(USD, DiscardedTU);
+  if (auto *RTD = dyn_cast<RedeclarableTemplateDecl>(D)) {
+    withdrawRedecl(RTD->getTemplatedDecl(), DiscardedTU);
+    return withdrawRedeclChain(RTD, DiscardedTU);
+  }
+  return nullptr;
+}
+
+/// Removes the declarations of \p DC (an undone input, or a namespace or
+/// enumeration declared in it) from \p DC, its lookup tables and the scope
+/// chain. Declarations that redeclare an earlier one are withdrawn from its
+/// redeclaration chain, and the earlier one is found by lookup again.
+void IncrementalParser::unlinkDecls(DeclContext *DC,
+                                    TranslationUnitDecl *DiscardedTU) {
+  llvm::SmallVector<Decl *, 32> Decls(DC->noload_decls());
+  for (Decl *D : Decls) {
+    // Their members are visible outside of them (enumerators of unscoped
+    // enumerations, members of a reopened namespace).
+    if (isa<NamespaceDecl>(D) || isa<EnumDecl>(D) || isa<LinkageSpecDecl>(D) ||
+        isa<ExportDecl>(D))
+      unlinkDecls(cast<DeclContext>(D), DiscardedTU);
+    if (auto *ND = dyn_cast<NamedDecl>(D)) {
+      withdrawRedecl(ND, DiscardedTU);
+      hideFromLookup(ND);
+    }
+    DC->removeDecl(D);
+  }
+}
+
 void IncrementalParser::CleanUpPTU(TranslationUnitDecl *MostRecentTU) {
   if (StoredDeclsMap *Map = MostRecentTU->getPrimaryContext()->getLookupPtr()) {
     for (auto &&[Key, List] : *Map) {
@@ -192,15 +356,11 @@ void IncrementalParser::CleanUpPTU(TranslationUnitDecl *MostRecentTU) {
   }
 
   // FIXME: We should de-allocate MostRecentTU
-  for (Decl *D : MostRecentTU->decls()) {
-    auto *ND = dyn_cast<NamedDecl>(D);
-    if (!ND || ND->getDeclName().isEmpty())
-      continue;
-    // Check if we need to clean up the IdResolver chain.
-    if (ND->getDeclName().getFETokenInfo() && !D->getLangOpts().ObjC &&
-        !D->getLangOpts().CPlusPlus)
-      S.IdResolver.RemoveDecl(ND);
-  }
+  // Unlink the declarations, too: lookup tables are rebuilt from the
+  // declarations of all TranslationUnitDecls (e.g. for a qualified lookup
+  // into the translation unit), which would find them again.
+  unlinkDecls(MostRecentTU, MostRecentTU);
+  WithdrawnRedecls.clear();
 }
 
 PartialTranslationUnit &
