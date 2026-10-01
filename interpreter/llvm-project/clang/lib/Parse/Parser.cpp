@@ -1022,8 +1022,19 @@ Parser::ParseExternalDeclaration(ParsedAttributes &Attrs,
       return nullptr;
     }
     if (getLangOpts().IncrementalExtensions &&
-        !isDeclarationStatement(/*DisambiguatingWithExpression=*/true))
+        !isDeclarationStatement(/*DisambiguatingWithExpression=*/true)) {
+      // The disambiguation looked names up at file scope, but the statement
+      // gets a scope of its own, where an external source may resolve a name
+      // that is undeclared at file scope (e.g. a call `f();`). Look it up
+      // again.
+      if (Tok.is(tok::annot_non_type_undeclared)) {
+        IdentifierInfo *II = getIdentifierAnnotation(Tok);
+        Tok.setKind(tok::identifier);
+        Tok.setIdentifierInfo(II);
+        Tok.setLength(II->getLength());
+      }
       return ParseTopLevelStmtDecl();
+    }
 
     // We can't tell whether this is a function-definition or declaration yet.
     if (!SingleDecl)

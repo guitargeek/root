@@ -152,7 +152,12 @@ bool InProcessPrintingASTConsumer::HandleTopLevelDecl(DeclGroupRef DGR) {
 
   for (Decl *D : DGR)
     if (auto *TLSD = llvm::dyn_cast<TopLevelStmtDecl>(D))
-      if (TLSD && TLSD->isSemiMissing()) {
+      // A type-dependent expression is left to the client (e.g. resolved at
+      // runtime); its value cannot be captured here.
+      if (TLSD &&
+          (TLSD->isSemiMissing() || Interp.capturesValueOfExprStmts()) &&
+          isa_and_nonnull<Expr>(TLSD->getStmt()) &&
+          !cast<Expr>(TLSD->getStmt())->isTypeDependent()) {
         auto ExprOrErr = Interp.convertExprToValue(cast<Expr>(TLSD->getStmt()));
         if (llvm::Error E = ExprOrErr.takeError()) {
           llvm::logAllUnhandledErrors(std::move(E), llvm::errs(),

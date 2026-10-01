@@ -123,6 +123,9 @@ class Interpreter {
   // printing happens, it's in an invalid state.
   Value LastValue;
 
+  /// See setCaptureValueOfExprStmts().
+  bool CaptureValueOfExprStmts = false;
+
   /// Compiler instance performing the incremental compilation.
   std::unique_ptr<CompilerInstance> CI;
 
@@ -187,6 +190,15 @@ public:
   /// missing its semicolon into \p V (leaving it invalid if there is none).
   /// For clients that call Parse() and Execute() separately.
   void takeLastValue(Value &V);
+
+  /// Also capture the value of top-level expression statements that end in
+  /// a semicolon (for takeLastValue(); such values are never printed). For
+  /// clients that need the value of an input like `&f;`: dropping the
+  /// semicolon would turn a declaration into a parse error.
+  void setCaptureValueOfExprStmts(bool Capture) {
+    CaptureValueOfExprStmts = Capture;
+  }
+  bool capturesValueOfExprStmts() const { return CaptureValueOfExprStmts; }
 
   /// Undo N previous incremental inputs.
   llvm::Error Undo(unsigned N = 1);
