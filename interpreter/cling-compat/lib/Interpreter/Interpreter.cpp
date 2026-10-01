@@ -19,6 +19,7 @@
 #include "EnterUserCodeRAII.h"
 #include "FilteringDiagConsumer.h"
 #include "ForwardDeclPrinter.h"
+#include "JITPlatform.h"
 #include "MultiplexInterpreterCallbacks.h"
 
 #include "cling/Interpreter/AutoloadCallback.h"
@@ -417,6 +418,10 @@ namespace cling {
         llvm::consumeError(llvm::orc::enableDebuggerSupport(J));
         return llvm::Error::success();
       });
+      // LLJIT's generic platform, but with re-entrant initialization: ROOT
+      // loads libraries while linking JIT-ed code, and their initializers
+      // run more code (see JITPlatform.cpp).
+      JB->setPlatformSetUp(&setUpJITPlatform);
       IEB->JITBuilder = std::move(JB);
     }
 
