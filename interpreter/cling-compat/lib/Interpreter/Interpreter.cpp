@@ -88,6 +88,7 @@
 #include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -184,6 +185,13 @@ namespace {
       OnDeallocated(llvm::Error::success());
     }
   };
+
+  /// The input whose code runs on this thread (see getCurrentTransaction()).
+  /// Per thread: code runs without ROOT's interpreter lock.
+  cling::Transaction*& executingTransaction() {
+    static thread_local cling::Transaction* T = nullptr;
+    return T;
+  }
 
   std::deque<clang::Value>* keptAlive(void* P) {
     return static_cast<std::deque<clang::Value>*>(P);
@@ -372,7 +380,7 @@ namespace cling {
   const Transaction* Interpreter::getCurrentTransaction() const {
     if (!m_OpenTransactions.empty())
       return m_OpenTransactions.back();
-    return m_ExecutingTransaction;
+    return executingTransaction();
   }
 
   const Transaction* Interpreter::getLatestTransaction() const {
@@ -450,7 +458,23 @@ namespace cling {
       // LLJIT's generic platform, but with re-entrant initialization: ROOT
       // loads libraries while linking JIT-ed code, and their initializers
       // run more code (see JITPlatform.cpp).
-      JB->setPlatformSetUp(&setUpJITPlatform);
+      // ROOT releases its interpreter lock while user code runs, i.e. the
+      // initializers (clang-repl runs an input's statements as
+      // initializers), but not while it is compiled: another thread would
+      // parse and generate code meanwhile, in the same LLVMContext.
+      JB->setPlatformSetUp([this](llvm::orc::LLJIT& J) {
+        JITPlatformHooks Hooks;
+        Hooks.EnterUserCode = [this]() -> void* {
+          if (InterpreterCallbacks* CB = getCallbacks())
+            return CB->EnteringUserCode();
+          return nullptr;
+        };
+        Hooks.ReturnFromUserCode = [this](void* StateInfo) {
+          if (InterpreterCallbacks* CB = getCallbacks())
+            CB->ReturnedFromUserCode(StateInfo);
+        };
+        return setUpJITPlatform(J, std::move(Hooks));
+      });
       JB->setObjectLinkingLayerCreator(
           [](llvm::orc::ExecutionSession& ES)
               -> llvm::Expected<std::unique_ptr<llvm::orc::ObjectLayer>> {
@@ -922,11 +946,12 @@ namespace cling {
       return kSuccess;
 
     {
-      EnterUserCodeRAII euc(getCallbacks());
-      // Like cling, the input stays the current transaction while it runs:
+      // The JIT platform releases ROOT's lock while the code runs (see
+      // setUpJITPlatform()). Like cling, the input stays the current
+      // transaction while it runs:
       // e.g. TCling::AutoParse() ties the payloads it parses to it, so that
       // undoing the input allows parsing them again.
-      llvm::SaveAndRestore<Transaction*> Executing(m_ExecutingTransaction, T);
+      llvm::SaveAndRestore<Transaction*> Executing(executingTransaction(), T);
       if (llvm::Error Err = m_ClangInterp->Execute(PTU)) {
         reportError(std::move(Err), "failed to execute");
         return kFailure;
@@ -1408,8 +1433,8 @@ namespace cling {
     for (unsigned i = 0; i < kNumTransactions; ++i)
       if (m_CachedTrns[i] == &T)
         m_CachedTrns[i] = nullptr;
-    if (m_ExecutingTransaction == &T)
-      m_ExecutingTransaction = nullptr;
+    if (executingTransaction() == &T)
+      executingTransaction() = nullptr;
 
     // Transactions without an input of their own (PushTransactionRAII, e.g.
     // template instantiations made by a lookup) have nothing that clang-repl
@@ -1688,24 +1713,35 @@ namespace cling {
   }
 
   void Interpreter::AddAtExitFunc(void (*Func) (void*), void* Arg) {
-    m_AtExitFuncs.push_back({Func, Arg, m_ExecutingTransaction});
+    std::lock_guard<std::mutex> Lock(m_AtExitFuncsMutex);
+    m_AtExitFuncs.push_back({Func, Arg, executingTransaction()});
   }
 
   void Interpreter::runAtExitFuncs(const Transaction& T) {
     // Newest first; a destructor may register more.
-    for (size_t I = m_AtExitFuncs.size(); I-- > 0;) {
-      if (I >= m_AtExitFuncs.size() || m_AtExitFuncs[I].m_T != &T)
-        continue;
-      AtExitFunc F = m_AtExitFuncs[I];
-      m_AtExitFuncs.erase(m_AtExitFuncs.begin() + I);
+    while (true) {
+      AtExitFunc F;
+      {
+        std::lock_guard<std::mutex> Lock(m_AtExitFuncsMutex);
+        auto It = std::find_if(m_AtExitFuncs.rbegin(), m_AtExitFuncs.rend(),
+                               [&](const AtExitFunc& A) { return A.m_T == &T; });
+        if (It == m_AtExitFuncs.rend())
+          return;
+        F = *It;
+        m_AtExitFuncs.erase(std::next(It).base());
+      }
       (*F.m_Func)(F.m_Arg);
     }
   }
 
   void Interpreter::runAtExitFuncs() {
     // Run in reverse order of registration, like atexit().
-    auto Funcs = std::move(m_AtExitFuncs);
-    m_AtExitFuncs.clear();
+    std::vector<AtExitFunc> Funcs;
+    {
+      std::lock_guard<std::mutex> Lock(m_AtExitFuncsMutex);
+      Funcs = std::move(m_AtExitFuncs);
+      m_AtExitFuncs.clear();
+    }
     for (auto I = Funcs.rbegin(), E = Funcs.rend(); I != E; ++I)
       (*I->m_Func)(I->m_Arg);
     // The static destructors of JIT-ed code (registered through __cxa_atexit

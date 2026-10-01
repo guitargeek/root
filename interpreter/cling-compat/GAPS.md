@@ -2,30 +2,49 @@
 
 cling-compat implements the part of cling's API that ROOT uses on top of
 `clang::Interpreter` (clang-repl). This file lists what that took: patches to
-clang, corners that were cut, and features that do not work yet. Each entry
-is a candidate for an upstream patch or a ROOT-side decision.
+clang and LLVM, corners that were cut, and features that do not work yet.
+Each entry is a candidate for an upstream patch or a ROOT-side decision.
 
 Build with `-Dclang_repl=ON` (and `-Dclad=OFF`, `-Dcuda=OFF` for now).
+
+## Status
+
+Full ctest run (2026-10-01, Linux x86-64, system LLVM 22.1.8 with the bundled
+clang): 3568 of 3635 tests pass. With cling, 3607 of 3638 pass. Not run:
+`gtest-core-thread-testInterpreterLock` (deadlocks) and
+`roottest-root-meta-tclass-execInitOrder` (memory grows without bound).
+
+The largest groups of remaining failures:
+
+| Tests | Cause |
+| --- | --- |
+| 10 | Crashes: null dereference protection is missing (3), single causes (RooFit `rf104`, TMVA SOFIE, `runlongArgTest`, ...) |
+| 7 | Wrong exit code |
+| 4 | JupyROOT: the kernel does not respond |
+| 3 | Redefinition at the prompt |
+| 2 | Template autoloading (`TmpltNoSpec`) |
 
 ## What the layer contains
 
 | Part | Origin | Why it is still needed |
 | --- | --- | --- |
-| `Interpreter.cpp`, `DeclCollector.cpp` | new | Adapts cling's API (transactions, callbacks, values) to clang-repl |
+| `Interpreter.cpp`, `DeclCollector.cpp` | new | Adapts cling's API (transactions, callbacks, values, unloading) to clang-repl |
+| `JITPlatform.cpp` | LLVM, one fix | LLJIT's generic IR platform with re-entrant initialization (see below) |
+| `DynamicLookup.cpp` | cling, ported | Dynamic scopes: statements with names resolved at runtime |
 | `CIFactory.cpp` | cling, cut down | Compiler arguments, host include discovery, modulemap overlays for libc/std |
 | `FilteringDiagConsumer.h` | cling (IncrementalParser.cpp) | Owns the original diagnostic client (rootcling relies on that), filters prompt noise, supports `replaceDiagnosticConsumer` |
 | `LookupHelper.cpp`, `Utils/AST.cpp` | cling, unchanged | Name lookup and type normalization used by TCling and rootcling |
-| `MetaProcessor/*` | cling, unchanged | The `.L`, `.x`, `.q`, ... prompt commands |
+| `MetaProcessor/*` | cling, small changes | The `.L`, `.x`, `.q`, ... prompt commands; unnamed macros |
 | `DynamicLibraryManager*.cpp` | cling, unchanged | Library search and symbol-to-library resolution for autoloading |
 | `Value.cpp`, `ValuePrinter.cpp` | cling, small change | `cling::Value` and the `printValue` machinery ROOT's types overload |
-| `ForwardDeclPrinter.cpp` | cling, unchanged | Forward declarations for rootmap files (rootcling) |
+| `ForwardDeclPrinter.cpp` | cling, small change | Forward declarations for rootmap files (rootcling) |
 | `Transaction.cpp` | cling, small change | The per-input record of declarations that TCling consumes |
 
 Not carried over from cling: IncrementalParser, IncrementalExecutor,
-IncrementalJIT, BackendPasses, all AST transformers (wrapping, value
-extraction and printing synthesis, dynamic lookup, `auto` synthesis, null
-dereference checks, definition shadowing, decl extraction), DeclUnloader,
-TransactionUnloader, CUDA device compiler, UserInterface.
+IncrementalJIT, BackendPasses, most AST transformers (wrapping, value
+extraction and printing synthesis, `auto` synthesis, null dereference checks,
+definition shadowing, decl extraction), DeclUnloader, TransactionUnloader,
+CUDA device compiler, UserInterface.
 
 ## Clang patches (interpreter/llvm-project/clang)
 
@@ -42,13 +61,57 @@ All are candidates for upstream clang-repl.
    `Execute()` separately (ROOT must see new declarations before static
    initializers run) and still get the value of a trailing expression.
 4. Value printing: a `void` expression without `;` (`f()`) was replaced by
-   the value-capturing call and never evaluated. Now `(f(), capture)`.
+   the value-capturing call and never evaluated. Now `(f(), capture)`
+   (llvm/llvm-project#219800).
 5. `ASTWriter`: writing a PCH or module from an incremental
    CompilerInstance. All TranslationUnitDecls (one per input) are the
    predefined TU, the decls of all of them are written, and the TU lookup
    table comes from the primary context.
 6. `ASTReader`: declarations read from AST files belong to the primary
    TranslationUnitDecl, not to whichever input's TU is current.
+7. Typeinfo and vtables (`_ZT*`) are made weak before a module goes to the
+   JIT: a class whose key function is defined in a later input, or that a
+   dictionary library defines too, gave duplicate definitions (cling had
+   the same hack).
+8. A `TopLevelStmtDecl` never gets a null statement (an invalid statement
+   becomes a null statement); several clients crashed on it. Same code in
+   LLVM main.
+9. For clients that resolve names of top-level statements themselves:
+   - the first name of a statement is looked up again in the statement's
+     scope (the declaration/statement disambiguation had marked `f` in
+     `f();` as undeclared at file scope);
+   - type-dependent expressions are left to the client instead of being
+     value-printed;
+   - `Interpreter::setCaptureValueOfExprStmts()` captures (not prints) the
+     value of an expression statement that ends in `;` (`ProcessLine("&f;")`).
+10. Include stacks end at clang-repl's main file in incremental mode: no
+    "In file included from <<< inputs >>>:1:" before each diagnostic.
+11. `Interpreter::Undo()` makes the declarations of the undone input
+    unreachable: they were found again through the scope chain, rebuilt
+    lookup tables, enumerators of unscoped enums, and members of reopened
+    namespaces. `DeclContext::removeDecl()` tolerates a missing lookup
+    entry. `Interpreter::getCodeGen()` lets clients make CodeGen forget
+    undone definitions.
+
+## LLVM patch (carried as a copy)
+
+ROOT may take LLVM from the system, so this one cannot live in
+`interpreter/llvm-project/llvm`. `JITPlatform.cpp` is a copy of LLJIT's
+`GenericLLVMIRPlatformSupport` with the fix; it is proposed upstream as
+`clang-repl/pending/06-lljit-nested-initialize.patch` (outside the
+repository). Remove the copy once ROOT's LLVM has it.
+
+- **Re-entrant `LLJIT::initialize()`.** Linking an input can make ROOT's
+  autoloading generator load a library whose initializers declare and run
+  more code (dictionary registration, `TROOT::ProcessLine()`; ROOT-10426).
+  The nested `initialize()` waited for the init functions of the outer input,
+  which were still being materialized: a deadlock. Each call now records the
+  init functions registered while it materializes, and a nested call runs
+  only those.
+
+The copy also has a hook to release ROOT's interpreter lock while the
+initializers run (they are the user's statements), but not while they are
+compiled: another thread would generate code in the same `LLVMContext`.
 
 ## Things ROOT had to adapt to
 
@@ -57,16 +120,29 @@ All are candidates for upstream clang-repl.
   dictionary scanners, TCling's module index and its replay of existing
   declarations. More places will need it (TClingClassInfo and
   TClingTypedefInfo iterators, `.class`/`.typedef` listings).
+- **Top-level statements are not in functions.** TClingCallbacks treats a
+  `TopLevelStmtDecl`, and (clang-repl only) the initializer of a global
+  declared at the prompt, like cling's wrapper functions: ROOT special
+  objects and dynamic scopes work there.
 
 ## Workarounds in cling-compat (each one a gap)
 
-- **JIT target.** clang-repl builds its JIT for the host CPU; CodeGen uses
-  the CompilerInstance's target. The mismatch crashed instruction selection.
-  cling-compat passes an `IncrementalExecutorBuilder` configured like cling.
+- **JIT setup.** clang-repl builds its JIT for the host CPU; CodeGen uses the
+  CompilerInstance's target, and the mismatch crashed instruction selection.
+  cling-compat configures the JIT like cling: same target, large code model
+  on x86-64 (weak symbols such as `DW.ref.__gxx_personality_v0` ended up out
+  of range of 32-bit relocations), and a memory manager that never frees
+  code (ROOT keeps pointers to JIT-ed wrappers; root-project/root#10898).
 - **Runtime symbols.** clang-repl expects the host process to export its
   value-capturing runtime (`__clang_Interpreter_SetValue*`, a placement
   `operator new`). In libCling they are hidden; cling-compat defines them
-  in the JIT.
+  in the JIT. The JIT also gets its own `__cxa_atexit`, which records the
+  destructors per input (see unloading).
+- **Shutdown order.** clang-repl runs the JIT's deinitializers when it is
+  destroyed, which is after LLVM's CodeGen statics are gone: compiling the
+  platform's code then failed at random. cling-compat compiles it up front,
+  and runs the static destructors of JIT-ed code before ROOT's end-of-process
+  cleanups (like cling).
 - **Unique source locations.** clang caches the last module import by its
   location (`CompilerInstance::loadModule`); synthesized imports must each
   get a new location. cling-compat hands out offsets in a virtual buffer.
@@ -80,33 +156,71 @@ All are candidates for upstream clang-repl.
   JITDylib; ROOT's library autoloading generator (which can scan every
   library on the system) must go into a JITDylib at the end of the link
   order, and be detached before clang-repl deinitializes the JIT.
+- **ExternalSemaSource.** With C++ modules, Sema's external source is already
+  a `MultiplexExternalSemaSource`; ROOT's callbacks (autoloading, special
+  objects, dynamic scopes) are added to it.
 - **Declarations without `;`** (`auto h = new TH1F(...)`) and a bare
   `return` at the prompt: clang-repl rejects them; cling-compat retries
   with `;` and prints the declared variable.
+- **Unnamed macros.** Without `return`, their statements stay top-level code
+  (their variables are globals, as with cling's declaration extraction).
+  With `return`, they become a wrapper function with a deduced return type;
+  `-Wreturn-type` is off for it and falling off the end returns a
+  value-initialized result (cling's wrappers were `void`).
+- **Diagnostics layout.** cling compiled most inputs inside a wrapper
+  function, so their diagnostics showed the input on the next line,
+  indented by one space; roottest's reference files compare that.
+  cling-compat inserts `"\n "` where cling inserted its wrapper.
 - **Diagnostics ownership.** rootcling replaces the DiagnosticConsumer and
   expects the engine not to own the original one (cling's filter owned it).
+- **Forward declarations** for rootmap files: the include walk stops at
+  clang-repl's inputs (it reached the main file, `__main_argc_argv`).
+- **Transactions are not nested.** An input is the current transaction
+  while its code runs (TCling::AutoParse() relies on it); transactions made
+  by lookups outside an input have no input of their own and are dropped
+  when unloading.
+
+## Features ported from cling
+
+- **Dynamic scopes** (`DynamicLookup.cpp`, cling's EvaluateTSynthesizer):
+  statements with names that only exist at runtime are compiled and run at
+  runtime, in functions (unnamed macros with `return`), top-level statements
+  and initializers of globals. Fixed on the way (cling has these bugs):
+  `std::cout << unknown` printed as `std::((*(ostream*)0x...))`; loop
+  conditions; `return unknown();` in a function with a deduced return type.
+  Not supported: a global of class type or `auto` initialized from an unknown
+  name (cling's LifetimeHandler only works for locals).
+- **ROOT special objects** (`ntuple->Draw()` for an object in a file), at the
+  prompt, in macros and in initializers of globals.
+- **Unloading** (`.U`, `.undo`, `TSystem::Unload()`, ACLiC reloading). As
+  with cling, unloading a file reverts all inputs after it, newest first,
+  which is what clang-repl's `Undo()` can do. Like cling's
+  TransactionUnloader: macros are undefined (include guards), cached file
+  contents dropped, CodeGen forgets the definitions, and the destructors of
+  the input's globals run. `.undo N` counts inputs.
 
 ## Missing features
 
-- **Selective unloading.** `unload(T)` only works for the most recent input
-  (`clang::Interpreter::Undo`). `UnloadDecl` (used by LookupHelper to remove
-  failed template instantiations) only marks the declaration invalid.
-- **`return` in top-level code** other than a bare `return` (e.g. in unnamed
-  macros): cling wrapped inputs into functions.
-- **Dynamic scopes.** `enableDynamicLookup()` is accepted but does nothing.
-- **ROOT "special objects"** (`h->Draw()` for a histogram `h` in a file):
-  TClingCallbacks only resolves them inside function bodies; clang-repl's
-  top-level statements are not in one.
-- **Redefinition at the prompt** (`AllowRedefinition`): not implemented.
+- **Unloading a transaction that is not the last one** (cling's
+  TransactionUnloader could). ROOT does not need it so far. `UnloadDecl`
+  (used by LookupHelper to remove failed template instantiations) only marks
+  the declaration invalid.
+- **Null dereference protection** (cling's NullDerefProtectionTransformer):
+  dereferencing a null pointer in interpreted code crashes instead of
+  raising an error.
+- **Redefinition at the prompt** (`AllowRedefinition`, cling's
+  DefinitionShadower): not implemented.
+- **`return` in top-level code** other than in unnamed macros and a bare
+  `return` at the prompt.
 - **Value ownership.** A `cling::Value` of class type returned by `process()`
   or `evaluate()` refers to storage owned by a `clang::Value` that is kept
   alive until the interpreter is destroyed (a leak per such value).
-- **Static destructors / atexit.** `runAtExitFuncs()` only runs functions
-  registered through `AddAtExitFunc`; destructors of JIT-ed globals run when
-  clang-repl's LLJIT is torn down.
+- **Values with several threads.** clang-repl captures the value of an
+  input in one member of `clang::Interpreter`; inputs that run concurrently
+  (without ROOT's lock) can overwrite each other's value.
 - **`parse()`** generates code anyway (clang-repl always runs CodeGen); the
   module is just not executed.
-- **Code completion** (`codeComplete`) is not ported.
+- **Code completion** (`codeComplete`) is not ported (`roottest-root-rint-TabCom`).
 - **`.storeState` / `.compareState`** are not supported.
 - **Plugins** (clad) are not loaded: `-Dclad=OFF`.
 - **CUDA**: not ported: `-Dcuda=OFF`.

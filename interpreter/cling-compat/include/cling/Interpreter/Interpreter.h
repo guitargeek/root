@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -205,8 +206,6 @@ namespace cling {
     ///\brief Capture the value of the next input's expression statement
     /// even if it ends in ';' (see process()).
     bool m_CaptureValueOfExprStmt = false;
-    ///\brief The input whose code runs (see getCurrentTransaction()).
-    Transaction* m_ExecutingTransaction = nullptr;
     bool m_RawInputEnabled = false;
     bool m_SyntaxOnly = false;
     unsigned m_InputFlags{};
@@ -238,6 +237,9 @@ namespace cling {
       const Transaction* m_T;
     };
     std::vector<AtExitFunc> m_AtExitFuncs;
+    ///\brief Guards m_AtExitFuncs: initializers (registering them) run
+    /// without ROOT's interpreter lock, possibly in several threads.
+    std::mutex m_AtExitFuncsMutex;
 
     enum {
       kStdStringTransaction = 0, // Transaction known to contain std::string

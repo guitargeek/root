@@ -11,6 +11,8 @@
 
 #include "llvm/ExecutionEngine/Orc/Core.h"
 
+#include <functional>
+
 namespace llvm {
 namespace orc {
 class LLJIT;
@@ -18,9 +20,18 @@ class LLJIT;
 } // namespace llvm
 
 namespace cling {
+  ///\brief Called around running the static initializers of JIT-ed code,
+  /// i.e. user code (but not around compiling it): ROOT releases its
+  /// interpreter lock while user code runs.
+  struct JITPlatformHooks {
+    std::function<void*()> EnterUserCode;
+    std::function<void(void*)> ReturnFromUserCode;
+  };
+
   ///\brief Like llvm::orc::setUpGenericLLVMIRPlatform(), but initialize()
   /// may be called while it runs (see JITPlatform.cpp).
-  llvm::Expected<llvm::orc::JITDylibSP> setUpJITPlatform(llvm::orc::LLJIT& J);
+  llvm::Expected<llvm::orc::JITDylibSP>
+  setUpJITPlatform(llvm::orc::LLJIT& J, JITPlatformHooks Hooks);
 } // namespace cling
 
 #endif // CLING_COMPAT_JIT_PLATFORM_H

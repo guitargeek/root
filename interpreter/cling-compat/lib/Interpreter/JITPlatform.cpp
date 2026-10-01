@@ -25,6 +25,9 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
+#include <map>
+#include <thread>
+
 #define DEBUG_TYPE "orc"
 
 using namespace llvm;
@@ -126,9 +129,11 @@ private:
 /// some runtime API, including __cxa_atexit, dlopen, and dlclose.
 class GenericLLVMIRPlatformSupport : public LLJIT::PlatformSupport {
 public:
-  GenericLLVMIRPlatformSupport(LLJIT &J, JITDylib &PlatformJD)
+  GenericLLVMIRPlatformSupport(LLJIT &J, JITDylib &PlatformJD,
+                               cling::JITPlatformHooks Hooks)
       : J(J), InitFunctionPrefix(J.mangle("__orc_init_func.")),
-        DeInitFunctionPrefix(J.mangle("__orc_deinit_func.")) {
+        DeInitFunctionPrefix(J.mangle("__orc_deinit_func.")),
+        Hooks(std::move(Hooks)) {
 
     getExecutionSession().setPlatform(
         std::make_unique<GenericLLVMIRPlatform>(*this));
@@ -234,13 +239,29 @@ public:
     // while it materializes, so that a nested call runs only those: the ones
     // of the outer calls are still being materialized and would never become
     // ready (deadlock).
-    getExecutionSession().runSessionLocked([&]() { InitFrames.emplace_back(); });
+    // The frames are per thread: initializers run without ROOT's lock (see
+    // below), and another thread may initialize its inputs meanwhile.
+    getExecutionSession().runSessionLocked(
+        [&]() { InitFrames[std::this_thread::get_id()].emplace_back(); });
     scope_exit PopFrame([&]() {
-      getExecutionSession().runSessionLocked([&]() { InitFrames.pop_back(); });
+      getExecutionSession().runSessionLocked([&]() {
+        auto Itr = InitFrames.find(std::this_thread::get_id());
+        Itr->second.pop_back();
+        if (Itr->second.empty())
+          InitFrames.erase(Itr);
+      });
     });
     if (auto Initializers = getInitializers(JD)) {
       LLVM_DEBUG(
           { dbgs() << "GenericLLVMIRPlatformSupport running initializers\n"; });
+      // cling-compat: the initializers are user code (clang-repl runs the
+      // statements of an input as initializers); compiling them is not.
+      void *UserCodeState =
+          Hooks.EnterUserCode ? Hooks.EnterUserCode() : nullptr;
+      scope_exit ReturnFromUserCode([&]() {
+        if (Hooks.ReturnFromUserCode)
+          Hooks.ReturnFromUserCode(UserCodeState);
+      });
       for (auto InitFnAddr : *Initializers) {
         LLVM_DEBUG({
           dbgs() << "  Running init " << formatv("{0:x16}", InitFnAddr)
@@ -279,8 +300,9 @@ public:
   void registerInitFunc(JITDylib &JD, SymbolStringPtr InitName) {
     getExecutionSession().runSessionLocked([&]() {
       InitFunctions[&JD].add(InitName);
-      if (!InitFrames.empty())
-        InitFrames.back()[&JD].add(InitName);
+      auto Itr = InitFrames.find(std::this_thread::get_id());
+      if (Itr != InitFrames.end())
+        Itr->second.back()[&JD].add(InitName);
     });
   }
 
@@ -305,8 +327,9 @@ private:
 
           // cling-compat: a nested call (see initialize()) only runs the
           // init functions registered while it materialized its inputs.
-          if (InitFrames.size() > 1) {
-            auto &Frame = InitFrames.back();
+          auto &Frames = InitFrames[std::this_thread::get_id()];
+          if (Frames.size() > 1) {
+            auto &Frame = Frames.back();
             for (auto &NextJD : DFSLinkOrder) {
               auto FItr = Frame.find(NextJD.get());
               if (FItr == Frame.end())
@@ -521,9 +544,11 @@ private:
   DenseMap<JITDylib *, SymbolLookupSet> InitSymbols;
   DenseMap<JITDylib *, SymbolLookupSet> InitFunctions;
   DenseMap<JITDylib *, SymbolLookupSet> DeInitFunctions;
-  /// cling-compat: one per active initialize() call, innermost last: the
-  /// init functions registered while it runs.
-  std::vector<DenseMap<JITDylib *, SymbolLookupSet>> InitFrames;
+  /// cling-compat: per thread, one per active initialize() call, innermost
+  /// last: the init functions registered while it runs.
+  std::map<std::thread::id, std::vector<DenseMap<JITDylib *, SymbolLookupSet>>>
+      InitFrames;
+  cling::JITPlatformHooks Hooks;
   ItaniumCXAAtExitSupport AtExitMgr;
 };
 
@@ -615,7 +640,8 @@ GlobalCtorDtorScraper::operator()(ThreadSafeModule TSM,
 
 } // end anonymous namespace
 
-Expected<JITDylibSP> cling::setUpJITPlatform(LLJIT &J) {
+Expected<JITDylibSP> cling::setUpJITPlatform(LLJIT &J,
+                                             JITPlatformHooks Hooks) {
   LLVM_DEBUG(
       { dbgs() << "Setting up GenericLLVMIRPlatform support for LLJIT\n"; });
   auto ProcessSymbolsJD = J.getProcessSymbolsJITDylib();
@@ -670,7 +696,8 @@ Expected<JITDylibSP> cling::setUpJITPlatform(LLJIT &J) {
   }
 
   J.setPlatformSupport(
-      std::make_unique<GenericLLVMIRPlatformSupport>(J, PlatformJD));
+      std::make_unique<GenericLLVMIRPlatformSupport>(J, PlatformJD,
+                                                     std::move(Hooks)));
 
   return &PlatformJD;
 }
