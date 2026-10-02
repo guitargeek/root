@@ -9,12 +9,11 @@ Build with `-Dclang_repl=ON` (and `-Dclad=OFF`, `-Dcuda=OFF` for now).
 
 ## Status
 
-Full ctest run (2026-10-01, Linux x86-64, system LLVM 22.1.8 with the bundled
-clang): 3568 of 3635 tests pass. With cling, 3607 of 3638 pass. Not run:
-`gtest-core-thread-testInterpreterLock` (deadlocks) and
-`roottest-root-meta-tclass-execInitOrder` (memory grows without bound).
+Full ctest run (2026-10-02, Linux x86-64, system LLVM 22.1.8 with the bundled
+clang): 3582 of 3637 tests pass. With cling, 3607 of 3638 pass.
 
-The largest groups of remaining failures:
+The largest groups of remaining failures (from the triage of 2026-10-01; the
+crashes of RooFit `rf104`, TMVA SOFIE and `runlongArgTest` are fixed since):
 
 | Tests | Cause |
 | --- | --- |
@@ -91,7 +90,22 @@ All are candidates for upstream clang-repl.
     lookup tables, enumerators of unscoped enums, and members of reopened
     namespaces. `DeclContext::removeDecl()` tolerates a missing lookup
     entry. `Interpreter::getCodeGen()` lets clients make CodeGen forget
-    undone definitions.
+    undone definitions. Like upstream's `ASTDeclUnmerger`, the undone
+    redeclarations are withdrawn from their redeclaration chains (and a class
+    loses an undone definition), and the declaration they had replaced in the
+    lookup tables and the scope chain is found again (`gSystem->Unload()` of a
+    library whose payload forward-declared a class defined earlier). The
+    tables are updated without the external source, which in ROOT autoparses.
+12. Local entities of top-level statements (e.g. the closure type of a
+    lambda) are mangled as locals of a function `__stmt__N`; with
+    optimization, the second statement with a lambda crashed. Backport from
+    LLVM main.
+13. The value of an input is kept per thread (`getLastValueSlot()`): ROOT
+    runs JIT-ed code of several threads at once, and their `Calc()` results
+    overwrote each other.
+14. `clang::Value`'s move constructor no longer releases the storage it took
+    over (heap corruption with values of class type). Backport from LLVM
+    main.
 
 ## LLVM patch (carried as a copy)
 
@@ -126,6 +140,12 @@ compiled: another thread would generate code in the same `LLVMContext`.
   objects and dynamic scopes work there.
 
 ## Workarounds in cling-compat (each one a gap)
+
+- **Locals in `evaluate()`.** cling compiled `Calc()` inputs into a function,
+  so `Calc("R__READ_LOCKGUARD(m); f(10)")` declared a local guard. In
+  clang-repl, top-level statements have no local scope: the guard would be a
+  global that never unlocks. Inputs with several statements are put into
+  `[]() -> decltype(auto) { ...; return last; }()`.
 
 - **JIT setup.** clang-repl builds its JIT for the host CPU; CodeGen uses the
   CompilerInstance's target, and the mismatch crashed instruction selection.

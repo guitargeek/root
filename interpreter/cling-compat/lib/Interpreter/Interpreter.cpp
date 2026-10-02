@@ -228,6 +228,46 @@ namespace {
     return Source;
   }
 
+  /// Split \p S at the ';' outside of brackets, literals and comments. Returns
+  /// false if \p S has a preprocessor directive or unbalanced brackets.
+  bool splitTopLevelStatements(llvm::StringRef S,
+                               llvm::SmallVectorImpl<llvm::StringRef>& Stmts) {
+    int Depth = 0;
+    size_t Begin = 0;
+    for (size_t I = 0, N = S.size(); I < N; ++I) {
+      char C = S[I];
+      if (C == '"' || C == '\'') {
+        for (++I; I < N && S[I] != C; ++I)
+          if (S[I] == '\\')
+            ++I;
+      } else if (C == '/' && I + 1 < N && S[I + 1] == '/') {
+        I = S.find('\n', I);
+        if (I == llvm::StringRef::npos)
+          break;
+      } else if (C == '/' && I + 1 < N && S[I + 1] == '*') {
+        I = S.find("*/", I + 2);
+        if (I == llvm::StringRef::npos)
+          return false;
+        ++I;
+      } else if (C == '#') {
+        return false;
+      } else if (C == '(' || C == '[' || C == '{') {
+        ++Depth;
+      } else if (C == ')' || C == ']' || C == '}') {
+        if (--Depth < 0)
+          return false;
+      } else if (C == ';' && Depth == 0) {
+        Stmts.push_back(S.slice(Begin, I).trim());
+        Begin = I + 1;
+      }
+    }
+    if (Depth != 0)
+      return false;
+    if (!S.drop_front(Begin).trim().empty())
+      Stmts.push_back(S.drop_front(Begin).trim());
+    return true;
+  }
+
   /// Whether \p S is a single statement ending in ';' that may be an
   /// expression statement: no other ';' outside of brackets and literals,
   /// no trailing '}' and no leading statement or declaration keyword.
@@ -238,21 +278,9 @@ namespace {
     if (Body.empty() || Body.ends_with("}") || Body.starts_with("#") ||
         Body.starts_with("."))
       return false;
-    int Depth = 0;
-    for (size_t I = 0, N = Body.size(); I < N; ++I) {
-      char C = Body[I];
-      if (C == '"' || C == '\'') {
-        for (++I; I < N && Body[I] != C; ++I)
-          if (Body[I] == '\\')
-            ++I;
-      } else if (C == '(' || C == '[' || C == '{') {
-        ++Depth;
-      } else if (C == ')' || C == ']' || C == '}') {
-        --Depth;
-      } else if (C == ';' && Depth == 0) {
-        return false;
-      }
-    }
+    llvm::SmallVector<llvm::StringRef, 2> Stmts;
+    if (!splitTopLevelStatements(Body, Stmts) || Stmts.size() != 1)
+      return false;
     llvm::StringRef First = Body.take_while(
         [](char C) { return isalnum(C) || C == '_'; });
     static const char* const Keywords[] = {
@@ -264,6 +292,37 @@ namespace {
       if (First == K)
         return false;
     return true;
+  }
+
+  /// cling's evaluate() compiled the input into its wrapper function without
+  /// extracting declarations, so `R__READ_LOCKGUARD(m); f(10)` locked only
+  /// while the input ran. In clang-repl, the guard would be a global that is
+  /// never destroyed (and the next such input would redefine it). Put the
+  /// statements of an input with several of them into a lambda that returns
+  /// the value of the last one.
+  /// FIXME: GAP - clang-repl has no local scope for top-level statements.
+  std::string inLambdaIfSeveralStatements(std::string Input,
+                                          const clang::LangOptions& LO) {
+    llvm::SmallVector<llvm::StringRef, 4> Stmts;
+    if (!splitTopLevelStatements(Input, Stmts) || Stmts.size() < 2)
+      return Input;
+    // Leading function or class definitions stay at the top level, as with
+    // cling's wrapper.
+    std::string Copy = Input;
+    if (cling::utils::getWrapPoint(Copy, LO) != 0)
+      return Input;
+    // decltype(auto): like the value of the last statement in cling's wrapper,
+    // an lvalue expression gives a reference (e.g. RDataFrame's
+    // `*(std::string*)p = cling::printValue(...)`), a variable a copy.
+    std::string Result = "[]() -> decltype(auto) {";
+    for (size_t I = 0, N = Stmts.size(); I + 1 < N; ++I)
+      Result += (" " + Stmts[I] + ";").str();
+    llvm::StringRef Last = Stmts.back();
+    if (mayBeSingleExpressionStatement((Last + ";").str()))
+      Result += (" return " + Last + "; }()").str();
+    else
+      Result += (" " + Last + "; }()").str();
+    return Result;
   }
 
   /// Forwards everything to its consumers, but HandleTranslationUnit() only
@@ -1158,8 +1217,11 @@ namespace cling {
     CO.CheckPointerValidity = 0;
     CO.IgnorePromptDiags = 1;
     return ParseAndExecute(
-        withClingWrapperLayout(stripTrailingSemicolons(input), 0), CO, &V,
-        /*print=*/false);
+        withClingWrapperLayout(
+            inLambdaIfSeveralStatements(stripTrailingSemicolons(input),
+                                        getSema().getLangOpts()),
+            0),
+        CO, &V, /*print=*/false);
   }
 
   Interpreter::CompilationResult
