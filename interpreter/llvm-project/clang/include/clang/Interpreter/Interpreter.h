@@ -26,7 +26,10 @@
 #include "llvm/Support/Error.h"
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 namespace llvm {
@@ -124,6 +127,11 @@ class Interpreter {
   // printing happens, it's in an invalid state.
   Value LastValue;
 
+  /// Inputs may run concurrently on several threads; each thread gets its own
+  /// result. The generated code passes &LastValue, see getLastValueSlot().
+  std::mutex LastValuesMutex;
+  std::map<std::thread::id, Value> LastValues;
+
   /// See setCaptureValueOfExprStmts().
   bool CaptureValueOfExprStmts = false;
 
@@ -191,6 +199,10 @@ public:
   /// missing its semicolon into \p V (leaving it invalid if there is none).
   /// For clients that call Parse() and Execute() separately.
   void takeLastValue(Value &V);
+
+  /// The value of the last input executed on this thread, where the value
+  /// printing runtime stores the result of an input.
+  Value &getLastValueSlot();
 
   /// Also capture the value of top-level expression statements that end in
   /// a semicolon (for takeLastValue(); such values are never printed). For

@@ -434,9 +434,16 @@ CompilerInstance *Interpreter::getCompilerInstance() { return CI.get(); }
 
 Parser &Interpreter::getParser() { return IncrParser->getParser(); }
 
+Value &Interpreter::getLastValueSlot() {
+  std::lock_guard<std::mutex> Lock(LastValuesMutex);
+  // References to std::map elements stay valid while others are inserted.
+  return LastValues[std::this_thread::get_id()];
+}
+
 void Interpreter::takeLastValue(Value &V) {
-  V = std::move(LastValue);
-  LastValue.clear();
+  Value &Slot = getLastValueSlot();
+  V = std::move(Slot);
+  Slot.clear();
 }
 const CompilerInstance *Interpreter::getCompilerInstance() const {
   return const_cast<Interpreter *>(this)->getCompilerInstance();
@@ -569,6 +576,7 @@ llvm::Error Interpreter::ParseAndExecute(llvm::StringRef Code, Value *V) {
     if (llvm::Error Err = Execute(*PTU))
       return Err;
 
+  Value &LastValue = getLastValueSlot();
   if (LastValue.isValid()) {
     if (!V) {
       LastValue.dump();

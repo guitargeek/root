@@ -640,12 +640,18 @@ llvm::Expected<Expr *> Interpreter::convertExprToValue(Expr *E) {
 
 using namespace clang;
 
+/// The generated code passes the address of Interpreter::LastValue; store the
+/// value in the slot of the executing thread instead.
+static Value &getOutValue(void *This) {
+  return static_cast<Interpreter *>(This)->getLastValueSlot();
+}
+
 // Temporary rvalue struct that need special care.
 extern "C" {
 REPL_EXTERNAL_VISIBILITY void *
 __clang_Interpreter_SetValueWithAlloc(void *This, void *OutVal,
                                       void *OpaqueType) {
-  Value &VRef = *(Value *)OutVal;
+  Value &VRef = getOutValue(This);
   VRef = Value(static_cast<Interpreter *>(This), OpaqueType);
   return VRef.getPtr();
 }
@@ -653,7 +659,7 @@ __clang_Interpreter_SetValueWithAlloc(void *This, void *OutVal,
 REPL_EXTERNAL_VISIBILITY void
 __clang_Interpreter_SetValueNoAlloc(void *This, void *OutVal, void *OpaqueType,
                                     ...) {
-  Value &VRef = *(Value *)OutVal;
+  Value &VRef = getOutValue(This);
   Interpreter *I = static_cast<Interpreter *>(This);
   VRef = Value(I, OpaqueType);
   if (VRef.isVoid())
