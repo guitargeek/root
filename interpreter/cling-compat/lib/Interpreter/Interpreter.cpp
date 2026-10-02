@@ -81,6 +81,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
@@ -409,6 +410,32 @@ namespace cling {
 
     m_SyntaxOnly =
         CI->getFrontendOpts().ProgramAction == frontend::ParseSyntaxOnly;
+
+    // Like cling's BackendPasses: at O0 and O1, skip the inliner passes. In
+    // the default pipeline, the function simplification passes run inside
+    // the inliner, so they are skipped too. JIT'd code mostly runs once; with
+    // the full O1 pipeline, RDataFrame tutorials ran ~15% longer than with
+    // cling.
+    if (CI->getCodeGenOpts().OptimizationLevel <= 1)
+      CI->getCodeGenOpts().PassBuilderCallbacks.push_back(
+          [](llvm::PassBuilder& PB) {
+            PB.getPassInstrumentationCallbacks()
+                ->registerShouldRunOptionalPassCallback(
+                    [](llvm::StringRef P, llvm::Any) {
+                      return !llvm::is_contained(
+                          {"ModuleInlinerWrapperPass",
+                           "InlineAdvisorAnalysisPrinterPass",
+                           "PartialInlinerPass", "buildInlinerPipeline",
+                           "ModuleInlinerPass", "InlinerPass",
+                           "InlineAdvisorAnalysis",
+                           "PartiallyInlineLibCallsPass",
+                           "RelLookupTableConverterPass",
+                           "InlineCostAnnotationPrinterPass",
+                           "InlineSizeEstimatorAnalysisPrinterPass",
+                           "InlineSizeEstimatorAnalysis"},
+                          P);
+                    });
+          });
 
     // Load any requested plugins. FIXME: clang-repl has no plugin support
     // (cling used to load e.g. clad here).
