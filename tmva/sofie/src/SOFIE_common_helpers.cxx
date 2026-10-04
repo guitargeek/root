@@ -24,8 +24,11 @@ namespace {
 // It is a drop-in replacement for the Fortran sgemm_ symbol: all SOFIE
 // operators call it with the same arguments they used to pass to BLAS (SOFIE
 // tensors are row-major, so the call sites hand over the operands swapped —
-// that stays unchanged here). The j-l-i loop nest walks C column by column
-// with unit stride so the compiler can auto-vectorize the innermost loop.
+// that stays unchanged here). Matrix sizes beyond a few dozen go through a
+// blocked path with packed panels and an 8x8 register micro-kernel; smaller
+// ones (per-event inference is gemv-shaped) take a simpler nest where the
+// innermost loop walks contiguous memory so the compiler can auto-vectorize
+// it.
 constexpr const char *kGemmRef = R"SOFIE(
 inline void Gemm_Ref(const char *transa, const char *transb, const int *m, const int *n, const int *k,
                      const float *alpha, const float *A, const int *lda, const float *B, const int *ldb,
@@ -36,10 +39,92 @@ inline void Gemm_Ref(const char *transa, const char *transb, const int *m, const
    const int M = *m, N = *n, K = *k;
    const int LDA = *lda, LDB = *ldb, LDC = *ldc;
    const float alpha_ = *alpha, beta_ = *beta;
+
+   if (M >= 32 && N >= 32 && K >= 32) {
+      // Blocked kernel: pack 64x64 panels of op(A) ([i][l] layout, with alpha
+      // folded in) and B ([l][j] layout), zero-padded so the 8x8 register
+      // micro-kernel runs on fixed trip counts. With all indices local and
+      // both operands streamed unit-stride, the compiler keeps the 64
+      // accumulators in vector registers and reaches several times the
+      // throughput of the plain nest below on multi-tile sizes.
+      constexpr int MC = 64, NC = 64, KC = 64;
+      constexpr int MR = 8, NR = 8;
+      float AP[MC * KC], BP[KC * NC];
+
+      for (int j = 0; j < N; ++j) {
+         float *Cj = C + j * LDC;
+         // beta == 0 must overwrite C without reading it (BLAS semantics), so
+         // that a C filled with NaNs or left uninitialized is not propagated.
+         if (beta_ == 0.0f) {
+            for (int i = 0; i < M; ++i)
+               Cj[i] = 0.0f;
+         } else if (beta_ != 1.0f) {
+            for (int i = 0; i < M; ++i)
+               Cj[i] *= beta_;
+         }
+      }
+
+      for (int jc = 0; jc < N; jc += NC) {
+         const int nc = NC < N - jc ? NC : N - jc;
+         for (int pc = 0; pc < K; pc += KC) {
+            const int kc = KC < K - pc ? KC : K - pc;
+            for (int l = 0; l < KC; ++l) {
+               if (l < kc) {
+                  if (tb) {
+                     const float *b = B + jc + (pc + l) * LDB;
+                     for (int j = 0; j < nc; ++j)
+                        BP[l * NC + j] = b[j];
+                  } else {
+                     for (int j = 0; j < nc; ++j)
+                        BP[l * NC + j] = B[(pc + l) + (jc + j) * LDB];
+                  }
+               }
+               for (int j = l < kc ? nc : 0; j < NC; ++j)
+                  BP[l * NC + j] = 0.0f;
+            }
+            for (int ic = 0; ic < M; ic += MC) {
+               const int mc = MC < M - ic ? MC : M - ic;
+               for (int i = 0; i < MC; ++i) {
+                  float *ap = AP + i * KC;
+                  if (i < mc) {
+                     // op(A)[i][l]: unit stride when A is transposed
+                     const float *a = ta ? A + (ic + i) * LDA + pc : A + (ic + i) + pc * LDA;
+                     const int astride = ta ? 1 : LDA;
+                     for (int l = 0; l < kc; ++l)
+                        ap[l] = alpha_ * a[l * astride];
+                     for (int l = kc; l < KC; ++l)
+                        ap[l] = 0.0f;
+                  } else {
+                     for (int l = 0; l < KC; ++l)
+                        AP[i * KC + l] = 0.0f;
+                  }
+               }
+               for (int j0 = 0; j0 < NC; j0 += NR) {
+                  for (int i0 = 0; i0 < MC; i0 += MR) {
+                     float acc[MR][NR] = {};
+                     for (int l = 0; l < KC; ++l) {
+                        const float *bp = BP + l * NC + j0;
+                        for (int u = 0; u < MR; ++u) {
+                           const float aa = AP[(i0 + u) * KC + l];
+                           for (int v = 0; v < NR; ++v)
+                              acc[u][v] += aa * bp[v];
+                        }
+                     }
+                     for (int u = 0; u < MR; ++u)
+                        if (ic + i0 + u < M)
+                           for (int v = 0; v < NR; ++v)
+                              if (jc + j0 + v < N)
+                                 C[(jc + j0 + v) * LDC + ic + i0 + u] += acc[u][v];
+                  }
+               }
+            }
+         }
+      }
+      return;
+   }
+
    for (int j = 0; j < N; ++j) {
       float *Cj = C + j * LDC;
-      // beta == 0 must overwrite C without reading it (BLAS semantics), so
-      // that a C filled with NaNs or left uninitialized is not propagated.
       if (beta_ == 0.0f) {
          for (int i = 0; i < M; ++i)
             Cj[i] = 0.0f;
