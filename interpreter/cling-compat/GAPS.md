@@ -9,19 +9,22 @@ Build with `-Dclang_repl=ON` (and `-Dclad=OFF`, `-Dcuda=OFF` for now).
 
 ## Status
 
-Full ctest run (2026-10-02, Linux x86-64, system LLVM 22.1.8 with the bundled
-clang): 3582 of 3637 tests pass. With cling, 3607 of 3638 pass.
-
-The largest groups of remaining failures (from the triage of 2026-10-01; the
-crashes of RooFit `rf104`, TMVA SOFIE and `runlongArgTest` are fixed since):
+Full ctest runs (2026-10-05, Linux x86-64, system LLVM 22.1.8 with the
+bundled clang, both builds on master ad94d01ad4f in the same environment):
+3594 of 3639 tests pass with clang-repl, 3632 of 3639 with cling. 38 tests
+fail only with clang-repl:
 
 | Tests | Cause |
 | --- | --- |
-| 10 | Crashes: null dereference protection is missing (3), single causes (RooFit `rf104`, TMVA SOFIE, `runlongArgTest`, ...) |
-| 7 | Wrong exit code |
-| 4 | JupyROOT: the kernel does not respond |
-| 3 | Redefinition at the prompt |
+| 5 | Redefinition at the prompt (cling's shadowing) |
+| 5 | Compiled (ACLiC, dictionary) classes treated like interpreted ones in I/O (hypothesis) |
+| 4 | JIT symbols not found for template instantiations |
+| 4 | "Found an invalid decl for pair<...>" (failed instantiations) |
+| 3 | Unloading an interpreted macro before compiling it with ACLiC leaves its class |
+| 3 | `MakeProject` |
 | 2 | Template autoloading (`TmpltNoSpec`) |
+| 1 | Implicit declaration of `x = expr` at the prompt |
+| 11 | Single causes (code completion, function bodies, crashes in `foam_demopers` and `multidimfit`, ...) |
 
 ## What the layer contains
 
@@ -217,6 +220,13 @@ compiled: another thread would generate code in the same `LLVMContext`.
   cling's inputs, clang-repl's are memory buffers without a file, and a
   top-level statement whose value is captured has no begin location; both
   count as user code.
+- **Unresolved symbols** (cling's `diagnoseUnresolvedSymbols()`): an input
+  that uses a symbol nobody defines reports it with cling's message ("You
+  are probably missing the definition of ...") and is rolled back (unloaded)
+  like with cling, if it is still the last input. The JIT platform forgets
+  the initializers of inputs that failed to link; they would fail every
+  later input again. Unlike cling, a function compiled while the symbol was
+  missing stays broken in the JIT after the symbol gets defined.
 - **ROOT special objects** (`ntuple->Draw()` for an object in a file), at the
   prompt, in macros and in initializers of globals.
 - **Unloading** (`.U`, `.undo`, `TSystem::Unload()`, ACLiC reloading). As
@@ -239,9 +249,6 @@ compiled: another thread would generate code in the same `LLVMContext`.
 - **Value ownership.** A `cling::Value` of class type returned by `process()`
   or `evaluate()` refers to storage owned by a `clang::Value` that is kept
   alive until the interpreter is destroyed (a leak per such value).
-- **Values with several threads.** clang-repl captures the value of an
-  input in one member of `clang::Interpreter`; inputs that run concurrently
-  (without ROOT's lock) can overwrite each other's value.
 - **`parse()`** generates code anyway (clang-repl always runs CodeGen); the
   module is just not executed.
 - **Code completion** (`codeComplete`) is not ported (`roottest-root-rint-TabCom`).

@@ -539,8 +539,24 @@ namespace cling {
       }
       auto JB = std::make_unique<llvm::orc::LLJITBuilder>();
       JB->setJITTargetMachineBuilder(std::move(JTMB));
-      JB->setPrePlatformSetup([](llvm::orc::LLJIT& J) {
+      JB->setPrePlatformSetup([this](llvm::orc::LLJIT& J) {
         llvm::consumeError(llvm::orc::enableDebuggerSupport(J));
+        // The linker reports undefined symbols to the ExecutionSession only;
+        // the lookup that triggered the linking just fails to materialize.
+        // Collect them to report them like cling did.
+        J.getExecutionSession().setErrorReporter([this](llvm::Error Err) {
+          Err = llvm::handleErrors(
+              std::move(Err),
+              [&](std::unique_ptr<llvm::orc::SymbolsNotFound> SNF) {
+                std::lock_guard<std::mutex> Lock(m_UnresolvedSymbolsMutex);
+                for (const llvm::orc::SymbolStringPtr& Name :
+                     SNF->getSymbols())
+                  m_UnresolvedSymbols.insert((*Name).str());
+              });
+          if (Err)
+            llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                        "JIT session error: ");
+        });
         return llvm::Error::success();
       });
       // LLJIT's generic platform, but with re-entrant initialization: ROOT
@@ -1033,6 +1049,11 @@ namespace cling {
     if (isInSyntaxOnlyMode() || !PTU.TheModule)
       return kSuccess;
 
+    // clang-repl runs the statements of an input as its initializers.
+    const bool HasStmts = llvm::any_of(PTU.TUPart->decls(), [](const Decl* D) {
+      return isa<TopLevelStmtDecl>(D);
+    });
+    llvm::Error ExecErr = llvm::Error::success();
     {
       // The JIT platform releases ROOT's lock while the code runs (see
       // setUpJITPlatform()). Like cling, the input stays the current
@@ -1040,19 +1061,34 @@ namespace cling {
       // e.g. TCling::AutoParse() ties the payloads it parses to it, so that
       // undoing the input allows parsing them again.
       llvm::SaveAndRestore<Transaction*> Executing(executingTransaction(), T);
-      if (llvm::Error Err = m_ClangInterp->Execute(PTU)) {
-        reportError(std::move(Err), "failed to execute");
-        return kFailure;
+      {
+        // We don't care whether something was unresolved before.
+        std::lock_guard<std::mutex> Lock(m_UnresolvedSymbolsMutex);
+        m_UnresolvedSymbols.clear();
       }
+      ExecErr = m_ClangInterp->Execute(PTU);
+    }
+    if (ExecErr) {
+      if (diagnoseUnresolvedSymbols(HasStmts ? utils::Synthesize::UniquePrefix
+                                             : "static initializers"))
+        llvm::consumeError(std::move(ExecErr));
+      else
+        reportError(std::move(ExecErr), "failed to execute");
+      // Like cling, roll back on error in initializers: none of the input's
+      // code ran. clang-repl can only undo the latest input.
+      if (getLastTransaction() == T) {
+        if (OutT)
+          *OutT = nullptr;
+        unload(*T);
+      }
+      return kFailure;
     }
     // Like cling's IncrementalExecutor::executeWrapper(): statements of the
     // input may have printed with printf or std::cout; flush that before
     // anything else is printed (e.g. ROOT's messages, which go to stderr).
     // Like cling, not for inputs that only declare (e.g. `.L file.C`): their
     // output order would differ from cling's.
-    if (llvm::any_of(PTU.TUPart->decls(), [](const Decl* D) {
-          return isa<TopLevelStmtDecl>(D);
-        })) {
+    if (HasStmts) {
       std::cout.flush();
       fflush(stdout);
     }
@@ -1807,9 +1843,62 @@ namespace cling {
     if (!PTU->TheModule ||
         (PTU->TheModule->empty() && PTU->TheModule->global_empty()))
       return false;
+    {
+      std::lock_guard<std::mutex> Lock(m_UnresolvedSymbolsMutex);
+      m_UnresolvedSymbols.clear();
+    }
     if (llvm::Error Err = m_ClangInterp->Execute(*PTU)) {
-      reportError(std::move(Err), "failed to execute");
+      if (diagnoseUnresolvedSymbols("static initializers"))
+        llvm::consumeError(std::move(Err));
+      else
+        reportError(std::move(Err), "failed to execute");
       return false;
+    }
+    return true;
+  }
+
+  bool Interpreter::diagnoseUnresolvedSymbols(llvm::StringRef trigger,
+                                              llvm::StringRef title) {
+    std::set<std::string> Unresolved;
+    {
+      std::lock_guard<std::mutex> Lock(m_UnresolvedSymbolsMutex);
+      std::swap(Unresolved, m_UnresolvedSymbols);
+    }
+    if (Unresolved.empty())
+      return false;
+    // cling first gave the callbacks (TCling) a chance to load a library
+    // providing the symbol; here, ROOT's autoloading generator already did.
+    for (const std::string& sym : Unresolved) {
+      cling::errs() << "IncrementalExecutor::executeFunction: symbol '" << sym
+                    << "' unresolved while linking ";
+      if (trigger.find(utils::Synthesize::UniquePrefix) != llvm::StringRef::npos)
+        cling::errs() << "[cling interface function]";
+      else {
+        if (!title.empty())
+          cling::errs() << title << " '";
+        cling::errs() << trigger;
+        if (!title.empty())
+          cling::errs() << "'";
+      }
+      cling::errs() << "!\n";
+
+      // Be helpful, demangle!
+      std::string demangledName = platform::Demangle(sym);
+      if (!demangledName.empty()) {
+        cling::errs()
+            << "You are probably missing the definition of "
+            << demangledName << "\n"
+            << "Maybe you need to load the corresponding shared library?\n";
+      }
+
+      if (DynamicLibraryManager* DLM = getDynamicLibraryManager()) {
+        std::string libName =
+            DLM->searchLibrariesForSymbol(sym, /*searchSystem=*/true);
+        if (!libName.empty())
+          cling::errs() << "Symbol found in '" << libName << "';"
+                        << " did you mean to load it with '.L "
+                        << libName << "'?\n";
+      }
     }
     return true;
   }

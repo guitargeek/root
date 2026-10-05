@@ -271,7 +271,7 @@ public:
         InitFn();
       }
     } else
-      return Initializers.takeError();
+      return forgetFailedInitFunctions(Initializers.takeError());
     return Error::success();
   }
 
@@ -312,6 +312,28 @@ public:
   }
 
 private:
+  /// cling-compat: the init functions of an input whose code failed to
+  /// materialize (e.g. it uses an undefined symbol) would fail every later
+  /// initialize() call again; drop them.
+  Error forgetFailedInitFunctions(Error Err) {
+    return handleErrors(
+        std::move(Err),
+        [&](std::unique_ptr<FailedToMaterialize> F) -> Error {
+          getExecutionSession().runSessionLocked([&]() {
+            for (auto &[FailedJD, Names] : F->getSymbols()) {
+              auto IFItr = InitFunctions.find(FailedJD);
+              if (IFItr == InitFunctions.end())
+                continue;
+              IFItr->second.remove_if(
+                  [&](const SymbolStringPtr &N, SymbolLookupFlags) {
+                    return Names.count(N);
+                  });
+            }
+          });
+          return Error(std::move(F));
+        });
+  }
+
   Expected<std::vector<ExecutorAddr>> getInitializers(JITDylib &JD) {
     if (auto Err = issueInitLookups(JD))
       return std::move(Err);

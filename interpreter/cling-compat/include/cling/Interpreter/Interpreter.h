@@ -27,6 +27,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -240,6 +241,18 @@ namespace cling {
     ///\brief Guards m_AtExitFuncs: initializers (registering them) run
     /// without ROOT's interpreter lock, possibly in several threads.
     std::mutex m_AtExitFuncsMutex;
+
+    ///\brief Symbols the JIT could not resolve while linking, collected by
+    /// the ExecutionSession's error reporter until they are reported.
+    std::set<std::string> m_UnresolvedSymbols;
+    std::mutex m_UnresolvedSymbolsMutex;
+
+    ///\brief Like cling's IncrementalExecutor::diagnoseUnresolvedSymbols():
+    /// report m_UnresolvedSymbols, which were needed by \p trigger, and
+    /// forget them.
+    ///\returns whether there were any.
+    bool diagnoseUnresolvedSymbols(llvm::StringRef trigger,
+                                   llvm::StringRef title = llvm::StringRef());
 
     enum {
       kStdStringTransaction = 0, // Transaction known to contain std::string
