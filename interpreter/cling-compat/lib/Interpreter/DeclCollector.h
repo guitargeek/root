@@ -19,6 +19,7 @@ namespace clang {
 
 namespace cling {
   class EvaluateTSynthesizer;
+  class NullDerefProtectionTransformer;
   class Interpreter;
   class Transaction;
 
@@ -33,6 +34,7 @@ namespace cling {
 
     const Interpreter& m_Interp;
     std::unique_ptr<EvaluateTSynthesizer> m_DynamicLookup;
+    std::unique_ptr<NullDerefProtectionTransformer> m_NullDerefProtection;
 
     Transaction* getTransaction() const;
     bool comesFromASTReader(clang::DeclGroupRef DGR) const;

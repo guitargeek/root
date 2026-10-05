@@ -87,6 +87,7 @@ add_cling_library(clingInterpreter OBJECT
   InvocationOptions.cpp
   JITPlatform.cpp
   LookupHelper.cpp
+  NullDerefProtection.cpp
   Transaction.cpp
   Value.cpp
   ValuePrinter.cpp

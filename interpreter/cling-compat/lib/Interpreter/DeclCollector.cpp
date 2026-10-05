@@ -9,8 +9,10 @@
 #include "DeclCollector.h"
 
 #include "DynamicLookup.h"
+#include "NullDerefProtection.h"
 
 #include "cling/Interpreter/Interpreter.h"
+#include "cling/Interpreter/InvocationOptions.h"
 #include "cling/Interpreter/Transaction.h"
 #include "cling/Utils/AST.h"
 
@@ -120,6 +122,21 @@ namespace cling {
         if (!m_DynamicLookup->Transform(D))
           return false;
       }
+    }
+    // `--ptrcheck`: guard pointer dereferences in user code (after dynamic
+    // scopes, like cling's transformers).
+    // (No transaction is open while clang::Interpreter parses its runtime,
+    // before the interpreter is set up.)
+    Transaction* T = getTransaction();
+    if (m_Interp.getOptions().PtrCheck && T &&
+        T->getCompilationOpts().CheckPointerValidity &&
+        !m_Interp.getDiagnostics().hasErrorOccurred()) {
+      if (!m_NullDerefProtection)
+        m_NullDerefProtection =
+            std::make_unique<NullDerefProtectionTransformer>(
+                const_cast<Interpreter&>(m_Interp));
+      for (Decl* D : DGR)
+        m_NullDerefProtection->Transform(D);
     }
     for (Decl* D : DGR)
       addFinalReturn(D, m_Interp);

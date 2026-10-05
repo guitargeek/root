@@ -30,6 +30,7 @@ crashes of RooFit `rf104`, TMVA SOFIE and `runlongArgTest` are fixed since):
 | `Interpreter.cpp`, `DeclCollector.cpp` | new | Adapts cling's API (transactions, callbacks, values, unloading) to clang-repl |
 | `JITPlatform.cpp` | LLVM, one fix | LLJIT's generic IR platform with re-entrant initialization (see below) |
 | `DynamicLookup.cpp` | cling, ported | Dynamic scopes: statements with names resolved at runtime |
+| `NullDerefProtection.cpp` | cling, small change | `--ptrcheck`: errors instead of crashes on null dereferences |
 | `CIFactory.cpp` | cling, cut down | Compiler arguments, host include discovery, modulemap overlays for libc/std |
 | `FilteringDiagConsumer.h` | cling (IncrementalParser.cpp) | Owns the original diagnostic client (rootcling relies on that), filters prompt noise, supports `replaceDiagnosticConsumer` |
 | `LookupHelper.cpp`, `Utils/AST.cpp` | cling, unchanged | Name lookup and type normalization used by TCling and rootcling |
@@ -41,8 +42,8 @@ crashes of RooFit `rf104`, TMVA SOFIE and `runlongArgTest` are fixed since):
 
 Not carried over from cling: IncrementalParser, IncrementalExecutor,
 IncrementalJIT, BackendPasses, most AST transformers (wrapping, value
-extraction and printing synthesis, `auto` synthesis, null dereference checks,
-definition shadowing, decl extraction), DeclUnloader, TransactionUnloader,
+extraction and printing synthesis, `auto` synthesis, definition shadowing,
+decl extraction), DeclUnloader, TransactionUnloader,
 CUDA device compiler, UserInterface.
 
 ## Clang patches (interpreter/llvm-project/clang)
@@ -210,6 +211,12 @@ compiled: another thread would generate code in the same `LLVMContext`.
   conditions; `return unknown();` in a function with a deduced return type.
   Not supported: a global of class type or `auto` initialized from an unknown
   name (cling's LifetimeHandler only works for locals).
+- **Null dereference protection** (`NullDerefProtection.cpp`, cling's
+  NullDerefProtectionTransformer): with `root --ptrcheck`, dereferencing an
+  invalid pointer in user code raises an error instead of crashing. Unlike
+  cling's inputs, clang-repl's are memory buffers without a file, and a
+  top-level statement whose value is captured has no begin location; both
+  count as user code.
 - **ROOT special objects** (`ntuple->Draw()` for an object in a file), at the
   prompt, in macros and in initializers of globals.
 - **Unloading** (`.U`, `.undo`, `TSystem::Unload()`, ACLiC reloading). As
@@ -225,9 +232,6 @@ compiled: another thread would generate code in the same `LLVMContext`.
   TransactionUnloader could). ROOT does not need it so far. `UnloadDecl`
   (used by LookupHelper to remove failed template instantiations) only marks
   the declaration invalid.
-- **Null dereference protection** (cling's NullDerefProtectionTransformer):
-  dereferencing a null pointer in interpreted code crashes instead of
-  raising an error.
 - **Redefinition at the prompt** (`AllowRedefinition`, cling's
   DefinitionShadower): not implemented.
 - **`return` in top-level code** other than in unnamed macros and a bare
