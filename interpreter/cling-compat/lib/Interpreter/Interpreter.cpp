@@ -90,9 +90,11 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <utility>
 #include <vector>
 
@@ -1042,6 +1044,17 @@ namespace cling {
         reportError(std::move(Err), "failed to execute");
         return kFailure;
       }
+    }
+    // Like cling's IncrementalExecutor::executeWrapper(): statements of the
+    // input may have printed with printf or std::cout; flush that before
+    // anything else is printed (e.g. ROOT's messages, which go to stderr).
+    // Like cling, not for inputs that only declare (e.g. `.L file.C`): their
+    // output order would differ from cling's.
+    if (llvm::any_of(PTU.TUPart->decls(), [](const Decl* D) {
+          return isa<TopLevelStmtDecl>(D);
+        })) {
+      std::cout.flush();
+      fflush(stdout);
     }
 
     clang::Value LastValue;
