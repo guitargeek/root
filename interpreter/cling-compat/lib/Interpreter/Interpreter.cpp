@@ -620,6 +620,22 @@ namespace cling {
       return;
     }
     m_ClangInterpOpaque = InterpOrErr->get();
+    // Like cling's DeclCollector: the library of a dictionary payload (see
+    // parseForModule()) has the code of its non-inline functions and
+    // variables. Generating it again would shadow the library's, e.g. the
+    // compiled version of a macro that ACLiC loads after the interpreted one.
+    m_ClangInterp->setCodeGenFilter([this](const Decl* D) {
+      if (m_OpenTransactions.empty() || !m_OpenTransactions.back()
+                                            ->getCompilationOpts()
+                                            .CodeGenerationForModule)
+        return true;
+      if (const auto* FD = dyn_cast<FunctionDecl>(D))
+        return FD->isInlined() || FD->isTemplateInstantiation();
+      if (const auto* VD = dyn_cast<VarDecl>(D))
+        return !VD->hasGlobalStorage() || VD->getType().isConstQualified() ||
+               VD->getTemplateSpecializationKind() != TSK_Undeclared;
+      return true;
+    });
     m_Repl = std::make_unique<CppInternal::Interpreter>(std::move(*InterpOrErr));
     if (llvm::orc::LLJIT* JIT = getExecutionEngine()) {
       // See deinitializeJIT().

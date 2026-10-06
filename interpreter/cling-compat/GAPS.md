@@ -125,6 +125,12 @@ All are candidates for upstream clang-repl.
     (CppInterOp compiles its wrappers with clang-repl directly). To unload a
     transaction, cling-compat undoes the inputs that came after it as well,
     and needs to know how many there are.
+18. `Interpreter::setCodeGenFilter()`: decides which declarations reach
+    CodeGen. cling-compat uses it like cling's DeclCollector: the
+    non-inline functions and variables of a dictionary payload are not
+    generated again, as the library has them (the JIT-ed copy shadowed the
+    library's, e.g. after ACLiC compiled a macro that was interpreted
+    before).
 
 ## LLVM patch (carried as a copy)
 
