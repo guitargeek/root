@@ -16,6 +16,7 @@
 
 #include "ClingUtils.h"
 #include "DeclCollector.h"
+#include "DeclUnloaderStub.h"
 #include "EnterUserCodeRAII.h"
 #include "FilteringDiagConsumer.h"
 #include "ForwardDeclPrinter.h"
@@ -198,6 +199,15 @@ namespace {
 
   std::deque<clang::Value>* keptAlive(void* P) {
     return static_cast<std::deque<clang::Value>*>(P);
+  }
+
+  /// Like cling's DeclUnloader: clang caches whether a constraint (e.g.
+  /// `is_default_constructible_v<T>`) is satisfied, keyed by the constraint
+  /// and its arguments, not by what was declared when it was evaluated. A
+  /// result computed while a type was incomplete (in an input that is rolled
+  /// back or unloaded) would stay wrong once the type is complete.
+  void forgetConstraintSatisfactions(Sema& S) {
+    S.UnsubstitutedConstraintSatisfactionCache.clear();
   }
 
   /// Print an llvm::Error the way cling reported failures, unless it only
@@ -404,7 +414,16 @@ namespace cling {
 
     auto* This = const_cast<Interpreter*>(this);
     InterpreterCallbacks* CB = This->getCallbacks();
+    if (m_DeclCollector)
+      m_DeclCollector->endTransaction(*T, /*RolledBack=*/!Commit);
     if (!Commit) {
+      // Also forget class template instantiations that failed in this
+      // transaction but were declared before (e.g. LookupHelper completing
+      // `pair<string, Incomplete>`); cling's TransactionUnloader removed them.
+      for (auto I = T->decls_begin(), E = T->decls_end(); I != E; ++I)
+        for (Decl* D : I->m_DGR)
+          forgetFailedInstantiation(D);
+      forgetConstraintSatisfactions(getSema());
       T->setState(Transaction::kRolledBack);
       if (CB)
         CB->TransactionRollback(*T);
@@ -1599,6 +1618,7 @@ namespace cling {
       runAtExitFuncs(T);
       if (InterpreterCallbacks* callbacks = getCallbacks())
         callbacks->TransactionRollback(T);
+      forgetConstraintSatisfactions(getSema());
       if (llvm::Error Err = m_ClangInterp->Undo(1)) {
         reportError(std::move(Err), "failed to unload");
         T.setState(Transaction::kRolledBackWithErrors);

@@ -8,6 +8,7 @@
 
 #include "DeclCollector.h"
 
+#include "DeclUnloaderStub.h"
 #include "DynamicLookup.h"
 #include "NullDerefProtection.h"
 
@@ -19,6 +20,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Stmt.h"
 #include "clang/Lex/PPCallbacks.h"
@@ -168,6 +170,42 @@ namespace cling {
   void DeclCollector::HandleCXXStaticMemberVarInstantiation(VarDecl* D) {
     append(DeclGroupRef(D),
            Transaction::kCCIHandleCXXStaticMemberVarInstantiation);
+  }
+
+  void DeclCollector::addedSpecialization(Decl* D) {
+    if (const Transaction* T = getTransaction())
+      m_CreatedSpecializations[T].push_back(D);
+  }
+
+  void DeclCollector::AddedCXXTemplateSpecialization(
+      const ClassTemplateDecl* /*TD*/,
+      const ClassTemplateSpecializationDecl* D) {
+    if (!isa<ClassTemplatePartialSpecializationDecl>(D))
+      addedSpecialization(const_cast<ClassTemplateSpecializationDecl*>(D));
+  }
+
+  void DeclCollector::AddedCXXTemplateSpecialization(
+      const VarTemplateDecl* /*TD*/, const VarTemplateSpecializationDecl* D) {
+    if (!isa<VarTemplatePartialSpecializationDecl>(D))
+      addedSpecialization(const_cast<VarTemplateSpecializationDecl*>(D));
+  }
+
+  void DeclCollector::AddedCXXTemplateSpecialization(
+      const FunctionTemplateDecl* /*TD*/, const FunctionDecl* D) {
+    addedSpecialization(const_cast<FunctionDecl*>(D));
+  }
+
+  void DeclCollector::endTransaction(const Transaction& T, bool RolledBack) {
+    auto Itr = m_CreatedSpecializations.find(&T);
+    if (Itr == m_CreatedSpecializations.end())
+      return;
+    llvm::SmallVector<Decl*, 4> Created = std::move(Itr->second);
+    m_CreatedSpecializations.erase(Itr);
+    if (!RolledBack)
+      return;
+    // Newest first, like an unloader.
+    for (Decl* D : llvm::reverse(Created))
+      forgetInstantiation(D);
   }
 
 } // namespace cling

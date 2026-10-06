@@ -199,6 +199,20 @@ compiled: another thread would generate code in the same `LLVMContext`.
   expects the engine not to own the original one (cling's filter owned it).
 - **Forward declarations** for rootmap files: the include walk stops at
   clang-repl's inputs (it reached the main file, `__main_argc_argv`).
+- **Rolled-back transactions.** clang-repl cannot remove the declarations of
+  a transaction that failed without an input of its own (e.g. LookupHelper
+  instantiating `pair<string, Inner<int>>` while `Inner<int>` is incomplete).
+  Like cling's TransactionUnloader, cling-compat removes the class,
+  variable and function template specializations created in it from their
+  templates (it records them as an ASTMutationListener), and failed class
+  template instantiations; the next use instantiates them again. Function
+  specializations must go too: they refer to the class specializations made
+  with them (e.g. `__is_complete_or_unbounded(__type_identity<T>)`), and the
+  next use, with a new class specialization, would no longer match them. Like cling, it also
+  clears clang's cache of constraint satisfaction
+  (`UnsubstitutedConstraintSatisfactionCache`) on rollback and unloading: it
+  kept `is_default_constructible_v<Inner<int>>` false after `Inner<int>`
+  was defined. The declarations themselves stay in the AST.
 - **Transactions are not nested.** An input is the current transaction
   while its code runs (TCling::AutoParse() relies on it); transactions made
   by lookups outside an input have no input of their own and are dropped
@@ -241,7 +255,8 @@ compiled: another thread would generate code in the same `LLVMContext`.
 - **Unloading a transaction that is not the last one** (cling's
   TransactionUnloader could). ROOT does not need it so far. `UnloadDecl`
   (used by LookupHelper to remove failed template instantiations) only marks
-  the declaration invalid.
+  the declaration invalid, except for class template instantiations (see
+  "Rolled-back transactions").
 - **Redefinition at the prompt** (`AllowRedefinition`, cling's
   DefinitionShadower): not implemented.
 - **`return` in top-level code** other than in unnamed macros and a bare
