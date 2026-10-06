@@ -121,6 +121,10 @@ All are candidates for upstream clang-repl.
     input had not emitted yet. Now a nested input neither finishes nor
     takes the module; its code runs with the outer input's, as cling ran
     nested transactions with their parent.
+17. `Interpreter::getPTUs()`: not every input has a cling transaction
+    (CppInterOp compiles its wrappers with clang-repl directly). To unload a
+    transaction, cling-compat undoes the inputs that came after it as well,
+    and needs to know how many there are.
 
 ## LLVM patch (carried as a copy)
 
@@ -259,7 +263,9 @@ compiled: another thread would generate code in the same `LLVMContext`.
   which is what clang-repl's `Undo()` can do. Like cling's
   TransactionUnloader: macros are undefined (include guards), cached file
   contents dropped, CodeGen forgets the definitions, and the destructors of
-  the input's globals run. `.undo N` counts inputs.
+  the input's globals run. Inputs without a transaction after the unloaded
+  one (CppInterOp's wrappers, `flushPendingCodeGen()`) are undone with it.
+  `.undo N` counts inputs.
 
 ## Missing features
 

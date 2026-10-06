@@ -1577,6 +1577,21 @@ namespace cling {
         Visit(D);
   }
 
+  unsigned Interpreter::numPTUsSince(const Transaction& T) const {
+    // Not every PTU has a transaction: CppInterOp compiles its wrappers with
+    // clang-repl directly, and flushPendingCodeGen() parses empty inputs.
+    // The PTUs after T's must be undone with it, as clang-repl can only undo
+    // the most recent ones.
+    const std::list<clang::PartialTranslationUnit>& PTUs =
+        m_ClangInterp->getPTUs();
+    unsigned N = 1;
+    for (auto I = PTUs.rbegin(), E = PTUs.rend(); I != E; ++I, ++N)
+      if (&*I == T.getPTU())
+        return N;
+    assert(false && "The PTU of the transaction is gone");
+    return 1;
+  }
+
   void Interpreter::unload(Transaction& T) {
     // clang-repl can only undo the most recent inputs, in order. That is all
     // ROOT needs: unloading a file (`.U`, TSystem::Unload(), ACLiC) reverts
@@ -1619,7 +1634,7 @@ namespace cling {
       if (InterpreterCallbacks* callbacks = getCallbacks())
         callbacks->TransactionRollback(T);
       forgetConstraintSatisfactions(getSema());
-      if (llvm::Error Err = m_ClangInterp->Undo(1)) {
+      if (llvm::Error Err = m_ClangInterp->Undo(numPTUsSince(T))) {
         reportError(std::move(Err), "failed to unload");
         T.setState(Transaction::kRolledBackWithErrors);
       } else {

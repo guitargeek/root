@@ -226,6 +226,9 @@ namespace cling {
     ///\returns whether anything was emitted.
     bool flushPendingCodeGen();
 
+    ///\brief The number of clang-repl PTUs to undo to undo \p T's.
+    unsigned numPTUsSince(const Transaction& T) const;
+
     ///\brief With -fmodule-name, the consumers writing the module file.
     std::unique_ptr<clang::ASTConsumer>
     createModuleWriter(clang::CompilerInstance& CI);
