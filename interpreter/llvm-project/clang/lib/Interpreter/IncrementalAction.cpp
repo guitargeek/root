@@ -9,10 +9,12 @@
 #include "IncrementalAction.h"
 
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendOptions.h"
+#include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/FrontendTool/Utils.h"
 #include "clang/Interpreter/Interpreter.h"
 #include "clang/Lex/PreprocessorOptions.h"
@@ -22,6 +24,74 @@
 #include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
+namespace {
+/// Passes to CodeGen only the declarations accepted by the interpreter's
+/// filter (see Interpreter::setCodeGenFilter()).
+class CodeGenFilterConsumer : public MultiplexConsumer {
+  Interpreter &Interp;
+
+  /// Whether \p D or one of its members is rejected.
+  bool rejectsAny(Decl *D, const std::function<bool(const Decl *)> &Filter) {
+    if (!Filter(D))
+      return true;
+    if (isa<NamespaceDecl, LinkageSpecDecl>(D))
+      for (Decl *Member : cast<DeclContext>(D)->decls())
+        if (rejectsAny(Member, Filter))
+          return true;
+    return false;
+  }
+
+  /// Collects the accepted parts of \p D.
+  void collect(Decl *D, const std::function<bool(const Decl *)> &Filter,
+               llvm::SmallVectorImpl<Decl *> &Accepted) {
+    if (!Filter(D))
+      return;
+    if (isa<NamespaceDecl, LinkageSpecDecl>(D) && rejectsAny(D, Filter)) {
+      for (Decl *Member : cast<DeclContext>(D)->decls())
+        collect(Member, Filter, Accepted);
+      return;
+    }
+    Accepted.push_back(D);
+  }
+
+  template <class Fn> bool forward(DeclGroupRef DGR, Fn Handle) {
+    const auto &Filter = Interp.getCodeGenFilter();
+    if (!Filter || !llvm::any_of(DGR, [&](Decl *D) {
+          return rejectsAny(D, Filter);
+        }))
+      return Handle(DGR);
+    llvm::SmallVector<Decl *, 4> Accepted;
+    for (Decl *D : DGR)
+      collect(D, Filter, Accepted);
+    bool Continue = true;
+    for (Decl *D : Accepted)
+      Continue &= Handle(DeclGroupRef(D));
+    return Continue;
+  }
+
+public:
+  CodeGenFilterConsumer(std::unique_ptr<ASTConsumer> C, Interpreter &I)
+      : MultiplexConsumer(std::move(C)), Interp(I) {}
+
+  bool HandleTopLevelDecl(DeclGroupRef DGR) override {
+    return forward(DGR, [this](DeclGroupRef D) {
+      return MultiplexConsumer::HandleTopLevelDecl(D);
+    });
+  }
+  void HandleInterestingDecl(DeclGroupRef DGR) override {
+    forward(DGR, [this](DeclGroupRef D) {
+      MultiplexConsumer::HandleInterestingDecl(D);
+      return true;
+    });
+  }
+  void CompleteTentativeDefinition(VarDecl *D) override {
+    const auto &Filter = Interp.getCodeGenFilter();
+    if (!Filter || Filter(D))
+      MultiplexConsumer::CompleteTentativeDefinition(D);
+  }
+};
+} // namespace
+
 IncrementalAction::IncrementalAction(CompilerInstance &Instance,
                                      llvm::LLVMContext &LLVMCtx,
                                      llvm::Error &Err, Interpreter &I,
@@ -62,8 +132,8 @@ IncrementalAction::IncrementalAction(CompilerInstance &Instance,
 std::unique_ptr<ASTConsumer>
 IncrementalAction::CreateASTConsumer(CompilerInstance & /*CI*/,
                                      StringRef InFile) {
-  std::unique_ptr<ASTConsumer> C =
-      WrapperFrontendAction::CreateASTConsumer(this->CI, InFile);
+  std::unique_ptr<ASTConsumer> C = std::make_unique<CodeGenFilterConsumer>(
+      WrapperFrontendAction::CreateASTConsumer(this->CI, InFile), Interp);
 
   // The Preprocessor and ASTContext exist now.
   if (!Consumer && ConsumerFactory)

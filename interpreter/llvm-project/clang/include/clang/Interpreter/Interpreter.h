@@ -132,6 +132,9 @@ class Interpreter {
   std::mutex LastValuesMutex;
   std::map<std::thread::id, Value> LastValues;
 
+  /// See setCodeGenFilter().
+  std::function<bool(const Decl *)> CodeGenFilter;
+
   /// See setCaptureValueOfExprStmts().
   bool CaptureValueOfExprStmts = false;
 
@@ -244,6 +247,16 @@ public:
   /// The inputs parsed so far, oldest first. Undo() removes them from the
   /// end.
   const std::list<PartialTranslationUnit> &getPTUs() const { return PTUs; }
+
+  /// Decides which declarations are passed to CodeGen, including the members
+  /// of namespaces and linkage specifications; e.g. to skip definitions that
+  /// a loaded library provides. Without a filter, all declarations are.
+  void setCodeGenFilter(std::function<bool(const Decl *)> Filter) {
+    CodeGenFilter = std::move(Filter);
+  }
+  const std::function<bool(const Decl *)> &getCodeGenFilter() const {
+    return CodeGenFilter;
+  }
 
 private:
   size_t getEffectivePTUSize() const;
