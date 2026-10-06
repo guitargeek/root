@@ -110,6 +110,12 @@ All are candidates for upstream clang-repl.
 14. `clang::Value`'s move constructor no longer releases the storage it took
     over (heap corruption with values of class type). Backport from LLVM
     main.
+15. Value capture keeps the expression's cleanups (`ExprWithCleanups`): the
+    temporaries of a captured statement (e.g. `h(S())`) were destroyed at
+    the end of the function running the top-level statements, and CodeGen
+    no longer emitted their destructors (JIT: symbol not found). Upstream
+    has the same bug for printed values (main asserts in
+    `moveLazyEmissionStates`); ROOT captures every statement.
 
 ## LLVM patch (carried as a copy)
 
