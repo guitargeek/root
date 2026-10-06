@@ -505,7 +505,10 @@ Interpreter::Parse(llvm::StringRef Code) {
   if (!TuOrErr)
     return TuOrErr.takeError();
 
-  PartialTranslationUnit &LastPTU = IncrParser->RegisterPTU(*TuOrErr);
+  // An input parsed while another one is (see IncrementalParser::isParsing())
+  // has no module of its own: its code runs with the outer input's.
+  PartialTranslationUnit &LastPTU = IncrParser->RegisterPTU(
+      *TuOrErr, /*M=*/{}, /*GenModule=*/!IncrParser->isParsing());
 
   return LastPTU;
 }

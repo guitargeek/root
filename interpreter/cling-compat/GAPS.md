@@ -9,17 +9,15 @@ Build with `-Dclang_repl=ON` (and `-Dclad=OFF`, `-Dcuda=OFF` for now).
 
 ## Status
 
-Full ctest runs (2026-10-05, Linux x86-64, system LLVM 22.1.8 with the
-bundled clang, both builds on master ad94d01ad4f in the same environment):
-3594 of 3639 tests pass with clang-repl, 3632 of 3639 with cling. 38 tests
-fail only with clang-repl:
+Full ctest runs (Linux x86-64, system LLVM 22.1.8 with the bundled clang,
+both builds on master ad94d01ad4f in the same environment): 3602 of 3639
+tests pass with clang-repl (2026-10-06), 3632 of 3639 with cling
+(2026-10-05). 30 tests fail only with clang-repl:
 
 | Tests | Cause |
 | --- | --- |
 | 5 | Redefinition at the prompt (cling's shadowing) |
 | 5 | Compiled (ACLiC, dictionary) classes treated like interpreted ones in I/O (hypothesis) |
-| 4 | JIT symbols not found for template instantiations |
-| 4 | "Found an invalid decl for pair<...>" (failed instantiations) |
 | 3 | Unloading an interpreted macro before compiling it with ACLiC leaves its class |
 | 3 | `MakeProject` |
 | 2 | Template autoloading (`TmpltNoSpec`) |
@@ -116,6 +114,13 @@ All are candidates for upstream clang-repl.
     no longer emitted their destructors (JIT: symbol not found). Upstream
     has the same bug for printed values (main asserts in
     `moveLazyEmissionStates`); ROOT captures every statement.
+16. Nested inputs: ROOT parses more code while an input is parsed (e.g. a
+    dictionary payload when a template instantiation needs a class
+    complete). The nested input took CodeGen's module, with the code of the
+    outer input so far, and ran it: it referred to definitions the outer
+    input had not emitted yet. Now a nested input neither finishes nor
+    takes the module; its code runs with the outer input's, as cling ran
+    nested transactions with their parent.
 
 ## LLVM patch (carried as a copy)
 

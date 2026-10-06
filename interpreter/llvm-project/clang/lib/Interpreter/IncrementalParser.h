@@ -57,6 +57,11 @@ protected:
 
   std::list<PartialTranslationUnit> &PTUs;
 
+  /// The number of calls of Parse() in progress. A client can parse more code
+  /// while an input is parsed, e.g. ROOT parses the declarations of a class
+  /// when a template instantiation needs it complete.
+  unsigned ParseDepth = 0;
+
 public:
   IncrementalParser(CompilerInstance &Instance, IncrementalAction *Act,
                     llvm::Error &Err, std::list<PartialTranslationUnit> &PTUs);
@@ -71,9 +76,17 @@ public:
 
   Parser &getParser() { return *P; }
 
-  /// Register a PTU produced by Parse.
+  /// Whether an input is being parsed. An input parsed meanwhile (nested)
+  /// must not finish CodeGen's module: it contains the code of the outer
+  /// input so far, which may refer to definitions the outer input has not
+  /// emitted yet. The outer input's module gets the code of both.
+  bool isParsing() const { return ParseDepth; }
+
+  /// Register a PTU produced by Parse. Unless \p GenModule is false, the PTU
+  /// takes the module that CodeGen emitted into (unless \p M is given).
   PartialTranslationUnit &RegisterPTU(TranslationUnitDecl *TU,
-                                      std::unique_ptr<llvm::Module> M = {});
+                                      std::unique_ptr<llvm::Module> M = {},
+                                      bool GenModule = true);
 
 private:
   llvm::Expected<TranslationUnitDecl *> ParseOrWrapTopLevelDecl();

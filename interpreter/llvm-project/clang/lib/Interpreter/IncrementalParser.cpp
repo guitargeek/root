@@ -21,6 +21,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/SaveAndRestore.h"
 
 #include <sstream>
 
@@ -99,7 +100,10 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
   LocalInstantiations.perform();
   GlobalInstantiations.perform();
 
-  Consumer->HandleTranslationUnit(C);
+  // A nested input's code goes into the outer input's module (see
+  // isParsing()), which the outer input finishes.
+  if (ParseDepth == 1)
+    Consumer->HandleTranslationUnit(C);
 
   return C.getTranslationUnitDecl();
 }
@@ -108,6 +112,7 @@ llvm::Expected<TranslationUnitDecl *>
 IncrementalParser::Parse(llvm::StringRef input) {
   Preprocessor &PP = S.getPreprocessor();
   assert(PP.isIncrementalProcessingEnabled() && "Not in incremental mode!?");
+  llvm::SaveAndRestore<unsigned> Depth(ParseDepth, ParseDepth + 1);
 
   std::ostringstream SourceName;
   SourceName << "input_line_" << InputCount++;
@@ -365,15 +370,17 @@ void IncrementalParser::CleanUpPTU(TranslationUnitDecl *MostRecentTU) {
 
 PartialTranslationUnit &
 IncrementalParser::RegisterPTU(TranslationUnitDecl *TU,
-                               std::unique_ptr<llvm::Module> M /*={}*/) {
+                               std::unique_ptr<llvm::Module> M /*={}*/,
+                               bool GenModule /*=true*/) {
   PTUs.emplace_back(PartialTranslationUnit());
   PartialTranslationUnit &LastPTU = PTUs.back();
   LastPTU.TUPart = TU;
 
-  if (!M)
+  if (!M && GenModule)
     M = Act->GenModule();
 
-  assert((!Act->getCodeGen() || M) && "Must have a llvm::Module at this point");
+  assert((!Act->getCodeGen() || M || !GenModule) &&
+         "Must have a llvm::Module at this point");
 
   LastPTU.TheModule = std::move(M);
   LLVM_DEBUG(llvm::dbgs() << "compile-ptu " << PTUs.size() - 1
