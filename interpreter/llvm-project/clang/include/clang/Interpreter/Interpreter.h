@@ -241,6 +241,10 @@ public:
     return *IncrExecutorBuilder;
   }
 
+  /// The inputs parsed so far, oldest first. Undo() removes them from the
+  /// end.
+  const std::list<PartialTranslationUnit> &getPTUs() const { return PTUs; }
+
 private:
   size_t getEffectivePTUSize() const;
   void markUserCodeStart();
