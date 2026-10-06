@@ -10,19 +10,17 @@ Build with `-Dclang_repl=ON` (and `-Dclad=OFF`, `-Dcuda=OFF` for now).
 ## Status
 
 Full ctest runs (Linux x86-64, system LLVM 22.1.8 with the bundled clang,
-both builds on master ad94d01ad4f in the same environment): 3602 of 3639
+both builds on master ad94d01ad4f in the same environment): 3609 of 3639
 tests pass with clang-repl (2026-10-06), 3632 of 3639 with cling
-(2026-10-05). 30 tests fail only with clang-repl:
+(2026-10-05). 20 tests fail only with clang-repl (the run had 4 more
+failures, timing and network, that pass when rerun):
 
 | Tests | Cause |
 | --- | --- |
 | 5 | Redefinition at the prompt (cling's shadowing) |
-| 5 | Compiled (ACLiC, dictionary) classes treated like interpreted ones in I/O (hypothesis) |
-| 3 | Unloading an interpreted macro before compiling it with ACLiC leaves its class |
 | 3 | `MakeProject` |
-| 2 | Template autoloading (`TmpltNoSpec`) |
 | 1 | Implicit declaration of `x = expr` at the prompt |
-| 11 | Single causes (code completion, function bodies, crashes in `foam_demopers` and `multidimfit`, ...) |
+| 11 | Single causes (code completion, function bodies, crashes in `foam_demopers` and `multidimfit`, `selectorreader-Classes`, ...) |
 
 ## What the layer contains
 
@@ -271,6 +269,8 @@ compiled: another thread would generate code in the same `LLVMContext`.
   contents dropped, CodeGen forgets the definitions, and the destructors of
   the input's globals run. Inputs without a transaction after the unloaded
   one (CppInterOp's wrappers, `flushPendingCodeGen()`) are undone with it.
+  Implicit instantiations of templates the input did not declare stay in
+  the AST, so CodeGen keeps them to emit them again on their next use.
   `.undo N` counts inputs.
 
 ## Missing features

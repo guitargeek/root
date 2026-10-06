@@ -1551,7 +1551,34 @@ namespace cling {
   /// the name is used again, e.g. by the same template declared again after
   /// the unloaded file is loaded once more ("definition with same mangled
   /// name as another definition").
+  /// Implicit instantiations of templates that \p T did not declare stay: the
+  /// next use reuses them, and CodeGen must emit them again then, as their
+  /// code goes away with \p T's.
   static void forgetCodeGenDecls(const Transaction& T, CodeGenerator& CG) {
+    llvm::SmallPtrSet<const Decl*, 32> TopLevel;
+    for (auto I = T.decls_begin(), E = T.decls_end(); I != E; ++I)
+      for (Decl* D : I->m_DGR)
+        TopLevel.insert(D);
+    auto DeclaredInT = [&](const Decl* D) {
+      while (D && !isa<TranslationUnitDecl>(D->getLexicalDeclContext()))
+        D = dyn_cast<Decl>(D->getLexicalDeclContext());
+      return D && TopLevel.count(D);
+    };
+    auto IsKeptInstantiation = [&](const Decl* D) {
+      const Decl* Pattern = nullptr;
+      if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
+        if (FD->isTemplateInstantiation())
+          Pattern = FD->getTemplateInstantiationPattern();
+      } else if (const auto* VD = dyn_cast<VarDecl>(D)) {
+        if (isTemplateInstantiation(VD->getTemplateSpecializationKind()))
+          Pattern = VD->getTemplateInstantiationPattern();
+      } else if (const auto* RD = dyn_cast<CXXRecordDecl>(D)) {
+        if (isTemplateInstantiation(RD->getTemplateSpecializationKind()))
+          Pattern = RD->getTemplateInstantiationPattern();
+      }
+      return Pattern && !DeclaredInT(Pattern);
+    };
+
     llvm::SmallPtrSet<const Decl*, 32> Seen;
     auto Forget = [&](GlobalDecl GD) {
       std::string Name;
@@ -1560,7 +1587,8 @@ namespace cling {
         CG.forgetDecl(Name);
     };
     std::function<void(Decl*)> Visit = [&](Decl* D) {
-      if (!D || D->isInvalidDecl() || !Seen.insert(D).second)
+      if (!D || D->isInvalidDecl() || !Seen.insert(D).second ||
+          IsKeptInstantiation(D))
         return;
       if (auto* FD = dyn_cast<FunctionDecl>(D)) {
         if (FD->isDependentContext())
