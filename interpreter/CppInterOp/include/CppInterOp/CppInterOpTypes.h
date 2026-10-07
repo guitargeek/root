@@ -550,6 +550,13 @@ private:
 
 public:
   [[nodiscard]] Kind getKind() const { return m_Kind; }
+  /// The wrapper of a generic call (null for other kinds), for callers that
+  /// call it directly, e.g. in a hot loop, without the argument checks and
+  /// tracing of Invoke().
+  [[nodiscard]] GenericCall getGenericCall() const {
+    // NOLINTNEXTLINE(*-type-union-access)
+    return m_Kind == kGenericCall ? m_GenericCall : nullptr;
+  }
   bool isValid() const { return getKind() != kUnknown; }
   bool isInvalid() const { return !isValid(); }
   explicit operator bool() const { return isValid(); }

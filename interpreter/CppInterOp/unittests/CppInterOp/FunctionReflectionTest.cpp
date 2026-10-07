@@ -3426,6 +3426,38 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
   EXPECT_TRUE(Cpp::Destruct(object, Decls[1]));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallGetGenericCall) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+      int jc_add(int a, int b = 2) { return a + b; }
+      struct JCS { JCS() {} };
+    )";
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(Decls[0]);
+  Cpp::JitCall::GenericCall Fn = JC.getGenericCall();
+  ASSERT_NE(Fn, nullptr);
+  int a = 40, b = 3, result = 0;
+  void* args[] = {&a, &b};
+  Fn(/*self=*/nullptr, 2, args, &result);
+  EXPECT_EQ(result, 43);
+  Fn(/*self=*/nullptr, 1, args, &result); // default argument
+  EXPECT_EQ(result, 42);
+
+  // Only generic calls have one.
+  auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(Decls[1]));
+  ASSERT_TRUE((bool)Ctor);
+  EXPECT_EQ(Ctor.getGenericCall(), nullptr);
+}
+
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
 #ifndef _WIN32 // Death tests do not work on Windows
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallDebug) {
