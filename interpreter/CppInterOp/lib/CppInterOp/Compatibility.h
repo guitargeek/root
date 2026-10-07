@@ -116,6 +116,7 @@ namespace utils = cling::utils;
 namespace compat {
 
 using Interpreter = cling::Interpreter;
+using DynamicLibraryManager = cling::DynamicLibraryManager;
 
 class SynthesizingCodeRAII : public Interpreter::PushTransactionRAII {
 public:
@@ -850,6 +851,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 namespace compat {
 using Interpreter = CppInternal::Interpreter;
+using DynamicLibraryManager = CppInternal::DynamicLibraryManager;
 
 class SynthesizingCodeRAII {
 private:

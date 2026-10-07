@@ -1636,6 +1636,41 @@ potentially mangled symbol name.}];
   ];
 }
 
+def IsLibraryLoaded : CppInterOpAPI {
+  let Doc = [{Checks whether a library was loaded through the interpreter,
+e.g. by LoadLibrary.
+\param[in] path The full path of the library.}];
+  let ReturnType = "bool";
+  let Args = [Arg<"const char*", "path">];
+}
+
+def IsSharedLibrary : CppInterOpAPI {
+  let Doc = [{Checks whether a file is a shared library, from its content
+(not its name).
+\param[in] path The path of the file.}];
+  let ReturnType = "bool";
+  let Args = [Arg<"const char*", "path">];
+}
+
+def GetLibraryOfAddress : CppInterOpAPI {
+  let Doc = [{Finds the binary (shared library or executable) that contains
+an address, e.g. of a function.
+\param[in] addr The address.
+\returns the full path of the binary, or an empty string.}];
+  let ReturnType = "std::string";
+  let Args = [Arg<"void*", "addr">];
+}
+
+def SetLibrarySymbolSearchFilter : CppInterOpAPI {
+  let Doc = [{Excludes libraries from SearchLibrariesForSymbol, e.g. those
+that replace malloc, and restarts the search's scan of the library paths.
+\param[in] should_ignore Returns true for the full path of a library that
+           must never be picked; nullptr considers all libraries.}];
+  let NoCWrapper = true;
+  let ReturnType = "void";
+  let Args = [Arg<"LibraryFilter", "should_ignore">];
+}
+
 def Undo : CppInterOpAPI {
   let Doc = [{Reverts the last N operations performed by the interpreter.
 \\param[in] N The number of operations to undo. Defaults to 1.

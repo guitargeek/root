@@ -164,6 +164,80 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_LoadFailureReason) {
   EXPECT_FALSE(llvm::sys::fs::remove(BadLib));
 }
 
+// What a client (e.g. ROOT) asks about the libraries it tracks.
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_LibraryQueries) {
+#if defined(EMSCRIPTEN) || defined(_WIN32)
+  GTEST_SKIP() << "Test uses dlsym and ELF/Mach-O libraries";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  ASSERT_TRUE(TestFixture::CreateInterpreter());
+  std::string Lib = ResolveTestSharedLibPath();
+  ASSERT_STRNE("", Lib.c_str());
+
+  EXPECT_TRUE(Cpp::IsSharedLibrary(Lib.c_str()));
+  EXPECT_FALSE(Cpp::IsSharedLibrary("/no/such/cppinterop/lib.so"));
+  int FD = -1;
+  llvm::SmallString<256> NotALib;
+  ASSERT_FALSE(llvm::sys::fs::createTemporaryFile("not-a-lib", "so", FD, NotALib));
+  {
+    llvm::raw_fd_ostream OS(FD, /*shouldClose=*/true);
+    OS << "not a shared library";
+  }
+  EXPECT_FALSE(Cpp::IsSharedLibrary(NotALib.c_str()));
+  EXPECT_FALSE(llvm::sys::fs::remove(NotALib));
+
+  // The lookup makes the path canonical (here: resolves the symlink), as
+  // IsLibraryLoaded does.
+  ASSERT_TRUE(Cpp::LoadLibrary(Lib.c_str()));
+  EXPECT_TRUE(Cpp::IsLibraryLoaded(Lib.c_str()));
+  EXPECT_FALSE(Cpp::IsLibraryLoaded("/no/such/cppinterop/lib.so"));
+
+#ifndef _WIN32
+  void* RetZero = dlsym(RTLD_DEFAULT, "ret_zero");
+  ASSERT_NE(RetZero, nullptr);
+  llvm::SmallString<256> RealLib;
+  ASSERT_FALSE(llvm::sys::fs::real_path(Lib, RealLib));
+  EXPECT_EQ(Cpp::GetLibraryOfAddress(RetZero), RealLib.str().str());
+#endif
+  EXPECT_EQ(Cpp::GetLibraryOfAddress(nullptr), "");
+
+  Cpp::UnloadLibrary(Lib.c_str());
+  EXPECT_FALSE(Cpp::IsLibraryLoaded(Lib.c_str()));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_SymbolSearchFilter) {
+#if defined(EMSCRIPTEN) || defined(_WIN32)
+  GTEST_SKIP() << "Test fails for Emscripten and Windows builds";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+#ifdef __APPLE__
+  static constexpr const char* kSym = "_ret_zero";
+#else
+  static constexpr const char* kSym = "ret_zero";
+#endif
+
+  ASSERT_TRUE(TestFixture::CreateInterpreter());
+  std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
+  Cpp::AddSearchPath(llvm::sys::path::parent_path(BinaryPath).str().c_str());
+
+  Cpp::SetLibrarySymbolSearchFilter(nullptr);
+  std::string Found = Cpp::SearchLibrariesForSymbol(kSym, /*search_system=*/false);
+  if (Found.empty())
+    GTEST_SKIP() << "TestSharedLib not found by the symbol search";
+
+  Cpp::SetLibrarySymbolSearchFilter([](const char* Path) {
+    return llvm::StringRef(Path).contains("TestSharedLib");
+  });
+  EXPECT_EQ(Cpp::SearchLibrariesForSymbol(kSym, /*search_system=*/false), "");
+
+  Cpp::SetLibrarySymbolSearchFilter(nullptr);
+  EXPECT_EQ(Cpp::SearchLibrariesForSymbol(kSym, /*search_system=*/false),
+            Found);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is only intended for Emscripten builds.";

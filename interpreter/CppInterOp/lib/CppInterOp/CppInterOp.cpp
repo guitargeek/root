@@ -6456,6 +6456,33 @@ std::string SearchLibrariesForSymbol(const char* mangled_name,
       DLM->searchLibrariesForSymbol(mangled_name, search_system));
 }
 
+bool IsLibraryLoaded(const char* path) {
+  INTEROP_TRACE(path);
+  return INTEROP_RETURN(
+      getInterp().getDynamicLibraryManager()->isLibraryLoaded(path));
+}
+
+bool IsSharedLibrary(const char* path) {
+  INTEROP_TRACE(path);
+  return INTEROP_RETURN(compat::DynamicLibraryManager::isSharedLibrary(path));
+}
+
+std::string GetLibraryOfAddress(void* addr) {
+  INTEROP_TRACE(addr);
+  // Cling's DynamicLibraryManager takes a function pointer.
+  return INTEROP_RETURN(compat::DynamicLibraryManager::getSymbolLocation(
+      reinterpret_cast<void (*)()>(addr)));
+}
+
+void SetLibrarySymbolSearchFilter(LibraryFilter should_ignore) {
+  INTEROP_TRACE(should_ignore);
+  getInterp().getDynamicLibraryManager()->initializeDyld(
+      [should_ignore](llvm::StringRef path) {
+        return should_ignore && should_ignore(path.str().c_str());
+      });
+  return INTEROP_VOID_RETURN();
+}
+
 bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
                               const char* linker_mangled_name,
                               uint64_t address) {

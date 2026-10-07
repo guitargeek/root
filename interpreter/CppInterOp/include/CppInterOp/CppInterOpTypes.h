@@ -653,6 +653,10 @@ struct VTableOverlay;
 // dangling -- do not dereference) and the cleanup_data passed at install.
 using VTableOverlayDtorHook = void (*)(void* inst, void* cleanup_data);
 
+// Predicate for SetLibrarySymbolSearchFilter: receives the full path of a
+// library and returns true if SearchLibrariesForSymbol must never pick it.
+using LibraryFilter = bool (*)(const char* path);
+
 // FIXME: Rework GetDimensions to make this enum redundant.
 namespace DimensionValue {
 enum : long int {
