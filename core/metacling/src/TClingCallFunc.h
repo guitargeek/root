@@ -54,7 +54,7 @@ class TClingClassInfo;
 class TClingMethodInfo;
 class TInterpreterValue;
 
-typedef void (*tcling_callfunc_Wrapper_t)(void *, int, void **, void *);
+typedef void (*tcling_callfunc_Wrapper_t)(void *, size_t, void **, void *);
 
 class TClingCallFunc {
 

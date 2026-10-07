@@ -340,7 +340,7 @@ void TDirectory::CleanTargets()
 
 static TBuffer* R__CreateBuffer()
 {
-   typedef void (*tcling_callfunc_Wrapper_t)(void*, int, void**, void*);
+   typedef void (*tcling_callfunc_Wrapper_t)(void*, size_t, void**, void*);
    static tcling_callfunc_Wrapper_t creator = nullptr;
    if (!creator) {
       R__LOCKGUARD(gROOTMutex);

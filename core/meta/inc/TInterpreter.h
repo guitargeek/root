@@ -87,7 +87,7 @@ public:
          kDtor
       };
 
-      typedef void (*Generic_t)(void*, int, void**, void*);
+      typedef void (*Generic_t)(void*, size_t, void**, void*);
       typedef void (*Ctor_t)(void**, void*, unsigned long);
       typedef void (*Dtor_t)(void*, unsigned long, int);
 

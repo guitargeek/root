@@ -3266,7 +3266,7 @@ TClass *TClass::GetClass(const char *name, Bool_t load, Bool_t silent, size_t hi
          auto ci = gInterpreter->ClassInfo_Factory(normalizedName.c_str());
          auto funcDecl = gInterpreter->GetFunctionWithPrototype(ci, "Dictionary", "", false, ROOT::kExactMatch);
          auto method = gInterpreter->MethodInfo_Factory(funcDecl);
-         typedef void (*tcling_callfunc_Wrapper_t)(void *, int, void **, void *);
+         typedef void (*tcling_callfunc_Wrapper_t)(void *, size_t, void **, void *);
          auto funcPtr = (tcling_callfunc_Wrapper_t)gInterpreter->MethodInfo_InterfaceMethod(method);
 
          TClass *res = nullptr;

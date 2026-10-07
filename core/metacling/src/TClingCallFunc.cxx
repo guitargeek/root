@@ -874,7 +874,7 @@ int TClingCallFunc::get_wrapper_code(std::string &wrapper_name, std::string &wra
           "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
           "extern \"C\" void ";
    buf << wrapper_name;
-   buf << "(void* obj, int nargs, void** args, void* ret)\n"
+   buf << "(void* obj, unsigned long nargs, void** args, void* ret)\n"
           "{\n";
    ++indent_level;
    if (min_args == num_params) {
@@ -1113,7 +1113,7 @@ void TClingCallFunc::exec(void *address, void *ret)
          }
       }
    } // End of scope holding the lock
-   (*fWrapper)(address, (int)num_args, (void **)vp_ary.data(), ret);
+   (*fWrapper)(address, num_args, (void **)vp_ary.data(), ret);
 }
 
 void TClingCallFunc::exec_with_valref_return(void *address, cling::Value &ret)
