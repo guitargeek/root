@@ -868,6 +868,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_IncludePaths) {
   Cpp::GetIncludePaths(includes, true, true);
   EXPECT_FALSE(includes.empty());
   EXPECT_TRUE(includes.size() >= len);
+  includes.clear();
+  // Without system paths: pairs of flag and path, e.g. "-I" "/usr/include".
+  Cpp::GetIncludePaths(includes, false, true);
+  EXPECT_EQ(includes.size() % 2, 0U);
+  EXPECT_EQ(std::find(includes.begin(), includes.end(), ""), includes.end());
+  includes.clear();
 
   len = includes.size();
   Cpp::AddIncludePath("/non/existent/");
