@@ -4577,9 +4577,11 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
 
     typedefbuf << "typedef " << fp_typedef_name << ";\n";
 
+    // A function pointer by value is not a reference: the address of a
+    // returned one can't be taken.
     if (QT->isRValueReferenceType())
       refType = kRValueReference;
-    else
+    else if (QT->isLValueReferenceType())
       refType = kLValueReference;
     return;
   } else if (QT->isMemberPointerType()) {
@@ -4748,9 +4750,11 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   // cases where we know it works and set this variable to true when we do.
 
   // true if not a overloaded operators or the overloaded operator is call
-  // operator
+  // operator, or a member operator: it is called by name, which also works
+  // for static ones with two arguments, e.g. operator new(size_t, void*).
   bool op_flag = !FD->isOverloadedOperator() ||
-                 FD->getOverloadedOperator() == clang::OO_Call;
+                 FD->getOverloadedOperator() == clang::OO_Call ||
+                 isa<CXXMethodDecl>(FD);
 
   bool ShouldCastFunction = !isa<CXXMethodDecl>(FD) &&
                             N == FD->getNumParams() && op_flag &&

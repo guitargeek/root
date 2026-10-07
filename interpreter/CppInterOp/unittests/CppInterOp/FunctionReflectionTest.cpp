@@ -3458,6 +3458,53 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallGetGenericCall) {
   EXPECT_EQ(Ctor.getGenericCall(), nullptr);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallFunctionPointerAndOperatorNew) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+      int jc_fp_target(int i) { return i + 1; }
+      typedef int (*JCFp_t)(int);
+      struct JCFp {
+        JCFp_t Get() const { return jc_fp_target; }
+        static void* operator new(decltype(sizeof(0)), void* where) { return where; }
+      };
+    )";
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
+  auto* Class = Decls.back();
+
+  // A function pointer returned by value.
+  auto Gets = Cpp::GetFunctionsUsingName(Class, "Get");
+  ASSERT_EQ(Gets.size(), 1U);
+  auto Get = Cpp::MakeFunctionCallable(Gets[0]);
+  ASSERT_TRUE((bool)Get);
+  int (*fp)(int) = nullptr;
+  char object = 0;
+  Get.Invoke(&fp, {}, &object);
+  ASSERT_NE(fp, nullptr);
+  EXPECT_EQ(fp(41), 42);
+
+  // A static member operator with two arguments is called by name.
+  auto News = Cpp::GetFunctionsUsingName(Class, "operator new");
+  ASSERT_EQ(News.size(), 1U);
+  auto New = Cpp::MakeFunctionCallable(News[0]);
+  ASSERT_TRUE((bool)New);
+  decltype(sizeof(0)) size = 1;
+  void* where = &object;
+  void* args[] = {&size, &where};
+  void* result = nullptr;
+  New.Invoke(&result, {args, 2});
+  EXPECT_EQ(result, &object);
+}
+
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
 #ifndef _WIN32 // Death tests do not work on Windows
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallDebug) {
