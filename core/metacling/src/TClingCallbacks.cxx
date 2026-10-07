@@ -14,11 +14,12 @@
 #include <DllImport.h> // for R__EXTERN
 #include <ROOT/FoundationUtils.hxx>
 
-#include "cling/Interpreter/DynamicLibraryManager.h"
 #include "cling/Interpreter/Interpreter.h"
 #include "cling/Interpreter/InterpreterCallbacks.h"
 #include "cling/Interpreter/Transaction.h"
 #include "cling/Utils/AST.h"
+
+#include <CppInterOp/CppInterOp.h>
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -88,10 +89,8 @@ extern "C" {
 
 class AutoloadLibraryGenerator : public llvm::orc::DefinitionGenerator {
    const TClingCallbacks &fCallbacks;
-   cling::Interpreter *fInterpreter;
 public:
-   AutoloadLibraryGenerator(cling::Interpreter *interp, const TClingCallbacks& cb)
-      : fCallbacks(cb), fInterpreter(interp) {}
+   AutoloadLibraryGenerator(const TClingCallbacks& cb) : fCallbacks(cb) {}
 
    llvm::Error tryToGenerate(llvm::orc::LookupState &LS, llvm::orc::LookupKind K, llvm::orc::JITDylib &JD,
                              llvm::orc::JITDylibLookupFlags JDLookupFlags,
@@ -119,10 +118,8 @@ public:
       for (auto &&KV : Symbols) {
          llvm::orc::SymbolStringPtr name = KV.first;
 
-         const cling::DynamicLibraryManager &DLM = *fInterpreter->getDynamicLibraryManager();
-
-         std::string libName = DLM.searchLibrariesForSymbol((*name).str(),
-                                                            /*searchSystem=*/true);
+         std::string libName = Cpp::SearchLibrariesForSymbol((*name).str().c_str(),
+                                                             /*search_system=*/true);
 
          // libNew overrides memory management functions; must never autoload that.
          assert(libName.find("/libNew.") == std::string::npos && "We must not autoload libNew!");
@@ -171,7 +168,7 @@ TClingCallbacks::TClingCallbacks(cling::Interpreter *interp, bool hasCodeGen) : 
       m_Interpreter->declare("namespace __ROOT_SpecialObjects{}", &T);
       fROOTSpecialNamespace = dyn_cast<NamespaceDecl>(T->getFirstDecl().getSingleDecl());
 
-      interp->addGenerator(std::make_unique<AutoloadLibraryGenerator>(interp, *this));
+      interp->addGenerator(std::make_unique<AutoloadLibraryGenerator>(*this));
    }
 }
 
