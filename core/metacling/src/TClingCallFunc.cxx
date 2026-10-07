@@ -1017,6 +1017,21 @@ tcling_callfunc_Wrapper_t TClingCallFunc::make_wrapper()
 
    const Decl *D = GetFunctionOrShadowDecl();
 
+   // Functions and methods get CppInterOp's wrappers, except:
+   // - constructors and destructors: CppInterOp's have other signatures than
+   //   the generic one that InterfaceMethod() promises;
+   // - methods made visible by a using declaration: CppInterOp expects the
+   //   object of the class that declares the method, ROOT passes the object
+   //   of the class with the using declaration (they differ for a secondary
+   //   base).
+   const FunctionDecl *FD = GetDecl();
+   if (!isa<CXXConstructorDecl>(FD) && !isa<CXXDestructorDecl>(FD) && !isa<UsingShadowDecl>(D)) {
+      if (auto F = Cpp::MakeFunctionCallable(D).getGenericCall())
+         return F;
+      ::Error("TClingCallFunc::make_wrapper", "Failed to compile the call wrapper of %s", fMethod->GetPrototype());
+      return nullptr;
+   }
+
    auto I = gWrapperStore.find(D);
    if (I != gWrapperStore.end())
       return (tcling_callfunc_Wrapper_t)I->second;
