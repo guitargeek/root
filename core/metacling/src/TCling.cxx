@@ -1398,7 +1398,7 @@ TCling::TCling(const char *name, const char *title, const char* const argv[], vo
 
    fTemporaries = new std::vector<cling::Value>();
 
-   std::vector<std::string> clingArgsStorage;
+   std::vector<std::string> &clingArgsStorage = fInterpreterArgs;
    clingArgsStorage.push_back("cling4root");
    for (const char* const* arg = argv; *arg; ++arg)
       clingArgsStorage.push_back(*arg);

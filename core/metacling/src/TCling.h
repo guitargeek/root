@@ -129,6 +129,7 @@ private: // Data Members
    Bool_t          fLockProcessLine;  // True if ProcessLine should lock gInterpreterMutex.
    Bool_t          fCxxModulesEnabled;// True if C++ modules was enabled
 
+   std::vector<std::string> fInterpreterArgs; // The interpreter keeps pointers to its arguments, e.g. for code completion.
    std::unique_ptr<cling::Interpreter>   fInterpreter;   // The interpreter.
    std::unique_ptr<cling::MetaProcessor> fMetaProcessor; // The metaprocessor.
 
