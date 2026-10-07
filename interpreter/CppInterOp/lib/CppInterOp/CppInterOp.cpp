@@ -6294,7 +6294,7 @@ void AddIncludePath(const char* dir) {
 void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
                      bool withFlags) {
   INTEROP_TRACE(INTEROP_OUT(IncludePaths), withSystem, withFlags);
-  llvm::SmallVector<std::string> paths(1);
+  llvm::SmallVector<std::string> paths;
   getInterp().GetIncludePaths(paths, withSystem, withFlags);
   for (auto& i : paths)
     IncludePaths.push_back(i);
