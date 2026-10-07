@@ -1189,6 +1189,7 @@ namespace cling {
       return true;
 
     if (llvm::isa<llvm::object::ELFObjectFileBase>(*file)) {
+      bool HasCode = false;
       for (auto S : file->sections()) {
         llvm::StringRef name = llvm::cantFail(S.getName());
         if (name == ".text") {
@@ -1197,13 +1198,13 @@ namespace cling {
           // reading the manual of objcopy and inspection of stripped with
           // objcopy libraries.
           auto SecRef = static_cast<llvm::object::ELFSectionRef&>(S);
-          if (SecRef.getType() == llvm::ELF::SHT_NOBITS)
-            return true;
-
-          return (SecRef.getFlags() & llvm::ELF::SHF_ALLOC) == 0;
+          HasCode = SecRef.getType() != llvm::ELF::SHT_NOBITS &&
+                    (SecRef.getFlags() & llvm::ELF::SHF_ALLOC);
+          break;
         }
       }
-      return true;
+      if (!HasCode)
+        return true;
     }
 
     //FIXME: Handle osx using isStripped after upgrading to llvm9.
