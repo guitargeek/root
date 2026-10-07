@@ -50,6 +50,7 @@ TApplication (see TRint).
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
+#include <limits>
 #include "../res/TApplicationCmdlineHelp.h"
 
 TApplication *gApplication = nullptr;
@@ -459,20 +460,31 @@ void TApplication::GetOptions(Int_t *argc, char **argv)
       gROOT->SetWebDisplay(std::string(web).c_str());
    }
 
-   for (auto cmd : opts.GetFlagValues("e")) {
-      if (!fFiles) fFiles = new TObjArray;
-      TObjString *expr = new TObjString(std::string(cmd).c_str());
-      expr->SetBit(kExpression);
-      fFiles->Add(expr);
-   }
-
    const auto &positionalArgs = opts.GetArgs();
+   const auto &positionalArgsIndices = opts.GetArgsIndices();
    const auto lastArgBeforeDashDash = opts.GetFirstPostDashDashArg().value_or(positionalArgs.size());
+
+   // The -e expressions must be interleaved with the positional arguments in command line order, e.g. for
+   // `root file.root -e 'cmd'` the file has to be attached before `cmd` is executed.
+   const auto &flags = opts.GetFlags();
+   auto nextFlag = flags.begin();
+   const auto AddExpressionsBefore = [&](std::size_t argIndex) {
+      for (; nextFlag != flags.end() && nextFlag->fArgIndex < argIndex; ++nextFlag) {
+         if (nextFlag->fName != "e")
+            continue;
+         if (!fFiles)
+            fFiles = new TObjArray;
+         TObjString *expr = new TObjString(nextFlag->fValue.c_str());
+         expr->SetBit(kExpression);
+         fFiles->Add(expr);
+      }
+   };
 
    TString pwd;
 
    // Process all positional arguments before `--`
    for (std::size_t i = 0; i < lastArgBeforeDashDash; ++i) {
+      AddExpressionsBefore(positionalArgsIndices[i]);
       std::string arg = positionalArgs[i];
       Long64_t size;
       Long_t id, flags, modtime;
@@ -549,6 +561,8 @@ void TApplication::GetOptions(Int_t *argc, char **argv)
          }
       }
    }
+   // Add the expressions that came after the last positional argument
+   AddExpressionsBefore(std::numeric_limits<std::size_t>::max());
 
    // Process positional arguments after `--` as arguments for the macro.
    // This is only valid if we passed at least one macro and will be considered arguments for the last one passed.

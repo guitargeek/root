@@ -810,3 +810,23 @@ TEST(OptParse, PostDashDash)
    EXPECT_EQ(opts.GetArgs(), std::vector<std::string>({"first", "second", "third", "-c", "fourth", "-a", "--"}));
    EXPECT_EQ(opts.GetFirstPostDashDashArg(), 2);
 }
+
+TEST(OptParse, ArgIndices)
+{
+   ROOT::RCmdLineOpts opts;
+   opts.AddFlag({"-a"});
+   opts.AddFlag({"-e", "--execute"}, ROOT::RCmdLineOpts::EFlagType::kWithArg, "",
+                ROOT::RCmdLineOpts::kFlagAllowMultiple);
+
+   const char *args[] = {"-e", "x", "first", "--execute=y", "-a", "second", "--", "-e", "z"};
+   opts.Parse(args, std::size(args));
+
+   ASSERT_TRUE(opts.GetErrors().empty());
+   EXPECT_EQ(opts.GetArgs(), std::vector<std::string>({"first", "second", "-e", "z"}));
+   EXPECT_EQ(opts.GetArgsIndices(), std::vector<std::size_t>({2, 5, 7, 8}));
+   const auto &flags = opts.GetFlags();
+   ASSERT_EQ(flags.size(), 3u);
+   EXPECT_EQ(flags[0].fArgIndex, 0u);
+   EXPECT_EQ(flags[1].fArgIndex, 3u);
+   EXPECT_EQ(flags[2].fArgIndex, 4u);
+}
