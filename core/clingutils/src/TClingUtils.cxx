@@ -4994,6 +4994,134 @@ clang::QualType ROOT::TMetaUtils::ReSubstTemplateArg(clang::QualType input, cons
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Find the typedef of the class template instantiation enclosing 'context'
+/// that corresponds to 'patternTD', a typedef declared in the instantiation
+/// pattern. Returns nullptr if there is no such instantiation.
+
+static const clang::TypedefNameDecl *FindInstantiatedTypedef(const clang::TypedefNameDecl *patternTD,
+                                                             const clang::DeclContext *context,
+                                                             const cling::Interpreter &interp)
+{
+   const auto *patternRD = llvm::dyn_cast<clang::CXXRecordDecl>(patternTD->getDeclContext());
+   if (!patternRD || !patternRD->isDependentContext())
+      return nullptr;
+
+   for (const clang::DeclContext *DC = context; DC; DC = DC->getParent()) {
+      const auto *RD = llvm::dyn_cast<clang::CXXRecordDecl>(DC);
+      if (!RD)
+         continue;
+      const clang::CXXRecordDecl *pattern = RD->getTemplateInstantiationPattern();
+      if (!pattern || pattern->getCanonicalDecl() != patternRD->getCanonicalDecl())
+         continue;
+
+      // The lookup might deserialize declarations.
+      cling::Interpreter::PushTransactionRAII RAII(const_cast<cling::Interpreter *>(&interp));
+      for (clang::NamedDecl *ND : RD->lookup(patternTD->getDeclName())) {
+         if (const auto *TD = llvm::dyn_cast<clang::TypedefNameDecl>(ND))
+            return TD;
+      }
+      return nullptr;
+   }
+   return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Replace the typedefs in 'input' that are declared in a class template (or
+/// one of its members) but are not dependent on the template parameters with
+/// the corresponding typedefs of the instantiation enclosing 'context'.
+///
+/// Clang does not substitute types that are not dependent when instantiating
+/// a class template, so for example the parameter of
+/// `std::vector<int>::operator[]` might refer to `size_type` as declared in
+/// the class template `std::vector<T>`, and not in `std::vector<int>`. When
+/// fully qualifying such a type, cling has to pick an arbitrary instantiation
+/// of the class template, resulting in names like
+/// `std::vector<TClass*>::size_type` (see
+/// https://github.com/root-project/root/issues/7955). Replacing the typedef
+/// with the one of the instantiation that contains the declaration using the
+/// type avoids this.
+
+clang::QualType ROOT::TMetaUtils::ReplaceTemplatePatternTypedefs(clang::QualType input,
+                                                                 const clang::DeclContext *context,
+                                                                 const cling::Interpreter &interp)
+{
+   using namespace clang;
+
+   if (input.isNull() || !context)
+      return input;
+
+   const ASTContext &Ctxt = Decl::castFromDeclContext(context)->getASTContext();
+   Qualifiers quals = input.getLocalQualifiers();
+   const Type *T = input.getTypePtr();
+
+   auto recurse = [&](QualType QT) { return ReplaceTemplatePatternTypedefs(QT, context, interp); };
+
+   if (const auto *TT = dyn_cast<TypedefType>(T)) {
+      if (const TypedefNameDecl *TD = FindInstantiatedTypedef(TT->getDecl(), context, interp)) {
+         QualType QT = Ctxt.getTypedefType(ElaboratedTypeKeyword::None, /*Qualifier=*/std::nullopt, TD);
+         return Ctxt.getQualifiedType(QT, quals);
+      }
+      return input;
+   }
+
+   if (const auto *PT = dyn_cast<clang::PointerType>(T)) {
+      QualType pointee = recurse(PT->getPointeeType());
+      if (pointee == PT->getPointeeType())
+         return input;
+      return Ctxt.getQualifiedType(Ctxt.getPointerType(pointee), quals);
+   }
+
+   if (const auto *RT = dyn_cast<ReferenceType>(T)) {
+      QualType pointee = recurse(RT->getPointeeTypeAsWritten());
+      if (pointee == RT->getPointeeTypeAsWritten())
+         return input;
+      QualType QT = isa<LValueReferenceType>(RT) ? Ctxt.getLValueReferenceType(pointee, RT->isSpelledAsLValue())
+                                                 : Ctxt.getRValueReferenceType(pointee);
+      return Ctxt.getQualifiedType(QT, quals);
+   }
+
+   if (const auto *CAT = dyn_cast<ConstantArrayType>(T)) {
+      QualType elem = recurse(CAT->getElementType());
+      if (elem == CAT->getElementType())
+         return input;
+      QualType QT = Ctxt.getConstantArrayType(elem, CAT->getSize(), CAT->getSizeExpr(), CAT->getSizeModifier(),
+                                              CAT->getIndexTypeCVRQualifiers());
+      return Ctxt.getQualifiedType(QT, quals);
+   }
+
+   if (const auto *IAT = dyn_cast<IncompleteArrayType>(T)) {
+      QualType elem = recurse(IAT->getElementType());
+      if (elem == IAT->getElementType())
+         return input;
+      QualType QT = Ctxt.getIncompleteArrayType(elem, IAT->getSizeModifier(), IAT->getIndexTypeCVRQualifiers());
+      return Ctxt.getQualifiedType(QT, quals);
+   }
+
+   if (const auto *TST = dyn_cast<TemplateSpecializationType>(T)) {
+      bool changed = false;
+      llvm::SmallVector<TemplateArgument, 4> args;
+      for (const TemplateArgument &TA : TST->template_arguments()) {
+         if (TA.getKind() == TemplateArgument::Type) {
+            QualType argQT = recurse(TA.getAsType());
+            if (argQT != TA.getAsType()) {
+               changed = true;
+               args.push_back(TemplateArgument(argQT));
+               continue;
+            }
+         }
+         args.push_back(TA);
+      }
+      if (!changed)
+         return input;
+      QualType QT = Ctxt.getTemplateSpecializationType(TST->getKeyword(), TST->getTemplateName(), args,
+                                                       /*CanonicalArgs=*/{}, TST->getCanonicalTypeInternal());
+      return Ctxt.getQualifiedType(QT, quals);
+   }
+
+   return input;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Remove the last n template arguments from the name
 
 int ROOT::TMetaUtils::RemoveTemplateArgsFromName(std::string& name, unsigned int nArgsToRemove)

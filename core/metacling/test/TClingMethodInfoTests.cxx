@@ -1,10 +1,12 @@
 #include "TClass.h"
 #include "TClassRef.h"
+#include "TDataMember.h"
 #include "TGlobal.h"
 #include "TInterpreter.h"
 #include "TList.h"
 #include "TListOfFunctions.h"
 #include "TMethod.h"
+#include "TMethodArg.h"
 #include "TROOT.h"
 
 #include "gtest/gtest.h"
@@ -581,4 +583,87 @@ public:
    TClass *cl = TClass::GetClass("ROOT23195::Property<std::string>");
    ASSERT_NE(cl, nullptr);
    EXPECT_NE(cl->GetListOfMethods(), nullptr);
+}
+
+// https://github.com/root-project/root/issues/7955
+TEST(TClingMethodInfo, NonDependentMemberTypedefs)
+{
+   gInterpreter->Declare(R"CODE(
+#include <utility>
+#include <vector>
+
+namespace Issue7955 {
+template <class T>
+struct Outer {
+   typedef unsigned long size_type;
+   using other_type = int;
+   struct Inner {
+      size_type f(const size_type &a, other_type *b) { return 0; }
+      size_type fInner = 0;
+   };
+   T operator[](size_type i) const { return T(); }
+   std::vector<size_type> g(std::pair<size_type, other_type> p) { return {}; }
+   size_type fArr[3];
+   const other_type *fPtr = nullptr;
+};
+template <class T>
+struct Outer<T *> {
+   typedef short size_type;
+   size_type h(size_type a) { return a; }
+};
+template <class T>
+struct Derived : Outer<T> {};
+} // namespace Issue7955
+
+// The bug was that cling picked the first instantiation of the class template
+// to qualify the non-dependent typedefs, so instantiate other ones first.
+template struct Issue7955::Outer<double>;
+template struct Issue7955::Outer<char>;
+template struct Issue7955::Outer<double *>;
+template struct Issue7955::Outer<char *>;
+template struct Issue7955::Derived<char>;
+)CODE");
+
+   auto getPrototype = [](const char *clName, const char *methName) -> std::string {
+      TClass *cl = TClass::GetClass(clName);
+      if (!cl)
+         return "class not found";
+      TMethod *meth = cl->GetMethodAllAny(methName);
+      return meth ? meth->GetPrototype() : "method not found";
+   };
+
+   EXPECT_EQ(getPrototype("Issue7955::Outer<char>", "operator[]"),
+             "char Issue7955::Outer<char>::operator[](Issue7955::Outer<char>::size_type i) const");
+   EXPECT_EQ(getPrototype("Issue7955::Outer<char>", "g"),
+             "vector<Issue7955::Outer<char>::size_type> "
+             "Issue7955::Outer<char>::g(pair<Issue7955::Outer<char>::size_type,Issue7955::Outer<char>::other_type> p)");
+   EXPECT_EQ(getPrototype("Issue7955::Outer<char>::Inner", "f"),
+             "Issue7955::Outer<char>::size_type Issue7955::Outer<char>::Inner::f(const "
+             "Issue7955::Outer<char>::size_type& a, Issue7955::Outer<char>::other_type* b)");
+   EXPECT_EQ(getPrototype("Issue7955::Outer<char*>", "h"),
+             "Issue7955::Outer<char*>::size_type Issue7955::Outer<char*>::h(Issue7955::Outer<char*>::size_type a)");
+   EXPECT_EQ(getPrototype("Issue7955::Derived<char>", "g"),
+             "vector<Issue7955::Outer<char>::size_type> "
+             "Issue7955::Outer<char>::g(pair<Issue7955::Outer<char>::size_type,Issue7955::Outer<char>::other_type> p)");
+
+   // The reproducer from the issue.
+   TClass *cl = TClass::GetClass("Issue7955::Outer<char>");
+   ASSERT_NE(cl, nullptr);
+   TMethod *meth = cl->GetMethodWithPrototype("operator[]", "unsigned long", true, ROOT::kConversionMatch);
+   ASSERT_NE(meth, nullptr);
+   auto *arg = dynamic_cast<TMethodArg *>(meth->GetListOfMethodArgs()->First());
+   ASSERT_NE(arg, nullptr);
+   EXPECT_STREQ(arg->GetTypeName(), "Issue7955::Outer<char>::size_type");
+
+   auto getMemberType = [](const char *clName, const char *memberName) -> std::string {
+      TClass *c = TClass::GetClass(clName);
+      if (!c)
+         return "class not found";
+      TDataMember *dm = c->GetDataMember(memberName);
+      return dm ? dm->GetFullTypeName() : "member not found";
+   };
+
+   EXPECT_EQ(getMemberType("Issue7955::Outer<char>", "fArr"), "Issue7955::Outer<char>::size_type");
+   EXPECT_EQ(getMemberType("Issue7955::Outer<char>", "fPtr"), "const Issue7955::Outer<char>::other_type*");
+   EXPECT_EQ(getMemberType("Issue7955::Outer<char>::Inner", "fInner"), "Issue7955::Outer<char>::size_type");
 }

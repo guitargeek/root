@@ -749,6 +749,13 @@ ROOT::ESTLType IsSTLCont(const clang::RecordDecl &cl);
 clang::QualType ReSubstTemplateArg(clang::QualType input, const clang::Type *instance);
 
 //______________________________________________________________________________
+// Replace the typedefs in 'input' that are declared in a class template (or
+// one of its members) but are not dependent on the template parameters with
+// the corresponding typedefs of the instantiation enclosing 'context'.
+clang::QualType ReplaceTemplatePatternTypedefs(clang::QualType input, const clang::DeclContext *context,
+                                               const cling::Interpreter &interp);
+
+//______________________________________________________________________________
 // Remove the last n template arguments from the name
 int RemoveTemplateArgsFromName(std::string& name, unsigned int);
 

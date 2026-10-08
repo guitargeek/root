@@ -24,6 +24,9 @@ the Clang C++ compiler, not CINT.
 #include "TDictionary.h"
 #include "TClingMethodInfo.h"
 #include "TClingTypeInfo.h"
+#include "TClingUtils.h"
+#include "TInterpreter.h"
+#include "TVirtualMutex.h"
 #include "ThreadLocalStorage.h"
 
 #include "cling/Interpreter/Interpreter.h"
@@ -139,6 +142,10 @@ const TClingTypeInfo *TClingMethodArgInfo::Type() const
    }
    const clang::ParmVarDecl *pvd = GetDecl();
    clang::QualType qt = pvd->getOriginalType();
+   {
+      R__LOCKGUARD(gInterpreterMutex);
+      qt = ROOT::TMetaUtils::ReplaceTemplatePatternTypedefs(qt, pvd->getDeclContext(), *fInterp);
+   }
    ti.Init(qt);
    return &ti;
 }

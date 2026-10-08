@@ -587,7 +587,8 @@ TClingTypeInfo *TClingMethodInfo::Type() const
          ti.Init(qt);
       }
    } else {
-      clang::QualType qt = GetTargetFunctionDecl()->getReturnType();
+      const clang::FunctionDecl *FD = GetTargetFunctionDecl();
+      clang::QualType qt = ROOT::TMetaUtils::ReplaceTemplatePatternTypedefs(FD->getReturnType(), FD, *fInterp);
       ti.Init(qt);
    }
    return &ti;

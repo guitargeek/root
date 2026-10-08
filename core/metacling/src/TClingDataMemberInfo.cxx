@@ -587,6 +587,8 @@ const char *TClingDataMemberInfo::TypeName() const
 
    // if (we_need_to_do_the_subst_because_the_class_is_a_template_instance_of_double32_t)
    vdType = ROOT::TMetaUtils::ReSubstTemplateArg(vdType, GetClassAsType() );
+   R__LOCKGUARD(gInterpreterMutex);
+   vdType = ROOT::TMetaUtils::ReplaceTemplatePatternTypedefs(vdType, vd->getDeclContext(), *fInterp);
 
    ROOT::TMetaUtils::GetFullyQualifiedTypeName(buf, vdType, *fInterp);
 
@@ -608,6 +610,8 @@ const char *TClingDataMemberInfo::TypeTrueName(const ROOT::TMetaUtils::TNormaliz
    const clang::ValueDecl *vd = GetTargetValueDecl();
    // if (we_need_to_do_the_subst_because_the_class_is_a_template_instance_of_double32_t)
    clang::QualType vdType = ROOT::TMetaUtils::ReSubstTemplateArg(vd->getType(), GetClassAsType());
+   R__LOCKGUARD(gInterpreterMutex);
+   vdType = ROOT::TMetaUtils::ReplaceTemplatePatternTypedefs(vdType, vd->getDeclContext(), *fInterp);
 
    ROOT::TMetaUtils::GetNormalizedName(buf, vdType, *fInterp, normCtxt);
 
