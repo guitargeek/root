@@ -3806,6 +3806,18 @@ static bool CheckModuleValid(TModuleGenerator &modGen, const std::string &resour
       return false;
    }
 
+   // ROOT finds the library to autoload for a class via the link declaration
+   // of the module, so without it the dictionary will never be autoloaded.
+   if (module->LinkLibraries.empty()) {
+      std::string linkDecl = "link \"lib" + moduleName + gLibraryExtension + "\"";
+      if (gOptSharedLibFileName != gOptDictionaryFileName.getValue())
+         linkDecl = "link \"" + llvm::sys::path::filename(gOptSharedLibFileName).str() + "\"";
+      ROOT::TMetaUtils::Warning("CheckModuleValid",
+                                "The module '%s' has no link declaration, so ROOT can't autoload the dictionary "
+                                "library. Please add it to the module in the modulemap, e.g. %s.\n",
+                                moduleName.c_str(), linkDecl.c_str());
+   }
+
    // Check if the loaded module covers all headers that were specified
    // by the user on the command line. This is an integrity check to
    // ensure that our used module map is not containing extraneous headers.
