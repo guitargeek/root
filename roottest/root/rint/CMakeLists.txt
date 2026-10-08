@@ -38,6 +38,13 @@ ROOTTEST_ADD_TEST(failedCompilationBadState_2
                   INPUT 6439_2_input.txt
                   FAILREGEX "You are probably missing the definition|Assertion")
 
+# issue 14788: a failed transaction must not prevent later emission of inline
+# functions from the PCH, like libc++'s operator<<(ostream&, char).
+ROOTTEST_ADD_TEST(failedCompilationBadState_4
+                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/driveTabCom.py
+                  INPUT 14788_input.txt
+                  FAILREGEX "You are probably missing the definition|Failed to materialize symbols|Assertion")
+
 # issue 7970: The test disabled since the bug is still there on many platforms
 #ROOTTEST_ADD_TEST(failedCompilationBadState_3
 #                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/driveTabCom.py

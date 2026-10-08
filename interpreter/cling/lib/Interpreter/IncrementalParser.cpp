@@ -560,6 +560,27 @@ namespace cling {
     });
   }
 
+  ///\brief Collect the implicit function instantiations that were instantiated
+  /// in T (or its nested transactions) but are declared in an AST file.
+  static void
+  collectInstantiationsFromASTFile(const Transaction* T,
+                                   llvm::SmallVectorImpl<FunctionDecl*>& FDs) {
+    for (auto I = T->deserialized_decls_begin(),
+              E = T->deserialized_decls_end(); I != E; ++I) {
+      if (I->m_Call != Transaction::kCCIHandleTopLevelDecl)
+        continue;
+      for (Decl* D : I->m_DGR) {
+        auto* FD = dyn_cast<FunctionDecl>(D);
+        if (FD && FD->isFromASTFile() && !FD->isInvalidDecl() &&
+            FD->getTemplateSpecializationKind() == TSK_ImplicitInstantiation &&
+            FD->hasBody())
+          FDs.push_back(FD);
+      }
+    }
+    for (auto I = T->nested_begin(), E = T->nested_end(); I != E; ++I)
+      collectInstantiationsFromASTFile(*I, FDs);
+  }
+
   void IncrementalParser::commitTransaction(ParseResultTransaction& PRT,
                                             bool ClearDiagClient) {
     Transaction* T = PRT.getPointer();
@@ -589,8 +610,10 @@ namespace cling {
     if (T->getIssuedDiags() == Transaction::kErrors) {
       // Make module visible to TransactionUnloader.
       bool MustStartNewModule = false;
+      llvm::SmallVector<FunctionDecl*, 4> InstantiationsFromASTFile;
       if (!T->isNestedTransaction() && hasCodeGenerator()) {
         MustStartNewModule = true;
+        collectInstantiationsFromASTFile(T, InstantiationsFromASTFile);
         std::unique_ptr<llvm::Module> M(getCodeGenerator()->ReleaseModule());
 
         if (M) {
@@ -608,8 +631,15 @@ namespace cling {
       m_Interpreter->unload(*T);
 
       // Create a new module if necessary.
-      if (MustStartNewModule)
+      if (MustStartNewModule) {
         StartModule();
+        // Implicit instantiations of declarations from an AST file are not
+        // unloaded and will not be instantiated again, but DeclCollector did
+        // not pass them to CodeGen because of the errors. Do it now, so that
+        // they are emitted when a later transaction uses them.
+        for (FunctionDecl* FD : InstantiationsFromASTFile)
+          getCodeGenerator()->HandleTopLevelDecl(DeclGroupRef(FD));
+      }
 
       return;
     }

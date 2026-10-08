@@ -1,0 +1,5 @@
+void printChar() { std::cout << 'a' << '\n' }
+void printChar() { std::cout << 'a' << '\n'; }
+printChar()
+.q
+
