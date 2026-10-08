@@ -4306,6 +4306,9 @@ void TBranchElement::ReadLeavesMakeClass(TBuffer& b)
                if (!info) {
                   return;
                }
+               // The read actions might include I/O customization rules that
+               // need the onfile values, which are stored in the data cache.
+               R__PushCache onfileObject(b, fOnfileObject, 1);
                // Since info is not null, fReadActionSequence is not null either.
                b.ApplySequence(*fReadActionSequence, fObject);
             }
@@ -5112,7 +5115,22 @@ void TBranchElement::SetAddressImpl(void* addr, bool implied, Int_t offset)
          } else {
             // Compensate for the fact that the i/o routines
             // will add the streamer offset to the address.
-            fObject = fAddress - info->TStreamerInfo::GetElementOffset(fID);
+            Int_t offset = info->TStreamerInfo::GetElementOffset(fID);
+            TStreamerElement *elem = info->GetElement(fID);
+            if (elem && elem->TestBit(TStreamerElement::kCache) && (fID + 1) < info->GetNelement()) {
+               // The element reads the onfile value into the data cache, so its
+               // offset is relative to the onfile object. The offset of the
+               // member in the in-memory object is the one of the next element
+               // (the repeater or the element used for writing), which is also
+               // the location where I/O customization rules targeting this
+               // member store their result.
+               TStreamerElement *next = info->GetElement(fID + 1);
+               if (next && strcmp(next->GetName(), elem->GetName()) == 0 &&
+                   info->TStreamerInfo::GetElementOffset(fID + 1) != TStreamerInfo::kMissing) {
+                  offset = info->TStreamerInfo::GetElementOffset(fID + 1);
+               }
+            }
+            fObject = fAddress - offset;
          }
          return;
       }

@@ -1,0 +1,10 @@
+Processing execReadMakeClassRule.C...
+fRun (branch) entry 0: 1100
+fRun (branch) entry 1: 1200
+fSrc (branch) entry 0: 10
+fSrc (branch) entry 1: 20
+fRun (tree) entry 0: 1100
+fSrc (tree) entry 0: 10
+fRun (tree) entry 1: 1200
+fSrc (tree) entry 1: 20
+(int) 0
