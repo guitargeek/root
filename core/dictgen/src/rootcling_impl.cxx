@@ -3806,6 +3806,42 @@ static bool CheckModuleValid(TModuleGenerator &modGen, const std::string &resour
       return false;
    }
 
+   // Clang looks up the headers of a module relative to the directory of the
+   // modulemap, not via the include paths. Explain this if a header is not
+   // found, instead of failing later with a cryptic error when writing the
+   // module.
+   //
+   // Clang also adds the missing headers of a submodule to the top-level
+   // module, so collect them first to report each header only once, for the
+   // module that declares it. The submodules are visited after their parent,
+   // so they overwrite the entries of the top-level module.
+   std::map<std::pair<unsigned, std::string>, const clang::Module *> missingHeaders;
+   std::vector<clang::Module *> modulesToCheck{module};
+   while (!modulesToCheck.empty()) {
+      clang::Module *M = modulesToCheck.back();
+      modulesToCheck.pop_back();
+      // Clang skips (sub)modules whose requirements are not met, e.g. a
+      // platform-specific submodule, so missing headers don't matter there.
+      // This also applies to their submodules.
+      if (M->isUnimportable())
+         continue;
+      headerSearch.getModuleMap().resolveHeaderDirectives(M, /*File=*/std::nullopt);
+      for (const auto &header : M->MissingHeaders)
+         missingHeaders[{header.FileNameLoc.getRawEncoding(), header.FileName}] = M;
+      for (clang::Module *subModule : M->submodules())
+         modulesToCheck.push_back(subModule);
+   }
+   for (const auto &entry : missingHeaders) {
+      const clang::Module *M = entry.second;
+      ROOT::TMetaUtils::Error("CheckModuleValid",
+                              "Couldn't find header '%s' of module '%s' in '%s'. Note that the header paths in a "
+                              "modulemap are relative to the directory of the modulemap, not to the include paths.\n",
+                              entry.first.second.c_str(), M->getFullModuleName().c_str(),
+                              M->Directory ? M->Directory->getName().str().c_str() : "");
+   }
+   if (!missingHeaders.empty())
+      return false;
+
    // ROOT finds the library to autoload for a class via the link declaration
    // of the module, so without it the dictionary will never be autoloaded.
    if (module->LinkLibraries.empty()) {

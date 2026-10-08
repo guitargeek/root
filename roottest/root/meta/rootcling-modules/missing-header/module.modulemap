@@ -1,0 +1,5 @@
+module out {
+  header "present.h"
+  header "missing.h"
+  export *
+}

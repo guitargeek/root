@@ -1,0 +1,11 @@
+module out {
+  module present { header "present.h" export * }
+  module missing { header "missing.h" export * }
+  module unavailable {
+    requires unavailable_feature
+    header "unavailable.h"
+    export *
+  }
+  export *
+  link "libout.so"
+}
