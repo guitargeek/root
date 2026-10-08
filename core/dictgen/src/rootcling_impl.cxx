@@ -3412,6 +3412,9 @@ class CheckModuleBuildClient : public clang::DiagnosticConsumer {
    clang::DiagnosticConsumer *fChild;
    bool fOwnsChild;
    clang::ModuleMap &fMap;
+   // Cling resets the error count of the DiagnosticsEngine and of its client
+   // after failed transactions, so we keep our own count.
+   unsigned fNumErrorsSeen = 0;
 
 public:
    CheckModuleBuildClient(clang::DiagnosticConsumer *Child, bool OwnsChild, clang::ModuleMap &Map)
@@ -3425,9 +3428,14 @@ public:
          delete fChild;
    }
 
+   unsigned GetNumErrorsSeen() const { return fNumErrorsSeen; }
+
    void HandleDiagnostic(clang::DiagnosticsEngine::Level DiagLevel, const clang::Diagnostic &Info) override
    {
       using namespace clang::diag;
+
+      if (DiagLevel >= clang::DiagnosticsEngine::Error)
+         ++fNumErrorsSeen;
 
       // This method catches the module_build remark from clang and checks if
       // the implicitly built module is a system module or not. We only support
@@ -5046,6 +5054,20 @@ int RootClingMain(int argc,
 
    // Add the warnings
    rootclingRetCode += ROOT::TMetaUtils::GetNumberOfErrors();
+
+   // Errors from clang, e.g. while writing the C++ module file or while
+   // reading dependent modules, are not counted by TMetaUtils. Make sure we
+   // don't report success if the module was not written or might be broken.
+   if (gOptCxxModule && recordingClient->GetNumErrorsSeen() > 0) {
+      ROOT::TMetaUtils::Error(nullptr, "Errors occurred while generating the C++ module '%s'.\n",
+                              moduleName.str().c_str());
+      rootclingRetCode += 1;
+      // Clang writes the module file to a temporary file, which is only moved
+      // to its final location when the interpreter is destroyed, unless clang
+      // has seen errors. As cling resets the error count, discard it here so
+      // that we don't leave a possibly broken module file behind.
+      CI->clearOutputFiles(/*EraseFiles=*/true);
+   }
 
    // make sure the file is closed before committing
    fileout.close();

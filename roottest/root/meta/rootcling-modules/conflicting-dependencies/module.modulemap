@@ -1,0 +1,3 @@
+module dep1 { header "dep1.h" export * link "libdep1.so" }
+module dep2 { header "dep2.h" export * link "libdep2.so" }
+module user { header "user.h" export * link "libuser.so" }
