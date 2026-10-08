@@ -1,4 +1,5 @@
 if(runtime_cxxmodules)
   add_subdirectory(module-dep-order)
   add_subdirectory(missing-link)
+  add_subdirectory(include-dir)
 endif()

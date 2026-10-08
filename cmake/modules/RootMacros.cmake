@@ -361,6 +361,9 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
     set(excludepaths ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR})
 
     set(headerfiles)
+    # The full paths of the headers, for modulemaps that are not in the
+    # directory the headers are included relative to.
+    set(_headerfile_paths)
     set(_list_of_header_dependencies)
     foreach(fp ${ARG_UNPARSED_ARGUMENTS})
        if(IS_ABSOLUTE ${fp})
@@ -376,12 +379,14 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
           message(FATAL_ERROR "Cannot find header ${fp} to generate dictionary ${dictionary} for. Did you forget to set the INCLUDE_DIRECTORIES property for the current directory?")
        endif()
        list(APPEND headerfiles ${fp})
+       list(APPEND _headerfile_paths ${headerFile})
        list(APPEND _list_of_header_dependencies ${headerFile})
        unset(headerFile CACHE) # find_file, forget headerFile!
     endforeach()
 
     foreach(fp ${ARG_NODEPHEADERS})
       list(APPEND headerfiles ${fp})
+      list(APPEND _headerfile_paths ${fp})
       # no dependency - think "vector" etc.
     endforeach()
 
@@ -426,6 +431,9 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
     # CMake needs dependencies from ${CMAKE_CURRENT_SOURCE_DIR} while rootcling wants
     # header files "as included" (and thus as passed as argument to this CMake function).
     set(headerfiles)
+    # The full paths of the headers, for modulemaps that are not in the
+    # directory the headers are included relative to.
+    set(_headerfile_paths)
     set(_list_of_header_dependencies)
     foreach(fp ${ARG_UNPARSED_ARGUMENTS})
       if(${fp} MATCHES "[*?]") # Is this header a globbing expression?
@@ -435,6 +443,7 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
             set(add_inc_as_include On)
             string(REGEX REPLACE "^${CMAKE_CURRENT_SOURCE_DIR}/inc/" "" f_no_inc ${f})
             list(APPEND headerfiles ${f_no_inc})
+            list(APPEND _headerfile_paths ${f})
             list(APPEND _list_of_header_dependencies ${f})
           endif()
         endforeach()
@@ -476,6 +485,7 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
           message(FATAL_ERROR "Cannot find header ${fp} to generate dictionary ${dictionary} for. Did you forget to set the INCLUDE_DIRECTORIES property for the current directory?")
         endif()
         list(APPEND headerfiles ${fp})
+        list(APPEND _headerfile_paths ${headerFile})
         list(APPEND _list_of_header_dependencies ${headerFile})
         unset(headerFile CACHE) # find_file, forget headerFile!
       endif()
@@ -483,6 +493,7 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
 
     foreach(fp ${ARG_NODEPHEADERS})
       list(APPEND headerfiles ${fp})
+      list(APPEND _headerfile_paths ${fp})
       # no dependency - think "vector" etc.
     endforeach()
 
@@ -914,14 +925,39 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
   # all rest of the first dict is in the PCH but this file is not and it
   # cannot be present in the original dictionary.
   if(cpp_module)
-    ROOT_CXXMODULES_APPEND_TO_MODULEMAP("${cpp_module}" "${headerfiles}")
+    ROOT_CXXMODULES_APPEND_TO_MODULEMAP("${cpp_module}" "${headerfiles}" "${_headerfile_paths}")
   endif()
 endfunction(ROOT_GENERATE_DICTIONARY)
 
 #---------------------------------------------------------------------------------------------------
-#---ROOT_CXXMODULES_APPEND_TO_MODULEMAP( library library_headers )
+#---ROOT_CXXMODULES_APPEND_TO_MODULEMAP( library library_headers [library_header_paths] )
 #---------------------------------------------------------------------------------------------------
+# <library_header_paths> are the full paths of <library_headers>, in the same order.
 function (ROOT_CXXMODULES_APPEND_TO_MODULEMAP library library_headers)
+  set(library_header_paths ${ARGN})
+
+  # Non ROOT projects need a modulemap generated for them in the current
+  # directory. The same happens with test dictionaries in ROOT which are not
+  # exposed via the main modulemap. This is exposed by setting the
+  # ROOT_CXXMODULES_WRITE_TO_CURRENT_DIR.
+  set(write_to_current_dir OFF)
+  if (NOT "${CMAKE_PROJECT_NAME}" STREQUAL ROOT OR ROOT_CXXMODULES_WRITE_TO_CURRENT_DIR)
+    set(write_to_current_dir ON)
+  endif()
+
+  # Clang looks up the headers of a module relative to the directory of the
+  # modulemap, not via the include paths. The headers are passed "as included",
+  # which only works for the main modulemap of ROOT, which is in the include
+  # directory. For the modulemap in the current directory, use the full paths.
+  set(use_header_paths OFF)
+  if (write_to_current_dir AND library_headers)
+    list(LENGTH library_headers n_headers)
+    list(LENGTH library_header_paths n_header_paths)
+    if (n_headers EQUAL n_header_paths)
+      set(use_header_paths ON)
+    endif()
+  endif()
+
   ROOT_FIND_DIRS_WITH_HEADERS(dirs)
 
   set(found_headers "")
@@ -963,7 +999,13 @@ function (ROOT_CXXMODULES_APPEND_TO_MODULEMAP library library_headers)
   if (library_headers)
     set(found_headers ${library_headers})
   endif()
+  set(header_index 0)
   foreach(header ${found_headers})
+    set(header_path "${header}")
+    if (use_header_paths)
+      list(GET library_header_paths ${header_index} header_path)
+    endif()
+    math(EXPR header_index "${header_index} + 1")
     set(textual_header "")
     if (${header} MATCHES ".*\\.icc$")
       set(textual_header "textual ")
@@ -977,16 +1019,12 @@ function (ROOT_CXXMODULES_APPEND_TO_MODULEMAP library library_headers)
       endif()
     endforeach()
     if(NOT is_excluded)
-      set(modulemap_entry "${modulemap_entry}  module \"${header}\" { ${textual_header}header \"${header}\" export * }\n")
+      set(modulemap_entry "${modulemap_entry}  module \"${header}\" { ${textual_header}header \"${header_path}\" export * }\n")
     endif()
   endforeach()
   set(modulemap_entry "${modulemap_entry}  link \"${libprefix}${library}${libsuffix}\"\n")
   set(modulemap_entry "${modulemap_entry}  export *\n}\n\n")
-  # Non ROOT projects need a modulemap generated for them in the current
-  # directory. The same happens with test dictionaries in ROOT which are not
-  # exposed via the main modulemap. This is exposed by setting the
-  # ROOT_CXXMODULES_WRITE_TO_CURRENT_DIR.
-  if (NOT "${CMAKE_PROJECT_NAME}" STREQUAL ROOT OR ROOT_CXXMODULES_WRITE_TO_CURRENT_DIR)
+  if (write_to_current_dir)
     set(modulemap_output_file "${CMAKE_CURRENT_BINARY_DIR}/module.modulemap")
 
     # It's possible that multiple modulemaps are needed in the current
