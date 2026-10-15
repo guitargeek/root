@@ -9,11 +9,13 @@
 #include <RooHelpers.h>
 #include <RooHistPdf.h>
 #include <RooPlot.h>
+#include <RooPolyVar.h>
 #include <RooProduct.h>
 #include <RooProjectedPdf.h>
 #include <RooRealIntegral.h>
 #include <RooRealVar.h>
 #include <RooWorkspace.h>
+#include <RooFit/Evaluator.h>
 
 #include <ROOT/StringUtils.hxx>
 
@@ -530,4 +532,102 @@ TEST(RooRealIntegral, CopyOwnsFactorizedObservables)
    EXPECT_NEAR(ref, 2.0 * 5.0, 1e-8);
    integral.reset();
    EXPECT_DOUBLE_EQ(copy->getVal(), ref);
+}
+
+// Verify that RooRealIntegral::doEval() gives the same results as the scalar
+// getVal() interface in all three operation modes of the integral: purely
+// analytic, numeric (hybrid), and pass-through. Each integral is evaluated
+// both with a batch size of one (the integrand only depends on parameters,
+// like the normalization integral in a regular fit) and with the integrand
+// depending on an observable that is fed to the evaluator as an array (like
+// in a conditional fit).
+TEST(RooRealIntegral, BatchEvaluation)
+{
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+   RooHelpers::HijackMessageStream hijack(RooFit::INFO, RooFit::FastEvaluations);
+
+   RooRealVar x{"x", "x", 2.0, 0.0, 10.0};
+   RooRealVar y{"y", "y", 1.0, 0.5, 3.0};
+   RooRealVar a0{"a0", "a0", 1.5, 0.0, 10.0};
+   RooRealVar a1{"a1", "a1", 0.3, 0.0, 10.0};
+
+   // The slope depends on an observable, so the integral over x depends on y.
+   RooProduct slope{"slope", "slope", {a1, y}};
+
+   // Linear function with an analytic integral over x.
+   RooPolyVar polyAna{"poly_ana", "poly_ana", x, {a0, slope}};
+   // The same linear function, but integrated numerically because
+   // RooGenericPdf doesn't implement analytic integrals.
+   RooGenericPdf polyNum{"poly_num", "poly_num", "a0 + slope * x", {x, a0, slope}};
+   // Function that doesn't depend on y, for the pass-through integral over y.
+   RooPolyVar polyX{"poly_x", "poly_x", x, {a0, a1}};
+
+   std::unique_ptr<RooAbsReal> intAna{polyAna.createIntegral(x)};
+   std::unique_ptr<RooAbsReal> intNum{polyNum.createIntegral(x)};
+   std::unique_ptr<RooAbsReal> intPass{polyX.createIntegral(y)};
+
+   // Make sure that the integrals are in the operation modes that this test
+   // is supposed to cover.
+   auto &intAnaReal = static_cast<RooRealIntegral &>(*intAna);
+   auto &intNumReal = static_cast<RooRealIntegral &>(*intNum);
+   auto &intPassReal = static_cast<RooRealIntegral &>(*intPass);
+   EXPECT_EQ(intAnaReal.anaIntVars().size(), 1);
+   EXPECT_TRUE(intAnaReal.numIntRealVars().empty());
+   EXPECT_TRUE(intNumReal.anaIntVars().empty());
+   EXPECT_EQ(intNumReal.numIntRealVars().size(), 1);
+   EXPECT_TRUE(intPassReal.anaIntVars().empty());
+   EXPECT_TRUE(intPassReal.numIntRealVars().empty());
+   EXPECT_EQ(intPassReal.intVars().size(), 1);
+
+   const std::vector<double> xVals{0.5, 2.0, 3.5, 7.0, 9.5};
+   const std::vector<double> yVals{0.6, 1.0, 1.7, 2.5, 2.9};
+
+   auto checkBatchEvaluation = [](RooAbsReal &integral, RooRealVar &obs, std::vector<double> const &obsVals) {
+      const double obsValOrig = obs.getVal();
+
+      // Reference values from the scalar interface
+      std::vector<double> ref;
+      for (double val : obsVals) {
+         obs.setVal(val);
+         ref.push_back(integral.getVal());
+      }
+      obs.setVal(obsValOrig);
+      const double refScalar = integral.getVal();
+
+      RooFit::Evaluator evaluator{integral};
+
+      // With no array inputs, the integral only depends on scalar values and
+      // should be evaluated only once.
+      {
+         std::span<const double> out = evaluator.run();
+         ASSERT_EQ(out.size(), 1) << integral.GetName();
+         EXPECT_DOUBLE_EQ(out[0], refScalar) << integral.GetName();
+      }
+
+      // Now the observable comes from an array, so the integral needs to be
+      // evaluated for each event.
+      evaluator.setInput(obs.GetName(), obsVals, false);
+      for (int iRun = 0; iRun < 2; ++iRun) {
+         std::span<const double> out = evaluator.run();
+         ASSERT_EQ(out.size(), obsVals.size()) << integral.GetName();
+         for (std::size_t i = 0; i < out.size(); ++i) {
+            EXPECT_DOUBLE_EQ(out[i], ref[i]) << integral.GetName() << ", event " << i << ", run " << iRun;
+         }
+      }
+
+      // The batch evaluation must not have any side effects on the scalar
+      // interface.
+      EXPECT_DOUBLE_EQ(integral.getVal(), refScalar) << integral.GetName();
+   };
+
+   checkBatchEvaluation(*intAna, y, yVals);
+   checkBatchEvaluation(*intNum, y, yVals);
+   checkBatchEvaluation(*intPass, x, xVals);
+
+   // The integral implements the batch evaluation interface, so the generic
+   // advice to implement one must not be printed. Instead, the integral
+   // informs that it's evaluated event by event when it depends on an
+   // observable.
+   EXPECT_EQ(hijack.str().find("does not implement the faster batch"), std::string::npos) << hijack.str();
+   EXPECT_NE(hijack.str().find("evaluated event by event"), std::string::npos) << hijack.str();
 }

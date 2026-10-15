@@ -407,6 +407,8 @@ protected:
   friend class AddCacheElem;
   friend class RooFit::EvalContext;
 
+  void doEvalEventByEvent(RooFit::EvalContext &ctx) const;
+
   // Hook for objects with normalization-dependent parameters interpretation
   virtual void selectNormalization(const RooArgSet* depSet=nullptr, bool force=false) ;
   virtual void selectNormalizationRange(const char* rangeName=nullptr, bool force=false) ;

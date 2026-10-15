@@ -81,8 +81,8 @@ TEST_P(FitTest, AsymptoticallyCorrectErrors)
 // and scalar mode.  It also verifies that for non-conditional fits, the batch
 // mode recognizes that the integral only needs to be evaluated once.  This is
 // checked by hijacking the FastEvaluations log. If a RooRealIntegral is
-// evaluated in batch mode and data size is greater than one, the batch mode
-// will inform that a batched evaluation function is missing.
+// evaluated in batch mode and data size is greater than one, the integral
+// will inform that it is evaluated event by event.
 //
 TEST(RooAbsPdf, ConditionalFitBatchMode)
 {
@@ -172,8 +172,12 @@ TEST(RooAbsPdf, ConditionalFitBatchMode)
       EXPECT_NEAR(factorFinal->getError(), expectedFactorErr[iMean], 1e-3 * expectedFactorErr[iMean])
          << "error mismatch for " << model->GetName();
 
-      EXPECT_EQ(hijack.str().find("does not implement the faster batch") != std::string::npos,
+      EXPECT_EQ(hijack.str().find("evaluated event by event") != std::string::npos,
                 expectFastEvaluationsWarnings[iMean])
+         << "Stream contents: " << hijack.str();
+      // The integral has its own batch evaluation function now, so the generic
+      // advice to implement one must not be printed for it anymore.
+      EXPECT_EQ(hijack.str().find("RooRealIntegral does not implement"), std::string::npos)
          << "Stream contents: " << hijack.str();
       ++iMean;
    }

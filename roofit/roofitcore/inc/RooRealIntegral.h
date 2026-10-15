@@ -98,9 +98,11 @@ protected:
   virtual double sum() const ;
   virtual double integrate() const ;
   virtual double jacobianProduct() const ;
+  double factorizedRangeProduct() const;
 
   // Evaluation and validation implementation
   double evaluate() const override ;
+  void doEval(RooFit::EvalContext &) const override;
   bool isValidReal(double value, bool printError=false) const override ;
 
   bool redirectServersHook(const RooAbsCollection& newServerList,
@@ -142,6 +144,7 @@ protected:
   mutable std::unique_ptr<RooArgSet> _params; ///<! cache for set of parameters
 
   bool _cacheNum = false;           ///< Cache integral if numeric
+  mutable bool _loggedEventByEvent = false; ///<! Whether doEval() already reported the event-by-event evaluation
   static Int_t _cacheAllNDim ; ///<! Cache all integrals with given numeric dimension
 
 private:

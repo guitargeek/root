@@ -43,7 +43,9 @@ integration is performed in the various implementations of the RooAbsIntegrator 
 #include <RooRealBinding.h>
 #include <RooSuperCategory.h>
 #include <RooFitImplHelpers.h>
+#include <RooFit/EvalContext.h>
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
@@ -902,17 +904,7 @@ double RooRealIntegral::evaluate() const
 
 
   // Multiply answer with integration ranges of factorized variables
-    for (const auto arg : _facList) {
-      // Multiply by fit range for 'real' dependents
-      if (auto argLV = dynamic_cast<RooAbsRealLValue *>(arg)) {
-        retVal *= (argLV->getMax(intRange()) - argLV->getMin(intRange())) ;
-      }
-      // Multiply by number of states for category dependents
-      if (auto argLV = dynamic_cast<RooAbsCategoryLValue *>(arg)) {
-        retVal *= argLV->numTypes() ;
-      }
-    }
-
+  retVal *= factorizedRangeProduct();
 
   if (dologD(Tracing)) {
     cxcoutD(Tracing) << "RooRealIntegral::evaluate(" << GetName() << ") anaInt = " << _anaList << " numInt = " << _intList << _sumList << " mode = " ;
@@ -946,6 +938,64 @@ double RooRealIntegral::jacobianProduct() const
   // Take std::abs() here: if jacobian is negative, min and max are swapped and analytical integral
   // will be positive, so must multiply with positive jacobian.
   return std::abs(jacProd) ;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Return the product of the integration ranges of the factorized variables,
+/// i.e. the variables that are integrated over but that the function doesn't
+/// depend on. For category variables, the number of states is used.
+
+double RooRealIntegral::factorizedRangeProduct() const
+{
+   double product(1);
+   for (const auto arg : _facList) {
+      // Multiply by fit range for 'real' dependents
+      if (auto argLV = dynamic_cast<RooAbsRealLValue *>(arg)) {
+         product *= (argLV->getMax(intRange()) - argLV->getMin(intRange()));
+      }
+      // Multiply by number of states for category dependents
+      if (auto argLV = dynamic_cast<RooAbsCategoryLValue *>(arg)) {
+         product *= argLV->numTypes();
+      }
+   }
+   return product;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Evaluate the integral for a batch of inputs.
+///
+/// In pass-through mode, no integration is performed and the output is the
+/// batch of function values, multiplied with the integration ranges of the
+/// factorized variables. Otherwise, the function has to be integrated
+/// separately for each set of input values. The inputs of the integral are the
+/// direct value servers of the integrand that don't depend on the integration
+/// variables. Usually these are parameters, in which case the batch has size
+/// one and the integral is evaluated only once. In conditional fits however,
+/// the integrand depends on other observables, and the integral is then
+/// evaluated event by event with RooAbsReal::doEvalEventByEvent().
+
+void RooRealIntegral::doEval(RooFit::EvalContext &ctx) const
+{
+   std::span<double> output = ctx.output();
+
+   if (_intOperMode != PassThrough) {
+      if (output.size() > 1 && !_loggedEventByEvent) {
+         _loggedEventByEvent = true;
+         coutI(FastEvaluations) << "RooRealIntegral::doEval(" << GetName()
+                                << "): the integrand depends on observables that are not integrated over,"
+                                << " so the integral is evaluated event by event. This can be slow,"
+                                << " in particular if the integral is numeric." << std::endl;
+      }
+      doEvalEventByEvent(ctx);
+      return;
+   }
+
+   std::span<const double> funcVals = ctx.at(_function);
+   const double fac = factorizedRangeProduct();
+
+   for (std::size_t i = 0; i < output.size(); ++i) {
+      output[i] = fac * funcVals[std::min(i, funcVals.size() - 1)];
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

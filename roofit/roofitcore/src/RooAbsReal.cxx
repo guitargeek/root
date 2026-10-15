@@ -4110,11 +4110,44 @@ void RooAbsReal::setParameterizeIntegral(const RooArgSet& paramVars)
   setStringAttribute("CACHEPARAMINT",plist.c_str()) ;
 }
 
-
 /** Base function for computing multiple values of a RooAbsReal.
+
+Classes that don't override this function are evaluated event by event with
+doEvalEventByEvent(), and a message is printed once per class to advise
+implementing the batch evaluation interface.
+
 \param ctx An evaluation context object
 **/
 void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
+{
+   // Advising to implement the batch interface makes only sense if the batch was not a scalar.
+   // Otherwise, there would be no speedup benefit. Warn only once per class, because doEval() is
+   // called for every evaluation of the computation graph, e.g. in every minimizer iteration.
+   if (ctx.output().size() > 1 && RooMsgService::instance().isActive(this, RooFit::FastEvaluations, RooFit::INFO)) {
+      static std::set<std::string> warnedClasses;
+      static std::mutex warnedClassesMutex;
+      std::scoped_lock guard{warnedClassesMutex};
+      if (warnedClasses.insert(ClassName()).second) {
+         coutI(FastEvaluations) << "The class " << ClassName()
+                                << " does not implement the faster batch evaluation interface."
+                                << " Consider requesting or implementing it to benefit from a speed up." << std::endl;
+      }
+   }
+
+   doEvalEventByEvent(ctx);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Evaluate this object event by event with the scalar evaluate() function,
+/// writing the results to the output of the evaluation context. For each
+/// event, the batch values of the value servers are side-loaded into the
+/// scalar computation graph, so this works for any class. This is the fallback
+/// used by doEval() for classes without a batched implementation. Classes
+/// whose evaluation is inherently scalar in some configurations, like
+/// RooRealIntegral, can also call it directly from their own doEval().
+/// \param ctx An evaluation context object
+
+void RooAbsReal::doEvalEventByEvent(RooFit::EvalContext &ctx) const
 {
   std::span<double> output = ctx.output();
 
@@ -4169,21 +4202,6 @@ void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
 
     std::vector<ServerData>& _servers;
   } restoreState{ourServers};
-
-  // Advising to implement the batch interface makes only sense if the batch was not a scalar.
-  // Otherwise, there would be no speedup benefit. Warn only once per class, because doEval() is
-  // called for every evaluation of the computation graph, e.g. in every minimizer iteration.
-  if(output.size() > 1 && RooMsgService::instance().isActive(this, RooFit::FastEvaluations, RooFit::INFO)) {
-     static std::set<std::string> warnedClasses;
-     static std::mutex warnedClassesMutex;
-     std::scoped_lock guard{warnedClassesMutex};
-     if (warnedClasses.insert(ClassName()).second) {
-        coutI(FastEvaluations) << "The class " << ClassName()
-                               << " does not implement the faster batch evaluation interface."
-                               << " Consider requesting or implementing it to benefit from a speed up." << std::endl;
-     }
-  }
-
 
   // For each event, write temporary values into our servers' caches, and run a single-value computation.
 
