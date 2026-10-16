@@ -10,17 +10,17 @@ Build with `-Dclang_repl=ON` (and `-Dclad=OFF`, `-Dcuda=OFF` for now).
 ## Status
 
 Full ctest runs (Linux x86-64, system LLVM 22.1.8 with the bundled clang,
-both builds on master ad94d01ad4f in the same environment): 3609 of 3639
-tests pass with clang-repl (2026-10-06), 3632 of 3639 with cling
-(2026-10-05). 20 tests fail only with clang-repl (the run had 4 more
-failures, timing and network, that pass when rerun):
+both builds on master 4052989f600 in the same environment, 2026-11-06):
+3629 of 3649 tests pass with clang-repl, 3647 of 3649 with cling (15 more
+tests are disabled in this environment: no numba, uhi or tensorflow for
+the free-threaded Python 3.15). 18 tests fail only with clang-repl:
 
 | Tests | Cause |
 | --- | --- |
 | 5 | Redefinition at the prompt (cling's shadowing) |
 | 3 | `MakeProject` |
-| 1 | Implicit declaration of `x = expr` at the prompt |
-| 11 | Single causes (code completion, function bodies, crashes in `foam_demopers` and `multidimfit`, `selectorreader-Classes`, ...) |
+| 0 | Implicit declaration of `x = expr` at the prompt (the one test, `pyroot-numbadeclare`, is disabled in this environment) |
+| 10 | Single causes (code completion, function bodies, crashes in `foam_demopers` and `multidimfit`, `selectorreader-Classes`, ...) |
 
 ## What the layer contains
 
