@@ -47,6 +47,19 @@ namespace RF_ARCH {
 __rooglobal__ void computeAddPdf(Batches &batches)
 {
    const int nPdfs = batches.nExtra;
+#ifdef __CUDACC__
+   // On the GPU, the output array doesn't fit in the caches, so it is summed
+   // up in a single pass to not read and write it once per component.
+   for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+      double sum = 0.0;
+      for (int pdf = 0; pdf < nPdfs; pdf++) {
+         sum += batches.extra[pdf] * batches.args[pdf][i];
+      }
+      batches.output[i] = sum;
+   }
+#else
+   // On the CPU, the events are processed in small chunks that stay in the
+   // cache, and the simple inner loops vectorize.
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       batches.output[i] = batches.extra[0] * batches.args[0][i];
    }
@@ -55,6 +68,7 @@ __rooglobal__ void computeAddPdf(Batches &batches)
          batches.output[i] += batches.extra[pdf] * batches.args[pdf][i];
       }
    }
+#endif
 }
 
 /// Sum of pdfs that are normalized on the fly: for each of the n components,
@@ -526,6 +540,32 @@ __rooglobal__ void computeGamma(Batches &batches)
    Batch B = batches.args[2];
    Batch M = batches.args[3];
    double gamma = -std::lgamma(G[0]);
+
+   if (!G._isVector && !B._isVector && !M._isVector) {
+      // Usual case of scalar parameters: hoist them out of the loop and
+      // compute each event in one pass, with the same sequence of operations
+      // as in the general case below.
+      const double g = G[0];
+      const double b = B[0];
+      const double m = M[0];
+      const double invBeta = 1 / b;
+      for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+         const double x = X[i];
+         if (x == m) {
+            batches.output[i] = int(g == 1.0) / b;
+         } else {
+            double arg = (x - m) * invBeta;
+            double out = gamma;
+            out -= arg;
+            arg = fast_log(arg);
+            out += arg * (g - 1);
+            out = fast_exp(out);
+            batches.output[i] = out * invBeta;
+         }
+      }
+      return;
+   }
+
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       if (X[i] == M[i]) {
          batches.output[i] = int(G[i] == 1.0) / B[i];
@@ -592,6 +632,17 @@ __rooglobal__ void computeGaussian(Batches &batches)
    auto x = batches.args[0];
    auto mean = batches.args[1];
    auto sigma = batches.args[2];
+   if (!mean._isVector && !sigma._isVector) {
+      // Usual case of scalar parameters: the division is done once instead
+      // of once per event.
+      const double meanVal = mean[0];
+      const double halfBySigmaSq = -0.5 / (sigma[0] * sigma[0]);
+      for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+         const double arg = x[i] - meanVal;
+         batches.output[i] = fast_exp(arg * arg * halfBySigmaSq);
+      }
+      return;
+   }
    for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
       const double arg = x[i] - mean[i];
       const double halfBySigmaSq = -0.5 / (sigma[i] * sigma[i]);
