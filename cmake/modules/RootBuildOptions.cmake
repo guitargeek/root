@@ -377,6 +377,12 @@ if (NOT builtin_cling)
   if (builtin_clang OR builtin_llvm)
     message(WARNING "No need to build internal llvm or clang. Consider turning builtin_clang=Off and builtin_llvm=Off")
   endif()
+  if (clad)
+    # clad is built as a plugin of the bundled Cling; an external Cling does
+    # not provide cladPlugin/cladDifferentiator to link into libCling.
+    message(STATUS "Cannot build clad without builtin_cling: clad is disabled.")
+    set(clad OFF)
+  endif()
 endif(NOT builtin_cling)
 
 if(NOT http AND webgui)
