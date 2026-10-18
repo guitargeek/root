@@ -529,6 +529,25 @@ else()
     set(new_libs ${newer_libs})
     set(newer_libs "")
   endwhile()
+
+  # CLING_DEPEND_LIBS is linked from other directories (core/metacling/src,
+  # core/rootcling_stage1). Imported targets are only visible in the directory
+  # that created them and its subdirectories, so the targets that the
+  # find_package() calls above created here -- including those pulled in by
+  # the config files, like zstd::libzstd_shared from LLVMConfig.cmake -- are
+  # unknown there, and CMake refuses to link a "::" name that is not a target
+  # (https://github.com/root-project/root/issues/23696). Promote them to
+  # global scope. Only the creating directory may do that, and the directory
+  # property lists exactly the imported targets created here (CMake >= 3.21;
+  # on 3.20 it is empty, which leaves the previous behaviour).
+  get_property(_imported_here DIRECTORY PROPERTY IMPORTED_TARGETS)
+  foreach(lib ${link_libs})
+    if(lib IN_LIST _imported_here)
+      set_property(TARGET ${lib} PROPERTY IMPORTED_GLOBAL TRUE)
+    endif()
+  endforeach()
+  unset(_imported_here)
+
   set(CLING_DEPEND_LIBS ${link_libs} CACHE STRING "")
 endif(builtin_cling)
 
