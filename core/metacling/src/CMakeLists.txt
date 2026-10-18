@@ -120,12 +120,10 @@ if(NOT builtin_clang)
     ROOT_GET_CLANG_LIBRARIES(clang_libraries)
     list(APPEND prefixed_link_libraries "${clang_libraries}")
   else()
-    foreach(dep ${CLING_DEPEND_LIBS})
-      if("${dep}" MATCHES "^clang")
-        set(dep "${LLVM_LIBRARY_DIR}/${dep}.a")
-      endif()
-      list(APPEND prefixed_link_libraries "${dep}")
-    endforeach()
+    # Link the list as is, like core/rootcling_stage1 does: the names are
+    # imported targets (promoted to global scope in interpreter/CMakeLists.txt),
+    # so CMake knows where each library lives.
+    list(APPEND prefixed_link_libraries ${CLING_DEPEND_LIBS})
   endif()
   set(LINK_LIBS "${prefixed_link_libraries}")
   link_directories("${LLVM_LIBRARY_DIR}")
