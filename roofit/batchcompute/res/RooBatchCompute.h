@@ -80,6 +80,7 @@ enum class Architecture {
 
 enum Computer {
    AddPdf,
+   AddNormalizedPdfs,
    ArgusBG,
    BMixDecay,
    Bernstein,

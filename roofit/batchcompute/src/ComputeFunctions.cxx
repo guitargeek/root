@@ -57,6 +57,140 @@ __rooglobal__ void computeAddPdf(Batches &batches)
    }
 }
 
+/// Sum of pdfs that are normalized on the fly: for each of the n components,
+/// the inputs are the raw pdf values followed, after all pdfs, by the
+/// normalization integral of the component. The extra arguments are the n
+/// coefficients, then n flags that say whether the normalization integral
+/// is a per-event array (1.0) or a scalar (0.0), and then 3 x n output slots
+/// counting the evaluation errors of each component: non-positive
+/// normalization integrals, negative values, and NaN values. For scalar
+/// integrals, the caller already divided the coefficient by the integral, so
+/// no division per event is necessary. Evaluation problems are packed into
+/// NaNs like in RooFit::Detail::normalizeWithNaNPacking(), such that the
+/// minimizer can recover from them.
+namespace {
+
+/// Evaluate one event of computeAddNormalizedPdfs() with all checks. This is
+/// the slow path, taken for events where a component has a problematic value
+/// or when the normalization integrals are not all scalar and positive.
+__roodevice__ inline double addNormalizedPdfsChecked(Batches &batches, int nPdfs, std::size_t i, const double *coefs,
+                                                     const double *perEventNorm, double *errorCounts)
+{
+   double sum = 0.0;
+   double badness = 0.0;
+   double nanValue = 0.0;
+   bool haveNaN = false;
+   for (int pdf = 0; pdf < nPdfs; ++pdf) {
+      const double rawVal = batches.args[pdf][i];
+      const double normVal = batches.args[nPdfs + pdf][i];
+      int errorType = -1;
+      if (normVal < 0. || (normVal == 0. && rawVal != 0.)) {
+         // Unreasonable normalisations. A zero integral can be tolerated if the function vanishes, though.
+         badness += -normVal + (rawVal < 0. ? -rawVal : 0.);
+         errorType = 0;
+      } else if (rawVal < 0.) {
+         badness += -rawVal;
+         errorType = 1;
+      } else if (std::isnan(rawVal)) {
+         // A component that already packed its own evaluation problems
+         // contributes them to the badness of the sum.
+         if (RooNaNPacker::isNaNWithPayload(rawVal)) {
+            badness += RooNaNPacker::unpackNaN(rawVal);
+         } else {
+            if (!haveNaN) {
+               nanValue = rawVal;
+            }
+            haveNaN = true;
+         }
+         errorType = 2;
+      } else if (perEventNorm[pdf] != 0.0) {
+         sum += coefs[pdf] * rawVal / normVal;
+      } else {
+         // The coefficient is zero if the integral is zero, so a vanishing
+         // function is correctly summed as zero.
+         sum += coefs[pdf] * rawVal;
+      }
+      if (errorType >= 0) {
+         // The counters live in memory that is shared between all threads in
+         // the CUDA case, so they need to be accumulated atomically there.
+         // Like for computeNormalizedPdf(), the CPU branch relies on each
+         // thread working on its own copy of the extra arguments in the
+         // multi-threaded evaluation.
+#ifdef __CUDACC__
+         atomicAdd(&errorCounts[errorType * nPdfs + pdf], 1.0);
+#else
+         errorCounts[errorType * nPdfs + pdf] += 1.0;
+#endif
+      }
+   }
+   return badness != 0. ? RooNaNPacker::packFloatIntoNaN(badness) : (haveNaN ? nanValue : sum);
+}
+
+} // namespace
+
+__rooglobal__ void computeAddNormalizedPdfs(Batches &batches)
+{
+   const int nPdfs = batches.nExtra / 5;
+   const double *coefs = batches.extra;
+   const double *perEventNorm = batches.extra + nPdfs;
+   double *errorCounts = batches.extra + 2 * nPdfs;
+
+   // In the usual case, all normalization integrals are scalar and positive.
+   // Then the hot loop only needs to read the raw values and check that
+   // they are not negative or NaN. The decision is the same for all events,
+   // so it is taken outside of the event loop.
+   bool simple = true;
+   for (int pdf = 0; pdf < nPdfs; ++pdf) {
+      simple = simple && perEventNorm[pdf] == 0.0 && batches.args[nPdfs + pdf][0] > 0.;
+   }
+
+   if (!simple) {
+      for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+         batches.output[i] = addNormalizedPdfsChecked(batches, nPdfs, i, coefs, perEventNorm, errorCounts);
+      }
+      return;
+   }
+
+#ifdef __CUDACC__
+   for (size_t i = BEGIN; i < batches.nEvents; i += STEP) {
+      double sum = 0.0;
+      bool anyBad = false;
+      for (int pdf = 0; pdf < nPdfs; ++pdf) {
+         const double rawVal = batches.args[pdf][i];
+         anyBad |= !(rawVal >= 0.); // also catches NaN
+         sum += coefs[pdf] * rawVal;
+      }
+      batches.output[i] = anyBad ? addNormalizedPdfsChecked(batches, nPdfs, i, coefs, perEventNorm, errorCounts) : sum;
+   }
+#else
+   // On the CPU, the components are summed one after the other in simple
+   // inner loops over the events, like in the other compute functions. The
+   // events with problematic values are collected in a mask and evaluated
+   // with all checks afterwards. The compute functions are called with at
+   // most bufferSize events on the CPU, see computeRange() in
+   // RooBatchCompute.cxx, so the mask fits on the stack.
+   bool bad[bufferSize];
+   for (size_t i = 0; i < batches.nEvents; ++i) {
+      bad[i] = false;
+      batches.output[i] = 0.0;
+   }
+   for (int pdf = 0; pdf < nPdfs; ++pdf) {
+      const Batch raw = batches.args[pdf];
+      const double coef = coefs[pdf];
+      for (size_t i = 0; i < batches.nEvents; ++i) {
+         const double rawVal = raw[i];
+         bad[i] |= !(rawVal >= 0.); // also catches NaN
+         batches.output[i] += coef * rawVal;
+      }
+   }
+   for (size_t i = 0; i < batches.nEvents; ++i) {
+      if (bad[i]) {
+         batches.output[i] = addNormalizedPdfsChecked(batches, nPdfs, i, coefs, perEventNorm, errorCounts);
+      }
+   }
+#endif
+}
+
 __rooglobal__ void computeArgusBG(Batches &batches)
 {
    Batch m = batches.args[0];
@@ -927,6 +1061,7 @@ __rooglobal__ void computeVoigtian(Batches &batches)
 std::vector<void (*)(Batches &)> getFunctions()
 {
    return {computeAddPdf,
+           computeAddNormalizedPdfs,
            computeArgusBG,
            computeBMixDecay,
            computeBernstein,

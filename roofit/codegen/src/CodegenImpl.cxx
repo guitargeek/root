@@ -112,9 +112,13 @@ void rooHistTranslateImpl(RooAbsArg const &arg, CodegenContext &ctx, int intOrde
 }
 
 std::string
-realSumPdfTranslateImpl(CodegenContext &ctx, RooArgList const &funcList, RooArgList const &coefList, bool normalize)
+realSumPdfTranslateImpl(CodegenContext &ctx, RooArgList const &funcList, RooArgList const &coefList, bool normalize,
+                        RooArgList const *normIntegrals = nullptr)
 {
    bool noLastCoeff = funcList.size() != coefList.size();
+   // Optionally, each function is divided by its normalization integral (see
+   // RooAddPdf::normIntegrals()).
+   bool hasNormIntegrals = normIntegrals && !normIntegrals->empty();
 
    // Decide the scope from the inputs rather than from the RooRealSumPdf
    // itself: this function is also used for the integral of the sum, whose
@@ -129,10 +133,16 @@ realSumPdfTranslateImpl(CodegenContext &ctx, RooArgList const &funcList, RooArgL
    for (RooAbsArg const *coef : coefList) {
       scopeIndependent = scopeIndependent && ctx.isScopeIndependent(coef);
    }
+   if (hasNormIntegrals) {
+      for (RooAbsArg const *integral : *normIntegrals) {
+         scopeIndependent = scopeIndependent && ctx.isScopeIndependent(integral);
+      }
+   }
    auto addCode = [&](std::string const &code) { ctx.addToCodeBody(code, scopeIndependent); };
 
    std::string const &funcName = ctx.buildArg(funcList);
    std::string const &coeffName = ctx.buildArg(coefList);
+   std::string const normName = hasNormIntegrals ? ctx.buildArg(*normIntegrals) : "";
    std::string const &coeffSize = std::to_string(coefList.size());
 
    std::string sum = ctx.getTmpVarName();
@@ -142,13 +152,15 @@ realSumPdfTranslateImpl(CodegenContext &ctx, RooArgList const &funcList, RooArgL
    std::string iterator = "i_" + ctx.getTmpVarName();
    std::string subscriptExpr = "[" + iterator + "]";
 
+   std::string normExpr = hasNormIntegrals ? " / " + normName + subscriptExpr : "";
    std::string code = "for(int " + iterator + " = 0; " + iterator + " < " + coeffSize + "; " + iterator + "++) {\n" +
-                      sum + " += " + funcName + subscriptExpr + " * " + coeffName + subscriptExpr + ";\n";
+                      sum + " += " + funcName + subscriptExpr + normExpr + " * " + coeffName + subscriptExpr + ";\n";
    code += coeffSum + " += " + coeffName + subscriptExpr + ";\n";
    code += "}\n";
 
    if (noLastCoeff) {
-      code += sum + " += " + funcName + "[" + coeffSize + "]" + " * (1 - " + coeffSum + ");\n";
+      std::string lastNormExpr = hasNormIntegrals ? " / " + normName + "[" + coeffSize + "]" : "";
+      code += sum + " += " + funcName + "[" + coeffSize + "]" + lastNormExpr + " * (1 - " + coeffSum + ");\n";
    } else if (normalize) {
       code += sum + " /= " + coeffSum + ";\n";
    }
@@ -264,7 +276,7 @@ void codegenImpl(RooAbsArg &arg, CodegenContext &ctx)
 
 void codegenImpl(RooAddPdf &arg, CodegenContext &ctx)
 {
-   ctx.addResult(&arg, realSumPdfTranslateImpl(ctx, arg.pdfList(), arg.coefList(), true));
+   ctx.addResult(&arg, realSumPdfTranslateImpl(ctx, arg.pdfList(), arg.coefList(), true, &arg.normIntegrals()));
 }
 
 void codegenImpl(RooMultiVarGaussian &arg, CodegenContext &ctx)

@@ -70,6 +70,11 @@ public:
     // Return list of component p.d.fs
     return _pdfList ;
   }
+  /// Normalization integrals of the component pdfs when their normalization
+  /// is folded into this object, which happens in compileForNormSet(). Empty
+  /// otherwise.
+  const RooArgList& normIntegrals() const { return _normIntegrals; }
+
   const RooArgList& coefList() const {
     // Return list of coefficients of component p.d.f.s
     return _coefList ;
@@ -125,6 +130,8 @@ public:
 
   RooListProxy _pdfList ;   ///<  List of component PDFs
   RooListProxy _coefList ;  ///<  List of coefficients
+  RooListProxy _normIntegrals ; ///< Normalization integrals of the components (only set in compiled objects)
+  mutable std::vector<double> _batchExtraArgs; ///<! Extra arguments of the batch evaluation, also carrying the evaluation error counts
   mutable RooArgList* _snormList{nullptr};  ///<!  List of supplemental normalization factors
 
   bool _haveLastCoef = false;  ///<  Flag indicating if last PDFs coefficient was supplied in the constructor
@@ -142,8 +149,10 @@ private:
 
   void finalizeConstruction();
   void materializeRefCoefNormFromAttribute() const;
+  void foldNormalizationIntegrals();
+  void logBatchEvalErrors(std::vector<RooAbsPdf const *> const &pdfs) const;
 
-  ClassDefOverride(RooAddPdf,5) // PDF representing a sum of PDFs
+  ClassDefOverride(RooAddPdf,6) // PDF representing a sum of PDFs
 };
 
 #endif

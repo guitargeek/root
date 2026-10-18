@@ -80,6 +80,7 @@ An (enforced) condition for this assumption is that each \f$ \mathrm{PDF}_i \f$ 
 #include <RooRealSumPdf.h>
 #include <RooRealVar.h>
 #include <RooRecursiveFraction.h>
+#include <RooFit/Detail/RooNormalizedPdf.h>
 
 #include "RooAddHelpers.h"
 #include "RooFitImplHelpers.h"
@@ -102,6 +103,7 @@ RooAddPdf::RooAddPdf(const char *name, const char *title) :
   _projCacheMgr(this,10),
   _pdfList("!pdfs","List of PDFs",this),
   _coefList("!coefficients","List of coefficients",this),
+  _normIntegrals("!normIntegrals","Normalization integrals of the component PDFs",this),
   _coefErrCount{_errorCount}
 {
 }
@@ -294,6 +296,7 @@ RooAddPdf::RooAddPdf(const RooAddPdf &other, const char *name)
      _codeReg(other._codeReg),
      _pdfList("!pdfs", this, other._pdfList),
      _coefList("!coefficients", this, other._coefList),
+     _normIntegrals("!normIntegrals", this, other._normIntegrals),
      _haveLastCoef(other._haveLastCoef),
      _allExtendable(other._allExtendable),
      _recursive(other._recursive),
@@ -575,22 +578,135 @@ void RooAddPdf::doEval(RooFit::EvalContext & ctx) const
     _coefCache[i] = coefVals[0];
   }
 
-  std::vector<std::span<const double>> pdfs;
-  std::vector<double> coefs;
   AddCacheElem* cache = getProjCache(nullptr);
   RooAddHelpers::updateCoefficients(*this, _pdfList.size(), _coefCache, _haveLastCoef || _allExtendable, *cache,
                                     _coefErrCount);
 
-  for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo)
-  {
+  // Only the selected components contribute, see RooAbsReal::selectComp().
+  std::vector<RooAbsPdf const *> selectedPdfs;
+  std::vector<std::size_t> selectedIndices;
+  for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo) {
     auto pdf = static_cast<RooAbsPdf*>(&_pdfList[pdfNo]);
-    if (pdf->isSelectedComp())
-    {
-      pdfs.push_back(ctx.at(pdf));
-      coefs.push_back(_coefCache[pdfNo] / cache->suppNormVal(pdfNo) );
+    if (pdf->isSelectedComp()) {
+      selectedPdfs.push_back(pdf);
+      selectedIndices.push_back(pdfNo);
     }
   }
-  RooBatchCompute::compute(config, RooBatchCompute::AddPdf, output, pdfs, coefs);
+  const std::size_t nSelected = selectedPdfs.size();
+
+  // The compute function takes the raw values of the components followed by
+  // their normalization integrals, see foldNormalizationIntegrals(). A
+  // component whose normalization is not folded into this object (or any
+  // component if the object was not compiled) is already normalized, which
+  // is expressed with a unit integral. The buffer with the ones is as long
+  // as the CPU backend expects for a scalar input.
+  static const std::vector<double> ones(RooBatchCompute::bufferSize, 1.0);
+  std::vector<std::span<const double>> vars;
+  vars.reserve(2 * nSelected);
+  std::vector<std::span<const double>> normVars;
+  normVars.reserve(nSelected);
+  // The extra arguments are the coefficients, flags for per-event
+  // normalization integrals, and the evaluation error counters that the
+  // compute function fills. They are a member because the CUDA backend
+  // delivers the counters asynchronously, see below.
+  _batchExtraArgs.assign(5 * nSelected, 0.0);
+  for (std::size_t k = 0; k < nSelected; ++k) {
+    const std::size_t pdfNo = selectedIndices[k];
+    vars.push_back(ctx.at(selectedPdfs[k]));
+    double coef = _coefCache[pdfNo] / cache->suppNormVal(pdfNo);
+    if (_normIntegrals.empty()) {
+      normVars.push_back({ones.data(), 1});
+    } else {
+      std::span<const double> normVals = ctx.at(&_normIntegrals[pdfNo]);
+      if (normVals.size() == 1) {
+        // Scalar normalization integrals are applied to the coefficient here
+        // instead of to every event. The integral still goes to the compute
+        // function for the checks on the normalization. A vanishing function
+        // with a zero integral evaluates to zero, like in
+        // RooFit::Detail::normalizeWithNaNPacking(), hence the zero
+        // coefficient in that case.
+        const double normVal = normVals[0];
+        coef = normVal != 0.0 ? coef / normVal : 0.0;
+      } else {
+        // Per-event normalization integrals, e.g. for conditional pdfs,
+        // are applied in the compute function.
+        _batchExtraArgs[nSelected + k] = 1.0;
+      }
+      normVars.push_back(normVals);
+    }
+    _batchExtraArgs[k] = coef;
+  }
+  vars.insert(vars.end(), normVars.begin(), normVars.end());
+
+  RooBatchCompute::compute(config, RooBatchCompute::AddNormalizedPdfs, output, vars, _batchExtraArgs);
+
+  if (config.useCuda()) {
+    // In CUDA mode, the evaluation error counters are read back from the GPU
+    // without synchronizing the stream: they only arrive in _batchExtraArgs
+    // with the synchronization at the end of the evaluation of the full
+    // computation graph, so the logging has to be deferred until then.
+    ctx.deferAction([this, selectedPdfs] { logBatchEvalErrors(selectedPdfs); });
+  } else {
+    logBatchEvalErrors(selectedPdfs);
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Log the evaluation errors that the compute function counted in
+/// RooAddPdf::doEval() on the component pdfs, with the same messages as
+/// RooFit::Detail::normalizeWithNaNPacking().
+void RooAddPdf::logBatchEvalErrors(std::vector<RooAbsPdf const *> const &pdfs) const
+{
+  const std::size_t n = pdfs.size();
+  const char *messages[3] = {"p.d.f normalization integral is zero or negative",
+                             "p.d.f value is less than zero, trying to recover", "p.d.f value is Not-a-Number"};
+  for (std::size_t type = 0; type < 3; ++type) {
+    for (std::size_t k = 0; k < n; ++k) {
+      const std::size_t count = _batchExtraArgs[(2 + type) * n + k];
+      for (std::size_t j = 0; j < count; ++j) {
+        pdfs[k]->logEvalError(messages[type]);
+      }
+    }
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Fold the normalization of the component pdfs into this RooAddPdf.
+///
+/// After CompileContext::compileServers(), every component that is not
+/// self-normalized is a RooFit::Detail::RooNormalizedPdf, which divides the
+/// values of the original pdf by its normalization integral in a separate
+/// pass over the data. Here, the component list is rewired to the original
+/// pdfs and the integrals are collected in `_normIntegrals`, such that
+/// doEval() can apply the scalar integrals to the coefficients instead.
+/// Components that are not normalized this way get a unit integral. The
+/// RooNormalizedPdf objects stay alive as owned components, but they are not
+/// part of the computation graph anymore. Only meant to be called on
+/// compiled objects in compileForNormSet().
+void RooAddPdf::foldNormalizationIntegrals()
+{
+  RooArgList pdfs;
+  RooArgList integrals;
+  bool anyFolded = false;
+  for (RooAbsArg *pdf : _pdfList) {
+    if (auto *normPdf = dynamic_cast<RooFit::Detail::RooNormalizedPdf *>(pdf)) {
+      pdfs.add(const_cast<RooAbsPdf &>(normPdf->pdf()));
+      integrals.add(const_cast<RooAbsReal &>(normPdf->normIntegral()));
+      anyFolded = true;
+    } else {
+      pdfs.add(*pdf);
+      integrals.add(RooRealConstant::value(1.0));
+    }
+  }
+  if (!anyFolded) {
+    return;
+  }
+  _pdfList.removeAll();
+  _pdfList.add(pdfs);
+  _normIntegrals.removeAll();
+  _normIntegrals.add(integrals);
 }
 
 
@@ -1040,6 +1156,7 @@ RooAddPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileCo
    // a conditional pdf and we don't need to do any transformation.
    if (_refCoefNorm.empty() || normSet.equals(_refCoefNorm)) {
       ctx.compileServers(*newArg, normSet);
+      newArg->foldNormalizationIntegrals();
       return newArg;
    }
 
@@ -1070,6 +1187,7 @@ RooAddPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileCo
    ctx.markAsCompiled(*denom);
    ctx.markAsCompiled(*finalArg);
    ctx.compileServers(*newArg, _refCoefNorm);
+   newArg->foldNormalizationIntegrals();
    finalArg->addOwnedComponents(std::move(newArg));
    finalArg->addOwnedComponents(std::move(denom));
    return finalArg;
