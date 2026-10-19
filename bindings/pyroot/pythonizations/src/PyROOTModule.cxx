@@ -102,16 +102,23 @@ PyObject *PyObjRefCounterAsStdAny(PyObject * /*self*/, PyObject *args)
 namespace {
 
 /// Turns a ROOT warning into a Python warning, see ROOT::Internal::SetWarningHandler().
+///
+/// This handler must never return with the Python error indicator set. It is
+/// called from arbitrary C++ that has already done its work and cannot unwind,
+/// and there is nothing to propagate an exception to: a left-over exception
+/// surfaces later as a "returned a result with an exception set" SystemError
+/// that blames an unrelated call. That means a warning turned into an error
+/// (`-W error`) cannot be made fatal here; it is declined, and ROOT prints it.
 bool WarningHandler(const char *location, const char *msg)
 {
    PyGILState_STATE state = PyGILState_Ensure();
-   // Python code can't run while an exception is pending, e.g. a previous
-   // warning turned into an error: decline, and ROOT prints the warning.
+   // An exception is already in flight: ROOT emits warnings from destructors
+   // and other cleanup code that can run while a Python error propagates, and
+   // PyErr_WarnExplicit() would clobber it.
    bool handled = !PyErr_Occurred();
-   if (handled) {
-      // Prints or, per the warnings filters, raises: the exception stays
-      // pending until the call into C++ returns to Python.
-      PyErr_WarnExplicit(nullptr, msg, location, 0, "ROOT", nullptr);
+   if (handled && PyErr_WarnExplicit(nullptr, msg, location, 0, "ROOT", nullptr) < 0) {
+      PyErr_Clear();
+      handled = false;
    }
    PyGILState_Release(state);
    return handled;
