@@ -2038,18 +2038,28 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
                      // yields mean the expected events over the full
                      // observable range, and the expected events in the fit
                      // range are obtained by scaling with the fraction of
-                     // the channel pdf inside the (possibly split) range.
-                     // The fraction is a ratio of two integrals over the
-                     // channel pdf, instead of a single normalized integral
-                     // over the fit range: the ratio is invariant under any
-                     // rescaling of the integrand, so it stays correct when
-                     // the graph compilation redirects the integrals to the
-                     // compiled channel pdf, which is normalized over the
-                     // fit range.
+                     // the pdf inside the (possibly split) range. The
+                     // fraction is a ratio of two integrals over the pdf,
+                     // instead of a single normalized integral over the fit
+                     // range: the ratio is invariant under any rescaling of
+                     // the integrand, so it stays correct when the graph
+                     // compilation redirects the integrals to the compiled
+                     // pdf, which is normalized over the fit range.
+                     //
+                     // The integrals are taken over the pdf that carries the
+                     // extension, and not over the channel pdf that may wrap
+                     // it in RooProdPdfs, like RooAddPdf::createExpectedEventsFunc()
+                     // does for its components: a RooProdPdf short-circuits
+                     // the normalized integral over all of its own
+                     // observables to one, regardless of its normalization
+                     // range, so a ratio over the product would collapse to
+                     // one after the compilation (GitHub issue #23444).
+                     RooArgSet coreObs;
+                     extendCore->getObservables(&normSet, coreObs);
                      std::unique_ptr<RooAbsReal> rawYield{channelPdf->createExpectedEventsFunc(&channelObs)};
                      std::unique_ptr<RooAbsReal> intRange{
-                        channelPdf->createIntegral(channelObs, channelObs, channelRange.c_str())};
-                     std::unique_ptr<RooAbsReal> intFull{channelPdf->createIntegral(channelObs, channelObs)};
+                        extendCore->createIntegral(coreObs, coreObs, channelRange.c_str())};
+                     std::unique_ptr<RooAbsReal> intFull{extendCore->createIntegral(coreObs, coreObs)};
                      std::string fracName = baseName + "_mixtureRangeFrac";
                      auto frac = std::make_unique<RooRatio>(fracName.c_str(), fracName.c_str(), *intRange, *intFull);
                      frac->addOwnedComponents(std::move(intRange));
