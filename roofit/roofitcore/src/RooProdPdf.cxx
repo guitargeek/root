@@ -750,8 +750,8 @@ std::unique_ptr<RooProdPdf::CacheElem> RooProdPdf::createCacheElem(const RooArgS
           cache->_normList.emplace_back(std::make_unique<RooArgSet>());
           norm->snapshot(*cache->_normList.back(), false);
 
-          cache->_numList.addOwned(std::move(func.x1));
-          cache->_denList.addOwned(std::move(func.x2));
+          if (func.x1) cache->_numList.addOwned(std::move(func.x1));
+          if (func.x2) cache->_denList.addOwned(std::move(func.x2));
         }
       } else {
         RooArgSet compTermSet;
@@ -779,8 +779,8 @@ std::unique_ptr<RooProdPdf::CacheElem> RooProdPdf::createCacheElem(const RooArgS
      if (func.isOwned) cache->_ownedList.addOwned(std::unique_ptr<RooAbsArg>{func.x0});
      compTermNorm.add(*norm, false);
 
-     compTermNum.add(*func.x1.release());
-     compTermDen.add(*func.x2.release());
+     if (func.x1) compTermNum.add(*func.x1.release());
+     if (func.x2) compTermDen.add(*func.x2.release());
 
    }
       }
@@ -800,30 +800,35 @@ std::unique_ptr<RooProdPdf::CacheElem> RooProdPdf::createCacheElem(const RooArgS
 
       cache->_partList.add(*inttmp);
 
-      // Product of numerator terms
-      const string prodname_num = makeRGPPName("SPECPROD_NUM", compTermNum, RooArgSet(), RooArgSet(), nullptr);
-      auto prodtmp_num = std::make_unique<RooProduct>(prodname_num.c_str(), prodname_num.c_str(), compTermNum);
-      prodtmp_num->addOwnedComponents(compTermNum);
-
-      // Product of denominator terms
-      const string prodname_den = makeRGPPName("SPECPROD_DEN", compTermDen, RooArgSet(), RooArgSet(), nullptr);
-      auto prodtmp_den = std::make_unique<RooProduct>(prodname_den.c_str(), prodname_den.c_str(), compTermDen);
-      prodtmp_den->addOwnedComponents(compTermDen);
-
-      // Ratio
-      std::string name = Form("SPEC_RATIO(%s,%s)", prodname_num.c_str(), prodname_den.c_str());
-      auto ndr = std::make_unique<RooFormulaVar>(name.c_str(), "@0/@1", RooArgList(*prodtmp_num, *prodtmp_den));
-
-      // Integral of ratio
-      std::unique_ptr<RooAbsReal> numtmp{ndr->createIntegral(outerIntDeps,isetRangeName)};
-      numtmp->addOwnedComponents(std::move(ndr));
-
       cache->_ownedList.addOwned(std::move(prodtmp));
       cache->_ownedList.addOwned(std::move(inttmp));
-      cache->_ownedList.addOwned(std::move(prodtmp_num));
-      cache->_ownedList.addOwned(std::move(prodtmp_den));
-      cache->_numList.addOwned(std::move(numtmp));
-      cache->_denList.addOwned(std::unique_ptr<RooAbsArg>{static_cast<RooAbsArg*>(RooFit::RooConst(1).clone("1"))});
+
+      // Split mode results, only consumed by rearrangeProduct() (see
+      // processProductTerm())
+      if (_normRange.Contains(",")) {
+        // Product of numerator terms
+        const string prodname_num = makeRGPPName("SPECPROD_NUM", compTermNum, RooArgSet(), RooArgSet(), nullptr);
+        auto prodtmp_num = std::make_unique<RooProduct>(prodname_num.c_str(), prodname_num.c_str(), compTermNum);
+        prodtmp_num->addOwnedComponents(compTermNum);
+
+        // Product of denominator terms
+        const string prodname_den = makeRGPPName("SPECPROD_DEN", compTermDen, RooArgSet(), RooArgSet(), nullptr);
+        auto prodtmp_den = std::make_unique<RooProduct>(prodname_den.c_str(), prodname_den.c_str(), compTermDen);
+        prodtmp_den->addOwnedComponents(compTermDen);
+
+        // Ratio
+        std::string name = Form("SPEC_RATIO(%s,%s)", prodname_num.c_str(), prodname_den.c_str());
+        auto ndr = std::make_unique<RooFormulaVar>(name.c_str(), "@0/@1", RooArgList(*prodtmp_num, *prodtmp_den));
+
+        // Integral of ratio
+        std::unique_ptr<RooAbsReal> numtmp{ndr->createIntegral(outerIntDeps,isetRangeName)};
+        numtmp->addOwnedComponents(std::move(ndr));
+
+        cache->_ownedList.addOwned(std::move(prodtmp_num));
+        cache->_ownedList.addOwned(std::move(prodtmp_den));
+        cache->_numList.addOwned(std::move(numtmp));
+        cache->_denList.addOwned(std::unique_ptr<RooAbsArg>{static_cast<RooAbsArg*>(RooFit::RooConst(1).clone("1"))});
+      }
       cache->_normList.emplace_back(std::make_unique<RooArgSet>());
       compTermNorm.snapshot(*cache->_normList.back(), false);
     }
@@ -1209,6 +1214,15 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
 {
   ProcessProductTermOutput ret;
 
+  // The "split mode" results x1 and x2 (the unnormalized integral of the term
+  // and its normalization integral) are only consumed by rearrangeProduct(),
+  // which is only used for a normalization range composed of several named
+  // ranges. Don't build them otherwise: besides being wasted work, they can
+  // not even be built in general, e.g. the normalization integral of a term
+  // without normalization observables but with a multi-range normalization
+  // range (which happens if this product is a factor in another product).
+  const bool needSplitResults = _normRange.Contains(",");
+
   // CASE I: factorizing term: term is integrated over all normalizing observables
   // -----------------------------------------------------------------------------
   // Check if all observbales of this term are integrated. If so the term cancels
@@ -1239,8 +1253,10 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
       ret.isOwned=true ;
 
       // Split mode results
-      ret.x1 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termISet,isetRangeName)};
-      ret.x2 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termNSet,normRange())};
+      if (needSplitResults) {
+        ret.x1 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termISet,isetRangeName)};
+        ret.x2 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termNSet,normRange())};
+      }
 
       return ret ;
 
@@ -1257,13 +1273,15 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
 
       ret.isOwned=true ;
 
-      const std::string name1 = makeRGPPName("PROD",*term,RooArgSet(),RooArgSet(),nullptr) ;
+      if (needSplitResults) {
+        const std::string name1 = makeRGPPName("PROD",*term,RooArgSet(),RooArgSet(),nullptr) ;
 
-      // WVE FIX THIS
-      RooProduct* tmp_prod = new RooProduct(name1.c_str(),name1.c_str(),*term) ;
+        // WVE FIX THIS
+        RooProduct* tmp_prod = new RooProduct(name1.c_str(),name1.c_str(),*term) ;
 
-      ret.x1 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termISet,isetRangeName)};
-      ret.x2 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termNSet,normRange())};
+        ret.x1 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termISet,isetRangeName)};
+        ret.x2 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termNSet,normRange())};
+      }
 
       return ret ;
     }
@@ -1283,13 +1301,15 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
 
     ret.isOwned=true ;
 
-    const std::string name1 = makeRGPPName("PROD",*term,RooArgSet(),RooArgSet(),nullptr) ;
+    if (needSplitResults) {
+      const std::string name1 = makeRGPPName("PROD",*term,RooArgSet(),RooArgSet(),nullptr) ;
 
-    // WVE FIX THIS
-    RooProduct* tmp_prod = new RooProduct(name1.c_str(),name1.c_str(),*term) ;
+      // WVE FIX THIS
+      RooProduct* tmp_prod = new RooProduct(name1.c_str(),name1.c_str(),*term) ;
 
-    ret.x1 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termISet,isetRangeName)};
-    ret.x2 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termNSet,normRange())};
+      ret.x1 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termISet,isetRangeName)};
+      ret.x2 = std::unique_ptr<RooAbsReal>{tmp_prod->createIntegral(termNSet,normRange())};
+    }
 
     return ret ;
   }
@@ -1311,8 +1331,10 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
 
     ret0->setStringAttribute("PROD_TERM_TYPE","IVb") ;
     ret.x0 = ret0;
-    ret.x1 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(RooArgSet())};
-    ret.x2 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termNSet,normRange())};
+    if (needSplitResults) {
+      ret.x1 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(RooArgSet())};
+      ret.x2 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termNSet,normRange())};
+    }
     return ret;
   }
 
