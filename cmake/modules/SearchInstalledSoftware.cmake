@@ -5,14 +5,40 @@
 # For the list of contributors see $ROOTSYS/README/CREDITS.
 
 #----------------------------------------------------------------------------
+# function ROOT_PROBE_CONNECTION()
+# Try to download a file to check internet connection, and record the result in
+# the global property ROOT_NO_CONNECTION (TRUE if there is no connection).
+#----------------------------------------------------------------------------
+function(ROOT_PROBE_CONNECTION)
+  message(STATUS "Checking internet connectivity")
+  file(DOWNLOAD https://root.cern/files/cmake_connectivity_test.txt ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt
+    TIMEOUT 10 STATUS DOWNLOAD_STATUS
+  )
+  # Get the status code from the download status
+  list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+  # Check if download was successful.
+  if(${STATUS_CODE} EQUAL 0)
+    # Success
+    message(STATUS "Checking internet connectivity - found")
+    # Now let's delete the file
+    file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt)
+    set_property(GLOBAL PROPERTY ROOT_NO_CONNECTION FALSE)
+  else()
+    set_property(GLOBAL PROPERTY ROOT_NO_CONNECTION TRUE)
+  endif()
+endfunction()
+
+#----------------------------------------------------------------------------
 # macro ROOT_CHECK_CONNECTION(option)
 # Try to download a file to check internet connection.
-# If fail-on-missing=ON is set, a failed connection check will cause a fatal
-# configuration error.
+# A failed connection check is reported at the end of the configuration by
+# ROOT_CHECK_BUILTIN_DOWNLOADS (RootExternalProject.cmake), which fails if
+# enabled builtins still need to download archives.
 # Input variables:
 #    option:
-#        A hint to the user on which option to set to avoid the part of the
-#        configuration that requested the connection check.
+#        Unused, kept for the existing call sites. It used to be a hint to
+#        the user on which option to set to avoid the connection check; the
+#        report at the end of the configuration now names the options.
 # Output variables:
 #    NO_CONNECTION:
 #        This variable is set based on the result of the connection check:
@@ -23,6 +49,11 @@
 # Note: if ROOT_DOWNLOAD_DIR already contains archives, the check is skipped:
 #       the archives of the builtins are taken from there, so the build is
 #       expected to work without network access (see RootBuildOptions.cmake).
+#       ROOT_CHECK_BUILTIN_DOWNLOADS verifies them at the end of the
+#       configuration, and checks the connection then if some are missing.
+# Note: with fail-on-missing=ON nothing is disabled on a failed check, so that
+#       the list of archives reported at the end of the configuration is
+#       complete; otherwise the callers disable their options.
 #----------------------------------------------------------------------------
 macro(ROOT_CHECK_CONNECTION option)
   # Do something only if connection check is not already done
@@ -38,26 +69,15 @@ macro(ROOT_CHECK_CONNECTION option)
       # connection
       set(NO_CONNECTION FALSE)
     else()
-      message(STATUS "Checking internet connectivity")
-      file(DOWNLOAD https://root.cern/files/cmake_connectivity_test.txt ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt
-        TIMEOUT 10 STATUS DOWNLOAD_STATUS
-      )
-      # Get the status code from the download status
-      list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
-      # Check if download was successful.
-      if(${STATUS_CODE} EQUAL 0)
-        # Success
-        message(STATUS "Checking internet connectivity - found")
-        # Now let's delete the file
-        file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/cmake_connectivity_test.txt)
-        set(NO_CONNECTION FALSE)
-      else()
-        # Error
+      ROOT_PROBE_CONNECTION()
+      get_property(NO_CONNECTION GLOBAL PROPERTY ROOT_NO_CONNECTION)
+      if(NO_CONNECTION)
         if(fail-on-missing)
-          message(FATAL_ERROR "No internet connection. Please check your connection, set '-D${option}' or disable 'fail-on-missing' to automatically disable options requiring internet access. You can also bypass the connection check with -Dcheck_connection=OFF.")
+          message(STATUS "Checking internet connectivity - failed: the configuration will stop at its end with the list of archives that the enabled builtins need.")
+          set(NO_CONNECTION FALSE)
+        else()
+          message(STATUS "Checking internet connectivity - failed: will not automatically download external dependencies. You can bypass the connection check with -Dcheck_connection=OFF.")
         endif()
-        message(STATUS "Checking internet connectivity - failed: will not automatically download external dependencies. You can bypass the connection check with -Dcheck_connection=OFF.")
-        set(NO_CONNECTION TRUE)
       endif()
     endif()
     unset(_root_downloaded_archives)
@@ -66,14 +86,17 @@ endmacro()
 
 #----------------------------------------------------------------------------
 # macro ROOT_CHECK_CONNECTION_AND_DISABLE_OPTION(option_name)
-# Check internet connection. If no connection, either disable the option or
-# stop the configuration with a FATAL_ERROR in case of fail-on-missing=ON.
+# Check internet connection. If no connection, disable the option (unless
+# fail-on-missing=ON, in which case the configuration stops at its end, see
+# ROOT_CHECK_CONNECTION). Options disabled this way are recorded in the global
+# property ROOT_OPTIONS_DISABLED_OFFLINE for ROOT_CHECK_BUILTIN_DOWNLOADS.
 #----------------------------------------------------------------------------
 macro(ROOT_CHECK_CONNECTION_AND_DISABLE_OPTION option_name)
   ROOT_CHECK_CONNECTION("${option_name}=OFF")
   if(NO_CONNECTION)
     message(STATUS "No internet connection, disabling '${option_name}' option")
     set(${option_name} OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
+    set_property(GLOBAL APPEND PROPERTY ROOT_OPTIONS_DISABLED_OFFLINE ${option_name})
   endif()
 endmacro()
 
@@ -870,6 +893,7 @@ if(builtin_tbb)
     message(STATUS "No internet connection, disabling 'builtin_tbb' and 'imt' options")
     set(builtin_tbb OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
     set(imt OFF CACHE BOOL "Disabled because 'builtin_tbb' was set but there is no internet connection" FORCE)
+    set_property(GLOBAL APPEND PROPERTY ROOT_OPTIONS_DISABLED_OFFLINE builtin_tbb imt)
   endif()
 endif()
 
@@ -1080,6 +1104,7 @@ if (testing OR testsupport)
       set(testing OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
       set(testsupport OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
       set(builtin_gtest OFF CACHE BOOL "Disabled because there is no internet connection" FORCE)
+      set_property(GLOBAL APPEND PROPERTY ROOT_OPTIONS_DISABLED_OFFLINE testing testsupport builtin_gtest)
     else()
       add_subdirectory(builtins/gtest)
     endif()

@@ -37,7 +37,7 @@ else()
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
 endif()
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
     BUILTIN_LZMA
     DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
     URL ${lcgpackages}/xz-${ROOT_LZMA_VERSION}.tar.gz

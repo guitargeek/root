@@ -202,8 +202,9 @@ option(_wheel_build "ROOT is being packaged as a wheel, do not install .dist-inf
 set(gcctoolchain "" CACHE PATH "Set path to GCC toolchain used to build llvm/clang")
 
 # The source archives of the builtin_* options are downloaded during the build,
-# into ROOT_DOWNLOAD_DIR: it is passed as DOWNLOAD_DIR to the ExternalProject_Add
-# call of each archive builtin. An archive that is already there, named as on
+# into ROOT_DOWNLOAD_DIR: it is passed as DOWNLOAD_DIR to the
+# ROOT_EXTERNALPROJECT_ADD call of each archive builtin (see
+# RootExternalProject.cmake). An archive that is already there, named as on
 # the CERN mirror (${lcgpackages}/<archive>, the first URL listed by each
 # builtin), is checked against URL_HASH and not downloaded again. This allows to
 # build ROOT without network access: point ROOT_DOWNLOAD_DIR to a directory with

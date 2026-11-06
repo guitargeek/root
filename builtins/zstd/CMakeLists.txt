@@ -34,7 +34,7 @@ if(MSVC)
     endif()
 endif()
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
     BUILTIN_ZSTD
     DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
     URL ${lcgpackages}/zstd-${ROOT_ZSTD_VERSION}.tar.gz

@@ -32,7 +32,7 @@ ROOT_BUILTIN_PATCH_COMMAND(CFITSIO_PATCH_COMMAND
                                    ${CMAKE_CURRENT_SOURCE_DIR}/no-fortran-wrapper.diff
                            GIT_APPLY_ARGS ${patch_args})
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
   BUILTIN_CFITSIO
   PREFIX ${CFITSIO_PREFIX}
   DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}

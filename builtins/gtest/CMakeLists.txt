@@ -49,7 +49,7 @@ endif()
 
 set(ROOT_GOOGLETEST_VERSION 1.17.0) # https://github.com/google/googletest/releases/tag/v1.17.0 Date: Apr 30, 2025
 set(ROOT_GOOGLETEST_HASH "65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c")
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
   googletest
   # GIT_REPOSITORY https://github.com/google/googletest.git
   # GIT_SHALLOW 1

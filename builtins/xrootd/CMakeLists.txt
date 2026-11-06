@@ -26,7 +26,7 @@ else()
   set(rpath_origin "$ORIGIN")
 endif()
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
     BUILTIN_XROOTD
     DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
     URL ${lcgpackages}/xrootd-${ROOT_XROOTD_VERSION}.tar.gz

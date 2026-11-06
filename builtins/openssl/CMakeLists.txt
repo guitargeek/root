@@ -37,7 +37,7 @@ else()
   set(OPENSSL_CONFIG_CMD ./config)
 endif()
 
-ExternalProject_Add(BUILTIN_OPENSSL
+ROOT_EXTERNALPROJECT_ADD(BUILTIN_OPENSSL
   DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
   URL ${lcgpackages}/openssl-${ROOT_OPENSSL_VERSION}.tar.gz
       https://github.com/openssl/openssl/releases/download/openssl-${ROOT_OPENSSL_VERSION}/openssl-${ROOT_OPENSSL_VERSION}.tar.gz

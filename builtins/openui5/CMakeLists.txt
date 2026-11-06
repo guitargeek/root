@@ -1,7 +1,7 @@
 set(OPENUI5_VERSION "1.152.0")
 set(OPENUI5_HASH "4882023d4760ed4c20602e36dd183b02a538fc7e8bbfda607b6e25bd1cbbcdb1")
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
     BUILTIN_OPENUI5
     DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
     URL ${lcgpackages}/openui5-runtime-${OPENUI5_VERSION}.zip

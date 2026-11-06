@@ -27,7 +27,7 @@ if(tbb_build)
   set(TBB_EXTRA_BUILD_ARGS --config ${tbb_build})
 endif()
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
   BUILTIN_TBB
   DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
   URL ${lcgpackages}/oneTBB-${ROOT_TBB_VERSION}.tar.gz

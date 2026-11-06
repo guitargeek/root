@@ -9,7 +9,7 @@ if(CMAKE_OSX_SYSROOT)
   set(_gsl_cppflags "-isysroot ${CMAKE_OSX_SYSROOT}")
   set(_gsl_ldflags  "-isysroot ${CMAKE_OSX_SYSROOT}")
 endif()
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
   BUILTIN_GSL
   PREFIX ${ROOT_GSL_PREFIX}
   DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}

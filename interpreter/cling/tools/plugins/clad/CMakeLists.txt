@@ -105,15 +105,19 @@ elseif(CLAD_GIT_TAG)
        GIT_TAG ${CLAD_GIT_TAG}
        UPDATE_COMMAND "")
   set(_clad_restore_cmd COMMAND git checkout -q <SOURCE_DIR>)
+  # Cloned from git, not available through ROOT_DOWNLOAD_DIR
+  ROOT_REGISTER_NETWORK_ONLY_BUILTIN(clad)
 else()
   # The CERN mirror of the GitHub release archive, then GitHub itself, as for
-  # the other builtins.
+  # the other builtins (see cmake/modules/RootExternalProject.cmake).
   list(APPEND _clad_extra_settings
        DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
        URL ${lcgpackages}/clad-${ROOT_CLAD_VERSION}.tar.gz
            https://github.com/vgvassilev/clad/archive/refs/tags/v${ROOT_CLAD_VERSION}.tar.gz
        URL_HASH SHA256=${ROOT_CLAD_HASH})
   set(_clad_restore_cmd COMMAND git init -q)
+  # Only this variant downloads an archive and can be side-loaded via ROOT_DOWNLOAD_DIR
+  set(_clad_add_command ROOT_EXTERNALPROJECT_ADD)
 endif()
 
 # list(APPEND _clad_patches_list "patch1.patch" "patch2.patch")
@@ -130,7 +134,10 @@ if (_clad_patches_list AND NOT DEFINED CLAD_SOURCE_DIR)
       )
 endif(_clad_patches_list AND NOT DEFINED CLAD_SOURCE_DIR)
 
-ExternalProject_Add(
+if(NOT _clad_add_command)
+  set(_clad_add_command ExternalProject_Add)
+endif()
+cmake_language(CALL ${_clad_add_command}
   clad
   PATCH_COMMAND ${_clad_patch_command}
   CMAKE_ARGS -G ${CMAKE_GENERATOR}

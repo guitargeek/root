@@ -96,7 +96,7 @@ string(REGEX REPLACE "[ ;]" "|" ZLIB_LIBRARIES_ALT "${ZLIB_LIBRARIES}")
 string(REGEX REPLACE "[ ;]" "|" ZLIB_INCLUDE_DIRS_ALT "${ZLIB_INCLUDE_DIRS}")
 
 
-ExternalProject_Add(BUILTIN_CIVETWEB
+ROOT_EXTERNALPROJECT_ADD(BUILTIN_CIVETWEB
   PREFIX ${ROOT_CIVETWEB_PREFIX}
 
   #  ------- tarball of 588860e3 commit, see Readme.md how to build it ------

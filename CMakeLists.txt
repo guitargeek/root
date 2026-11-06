@@ -136,6 +136,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 include(CheckCompiler)
 include(RootBuildOptions)
 include(RootMacros)
+include(RootExternalProject)
 include(CheckAssembler)
 include(CheckIntrinsics)
 

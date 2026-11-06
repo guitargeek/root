@@ -3,6 +3,8 @@ message(STATUS "Building AdaptiveCpp for SYCL support.")
 include(FetchContent)
 
 if(NOT DEFINED ADAPTIVE_CPP_SOURCE_DIR)
+  # Cloned from git at configure time, not available through ROOT_DOWNLOAD_DIR.
+  ROOT_REGISTER_NETWORK_ONLY_BUILTIN(experimental_adaptivecpp)
   FetchContent_Declare(
     AdaptiveCpp
     GIT_REPOSITORY https://github.com/root-project/AdaptiveCpp.git

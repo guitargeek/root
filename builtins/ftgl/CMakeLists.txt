@@ -50,7 +50,7 @@ if(WIN32)
   endif()
 endif()
 
-ExternalProject_Add(BUILTIN_FTGL
+ROOT_EXTERNALPROJECT_ADD(BUILTIN_FTGL
   PREFIX ${ROOT_FTGL_PREFIX}
   DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
   URL ${lcgpackages}/ftgl-${ROOT_FTGL_VERSION}.tar.gz

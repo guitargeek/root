@@ -48,7 +48,7 @@ if("${CMAKE_GENERATOR}" STREQUAL "Ninja")
   )
 endif()
 
-ExternalProject_Add(BUILTIN_PCRE
+ROOT_EXTERNALPROJECT_ADD(BUILTIN_PCRE
   DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
   URL ${lcgpackages}/pcre2-${ROOT_PCRE2_VERSION}.tar.bz2
       https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${ROOT_PCRE2_VERSION}/pcre2-${ROOT_PCRE2_VERSION}.tar.bz2

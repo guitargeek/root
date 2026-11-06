@@ -30,7 +30,7 @@ if(MSVC)
     endif()
 endif()
 
-ExternalProject_Add(
+ROOT_EXTERNALPROJECT_ADD(
     BUILTIN_LZ4
     DOWNLOAD_DIR ${ROOT_DOWNLOAD_DIR}
     URL ${lcgpackages}/lz4-${ROOT_LZ4_VERSION}.tar.gz
