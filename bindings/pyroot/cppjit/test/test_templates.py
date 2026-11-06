@@ -1472,6 +1472,58 @@ class TestTEMPLATES:
         assert "errpath::Buf" in msg
         assert "<unnamed>" not in msg
 
+    def test41_namespaces_in_template_arguments(self):
+        """Instantiated templates need to retain namespaces of their arguments"""
+
+        import cppjit
+        std = cppjit.gbl.std
+
+        cppjit.cppdef("""\
+        namespace NSRetention {
+        struct StructA {};
+        namespace Inner {
+            struct StructB {};
+        } }""")
+
+        ns = cppjit.gbl.NSRetention
+
+        p = std.pair(std.vector(ns.StructA), std.vector(ns.Inner.StructB))()
+        assert "vector<NSRetention::StructA>"        in type(p.first).__name__
+        assert "vector<NSRetention::Inner::StructB>" in type(p.second).__name__
+
+    def test42_builtin_array_template_argument(self):
+        """Usage of a template instantiated with a builtin array type"""
+
+      # https://its.cern.ch/jira/browse/ROOT-6023
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace ArrayTemplateArg {
+        template <class T>
+        struct C {
+            C() {}
+            T& value() { return data; }
+            T data;
+        };
+
+        C<std::string[2]> instance() {
+            C<std::string[2]> c;
+            c.data[0] = "aap";
+            c.data[1] = "noot";
+            return c;
+        } }""")
+
+        c = cppjit.gbl.ArrayTemplateArg.instance()
+
+      # both accesses used to fail at the type-lookup level
+        a = c.data
+        assert a[0] == "aap"
+        assert a[1] == "noot"
+
+        b = c.value()
+        assert b is not None
+
 
 @mark.skipif((IS_MAC and IS_CLING), reason="setup class fails with OS X cling")
 class TestTEMPLATED_TYPEDEFS:

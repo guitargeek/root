@@ -475,3 +475,37 @@ class TestOVERLOADS:
         assert constness("static_fn") == {
             "static int OverloadConstness::Probe::static_fn(int x)": False
         }
+
+    def test18_ambiguous_overload_selects_by_priority(self):
+        """Selection in a scenario that would be ambiguous in C++
+
+        The overload with the highest priority in the overload resolution is
+        called (it would be nicer to raise an error in this kind of scenario,
+        but this test documents the current, stable, behavior).
+        """
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace AmbiguousOverload {
+            class A {};
+            class B: public A {};
+            class C: public B {};
+
+            class X {};
+            class Y: public X {};
+            class Z: public Y {};
+
+            int myfunc(const B &b, const Z &z){
+                return 1;
+            }
+
+            int myfunc(const C &c, const X &x){
+                return 2;
+            }
+        }""")
+
+        ns = cppjit.gbl.AmbiguousOverload
+
+      # calling myfunc(C(), Z()) in C++ gives: call to 'myfunc' is ambiguous
+        assert ns.myfunc(ns.C(), ns.Z()) == 1

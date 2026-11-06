@@ -1921,3 +1921,31 @@ class TestCROSSINHERITANCE:
         class MyUIntDerivedClass(cppjit.gbl.MyUIntBaseClass):
             def give_unsigned_int(self):
                 return 1
+
+    def test40_mixed_python_cpp_bases(self):
+        """Multiple inheritance from Python classes and a C++ class"""
+
+        import cppjit
+
+        class PurePy1:
+            def foo(self): return 1
+
+        class PurePy2:
+            def bar(self): return 2
+
+        cppjit.cppdef("""\
+        namespace MixedBases {
+        class MyCppClass {
+        public:
+            int foo() { return 3; }
+            int bar() { return 4; }
+            virtual ~MyCppClass() {}
+        }; }""")
+
+        # multiple Python classes and just one C++ class are supported
+        class PyDerived(PurePy1, cppjit.gbl.MixedBases.MyCppClass, PurePy2):
+            pass
+
+        x = PyDerived()
+        assert x.foo() == 1   # PurePy1's foo
+        assert x.bar() == 4   # MyCppClass's bar
