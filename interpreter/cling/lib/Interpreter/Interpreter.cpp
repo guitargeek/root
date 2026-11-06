@@ -114,10 +114,21 @@ namespace cling {
   void Interpreter::PushTransactionRAII::pop() const {
     if (m_Transaction->getState() == Transaction::kRolledBack)
       return;
+    // Query this before ending the transaction: an empty one is released to
+    // the transaction pool by endTransaction().
+    const bool isNested = m_Transaction->isNestedTransaction();
     IncrementalParser::ParseResultTransaction PRT
       = m_Interpreter->m_IncrParser->endTransaction(m_Transaction);
     if (PRT.getPointer()) {
       assert(PRT.getPointer()==m_Transaction && "Ended different transaction?");
+      m_Interpreter->m_IncrParser->commitTransaction(PRT);
+    } else if (!isNested) {
+      // The transaction was empty, e.g. because synthesizing code (like a
+      // template instantiation) failed without producing any declaration.
+      // Committing the empty result resets the diagnostics if errors were
+      // issued; otherwise they would make the next unrelated transaction fail.
+      // Nested transactions must not do this, as the errors might belong to
+      // the enclosing transaction, which resets them when it is committed.
       m_Interpreter->m_IncrParser->commitTransaction(PRT);
     }
   }
