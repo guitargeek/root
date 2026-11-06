@@ -792,6 +792,48 @@ class TestFRAGILE:
         with raises(ReferenceError, match=r"^no C\+\+ object available$"):
             gbl.nothing.check(0, 1)  # raises error
 
+    def test33_lazy_namespace_functions(self):
+        """Lazy lookup of late created functions in a namespace"""
+
+        import cppjit
+
+        cppjit.cppdef('namespace lazy_ns_test1 {}')
+        cppjit.cppdef(
+            'namespace lazy_ns_test1 { class LazyA {}; int lazy_f() { return 32; } }')
+
+        assert cppjit.gbl.lazy_ns_test1.LazyA()
+        assert cppjit.gbl.lazy_ns_test1.lazy_f() == 32
+
+    def test34_lazy_namespace_overloaded_functions(self):
+        """Lazy lookup of late created overloaded functions in a namespace"""
+
+        import cppjit
+
+        cppjit.cppdef('namespace lazy_ns_test2 {}')
+        cppjit.cppdef(
+            'namespace lazy_ns_test2 { class LazyA {}; \
+             int lazy_f(int n) { return 32*n; } \
+             int lazy_f() { return 32; } }')
+
+        assert cppjit.gbl.lazy_ns_test2.LazyA()
+        assert cppjit.gbl.lazy_ns_test2.lazy_f(2) == 64
+        assert cppjit.gbl.lazy_ns_test2.lazy_f()  == 32
+
+        cppjit.cppdef(
+            'namespace lazy_ns_test2 { \
+             int lazy_g(const std::string&) { return 42; } \
+             int lazy_g() { return 13; } }')
+
+        assert cppjit.gbl.lazy_ns_test2.lazy_g('') == 42
+        assert cppjit.gbl.lazy_ns_test2.lazy_g()   == 13
+
+    def test35_meta_class_attribute_lookup(self):
+        """Direct access on the meta class should raise AttributeError"""
+
+        import cppjit
+
+        raises(AttributeError, getattr, cppjit.gbl.fragile.A.__class__, "nosuch")
+
 
 class TestSIGNALS:
     def setup_class(cls):

@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 import py
-from pytest import mark, raises, skip
+from pytest import importorskip, mark, raises, skip
 from support import IS_CLANG_REPL, IS_MAC, IS_WINDOWS, pylong, pyunicode, setup_make
 
 currpath = py.path.local(__file__).dirpath()
@@ -3001,6 +3001,24 @@ class TestDATATYPES:
                 ns.sum_span_d,
                 np.array([1 + 2j, 3 + 4j], dtype=np.complex128),
             )
+
+    def test59_wrap_buffer_with_numpy_array(self):
+        """Wrap a buffer return with a NumPy array"""
+
+        np = importorskip("numpy")
+
+        import cppjit
+
+        c = cppjit.gbl.CppjitTestData()
+        N = cppjit.gbl.N
+
+        arr = c.get_double_array()
+        np_arr = np.frombuffer(arr, 'f8', N)
+        assert len(np_arr) == N
+
+        val = 1.0
+        arr[N-1] = val
+        assert arr[N-1] == np_arr[N-1] == val
 
 
 class TestANONENUM:

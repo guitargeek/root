@@ -325,3 +325,26 @@ class TestClassPYTHONIZATION:
 if __name__ == "__main__":
     result = run_pytest(__file__)  # noqa: F821
     sys.exit(result)
+
+    def test11_namespaced_class_with_iterators(self):
+        """Iterator pythonization of a class with iterators in a namespace"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace NSWithIterators {
+        class MyClass {
+        public:
+            MyClass() {}
+
+            class iterator {
+            public:
+                iterator() {}
+            };
+
+            iterator begin() { return iterator(); }
+            iterator end()   { return iterator(); }
+        }; }""")
+
+        # class proxy creation (with iterator pythonization) should not fail
+        assert cppjit.gbl.NSWithIterators.MyClass

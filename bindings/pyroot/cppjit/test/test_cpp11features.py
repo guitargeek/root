@@ -695,3 +695,55 @@ class TestCPP11FEATURES:
             gbl.pass_val_overloaded(gbl.create_unique_ptr_to_derived())
             == "PubDerivedTestSmartPtr"
         )
+
+    def test22_smart_ptr_overload_and_rvalue_ref(self):
+        """Implicit smart pointer conversion should not shadow an rvalue overload
+
+        With both a unique_ptr and an rvalue reference overload available, the
+        smart pointer overload should not be chosen by accident
+        (https://github.com/root-project/root/issues/15117).
+        """
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace SmartPtrVsRValue {
+
+        struct Base {
+            virtual ~Base() = default;
+            virtual int func() const = 0;
+        };
+
+        struct Derived : public Base {
+            Derived(int i) : m_i(i) {}
+            ~Derived() = default;
+            Derived(const Derived&) = delete;
+            Derived& operator=(const Derived&) = delete;
+            Derived(Derived&&) = default;
+            Derived& operator=(Derived&&) = default;
+
+            int func() const final { return m_i; }
+
+        private:
+            int m_i{42};
+        };
+
+        int foo(std::unique_ptr<Base> basePtr)
+        {
+            return 1;
+        }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_base_of_v<Base, T> && !std::is_lvalue_reference_v<T>>>
+        int foo(T&& t)
+        {
+            return 2;
+        }
+
+        } // namespace SmartPtrVsRValue
+        """)
+
+        ns = cppjit.gbl.SmartPtrVsRValue
+
+        c = ns.Derived(123)
+        assert ns.foo(cppjit.gbl.std.move(c)) == 2   # expect the rvalue overload
