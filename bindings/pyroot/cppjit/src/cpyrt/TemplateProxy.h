@@ -40,6 +40,7 @@ public:
 
   TP_DispatchMap_t fDispatchMap;
   PyObject* fDoc;
+  bool fIsCreator; // '__creates__', propagated to all (future) overloads
 };
 
 typedef std::shared_ptr<TemplateInfo> TP_TInfo_t;

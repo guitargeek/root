@@ -432,6 +432,42 @@ class TestClassPYTHONIZATION:
         with raises(TypeError):
             ns.incomplete(1, PrintLevel=2)
 
+    def test12_creates_flag_template(self):
+        """Creates flag of template methods applies to all overloads"""
+
+        import gc
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace creates_template {
+        struct Counted {
+          static int sInstances;
+          Counted() { ++sInstances; }
+          ~Counted() { --sInstances; }
+        };
+        int Counted::sInstances = 0;
+        struct Factory {
+          template <class T>
+          Counted* make(T) { return new Counted; }
+          Counted* make() { return new Counted; }
+        };
+        }""")
+
+        ns = cppjit.gbl.creates_template
+
+        assert not ns.Factory.make.__creates__
+        ns.Factory.make.__creates__ = True
+        assert ns.Factory.make.__creates__
+
+        f = ns.Factory()
+        for args in [(), (1,), (1.0,)]:
+            c = f.make(*args)
+            assert ns.Counted.sInstances == 1
+            del c
+            gc.collect()
+            assert ns.Counted.sInstances == 0
+
 
 ## actual test run
 if __name__ == "__main__":

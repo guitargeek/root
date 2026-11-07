@@ -27,7 +27,7 @@ static inline std::string targs2str(TemplateProxy* pytmpl) {
 //----------------------------------------------------------------------------
 TemplateInfo::TemplateInfo()
     : fPyClass(nullptr), fNonTemplated(nullptr), fTemplated(nullptr),
-      fLowPriority(nullptr), fDoc(nullptr) {
+      fLowPriority(nullptr), fDoc(nullptr), fIsCreator(false) {
   /* empty */
 }
 
@@ -374,6 +374,9 @@ PyObject* TemplateProxy::Instantiate(const std::string& fname,
       Py_DECREF(pyol);
       pyol = (PyObject*)CPPOverload_New(fname, meth);
     }
+
+    if (fTI->fIsCreator && CPPOverload_Check(pyol))
+      ((CPPOverload*)pyol)->fMethodInfo->fFlags |= CallContext::kIsCreator;
 
     // Special Case if name was aliased (e.g. typedef in template instantiation)
     if (!exact && !bExactMatch) {
@@ -838,6 +841,33 @@ static int tpp_setuseffi(CPPOverload*, PyObject*, void*) {
 }
 
 //-----------------------------------------------------------------------------
+static PyObject* tpp_getcreates(TemplateProxy* self, void*) {
+  // Get '__creates__' boolean, which determines ownership of return values.
+  return PyLong_FromLong((long)self->fTI->fIsCreator);
+}
+
+//-----------------------------------------------------------------------------
+static int tpp_setcreates(TemplateProxy* self, PyObject* value, void*) {
+  // Set '__creates__' boolean on all overloads, including later instantiations.
+  long istrue = value ? PyLong_AsLong(value) : 0;
+  if (istrue == -1 && PyErr_Occurred()) {
+    PyErr_Format(PyExc_ValueError,
+                 "a boolean 1 or 0 is required for __creates__");
+    return -1;
+  }
+
+  self->fTI->fIsCreator = istrue;
+  for (CPPOverload* ol : {self->fTI->fNonTemplated, self->fTI->fTemplated,
+                          self->fTI->fLowPriority}) {
+    if (istrue)
+      ol->fMethodInfo->fFlags |= CallContext::kIsCreator;
+    else
+      ol->fMethodInfo->fFlags &= ~CallContext::kIsCreator;
+  }
+  return 0;
+}
+
+//-----------------------------------------------------------------------------
 static PyObject* tpp_gettemplateargs(TemplateProxy* self, void*) {
   if (!self->fTemplateArgs) {
     Py_RETURN_NONE;
@@ -861,6 +891,8 @@ static PyGetSetDef tpp_getset[] = {
     {(char*)"__doc__", (getter)tpp_doc, (setter)tpp_doc_set, nullptr, nullptr},
     {(char*)"__useffi__", (getter)tpp_getuseffi, (setter)tpp_setuseffi,
      (char*)"unused", nullptr},
+    {(char*)"__creates__", (getter)tpp_getcreates, (setter)tpp_setcreates,
+     (char*)"if true, returned objects are owned by Python", nullptr},
     {(char*)"__template_args__", (getter)tpp_gettemplateargs,
      (setter)tpp_settemplateargs,
      (char*)"the template arguments for this method", nullptr},
