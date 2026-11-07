@@ -17,6 +17,7 @@
 #define ROO_MSG_SERVICE
 
 #include <RooCmdArg.h>
+#include <RooFit/Kwargs.h>
 #include <RooGlobalFunc.h>
 
 #include <TObject.h>
@@ -155,8 +156,38 @@ public:
   static bool anyDebug() ;
 
   // User interface -- Add or delete reporting streams ;
+  /// Keyword arguments for RooMsgService::addStream().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct AddStreamKwargs {
+     RooFit::Detail::Kwarg::BaseClassName BaseClassName;
+     RooFit::Detail::Kwarg::ClassName ClassName;
+     RooFit::Detail::Kwarg::Color Color;
+     RooFit::Detail::Kwarg::ObjectName ObjectName;
+     RooFit::Detail::Kwarg::OutputFile OutputFile;
+     RooFit::Detail::Kwarg::OutputStream OutputStream;
+     RooFit::Detail::Kwarg::Prefix Prefix;
+     RooFit::Detail::Kwarg::TagName TagName;
+     RooFit::Detail::Kwarg::Topic Topic;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&BaseClassName, &ClassName, &Color, &ObjectName, &OutputFile, &OutputStream, &Prefix, &TagName,
+                &Topic};
+        // clang-format on
+     }
+  };
+
   Int_t addStream(RooFit::MsgLevel level, const RooCmdArg& arg1={}, const RooCmdArg& arg2={}, const RooCmdArg& arg3={},
                           const RooCmdArg& arg4={}, const RooCmdArg& arg5={}, const RooCmdArg& arg6={});
+  Int_t addStream(RooFit::MsgLevel level, AddStreamKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                  const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                  const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<6>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6},
+                                             "RooMsgService::addStream()");
+     return addStream(level, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5]);
+  }
   void deleteStream(Int_t id) ;
   StreamConfig& getStream(Int_t id) { return _streams[id] ; }
 

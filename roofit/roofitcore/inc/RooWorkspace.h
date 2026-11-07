@@ -20,6 +20,7 @@
 #include "RooArgSet.h"
 #include "RooLinkedList.h"
 #include "RooCmdArg.h"
+#include "RooFit/Kwargs.h"
 #include "RooExpensiveObjectCache.h"
 #include "TUUID.h"
 #include <map>
@@ -57,22 +58,118 @@ public:
   bool importClassCode(TClass* theClass, bool doReplace=false) ;
 
   // Import functions for dataset, functions, generic objects
+  /// Keyword arguments for RooWorkspace::import() of RooAbsArg and RooArgSet.
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct ImportKwargs {
+     RooFit::Detail::Kwarg::NoRecursion NoRecursion;
+     RooFit::Detail::Kwarg::RecycleConflictNodes RecycleConflictNodes;
+     RooFit::Detail::Kwarg::RenameAllNodes RenameAllNodes;
+     RooFit::Detail::Kwarg::RenameAllVariables RenameAllVariables;
+     RooFit::Detail::Kwarg::RenameAllVariablesExcept RenameAllVariablesExcept;
+     RooFit::Detail::Kwarg::RenameConflictNodes RenameConflictNodes;
+     RooFit::Detail::Kwarg::RenameVariable RenameVariable;
+     RooFit::Detail::Kwarg::Silence Silence;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&NoRecursion, &RecycleConflictNodes, &RenameAllNodes, &RenameAllVariables, &RenameAllVariablesExcept,
+                &RenameConflictNodes, &RenameVariable, &Silence};
+        // clang-format on
+     }
+  };
+
+  /// Keyword arguments for RooWorkspace::import() of RooAbsData.
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct ImportDataKwargs {
+     RooFit::Detail::Kwarg::Embedded Embedded;
+     RooFit::Detail::Kwarg::Rename Rename;
+     RooFit::Detail::Kwarg::RenameVariable RenameVariable;
+     RooFit::Detail::Kwarg::Silence Silence;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&Embedded, &Rename, &RenameVariable, &Silence};
+        // clang-format on
+     }
+  };
+
+  /// Keyword arguments for RooWorkspace::import() from a file.
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct ImportFileKwargs {
+     RooFit::Detail::Kwarg::Embedded Embedded;
+     RooFit::Detail::Kwarg::NoRecursion NoRecursion;
+     RooFit::Detail::Kwarg::RecycleConflictNodes RecycleConflictNodes;
+     RooFit::Detail::Kwarg::Rename Rename;
+     RooFit::Detail::Kwarg::RenameAllNodes RenameAllNodes;
+     RooFit::Detail::Kwarg::RenameAllVariables RenameAllVariables;
+     RooFit::Detail::Kwarg::RenameAllVariablesExcept RenameAllVariablesExcept;
+     RooFit::Detail::Kwarg::RenameConflictNodes RenameConflictNodes;
+     RooFit::Detail::Kwarg::RenameVariable RenameVariable;
+     RooFit::Detail::Kwarg::Silence Silence;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&Embedded, &NoRecursion, &RecycleConflictNodes, &Rename, &RenameAllNodes, &RenameAllVariables,
+                &RenameAllVariablesExcept, &RenameConflictNodes, &RenameVariable, &Silence};
+        // clang-format on
+     }
+  };
+
   bool import(const RooAbsArg& arg,
       const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={},
       const RooCmdArg& arg4={},const RooCmdArg& arg5={},const RooCmdArg& arg6={},
       const RooCmdArg& arg7={},const RooCmdArg& arg8={},const RooCmdArg& arg9={}) ;
+  bool import(const RooAbsArg &arg, ImportKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+              const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+              const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {},
+              const RooCmdArg &arg9 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<9>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8, &arg9},
+                                             "RooWorkspace::import()");
+     return import(arg, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7], *a[8]);
+  }
   bool import(const RooArgSet& args,
       const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={},
       const RooCmdArg& arg4={},const RooCmdArg& arg5={},const RooCmdArg& arg6={},
       const RooCmdArg& arg7={},const RooCmdArg& arg8={},const RooCmdArg& arg9={}) ;
+  bool import(const RooArgSet &args, ImportKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+              const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+              const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {},
+              const RooCmdArg &arg9 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<9>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8, &arg9},
+                                             "RooWorkspace::import()");
+     return import(args, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7], *a[8]);
+  }
   bool import(RooAbsData const& data,
       const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={},
       const RooCmdArg& arg4={},const RooCmdArg& arg5={},const RooCmdArg& arg6={},
       const RooCmdArg& arg7={},const RooCmdArg& arg8={},const RooCmdArg& arg9={}) ;
+  bool import(RooAbsData const &data, ImportDataKwargs const &kwargs, const RooCmdArg &arg1 = {},
+              const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+              const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+              const RooCmdArg &arg8 = {}, const RooCmdArg &arg9 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<9>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8, &arg9},
+                                             "RooWorkspace::import()");
+     return import(data, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7], *a[8]);
+  }
   bool import(const char *fileSpec,
       const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={},
       const RooCmdArg& arg4={},const RooCmdArg& arg5={},const RooCmdArg& arg6={},
       const RooCmdArg& arg7={},const RooCmdArg& arg8={},const RooCmdArg& arg9={}) ;
+  bool import(const char *fileSpec, ImportFileKwargs const &kwargs, const RooCmdArg &arg1 = {},
+              const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+              const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+              const RooCmdArg &arg8 = {}, const RooCmdArg &arg9 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<9>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8, &arg9},
+                                             "RooWorkspace::import()");
+     return import(fileSpec, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7], *a[8]);
+  }
   bool import(TObject const& object, bool replaceExisting=false) ;
   bool import(TObject const& object, const char* aliasName, bool replaceExisting=false) ;
 

@@ -129,18 +129,48 @@ public:
                  const RooCmdArg& arg3={}, const RooCmdArg& arg4={}, const RooCmdArg& arg5={},
                  const RooCmdArg& arg6={}, const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
   RooPlot *frame(const RooLinkedList& cmdList) const ;
+  RooPlot *frame(RooFit::FrameKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                 const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+                 const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {}) const
+  {
+     return frame(*RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}));
+  }
   RooPlot *frame(double lo, double hi, Int_t nbins) const;
   RooPlot *frame(double lo, double hi) const;
   RooPlot *frame(Int_t nbins) const;
   RooPlot *frame() const;
 
   // Create empty 1,2, and 3D histograms from a list of 1-3 RooAbsReals
+  /// Keyword arguments for RooAbsRealLValue::createHistogram().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct CreateHistogramKwargs {
+     RooFit::Detail::Kwarg::AxisLabel AxisLabel;
+     RooFit::Detail::Kwarg::Binning Binning;
+     RooFit::Detail::Kwarg::YVar YVar;
+     RooFit::Detail::Kwarg::ZVar ZVar;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AxisLabel, &Binning, &YVar, &ZVar};
+        // clang-format on
+     }
+  };
+
   TH1 *createHistogram(const char *name,
                        const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                        const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                        const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                        const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
   TH1 *createHistogram(const char *name, const RooLinkedList& cmdList) const ;
+  TH1 *createHistogram(const char *name, CreateHistogramKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                       const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                       const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                       const RooCmdArg &arg8 = {}) const
+  {
+     return createHistogram(
+        name, *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}));
+  }
 
   TH1F *createHistogram(const char *name, const char *yAxisLabel) const ;
   TH1F *createHistogram(const char *name, const char *yAxisLabel, double xlo, double xhi, Int_t nBins) const ;

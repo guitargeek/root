@@ -21,6 +21,7 @@
 #include "RooLinkedList.h"
 #include "RooObjCacheManager.h"
 #include "RooCmdArg.h"
+#include "RooFit/Kwargs.h"
 
 #include <vector>
 #include <list>
@@ -41,6 +42,19 @@ public:
   RooProdPdf(const char* name, const char* title, const RooArgList& pdfList, double cutOff=0.0) ;
   RooProdPdf(const char* name, const char* title, const RooArgSet& fullPdfSet, const RooLinkedList& cmdArgList) ;
 
+  /// Keyword arguments for the RooProdPdf constructor.
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct Kwargs {
+     RooFit::Detail::Kwarg::Conditional Conditional;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&Conditional};
+        // clang-format on
+     }
+  };
+
   RooProdPdf(const char* name, const char* title, const RooArgSet& fullPdfSet,
            const RooCmdArg& arg1            , const RooCmdArg& arg2={},
              const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
@@ -52,6 +66,22 @@ public:
              const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
              const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
              const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooProdPdf(const char *name, const char *title, const RooArgSet &fullPdfSet, Kwargs const &kwargs,
+             const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+             const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+             const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+     : RooProdPdf(name, title, fullPdfSet,
+                  *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}))
+  {
+  }
+  RooProdPdf(const char *name, const char *title, Kwargs const &kwargs, const RooCmdArg &arg1 = {},
+             const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+             const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+             const RooCmdArg &arg8 = {})
+     : RooProdPdf(name, title, RooArgSet{},
+                  *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}))
+  {
+  }
 
   RooProdPdf(const RooProdPdf& other, const char* name=nullptr) ;
   TObject* clone(const char* newname=nullptr) const override { return new RooProdPdf(*this,newname) ; }

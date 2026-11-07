@@ -18,7 +18,9 @@
 
 #include "TList.h"
 #include "TNamed.h"
+#include "RooAbsData.h"
 #include "RooArgSet.h"
+#include "RooFit/Kwargs.h"
 #include <list>
 class RooAbsPdf;
 class RooDataSet ;
@@ -31,11 +33,43 @@ class RooAbsMCStudyModule ;
 
 class RooMCStudy : public TNamed {
 public:
+   /// Keyword arguments for the RooMCStudy constructor.
+   /// Each member corresponds to the RooFit command argument of the same name.
+   struct Kwargs {
+      RooFit::Detail::Kwarg::Binned Binned;
+      RooFit::Detail::Kwarg::ConditionalObservables ConditionalObservables;
+      RooFit::Detail::Kwarg::Constrain Constrain;
+      RooFit::Detail::Kwarg::Extended Extended;
+      RooFit::Detail::Kwarg::ExternalConstraints ExternalConstraints;
+      RooFit::Detail::Kwarg::FitModel FitModel;
+      RooFit::Detail::Kwarg::FitOptions FitOptions;
+      RooFit::Detail::Kwarg::ProjectedObservables ProjectedObservables;
+      RooFit::Detail::Kwarg::ProtoData ProtoData;
+      RooFit::Detail::Kwarg::Silence Silence;
+      RooFit::Detail::Kwarg::Verbose Verbose;
+
+      std::vector<RooCmdArg const *> cmdArgs() const
+      {
+         // clang-format off
+         return {&Binned, &ConditionalObservables, &Constrain, &Extended, &ExternalConstraints, &FitModel, &FitOptions,
+                 &ProjectedObservables, &ProtoData, &Silence, &Verbose};
+         // clang-format on
+      }
+   };
 
   RooMCStudy(const RooAbsPdf& model, const RooArgSet& observables,
         const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
              const RooCmdArg& arg3={}, const RooCmdArg& arg4={}, const RooCmdArg& arg5={},
              const RooCmdArg& arg6={}, const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooMCStudy(const RooAbsPdf &model, const RooArgSet &observables, Kwargs const &kwargs, const RooCmdArg &arg1 = {},
+             const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+             const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+             const RooCmdArg &arg8 = {})
+     : RooMCStudy(RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                                 "RooMCStudy::RooMCStudy()"),
+                  model, observables)
+  {
+  }
 
   RooMCStudy(const RooMCStudy&) = delete;
   RooMCStudy(RooMCStudy &&) = delete;
@@ -70,37 +104,135 @@ public:
   }
 
   // Plot methods
+  /// Keyword arguments for RooMCStudy::plotParam().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct PlotParamKwargs {
+     RooFit::Detail::Kwarg::AddTo AddTo;
+     RooFit::Detail::Kwarg::Asymmetry Asymmetry;
+     RooFit::Detail::Kwarg::Binning Binning;
+     RooFit::Detail::Kwarg::Bins Bins;
+     RooFit::Detail::Kwarg::Cut Cut;
+     RooFit::Detail::Kwarg::CutRange CutRange;
+     RooFit::Detail::Kwarg::DataError DataError;
+     RooFit::Detail::Kwarg::DrawOption DrawOption;
+     RooFit::Detail::Kwarg::Efficiency Efficiency;
+     RooFit::Detail::Kwarg::FillColor FillColor;
+     RooFit::Detail::Kwarg::FillStyle FillStyle;
+     RooFit::Detail::Kwarg::FitGauss FitGauss;
+     RooFit::Detail::Kwarg::Frame Frame;
+     RooFit::Detail::Kwarg::FrameBins FrameBins;
+     RooFit::Detail::Kwarg::FrameRange FrameRange;
+     RooFit::Detail::Kwarg::Invisible Invisible;
+     RooFit::Detail::Kwarg::LineColor LineColor;
+     RooFit::Detail::Kwarg::LineStyle LineStyle;
+     RooFit::Detail::Kwarg::LineWidth LineWidth;
+     RooFit::Detail::Kwarg::MarkerColor MarkerColor;
+     RooFit::Detail::Kwarg::MarkerSize MarkerSize;
+     RooFit::Detail::Kwarg::MarkerStyle MarkerStyle;
+     RooFit::Detail::Kwarg::Name Name;
+     RooFit::Detail::Kwarg::Range Range;
+     RooFit::Detail::Kwarg::RefreshNorm RefreshNorm;
+     RooFit::Detail::Kwarg::Rescale Rescale;
+     RooFit::Detail::Kwarg::XErrorSize XErrorSize;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AddTo, &Asymmetry, &Binning, &Bins, &Cut, &CutRange, &DataError, &DrawOption, &Efficiency, &FillColor,
+                &FillStyle, &FitGauss, &Frame, &FrameBins, &FrameRange, &Invisible, &LineColor, &LineStyle, &LineWidth,
+                &MarkerColor, &MarkerSize, &MarkerStyle, &Name, &Range, &RefreshNorm, &Rescale, &XErrorSize};
+        // clang-format on
+     }
+  };
+
   RooPlot* plotParamOn(RooPlot* frame, const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                        const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                        const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                        const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooPlot *plotParamOn(RooPlot *frame, RooAbsData::PlotOnKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                       const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                       const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                       const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooMCStudy::plotParamOn()");
+     return plotParamOn(frame, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooPlot* plotParam(const RooRealVar& param, const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                      const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                      const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                      const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooPlot *plotParam(const RooRealVar &param, PlotParamKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                     const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                     const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                     const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooMCStudy::plotParam()");
+     return plotParam(param, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooPlot* plotParam(const char* paramName, const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                      const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                      const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                      const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooPlot *plotParam(const char *paramName, PlotParamKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                     const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                     const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                     const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooMCStudy::plotParam()");
+     return plotParam(paramName, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooPlot* plotNLL(const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                      const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                      const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                      const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooPlot *plotNLL(PlotParamKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                   const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+                   const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooMCStudy::plotNLL()");
+     return plotNLL(*a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooPlot* plotError(const RooRealVar& param, const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                      const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                      const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                      const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooPlot *plotError(const RooRealVar &param, PlotParamKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                     const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                     const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                     const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooMCStudy::plotError()");
+     return plotError(param, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooPlot* plotPull(const RooRealVar& param, const RooCmdArg& arg1, const RooCmdArg& arg2={},
                      const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                      const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                      const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
-
+  RooPlot *plotPull(const RooRealVar &param, PlotParamKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                    const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                    const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                    const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooMCStudy::plotPull()");
+     return plotPull(param, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
 
   RooPlot* plotNLL(double lo, double hi, Int_t nBins=100) ;
   RooPlot* plotError(const RooRealVar& param, double lo, double hi, Int_t nbins=100) ;
   RooPlot* plotPull(const RooRealVar& param, double lo=-3.0, double hi=3.0, Int_t nbins=25, bool fitGauss=false) ;
 
 protected:
+   // Delegated to by the constructor that takes kwargs.
+   RooMCStudy(std::array<RooCmdArg const *, 8> const &a, const RooAbsPdf &model, const RooArgSet &observables)
+      : RooMCStudy(model, observables, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7])
+   {
+   }
 
   friend class RooAbsMCStudyModule ;
 

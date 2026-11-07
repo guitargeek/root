@@ -20,6 +20,7 @@
 #include "Rtypes.h"
 #include "RooWorkspace.h"
 #include "RooCmdArg.h"
+#include "RooFit/Kwargs.h"
 
 #include <list>
 #include <map>
@@ -50,10 +51,34 @@ public:
   class ObjBuildConfig ;
   class ObjSplitRule ;
 
+  /// Keyword arguments for RooSimWSTool::build().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct BuildKwargs {
+     RooFit::Detail::Kwarg::RenameConflictNodes RenameConflictNodes;
+     RooFit::Detail::Kwarg::Restrict Restrict;
+     RooFit::Detail::Kwarg::SplitParam SplitParam;
+     RooFit::Detail::Kwarg::SplitParamConstrained SplitParamConstrained;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&RenameConflictNodes, &Restrict, &SplitParam, &SplitParamConstrained};
+        // clang-format on
+     }
+  };
+
   RooSimultaneous* build(const char* simPdfName, const char* protoPdfName,
           const RooCmdArg& arg1={},const RooCmdArg& arg2={},
           const RooCmdArg& arg3={},const RooCmdArg& arg4={},
           const RooCmdArg& arg5={},const RooCmdArg& arg6={}) ;
+  RooSimultaneous *build(const char *simPdfName, const char *protoPdfName, BuildKwargs const &kwargs,
+                         const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+                         const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {})
+  {
+     auto a =
+        RooFit::Detail::cmdArgSlots<6>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6}, "RooSimWSTool::build()");
+     return build(simPdfName, protoPdfName, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5]);
+  }
 
   RooSimultaneous* build(const char* simPdfName,BuildConfig& bc, bool verbose=true) ;
 

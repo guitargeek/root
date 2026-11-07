@@ -1039,6 +1039,19 @@ std::unique_ptr<RooFitResult> RooAbsPdf::fitToImpl(RooAbsData& data, const RooLi
    return RooFit::FitHelpers::fitTo(*this, data, cmdList, false);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Fit PDF to given dataset, with the fit options given as keyword arguments.
+/// Further command arguments can be passed after the keyword arguments. See
+/// fitTo(RooAbsData&, CmdArgs_t const&...).
+
+RooFit::OwningPtr<RooFitResult> RooAbsPdf::fitTo(RooAbsData &data, RooFit::FitToKwargs const &kwargs,
+                                                 const RooCmdArg &arg1, const RooCmdArg &arg2, const RooCmdArg &arg3,
+                                                 const RooCmdArg &arg4, const RooCmdArg &arg5, const RooCmdArg &arg6,
+                                                 const RooCmdArg &arg7, const RooCmdArg &arg8)
+{
+   return RooFit::makeOwningPtr(fitToImpl(
+      data, *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8})));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Print value of p.d.f, also print normalization integral that was last used, if any

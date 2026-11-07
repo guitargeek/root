@@ -25,6 +25,7 @@ class TDirectory;
 
 #include "RooAbsData.h"
 #include "RooDirItem.h"
+#include "RooFit/Kwargs.h"
 
 #include <list>
 #include <string_view>
@@ -36,9 +37,42 @@ public:
   RooDataSet() ;
 
   // Universal constructor
+  /// Keyword arguments for the RooDataSet constructor.
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct Kwargs {
+     RooFit::Detail::Kwarg::Cut Cut;
+     RooFit::Detail::Kwarg::CutRange CutRange;
+     RooFit::Detail::Kwarg::GlobalObservables GlobalObservables;
+     RooFit::Detail::Kwarg::Import Import;
+     RooFit::Detail::Kwarg::ImportFromFile ImportFromFile;
+     RooFit::Detail::Kwarg::Index Index;
+     RooFit::Detail::Kwarg::Link Link;
+     RooFit::Detail::Kwarg::OwnLinked OwnLinked;
+     RooFit::Detail::Kwarg::StoreAsymError StoreAsymError;
+     RooFit::Detail::Kwarg::StoreError StoreError;
+     RooFit::Detail::Kwarg::WeightVar WeightVar;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&Cut, &CutRange, &GlobalObservables, &Import, &ImportFromFile, &Index, &Link, &OwnLinked,
+                &StoreAsymError, &StoreError, &WeightVar};
+        // clang-format on
+     }
+  };
+
   RooDataSet(RooStringView name, RooStringView title, const RooArgSet& vars, const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
              const RooCmdArg& arg3={}, const RooCmdArg& arg4={},const RooCmdArg& arg5={},
              const RooCmdArg& arg6={},const RooCmdArg& arg7={},const RooCmdArg& arg8={}) ;
+  RooDataSet(RooStringView name, RooStringView title, const RooArgSet &vars, Kwargs const &kwargs,
+             const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+             const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+             const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+     : RooDataSet(RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                                 "RooDataSet::RooDataSet()"),
+                  name, title, vars)
+  {
+  }
 
   RooDataSet(RooDataSet const & other, const char* newname=nullptr) ;
   TObject* Clone(const char* newname = "") const override {
@@ -53,12 +87,46 @@ public:
   double sumEntries() const override;
   double sumEntries(const char* cutSpec, const char* cutRange=nullptr) const override;
 
+  /// Keyword arguments for RooDataSet::plotOnXY().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct PlotOnXYKwargs {
+     RooFit::Detail::Kwarg::DrawOption DrawOption;
+     RooFit::Detail::Kwarg::FillColor FillColor;
+     RooFit::Detail::Kwarg::FillStyle FillStyle;
+     RooFit::Detail::Kwarg::Invisible Invisible;
+     RooFit::Detail::Kwarg::LineColor LineColor;
+     RooFit::Detail::Kwarg::LineStyle LineStyle;
+     RooFit::Detail::Kwarg::LineWidth LineWidth;
+     RooFit::Detail::Kwarg::MarkerColor MarkerColor;
+     RooFit::Detail::Kwarg::MarkerSize MarkerSize;
+     RooFit::Detail::Kwarg::MarkerStyle MarkerStyle;
+     RooFit::Detail::Kwarg::Name Name;
+     RooFit::Detail::Kwarg::Rescale Rescale;
+     RooFit::Detail::Kwarg::YVar YVar;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&DrawOption, &FillColor, &FillStyle, &Invisible, &LineColor, &LineStyle, &LineWidth, &MarkerColor,
+                &MarkerSize, &MarkerStyle, &Name, &Rescale, &YVar};
+        // clang-format on
+     }
+  };
+
   virtual RooPlot* plotOnXY(RooPlot* frame,
              const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
              const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
              const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
              const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
-
+  RooPlot *plotOnXY(RooPlot *frame, PlotOnXYKwargs const &kwargs, const RooCmdArg &arg1 = {},
+                    const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                    const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+                    const RooCmdArg &arg8 = {}) const
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooDataSet::plotOnXY()");
+     return plotOnXY(frame, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
 
   /// Read data from a text file and create a dataset from it.
   /// The possible options are: (D)ebug, (Q)uiet.
@@ -126,6 +194,11 @@ protected:
   RooRealVar *_wgtVar = nullptr; ///< Pointer to weight variable (if set)
 
 private:
+   // Delegated to by the constructor that takes kwargs.
+   RooDataSet(std::array<RooCmdArg const *, 8> const &a, RooStringView name, RooStringView title, const RooArgSet &vars)
+      : RooDataSet(name, title, vars, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7])
+   {
+   }
 
   void loadValuesFromSlices(RooCategory &indexCat, std::map<std::string, RooAbsData *> const &slices,
                             const char *rangeName, RooFormulaVar const *cutVar, const char *cutSpec);

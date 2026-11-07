@@ -41,6 +41,18 @@ public:
 
   void setGenConfig(const char* pdfName, const char* obsName, const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={}) ;
   void setFitConfig(const char* pdfName, const char* obsName, const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={}) ;
+  void setGenConfig(const char *pdfName, const char *obsName, RooAbsPdf::PrepareMultiGenKwargs const &kwargs,
+                    const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<3>(kwargs, {&arg1, &arg2, &arg3}, "RooGenFitStudy::setGenConfig()");
+     return setGenConfig(pdfName, obsName, *a[0], *a[1], *a[2]);
+  }
+  void setFitConfig(const char *pdfName, const char *obsName, RooFit::FitToKwargs const &kwargs,
+                    const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<3>(kwargs, {&arg1, &arg2, &arg3}, "RooGenFitStudy::setFitConfig()");
+     return setFitConfig(pdfName, obsName, *a[0], *a[1], *a[2]);
+  }
 
   bool attach(RooWorkspace& w) override ;
   bool initialize() override ;

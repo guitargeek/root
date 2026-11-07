@@ -23,6 +23,7 @@
 #include "RooNameReg.h"
 #include "RooFit/UniqueId.h"
 #include "RooFit/EvalContext.h"
+#include "RooFit/Kwargs.h"
 
 #include <ROOT/RSpan.hxx>
 
@@ -65,8 +66,35 @@ public:
   virtual RooFit::OwningPtr<RooAbsData> emptyClone(const char* newName=nullptr, const char* newTitle=nullptr, const RooArgSet* vars=nullptr, const char* wgtVarName=nullptr) const = 0 ;
 
   // Reduction methods
+  /// Keyword arguments for RooAbsData::reduce().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct ReduceKwargs {
+     RooFit::Detail::Kwarg::Cut Cut;
+     RooFit::Detail::Kwarg::CutRange CutRange;
+     RooFit::Detail::Kwarg::EventRange EventRange;
+     RooFit::Detail::Kwarg::Name Name;
+     RooFit::Detail::Kwarg::SelectVars SelectVars;
+     RooFit::Detail::Kwarg::Title Title;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&Cut, &CutRange, &EventRange, &Name, &SelectVars, &Title};
+        // clang-format on
+     }
+  };
+
   RooFit::OwningPtr<RooAbsData> reduce(const RooCmdArg& arg1,const RooCmdArg& arg2={},const RooCmdArg& arg3={},const RooCmdArg& arg4={},
                      const RooCmdArg& arg5={},const RooCmdArg& arg6={},const RooCmdArg& arg7={},const RooCmdArg& arg8={}) const;
+  RooFit::OwningPtr<RooAbsData>
+  reduce(ReduceKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+         const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {},
+         const RooCmdArg &arg8 = {}) const
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooAbsData::reduce()");
+     return reduce(*a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooFit::OwningPtr<RooAbsData> reduce(const char* cut) const;
   RooFit::OwningPtr<RooAbsData> reduce(const RooFormulaVar& cutVar) const;
   RooFit::OwningPtr<RooAbsData> reduce(const RooArgSet& varSubset, const char* cut=nullptr) const;
@@ -165,6 +193,41 @@ public:
   // Plot the distribution of a real valued arg
   virtual Roo1DTable* table(const RooArgSet& catSet, const char* cuts="", const char* opts="") const ;
   virtual Roo1DTable* table(const RooAbsCategory& cat, const char* cuts="", const char* opts="") const ;
+  /// Keyword arguments for RooAbsData::plotOn().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct PlotOnKwargs {
+     RooFit::Detail::Kwarg::AddTo AddTo;
+     RooFit::Detail::Kwarg::Asymmetry Asymmetry;
+     RooFit::Detail::Kwarg::Binning Binning;
+     RooFit::Detail::Kwarg::Cut Cut;
+     RooFit::Detail::Kwarg::CutRange CutRange;
+     RooFit::Detail::Kwarg::DataError DataError;
+     RooFit::Detail::Kwarg::DrawOption DrawOption;
+     RooFit::Detail::Kwarg::Efficiency Efficiency;
+     RooFit::Detail::Kwarg::FillColor FillColor;
+     RooFit::Detail::Kwarg::FillStyle FillStyle;
+     RooFit::Detail::Kwarg::Invisible Invisible;
+     RooFit::Detail::Kwarg::LineColor LineColor;
+     RooFit::Detail::Kwarg::LineStyle LineStyle;
+     RooFit::Detail::Kwarg::LineWidth LineWidth;
+     RooFit::Detail::Kwarg::MarkerColor MarkerColor;
+     RooFit::Detail::Kwarg::MarkerSize MarkerSize;
+     RooFit::Detail::Kwarg::MarkerStyle MarkerStyle;
+     RooFit::Detail::Kwarg::Name Name;
+     RooFit::Detail::Kwarg::RefreshNorm RefreshNorm;
+     RooFit::Detail::Kwarg::Rescale Rescale;
+     RooFit::Detail::Kwarg::XErrorSize XErrorSize;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AddTo, &Asymmetry, &Binning, &Cut, &CutRange, &DataError, &DrawOption, &Efficiency, &FillColor,
+                &FillStyle, &Invisible, &LineColor, &LineStyle, &LineWidth, &MarkerColor, &MarkerSize, &MarkerStyle,
+                &Name, &RefreshNorm, &Rescale, &XErrorSize};
+        // clang-format on
+     }
+  };
+
   /// \see RooPlot* plotOn(RooPlot* frame, const RooLinkedList& cmdList) const
   virtual RooPlot* plotOn(RooPlot* frame,
            const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
@@ -173,6 +236,13 @@ public:
            const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
 
   virtual RooPlot* plotOn(RooPlot* frame, const RooLinkedList& cmdList) const ;
+  RooPlot *plotOn(RooPlot *frame, PlotOnKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                  const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+                  const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {}) const
+  {
+     return plotOn(frame,
+                   *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}));
+  }
 
   // Split a dataset by a category
   std::vector<std::unique_ptr<RooAbsData>> split(const RooAbsCategory& splitCat, bool createEmptyDataSets=false) const;
@@ -184,15 +254,61 @@ public:
   bool canSplitFast() const ;
   RooAbsData* getSimData(const char* idxstate) ;
 
+  /// Keyword arguments for RooAbsData::createHistogram().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct CreateHistogramKwargs {
+     RooFit::Detail::Kwarg::AutoBinning AutoBinning;
+     RooFit::Detail::Kwarg::AutoSymBinning AutoSymBinning;
+     RooFit::Detail::Kwarg::AxisLabel AxisLabel;
+     RooFit::Detail::Kwarg::Binning Binning;
+     RooFit::Detail::Kwarg::Cut Cut;
+     RooFit::Detail::Kwarg::CutRange CutRange;
+     RooFit::Detail::Kwarg::YVar YVar;
+     RooFit::Detail::Kwarg::ZVar ZVar;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AutoBinning, &AutoSymBinning, &AxisLabel, &Binning, &Cut, &CutRange, &YVar, &ZVar};
+        // clang-format on
+     }
+  };
+
   /// Calls createHistogram(const char *name, const RooAbsRealLValue& xvar, const RooLinkedList& argList) const
   TH1 *createHistogram(const char *name, const RooAbsRealLValue& xvar,
                        const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                        const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                        const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                        const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
+  TH1 *createHistogram(const char *name, const RooAbsRealLValue &xvar, CreateHistogramKwargs const &kwargs,
+                       const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+                       const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+                       const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {}) const
+  {
+     return createHistogram(
+        name, xvar, *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}));
+  }
   TH1 *createHistogram(const char* varNameList,
                        const RooCmdArg& binArgX={}, const RooCmdArg& binArgY={},
                        const RooCmdArg& binArgZ={}) const;
+
+  /// Keyword arguments for RooAbsData::createHistogram(const char*, const RooCmdArg&, const RooCmdArg&, const
+  /// RooCmdArg&), for the binning of the x axis. At most one of them can be given. Each member corresponds to the
+  /// RooFit command argument of the same name.
+  struct CreateHistogramVarListKwargs {
+     RooFit::Detail::Kwarg::AutoBinning AutoBinning;
+     RooFit::Detail::Kwarg::AutoSymBinning AutoSymBinning;
+     RooFit::Detail::Kwarg::Binning Binning;
+
+     std::vector<RooCmdArg const *> cmdArgs() const { return {&AutoBinning, &AutoSymBinning, &Binning}; }
+  };
+
+  TH1 *createHistogram(const char *varNameList, CreateHistogramVarListKwargs const &kwargs,
+                       const RooCmdArg &binArgY = {}, const RooCmdArg &binArgZ = {}) const
+  {
+     auto a = RooFit::Detail::cmdArgSlots<1>(kwargs, {}, "RooAbsData::createHistogram() for the x-axis binning");
+     return createHistogram(varNameList, *a[0], binArgY, binArgZ);
+  }
   /// Create and fill a ROOT histogram TH1,TH2 or TH3 with the values of this dataset.
   TH1 *createHistogram(const char *name, const RooAbsRealLValue& xvar, const RooLinkedList& argList) const ;
   TH2F* createHistogram(const RooAbsRealLValue& var1, const RooAbsRealLValue& var2, const char* cuts="",
@@ -241,11 +357,37 @@ public:
   RooRealVar* meanVar(const RooRealVar &var, const char* cutSpec=nullptr, const char* cutRange=nullptr) const ;
   RooRealVar* rmsVar(const RooRealVar &var, const char* cutSpec=nullptr, const char* cutRange=nullptr) const ;
 
+  /// Keyword arguments for RooAbsData::statOn().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct StatOnKwargs {
+     RooFit::Detail::Kwarg::Cut Cut;
+     RooFit::Detail::Kwarg::CutRange CutRange;
+     RooFit::Detail::Kwarg::Format Format;
+     RooFit::Detail::Kwarg::Label Label;
+     RooFit::Detail::Kwarg::Layout Layout;
+     RooFit::Detail::Kwarg::What What;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&Cut, &CutRange, &Format, &Label, &Layout, &What};
+        // clang-format on
+     }
+  };
+
   virtual RooPlot* statOn(RooPlot* frame,
                           const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
                           const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                           const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                           const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooPlot *statOn(RooPlot *frame, StatOnKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                  const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+                  const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooAbsData::statOn()");
+     return statOn(frame, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
 
   virtual RooPlot* statOn(RooPlot* frame, const char *what,
            const char *label= "", Int_t sigDigits= 2,

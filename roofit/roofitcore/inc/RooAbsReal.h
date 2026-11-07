@@ -24,6 +24,7 @@
 #include "RooCurve.h"
 #include "RooFit/CodegenContext.h"
 #include "RooFit/EvalContext.h"
+#include "RooFit/Kwargs.h"
 #include "RooGlobalFunc.h"
 
 #include <ROOT/RSpan.hxx>
@@ -180,25 +181,130 @@ public:
   bool getForceNumInt() const { return _forceNumInt ; }
 
   // Chi^2 fits to histograms
+  /// Keyword arguments for RooAbsReal::chi2FitTo().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct Chi2FitToKwargs {
+     RooFit::Detail::Kwarg::AsymptoticError AsymptoticError;
+     RooFit::Detail::Kwarg::ConditionalObservables ConditionalObservables;
+     RooFit::Detail::Kwarg::DataError DataError;
+     RooFit::Detail::Kwarg::EvalBackend EvalBackend;
+     RooFit::Detail::Kwarg::EvalErrorWall EvalErrorWall;
+     RooFit::Detail::Kwarg::Extended Extended;
+     RooFit::Detail::Kwarg::Hesse Hesse;
+     RooFit::Detail::Kwarg::InitialHesse InitialHesse;
+     RooFit::Detail::Kwarg::IntegrateBins IntegrateBins;
+     RooFit::Detail::Kwarg::MaxCalls MaxCalls;
+     RooFit::Detail::Kwarg::Minimizer Minimizer;
+     RooFit::Detail::Kwarg::Minos Minos;
+     RooFit::Detail::Kwarg::NumCPU NumCPU;
+     RooFit::Detail::Kwarg::Offset Offset;
+     RooFit::Detail::Kwarg::ParallelDescentOptions ParallelDescentOptions;
+     RooFit::Detail::Kwarg::ParallelGradientOptions ParallelGradientOptions;
+     RooFit::Detail::Kwarg::Parallelize Parallelize;
+     RooFit::Detail::Kwarg::PrefitDataFraction PrefitDataFraction;
+     RooFit::Detail::Kwarg::PrintEvalErrors PrintEvalErrors;
+     RooFit::Detail::Kwarg::PrintLevel PrintLevel;
+     RooFit::Detail::Kwarg::ProjectedObservables ProjectedObservables;
+     RooFit::Detail::Kwarg::Range Range;
+     RooFit::Detail::Kwarg::RecoverFromUndefinedRegions RecoverFromUndefinedRegions;
+     RooFit::Detail::Kwarg::Save Save;
+     RooFit::Detail::Kwarg::SplitRange SplitRange;
+     RooFit::Detail::Kwarg::Strategy Strategy;
+     RooFit::Detail::Kwarg::SumW2Error SumW2Error;
+     RooFit::Detail::Kwarg::Timer Timer;
+     RooFit::Detail::Kwarg::TimingAnalysis TimingAnalysis;
+     RooFit::Detail::Kwarg::Verbose Verbose;
+     RooFit::Detail::Kwarg::Warnings Warnings;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AsymptoticError, &ConditionalObservables, &DataError, &EvalBackend, &EvalErrorWall, &Extended, &Hesse,
+                &InitialHesse, &IntegrateBins, &MaxCalls, &Minimizer, &Minos, &NumCPU, &Offset,
+                &ParallelDescentOptions, &ParallelGradientOptions, &Parallelize, &PrefitDataFraction, &PrintEvalErrors,
+                &PrintLevel, &ProjectedObservables, &Range, &RecoverFromUndefinedRegions, &Save, &SplitRange,
+                &Strategy, &SumW2Error, &Timer, &TimingAnalysis, &Verbose, &Warnings};
+        // clang-format on
+     }
+  };
+
   template <typename... CmdArgs_t>
   RooFit::OwningPtr<RooFitResult> chi2FitTo(RooDataHist& data, CmdArgs_t const&... cmdArgs)
   {
     return RooFit::makeOwningPtr(chi2FitToImpl(data, *RooFit::Detail::createCmdList(&cmdArgs...)));
   }
+  RooFit::OwningPtr<RooFitResult>
+  chi2FitTo(RooDataHist &data, Chi2FitToKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+            const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+            const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {});
+
+  /// Keyword arguments for RooAbsReal::createChi2().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct CreateChi2Kwargs {
+     RooFit::Detail::Kwarg::DataError DataError;
+     RooFit::Detail::Kwarg::EvalBackend EvalBackend;
+     RooFit::Detail::Kwarg::Extended Extended;
+     RooFit::Detail::Kwarg::IntegrateBins IntegrateBins;
+     RooFit::Detail::Kwarg::NumCPU NumCPU;
+     RooFit::Detail::Kwarg::Range Range;
+     RooFit::Detail::Kwarg::SplitRange SplitRange;
+     RooFit::Detail::Kwarg::SumCoefRange SumCoefRange;
+     RooFit::Detail::Kwarg::Verbose Verbose;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&DataError, &EvalBackend, &Extended, &IntegrateBins, &NumCPU, &Range, &SplitRange, &SumCoefRange,
+                &Verbose};
+        // clang-format on
+     }
+  };
 
   template <typename... CmdArgs_t>
   RooFit::OwningPtr<RooAbsReal> createChi2(RooDataHist& data, CmdArgs_t const&... cmdArgs)
   {
     return RooFit::makeOwningPtr(createChi2Impl(data, *RooFit::Detail::createCmdList(&cmdArgs...)));
   }
+  RooFit::OwningPtr<RooAbsReal>
+  createChi2(RooDataHist &data, CreateChi2Kwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+             const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+             const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+  {
+     return RooFit::makeOwningPtr(createChi2Impl(
+        data, *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8})));
+  }
 
   virtual RooFit::OwningPtr<RooAbsReal> createProfile(const RooArgSet& paramsOfInterest) ;
 
+  /// Keyword arguments for RooAbsReal::createIntegral().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct CreateIntegralKwargs {
+     RooFit::Detail::Kwarg::NormSet NormSet;
+     RooFit::Detail::Kwarg::NumIntConfig NumIntConfig;
+     RooFit::Detail::Kwarg::Range Range;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&NormSet, &NumIntConfig, &Range};
+        // clang-format on
+     }
+  };
 
   RooFit::OwningPtr<RooAbsReal> createIntegral(const RooArgSet& iset, const RooCmdArg& arg1, const RooCmdArg& arg2={},
                              const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
               const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
               const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
+  RooFit::OwningPtr<RooAbsReal> createIntegral(const RooArgSet &iset, CreateIntegralKwargs const &kwargs,
+                                               const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                                               const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                                               const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+                                               const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {}) const
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooAbsReal::createIntegral()");
+     return createIntegral(iset, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
 
   /// Create integral over observables in iset in range named rangeName.
   RooFit::OwningPtr<RooAbsReal> createIntegral(const RooArgSet& iset, const char* rangeName) const {
@@ -223,11 +329,35 @@ public:
   void setParameterizeIntegral(const RooArgSet& paramVars) ;
 
   // Create running integrals
+  /// Keyword arguments for RooAbsReal::createRunningIntegral().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct CreateRunningIntegralKwargs {
+     RooFit::Detail::Kwarg::ScanParameters ScanParameters;
+     RooFit::Detail::Kwarg::SupNormSet SupNormSet;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&ScanParameters, &SupNormSet};
+        // clang-format on
+     }
+  };
+
   RooFit::OwningPtr<RooAbsReal> createRunningIntegral(const RooArgSet& iset, const RooArgSet& nset={}) ;
   RooFit::OwningPtr<RooAbsReal> createRunningIntegral(const RooArgSet& iset, const RooCmdArg& arg1, const RooCmdArg& arg2={},
          const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
          const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
          const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) ;
+  RooFit::OwningPtr<RooAbsReal> createRunningIntegral(const RooArgSet &iset, CreateRunningIntegralKwargs const &kwargs,
+                                                      const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                                                      const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {},
+                                                      const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+                                                      const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+  {
+     auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                             "RooAbsReal::createRunningIntegral()");
+     return createRunningIntegral(iset, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+  }
   RooFit::OwningPtr<RooAbsReal> createIntRI(const RooArgSet& iset, const RooArgSet& nset={}) ;
   RooFit::OwningPtr<RooAbsReal> createScanRI(const RooArgSet& iset, const RooArgSet& nset, Int_t numScanBins, Int_t intOrder) ;
 
@@ -260,6 +390,50 @@ public:
 
   virtual void preferredObservableScanOrder(const RooArgSet& obs, RooArgSet& orderedObs) const ;
 
+  /// Keyword arguments for RooAbsReal::plotOn().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct PlotOnKwargs {
+     RooFit::Detail::Kwarg::AddTo AddTo;
+     RooFit::Detail::Kwarg::Asymmetry Asymmetry;
+     RooFit::Detail::Kwarg::DrawOption DrawOption;
+     RooFit::Detail::Kwarg::EvalErrorValue EvalErrorValue;
+     RooFit::Detail::Kwarg::FillColor FillColor;
+     RooFit::Detail::Kwarg::FillStyle FillStyle;
+     RooFit::Detail::Kwarg::Invisible Invisible;
+     RooFit::Detail::Kwarg::LineColor LineColor;
+     RooFit::Detail::Kwarg::LineStyle LineStyle;
+     RooFit::Detail::Kwarg::LineWidth LineWidth;
+     RooFit::Detail::Kwarg::MarkerColor MarkerColor;
+     RooFit::Detail::Kwarg::MarkerSize MarkerSize;
+     RooFit::Detail::Kwarg::MarkerStyle MarkerStyle;
+     RooFit::Detail::Kwarg::MoveToBack MoveToBack;
+     RooFit::Detail::Kwarg::Name Name;
+     RooFit::Detail::Kwarg::NormRange NormRange;
+     RooFit::Detail::Kwarg::Normalization Normalization;
+     RooFit::Detail::Kwarg::NumCPU NumCPU;
+     RooFit::Detail::Kwarg::Precision Precision;
+     RooFit::Detail::Kwarg::PrintEvalErrors PrintEvalErrors;
+     RooFit::Detail::Kwarg::ProjWData ProjWData;
+     RooFit::Detail::Kwarg::Project Project;
+     RooFit::Detail::Kwarg::ProjectionRange ProjectionRange;
+     RooFit::Detail::Kwarg::Range Range;
+     RooFit::Detail::Kwarg::ShiftToZero ShiftToZero;
+     RooFit::Detail::Kwarg::ShowProgress ShowProgress;
+     RooFit::Detail::Kwarg::Slice Slice;
+     RooFit::Detail::Kwarg::VLines VLines;
+     RooFit::Detail::Kwarg::VisualizeError VisualizeError;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AddTo, &Asymmetry, &DrawOption, &EvalErrorValue, &FillColor, &FillStyle, &Invisible, &LineColor,
+                &LineStyle, &LineWidth, &MarkerColor, &MarkerSize, &MarkerStyle, &MoveToBack, &Name, &NormRange,
+                &Normalization, &NumCPU, &Precision, &PrintEvalErrors, &ProjWData, &Project, &ProjectionRange, &Range,
+                &ShiftToZero, &ShowProgress, &Slice, &VLines, &VisualizeError};
+        // clang-format on
+     }
+  };
+
   // User entry point for plotting
   virtual RooPlot* plotOn(RooPlot* frame,
            const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
@@ -268,7 +442,14 @@ public:
            const RooCmdArg& arg7={}, const RooCmdArg& arg8={},
            const RooCmdArg& arg9={}, const RooCmdArg& arg10={}
               ) const ;
-
+  RooPlot *plotOn(RooPlot *frame, PlotOnKwargs const &kwargs, const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {},
+                  const RooCmdArg &arg3 = {}, const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {},
+                  const RooCmdArg &arg6 = {}, const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {},
+                  const RooCmdArg &arg9 = {}, const RooCmdArg &arg10 = {}) const
+  {
+     return plotOn(frame, *RooFit::Detail::createCmdList(
+                             kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8, &arg9, &arg10}));
+  }
 
   enum ScaleType { Raw, Relative, NumEvent, RelativeExpected } ;
 
@@ -278,6 +459,29 @@ public:
            const RooArgSet* condObs=nullptr, bool setError=true) const;
 
   // Create 1,2, and 3D histograms from and fill it
+  /// Keyword arguments for RooAbsReal::createHistogram().
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct CreateHistogramKwargs {
+     RooFit::Detail::Kwarg::AxisLabel AxisLabel;
+     RooFit::Detail::Kwarg::Binning Binning;
+     RooFit::Detail::Kwarg::Components Components;
+     RooFit::Detail::Kwarg::ConditionalObservables ConditionalObservables;
+     RooFit::Detail::Kwarg::Extended Extended;
+     RooFit::Detail::Kwarg::IntrinsicBinning IntrinsicBinning;
+     RooFit::Detail::Kwarg::ProjectedObservables ProjectedObservables;
+     RooFit::Detail::Kwarg::Scaling Scaling;
+     RooFit::Detail::Kwarg::YVar YVar;
+     RooFit::Detail::Kwarg::ZVar ZVar;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&AxisLabel, &Binning, &Components, &ConditionalObservables, &Extended, &IntrinsicBinning,
+                &ProjectedObservables, &Scaling, &YVar, &ZVar};
+        // clang-format on
+     }
+  };
+
   TH1 *createHistogram(RooStringView varNameList, Int_t xbins=0, Int_t ybins=0, Int_t zbins=0) const ;
   TH1* createHistogram(const char *name, const RooAbsRealLValue& xvar, RooLinkedList& argList) const ;
   TH1 *createHistogram(const char *name, const RooAbsRealLValue& xvar,
@@ -285,6 +489,14 @@ public:
                        const RooCmdArg& arg3={}, const RooCmdArg& arg4={},
                        const RooCmdArg& arg5={}, const RooCmdArg& arg6={},
                        const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;
+  TH1 *createHistogram(const char *name, const RooAbsRealLValue &xvar, CreateHistogramKwargs const &kwargs,
+                       const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+                       const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+                       const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {}) const
+  {
+     return createHistogram(
+        name, xvar, *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8}));
+  }
 
   // Fill a RooDataHist
   RooDataHist* fillDataHist(RooDataHist *hist, const RooArgSet* nset, double scaleFactor,

@@ -4028,6 +4028,19 @@ std::unique_ptr<RooFitResult> RooAbsReal::chi2FitToImpl(RooDataHist &data, const
    return RooFit::FitHelpers::fitTo(*this, data, cmdList, true);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Perform a \f$ \chi^2 \f$ fit to given histogram, with the fit options
+/// given as keyword arguments. Further command arguments can be passed after
+/// the keyword arguments. See chi2FitTo(RooDataHist&, CmdArgs_t const&...).
+
+RooFit::OwningPtr<RooFitResult>
+RooAbsReal::chi2FitTo(RooDataHist &data, Chi2FitToKwargs const &kwargs, const RooCmdArg &arg1, const RooCmdArg &arg2,
+                      const RooCmdArg &arg3, const RooCmdArg &arg4, const RooCmdArg &arg5, const RooCmdArg &arg6,
+                      const RooCmdArg &arg7, const RooCmdArg &arg8)
+{
+   return RooFit::makeOwningPtr(chi2FitToImpl(
+      data, *RooFit::Detail::createCmdList(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8})));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// \fn RooAbsReal::createChi2(RooDataHist& data, CmdArgs_t const&... cmdArgs)

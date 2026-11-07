@@ -38,6 +38,7 @@ implemented using the container denoted by RooAbsCollection::Storage_t.
 #include "RooLinkedListIter.h"
 #include "RooCmdConfig.h"
 #include "RooRealVar.h"
+#include "RooFit/Kwargs.h"
 #include "RooGlobalFunc.h"
 #include "RooMsgService.h"
 #include "RooFitImplHelpers.h"
@@ -1369,8 +1370,18 @@ void RooAbsCollection::printLatex(const RooCmdArg& arg1, const RooCmdArg& arg2,
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Output content of collection as LaTex table, configured by keyword
+/// arguments, see RooAbsCollection::printLatex(const RooCmdArg&,...).
 
-
+void RooAbsCollection::printLatex(PrintLatexKwargs const &kwargs, const RooCmdArg &arg1, const RooCmdArg &arg2,
+                                  const RooCmdArg &arg3, const RooCmdArg &arg4, const RooCmdArg &arg5,
+                                  const RooCmdArg &arg6, const RooCmdArg &arg7, const RooCmdArg &arg8) const
+{
+   auto a = RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                           "RooAbsCollection::printLatex()");
+   printLatex(*a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7]);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Internal implementation function of printLatex

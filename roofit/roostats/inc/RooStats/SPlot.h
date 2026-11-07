@@ -26,6 +26,7 @@ class RooSimultaneous;
 #include "RooHist.h"
 #include "RooPlot.h"
 #include "RooDataSet.h"
+#include "RooFit/Kwargs.h"
 
 namespace RooStats{
 
@@ -45,6 +46,15 @@ namespace RooStats{
      const RooCmdArg& fitToarg6={},
      const RooCmdArg& fitToarg7={},
      const RooCmdArg& fitToarg8={});
+    SPlot(const char *name, const char *title, RooDataSet &data, RooAbsPdf *pdf, const RooArgList &yieldsList,
+          RooFit::FitToKwargs const &kwargs, const RooArgSet &projDeps = RooArgSet(), bool useWeights = true,
+          bool copyDataSet = false, const char *newName = "", const RooCmdArg &fitToarg5 = {},
+          const RooCmdArg &fitToarg6 = {}, const RooCmdArg &fitToarg7 = {}, const RooCmdArg &fitToarg8 = {})
+       : SPlot(
+            RooFit::Detail::cmdArgSlots<4>(kwargs, {&fitToarg5, &fitToarg6, &fitToarg7, &fitToarg8}, "SPlot::SPlot()"),
+            name, title, data, pdf, yieldsList, projDeps, useWeights, copyDataSet, newName)
+    {
+    }
 
     RooDataSet* SetSData(RooDataSet* data);
 
@@ -60,6 +70,15 @@ namespace RooStats{
           const RooCmdArg& fitToarg6={},
           const RooCmdArg& fitToarg7={},
           const RooCmdArg& fitToarg8={});
+    void AddSWeight(RooAbsPdf *pdf, const RooArgList &yieldsTmp, RooFit::FitToKwargs const &kwargs,
+                    const RooArgSet &projDeps = RooArgSet(), bool includeWeights = true,
+                    const RooCmdArg &fitToarg5 = {}, const RooCmdArg &fitToarg6 = {}, const RooCmdArg &fitToarg7 = {},
+                    const RooCmdArg &fitToarg8 = {})
+    {
+       auto a = RooFit::Detail::cmdArgSlots<4>(kwargs, {&fitToarg5, &fitToarg6, &fitToarg7, &fitToarg8},
+                                               "SPlot::AddSWeight()");
+       AddSWeight(pdf, yieldsTmp, projDeps, includeWeights, *a[0], *a[1], *a[2], *a[3]);
+    }
 
     double GetSumOfEventSWeight(Int_t numEvent) const;
 
@@ -74,6 +93,15 @@ namespace RooStats{
      enum {
         kOwnData = BIT(20)
      };
+
+     // Delegated to by the constructor that takes kwargs.
+     SPlot(std::array<RooCmdArg const *, 4> const &a, const char *name, const char *title, RooDataSet &data,
+           RooAbsPdf *pdf, const RooArgList &yieldsList, const RooArgSet &projDeps, bool useWeights, bool copyDataSet,
+           const char *newName)
+        : SPlot(name, title, data, pdf, yieldsList, projDeps, useWeights, copyDataSet, newName, *a[0], *a[1], *a[2],
+                *a[3])
+     {
+     }
 
     RooArgList fSWeightVars;
 

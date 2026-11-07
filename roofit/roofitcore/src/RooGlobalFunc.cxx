@@ -24,6 +24,7 @@
 #include <RooCategory.h>
 #include <RooDataHist.h>
 #include <RooDataSet.h>
+#include <RooFit/Kwargs.h>
 #include <RooFitResult.h>
 #include <RooFormulaVar.h>
 #include <RooHelpers.h>
@@ -1108,6 +1109,59 @@ RooCmdArg MultiArg(const RooCmdArg &arg1, const RooCmdArg &arg2, const RooCmdArg
    ret.addArg(arg7);
    ret.addArg(arg8);
    ret.setProcessRecArgs(true, false);
+   return ret;
+}
+
+RooCmdArg FitOptions(FitToKwargs const &kwargs, const RooCmdArg &arg1, const RooCmdArg &arg2, const RooCmdArg &arg3,
+                     const RooCmdArg &arg4, const RooCmdArg &arg5, const RooCmdArg &arg6)
+{
+   RooCmdArg ret("FitOptArgs", 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
+   for (RooCmdArg const *arg : Detail::collectCmdArgs(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6})) {
+      ret.addArg(*arg);
+   }
+   ret.setProcessRecArgs(false);
+   return ret;
+}
+
+RooCmdArg Format(const char *what, FormatKwargs const &kwargs, const RooCmdArg &arg1, const RooCmdArg &arg2,
+                 const RooCmdArg &arg3, const RooCmdArg &arg4, const RooCmdArg &arg5, const RooCmdArg &arg6,
+                 const RooCmdArg &arg7, const RooCmdArg &arg8)
+{
+   RooCmdArg ret("FormatArgs", 0, 0, 0, 0, what, nullptr, nullptr, nullptr);
+   for (RooCmdArg const *arg :
+        Detail::collectCmdArgs(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8})) {
+      ret.addArg(*arg);
+   }
+   ret.setProcessRecArgs(false);
+   return ret;
+}
+
+RooCmdArg Frame(FrameKwargs const &kwargs, const RooCmdArg &arg1, const RooCmdArg &arg2, const RooCmdArg &arg3,
+                const RooCmdArg &arg4, const RooCmdArg &arg5, const RooCmdArg &arg6)
+{
+   RooCmdArg ret("FrameArgs", 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr);
+   for (RooCmdArg const *arg : Detail::collectCmdArgs(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6})) {
+      ret.addArg(*arg);
+   }
+   ret.setProcessRecArgs(false);
+   return ret;
+}
+
+RooCmdArg YVar(const RooAbsRealLValue &var, YVarKwargs const &kwargs, const RooCmdArg &arg)
+{
+   RooCmdArg ret("YVar", 0, 0, 0, 0, nullptr, nullptr, &var, nullptr);
+   for (RooCmdArg const *subArg : Detail::collectCmdArgs(kwargs, {&arg})) {
+      ret.addArg(*subArg);
+   }
+   return ret;
+}
+
+RooCmdArg ZVar(const RooAbsRealLValue &var, ZVarKwargs const &kwargs, const RooCmdArg &arg)
+{
+   RooCmdArg ret("ZVar", 0, 0, 0, 0, nullptr, nullptr, &var, nullptr);
+   for (RooCmdArg const *subArg : Detail::collectCmdArgs(kwargs, {&arg})) {
+      ret.addArg(*subArg);
+   }
    return ret;
 }
 

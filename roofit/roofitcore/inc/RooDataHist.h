@@ -19,6 +19,7 @@
 #include <RooAbsData.h>
 #include <RooArgSet.h>
 #include <RooDirItem.h>
+#include <RooFit/Kwargs.h>
 #include <RooGlobalFunc.h>
 
 #include <Rtypes.h>
@@ -47,8 +48,33 @@ public:
   RooDataHist(RooStringView name, RooStringView title, const RooArgList& vars, const TH1* hist, double initWgt=1.0) ;
   RooDataHist(RooStringView name, RooStringView title, const RooArgList& vars, RooCategory& indexCat, std::map<std::string,TH1*> histMap, double initWgt=1.0) ;
   RooDataHist(RooStringView name, RooStringView title, const RooArgList& vars, RooCategory& indexCat, std::map<std::string,RooDataHist*> dhistMap, double wgt=1.0) ;
+  /// Keyword arguments for the RooDataHist constructor.
+  /// Each member corresponds to the RooFit command argument of the same name.
+  struct Kwargs {
+     RooFit::Detail::Kwarg::GlobalObservables GlobalObservables;
+     RooFit::Detail::Kwarg::Import Import;
+     RooFit::Detail::Kwarg::Index Index;
+     RooFit::Detail::Kwarg::Weight Weight;
+
+     std::vector<RooCmdArg const *> cmdArgs() const
+     {
+        // clang-format off
+        return {&GlobalObservables, &Import, &Index, &Weight};
+        // clang-format on
+     }
+  };
+
   RooDataHist(RooStringView name, RooStringView title, const RooArgList& vars, const RooCmdArg& arg1, const RooCmdArg& arg2={}, const RooCmdArg& arg3={},
         const RooCmdArg& arg4={},const RooCmdArg& arg5={},const RooCmdArg& arg6={},const RooCmdArg& arg7={},const RooCmdArg& arg8={}) ;
+  RooDataHist(RooStringView name, RooStringView title, const RooArgList &vars, Kwargs const &kwargs,
+              const RooCmdArg &arg1 = {}, const RooCmdArg &arg2 = {}, const RooCmdArg &arg3 = {},
+              const RooCmdArg &arg4 = {}, const RooCmdArg &arg5 = {}, const RooCmdArg &arg6 = {},
+              const RooCmdArg &arg7 = {}, const RooCmdArg &arg8 = {})
+     : RooDataHist(RooFit::Detail::cmdArgSlots<8>(kwargs, {&arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8},
+                                                  "RooDataHist::RooDataHist()"),
+                   name, title, vars)
+  {
+  }
 
   /// For internal use in RooFit.
   template<class Val_t>
@@ -276,6 +302,13 @@ public:
   mutable double _cache_sum{0.};          ///<! Cache for sum of entries ;
 
 private:
+   // Delegated to by the constructor that takes kwargs.
+   RooDataHist(std::array<RooCmdArg const *, 8> const &a, RooStringView name, RooStringView title,
+               const RooArgList &vars)
+      : RooDataHist(name, title, vars, *a[0], *a[1], *a[2], *a[3], *a[4], *a[5], *a[6], *a[7])
+   {
+   }
+
   void interpolateQuadratic(double* output, std::span<const double> xVals, bool correctForBinSize, bool cdfBoundaries);
   void interpolateLinear(double* output, std::span<const double> xVals, bool correctForBinSize, bool cdfBoundaries);
   double weightInterpolated(const RooArgSet& bin, int intOrder, bool correctForBinSize, bool cdfBoundaries);

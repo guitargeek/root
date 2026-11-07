@@ -124,6 +124,7 @@ set(ROOFITCORE_HEADERS
   RooFit/EvalContext.h
   RooFit/Evaluator.h
   RooFit/Floats.h
+  RooFit/Kwargs.h
   RooFit/ModelConfig.h
   RooFit/TestStatistics/LikelihoodGradientWrapper.h
   RooFit/TestStatistics/LikelihoodWrapper.h
