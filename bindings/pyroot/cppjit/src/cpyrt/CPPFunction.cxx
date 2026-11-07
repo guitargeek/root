@@ -37,7 +37,7 @@ bool cpyrt::AdjustSelf(PyCallArgs& cargs) {
 
 bool cpyrt::CPPFunction::ProcessArgs(PyCallArgs& cargs) {
   // add self as part of the function arguments (means bound member)
-  if (cargs.fKwds)
+  if (cargs.fKwds || HasKwargsParam())
     return this->ProcessKwds((PyObject*)cargs.fSelf, cargs);
   return AdjustSelf(cargs);
 }
@@ -54,7 +54,7 @@ PyObject* cpyrt::CPPFunction::Call(CPPInstance*& self, cpyrt_PyArgs_t args,
   // if function was attached to a class, self will be non-zero and should be
   // the first function argument, so reorder
   PyCallArgs cargs{self, args, nargsf, kwds};
-  if (self || kwds) {
+  if (self || kwds || HasKwargsParam()) {
     if (!this->ProcessArgs(cargs))
       return nullptr;
   }

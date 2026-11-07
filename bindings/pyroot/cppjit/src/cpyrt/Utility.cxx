@@ -1624,13 +1624,45 @@ void cpyrt::Utility::RestorePyError(cpyrt::Utility::PyError_t& error) {
 }
 
 //----------------------------------------------------------------------------
+// Name of the flag set on exception objects by MarkPriorityError().
+static const char* gPriorityFlag = "__cppjit_priority__";
+
 size_t cpyrt::Utility::FetchError(std::vector<PyError_t>& errors, bool is_cpp) {
   // Fetch the current python error, if any, and store it for future use.
   if (PyErr_Occurred()) {
     errors.emplace_back(FetchPyError());
-    errors.back().fIsCpp = is_cpp;
+    PyObject* value = errors.back().fValue.get();
+    errors.back().fIsCpp =
+        is_cpp || (value && PyObject_HasAttrString(value, gPriorityFlag));
   }
   return errors.size();
+}
+
+//----------------------------------------------------------------------------
+void cpyrt::Utility::MarkPriorityError() {
+  // Mark the current Python error to take priority in error reports of
+  // overload resolution, like exceptions from the C++ callee. Used for errors
+  // of an overload that accepted the call but failed in processing its
+  // arguments, which are more informative than the mismatches of other
+  // overloads. The mark is on the exception object, so that it survives
+  // rounds of resolution through nested overload sets (e.g. templates).
+#if PY_VERSION_HEX >= 0x030c0000
+  PyObject* value = PyErr_GetRaisedException();
+  if (!value)
+    return;
+  if (PyObject_SetAttrString(value, gPriorityFlag, Py_True) != 0)
+    PyErr_Clear();
+  PyErr_SetRaisedException(value);
+#else
+  PyObject *type = nullptr, *value = nullptr, *trace = nullptr;
+  PyErr_Fetch(&type, &value, &trace);
+  if (!type)
+    return;
+  PyErr_NormalizeException(&type, &value, &trace);
+  if (value && PyObject_SetAttrString(value, gPriorityFlag, Py_True) != 0)
+    PyErr_Clear();
+  PyErr_Restore(type, value, trace);
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -1644,14 +1676,30 @@ void cpyrt::Utility::SetDetailedException(std::vector<PyError_t>&& errors,
     return;
   }
 
-  // if a _single_ exception was thrown from C++, assume it has priority (see
-  // below)
+  // if a _single_ exception was thrown from C++ (or marked to have priority),
+  // assume it has priority (see below); repeats of the same error, e.g. from
+  // retrying an overload set, don't count as another one
+  auto same_error = [](PyError_t& e1, PyError_t& e2) {
+    PyObject* v1 = e1.fValue.get();
+    PyObject* v2 = e2.fValue.get();
+    if (!v1 || !v2 || Py_TYPE(v1) != Py_TYPE(v2))
+      return false;
+    PyObject* s1 = PyObject_Str(v1);
+    PyObject* s2 = s1 ? PyObject_Str(v2) : nullptr;
+    bool same = s2 && PyUnicode_Compare(s1, s2) == 0;
+    Py_XDECREF(s2);
+    Py_XDECREF(s1);
+    if (PyErr_Occurred())
+      PyErr_Clear();
+    return same;
+  };
+
   PyError_t* unique_from_cpp = nullptr;
   for (auto& e : errors) {
     if (e.fIsCpp) {
       if (!unique_from_cpp)
         unique_from_cpp = &e;
-      else {
+      else if (!same_error(*unique_from_cpp, e)) {
         // two C++ exceptions, resort to default behavior
         unique_from_cpp = nullptr;
         break;

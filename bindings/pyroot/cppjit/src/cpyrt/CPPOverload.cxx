@@ -661,7 +661,17 @@ static PyObject* mp_vectorcall(CPPOverload* pymeth, PyObject* const* args,
 
       // else failure ..
       if (stage != 0) {
-        PyErr_Clear(); // first stage errors should be the more informative
+        // first stage errors should be the more informative, except for errors
+        // of an overload that accepted the arguments (exceptions from the
+        // callee, or errors marked to have priority)
+        bool callee_error = ctxt.fFlags & (CallContext::kPyException |
+                                           CallContext::kCppException);
+        ctxt.fFlags &=
+            ~(CallContext::kPyException | CallContext::kCppException);
+        std::vector<Utility::PyError_t> later;
+        Utility::FetchError(later, callee_error);
+        if (!later.empty() && later.back().fIsCpp)
+          errors.push_back(std::move(later.back()));
         ResetCallState(pymeth->fSelf, im_self);
         continue;
       }

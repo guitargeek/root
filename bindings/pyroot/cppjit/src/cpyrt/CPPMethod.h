@@ -125,7 +125,14 @@ private:
   std::vector<Converter*> fConverters;
   std::unordered_map<std::string, int>* fArgIndices;
 
+  // keyword-only parameter named "kwargs" of aggregate type, which collects
+  // the keyword arguments that match no other parameter (index -1 if none)
+  int fKwargsIndex;
+  interop::TCppScope_t fKwargsScope;
+
 protected:
+  bool HasKwargsParam() const { return fKwargsIndex >= 0; }
+
   // cached value that doubles as initialized flag (uninitialized if -1)
   int fArgsRequired;
 };

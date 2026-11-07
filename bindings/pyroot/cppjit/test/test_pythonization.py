@@ -320,6 +320,118 @@ class TestClassPYTHONIZATION:
         optr.__smartptr__().reset(o2)
         assert optr == o2
 
+    def test11_kwargs_struct(self):
+        """A parameter named kwargs that takes an aggregate collects the
+        keyword arguments that match no other parameter"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace kwargs_struct {
+        struct Range {
+          std::string desc{"unset"};
+          Range() = default;
+          Range(const char* name, bool adjust = true) : desc(std::string{name} + (adjust ? "+" : "")) {}
+          Range(double lo, double hi) : desc(std::to_string(int(lo)) + ":" + std::to_string(int(hi))) {}
+          Range(std::nullptr_t) : desc("none") {}
+        };
+        struct Inner { bool Save = false; int Level = 7; };
+        struct Nested {
+          std::string desc{"unset"};
+          Nested() = default;
+          Nested(Inner const& kwargs) : desc((kwargs.Save ? "save," : "") + std::to_string(kwargs.Level)) {}
+        };
+        struct Options { Range Range; int PrintLevel = 1; Nested Fit; Inner Agg; };
+
+        std::string str(Options const& o) {
+          return o.Range.desc + "|" + std::to_string(o.PrintLevel) + "|" + o.Fit.desc + "|"
+                 + std::to_string(o.Agg.Save) + "," + std::to_string(o.Agg.Level);
+        }
+        std::string func(int a, Options const& kwargs, const char* extra = "") {
+          return std::to_string(a) + "|" + str(kwargs) + "|" + extra;
+        }
+        std::string func(int a, double b) { return "other"; }
+
+        std::string pick(int a) { return "plain"; }
+        std::string pick(int a, Options const& kwargs) { return "kwargs"; }
+
+        template <class... Args>
+        std::string tmpl(int a, Args const&... args) { return "template"; }
+        std::string tmpl(int a, Options const& kwargs, int b = 0) { return "kwargs|" + str(kwargs); }
+
+        struct Klass {
+          std::string desc;
+          Klass() = default;
+          Klass(int a, Options kwargs) : desc(func(a, kwargs)) {}
+          std::string meth(Options const& kwargs, int b = 0) { return std::to_string(b) + "|" + str(kwargs); }
+        };
+
+        struct Name { std::string s; Name(const char* n) : s(n) {} };
+        std::string named(int a) { return "int"; }
+        std::string named(Name const& name, Options const& kwargs) {
+          if (kwargs.PrintLevel < 0) throw std::invalid_argument("negative PrintLevel");
+          return name.s + "|" + str(kwargs);
+        }
+
+        struct Undefined;
+        std::string incomplete(int a, Undefined const& kwargs) { return "incomplete"; }
+        }""")
+
+        ns = cppjit.gbl.kwargs_struct
+
+        # no keywords: default-constructed struct, with default member initializers
+        assert ns.func(1) == "1|unset|1|unset|0,7|"
+
+        # members of class type follow C++ initializer syntax
+        assert ns.func(1, Range="r1", PrintLevel=-1) == "1|r1+|-1|unset|0,7|"
+        assert ns.func(1, Range=("r1", False)) == "1|r1|1|unset|0,7|"
+        assert ns.func(1, Range=(0, 10)) == "1|0:10|1|unset|0,7|"
+        assert ns.func(1, Range=None) == "1|none|1|unset|0,7|"
+        assert ns.func(1, Fit=dict(Save=True, Level=3)) == "1|unset|1|save,3|0,7|"
+        assert ns.func(1, Agg={"Save": True}) == "1|unset|1|unset|1,7|"
+
+        # the kwargs parameter is keyword-only, other parameters take keywords as usual
+        assert ns.func(1, "x", PrintLevel=2) == "1|unset|2|unset|0,7|x"
+        assert ns.func(1, extra="x", PrintLevel=2) == "1|unset|2|unset|0,7|x"
+        assert ns.func(1, kwargs=ns.Options()) == "1|unset|1|unset|0,7|"
+        assert ns.func(1, 2.0) == "other"
+
+        # methods and constructors
+        assert ns.Klass().meth(5, PrintLevel=3) == "5|unset|3|unset|0,7"
+        assert ns.Klass().meth(b=5) == "5|unset|1|unset|0,7"
+        assert ns.Klass(1, Range="r").desc == "1|r+|1|unset|0,7|"
+
+        # calls without keywords prefer the other overloads
+        assert ns.pick(1) == "plain"
+        assert ns.pick(1, PrintLevel=2) == "kwargs"
+
+        # overload sets with templates
+        assert ns.tmpl(1, 2.0) == "template"
+        assert ns.tmpl(1, PrintLevel=3) == "kwargs|unset|3|unset|0,7"
+
+        # errors of the overload that took the keywords have priority
+        with raises(AttributeError, match="no data member"):
+            ns.func(1, Bogus=True)
+        with raises(AttributeError, match="no data member"):
+            ns.tmpl(1, Bogus=True)
+        with raises(AttributeError, match="no data member"):
+            ns.func(1, Fit=dict(Bogus=True))
+        with raises(TypeError, match="keyword argument 'Range'"):
+            ns.func(1, Range=object())
+        with raises(TypeError):
+            ns.func(1, "x", "y")
+
+        # also if the overload takes the arguments only with implicit conversions
+        assert ns.named("n", PrintLevel=2) == "n|unset|2|unset|0,7"
+        with raises(AttributeError, match="no data member"):
+            ns.named("n", Bogus=True)
+        with raises(cppjit.gbl.std.invalid_argument, match="negative PrintLevel"):
+            ns.named("n", PrintLevel=-1)
+
+        # a kwargs parameter of incomplete type is an ordinary parameter
+        with raises(TypeError):
+            ns.incomplete(1, PrintLevel=2)
+
 
 ## actual test run
 if __name__ == "__main__":

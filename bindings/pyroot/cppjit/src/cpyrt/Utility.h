@@ -134,6 +134,7 @@ PyError_t FetchPyError();
 void RestorePyError(PyError_t& error);
 
 size_t FetchError(std::vector<PyError_t>&, bool is_cpp = false);
+void MarkPriorityError();
 void SetDetailedException(std::vector<PyError_t>&& errors /* clears */,
                           PyObject* topmsg /* steals ref */, PyObject* defexc);
 

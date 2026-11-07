@@ -2,6 +2,7 @@
 #include "cpyrt.h"
 
 using namespace cppjit;
+#include "CPPDataMember.h"
 #include "CPPExcInstance.h"
 #include "CPPInstance.h"
 #include "CPPMethod.h"
@@ -28,6 +29,7 @@ using namespace cppjit;
 //- data and local helpers ---------------------------------------------------
 namespace cppjit::cpyrt {
 extern PyObject* gThisModule;
+extern PyObject* gNullPtrObject;
 extern PyObject* gBusException;
 extern PyObject* gSegvException;
 extern PyObject* gIllException;
@@ -84,6 +86,8 @@ inline void cpyrt::CPPMethod::Copy_(const CPPMethod& /* other */) {
   fDeclaringScope = nullptr;
   fExecutor = nullptr;
   fArgIndices = nullptr;
+  fKwargsIndex = -1;
+  fKwargsScope = nullptr;
   fArgsRequired = -1;
 }
 
@@ -201,6 +205,8 @@ bool cpyrt::CPPMethod::InitConverters_() {
   fConverters.resize(nArgs);
 
   // setup the dispatch cache
+  fKwargsIndex = -1;
+  fKwargsScope = nullptr;
   for (int iarg = 0; iarg < (int)nArgs; ++iarg) {
     interop::TCppType_t fullType = interop::GetMethodArgType(fMethod, iarg);
     Converter* conv = CreateConverter(fullType);
@@ -211,6 +217,25 @@ bool cpyrt::CPPMethod::InitConverters_() {
     }
 
     fConverters[iarg] = conv;
+
+    // a parameter named "kwargs" that takes an aggregate by value or reference
+    // collects the keyword arguments that match no other parameter
+    if (fKwargsIndex < 0 &&
+        interop::GetMethodArgName(fMethod, iarg) == "kwargs") {
+      const std::string aname =
+          interop::GetMethodArgTypeAsString(fMethod, iarg);
+      const std::string cpd = TypeManip::compound(aname);
+      if (cpd.empty() || cpd == "&" || cpd == "&&") {
+        interop::TCppScope_t klass =
+            interop::GetScope(TypeManip::clean_type(aname, false));
+        // (IsAggregate needs the definition of the class)
+        if (klass && interop::IsComplete(klass) &&
+            interop::IsAggregate(klass)) {
+          fKwargsIndex = iarg;
+          fKwargsScope = klass;
+        }
+      }
+    }
   }
 
   return true;
@@ -343,7 +368,8 @@ extern std::unordered_map<interop::TCppType_t, interop::TCppType_t>
 cpyrt::CPPMethod::CPPMethod(interop::TCppScope_t scope,
                             interop::TCppMethod_t method)
     : fMethod(method), fScope(scope), fDeclaringScope(nullptr),
-      fExecutor(nullptr), fArgIndices(nullptr), fArgsRequired(-1) {
+      fExecutor(nullptr), fArgIndices(nullptr), fKwargsIndex(-1),
+      fKwargsScope(nullptr), fArgsRequired(-1) {
   interop::TCppType_t result =
       interop::ResolveType(interop::GetMethodReturnType(fMethod));
   if (TypeReductionMap.find(result) != TypeReductionMap.end())
@@ -533,6 +559,12 @@ int cpyrt::CPPMethod::GetPriority() {
       if (interop::IsEnumScope(scope) ||
           interop::IsEnumType(interop::GetMethodArgType(fMethod, iarg)))
         priority -= 100;
+
+      // overloads with a kwargs parameter come last: they take any keyword
+      // arguments, while calls without keywords are for the other overloads
+      if (scope && interop::GetMethodArgName(fMethod, iarg) == "kwargs" &&
+          interop::IsComplete(scope) && interop::IsAggregate(scope))
+        priority -= 500;
 
       // a couple of special cases as explained above
       if (aname.find("initializer_list") != std::string::npos) {
@@ -771,13 +803,17 @@ bool cpyrt::CPPMethod::Initialize(CallContext* ctxt) {
 
 //----------------------------------------------------------------------------
 bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
-  if (!PyTuple_CheckExact(cargs.fKwds)) {
-    SetPyError_(PyUnicode_FromString("received unknown keyword names object"));
-    return false;
+  Py_ssize_t nKeys = 0;
+  if (cargs.fKwds) {
+    if (!PyTuple_CheckExact(cargs.fKwds)) {
+      SetPyError_(
+          PyUnicode_FromString("received unknown keyword names object"));
+      return false;
+    }
+    nKeys = PyTuple_GET_SIZE(cargs.fKwds);
   }
-  Py_ssize_t nKeys = PyTuple_GET_SIZE(cargs.fKwds);
 
-  if (nKeys == 0 && !self_in)
+  if (nKeys == 0 && !self_in && !HasKwargsParam())
     return true;
 
   if (!fArgIndices) {
@@ -786,27 +822,54 @@ bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
       (*fArgIndices)[interop::GetMethodArgName(fMethod, iarg)] = iarg;
   }
 
-  Py_ssize_t nArgs =
-      cpyrt_PyArgs_GET_SIZE(cargs.fArgs, cargs.fNArgsf) + (self_in ? 1 : 0);
-  if (!VerifyArgCount_(nArgs + nKeys))
+  Py_ssize_t npos_args = cpyrt_PyArgs_GET_SIZE(cargs.fArgs, cargs.fNArgsf);
+  Py_ssize_t nArgs = npos_args + (self_in ? 1 : 0);
+
+  // the kwargs parameter is keyword-only: positional arguments skip it
+  auto paramIndex = [this](Py_ssize_t ipos) {
+    return (HasKwargsParam() && ipos >= fKwargsIndex) ? ipos + 1 : ipos;
+  };
+
+  if (!HasKwargsParam()) {
+    if (!VerifyArgCount_(nArgs + nKeys))
+      return false;
+  } else if ((Py_ssize_t)fConverters.size() - 1 < nArgs) {
+    SetPyError_(PyUnicode_FromFormat(
+        "takes at most %zd positional arguments (%zd given)",
+        (Py_ssize_t)fConverters.size() - 1, nArgs));
     return false;
+  }
 
   std::vector<PyObject*> vArgs{fConverters.size()};
 
+  // keyword arguments that match no parameter, to initialize the kwargs struct
+  PyObject* structKwds = nullptr;
+
   // next, insert the keyword values
   PyObject *key, *value;
-  Py_ssize_t maxpos = -1;
+  Py_ssize_t maxpos = nArgs ? paramIndex(nArgs - 1) : -1;
 
-  Py_ssize_t npos_args = cpyrt_PyArgs_GET_SIZE(cargs.fArgs, cargs.fNArgsf);
   for (Py_ssize_t ikey = 0; ikey < nKeys; ++ikey) {
     key = PyTuple_GET_ITEM(cargs.fKwds, ikey);
     value = cargs.fArgs[npos_args + ikey];
     const char* ckey = PyUnicode_AsUTF8(key);
-    if (!ckey)
+    if (!ckey) {
+      Py_XDECREF(structKwds);
       return false;
+    }
 
     auto p = fArgIndices->find(ckey);
     if (p == fArgIndices->end()) {
+      if (HasKwargsParam()) {
+        if (!structKwds)
+          structKwds = PyDict_New();
+        if (PyDict_SetItem(structKwds, key, value) != 0) {
+          Py_DECREF(structKwds);
+          return false;
+        }
+        continue;
+      }
+
       SetPyError_(PyUnicode_FromFormat(
           "%s::%s got an unexpected keyword argument \'%s\'",
           interop::GetFinalName(fScope).c_str(),
@@ -819,7 +882,28 @@ bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
         value; // no INCREF yet for simple cleanup in case of error
   }
 
-  // if maxpos < nArgs, it will be detected & reported as a duplicate below
+  if (HasKwargsParam()) {
+    if (vArgs[fKwargsIndex] && structKwds) {
+      SetPyError_(PyUnicode_FromFormat(
+          "%s::%s got keyword arguments both for and in addition to "
+          "\'kwargs\'",
+          interop::GetFinalName(fScope).c_str(),
+          interop::GetName(interop::TCppScope_t(fMethod.data)).c_str()));
+      Py_DECREF(structKwds);
+      return false;
+    }
+
+    // the collected keyword arguments get turned into the struct only once
+    // ConvertAndSetArgs() has checked the preceding arguments
+    if (!vArgs[fKwargsIndex])
+      vArgs[fKwargsIndex] =
+          structKwds ? structKwds : (structKwds = PyDict_New());
+
+    maxpos = fKwargsIndex > maxpos ? fKwargsIndex : maxpos;
+  }
+
+  // if a positional argument also got a keyword value, it will be detected &
+  // reported as a duplicate below
   Py_ssize_t maxargs = maxpos + 1;
   cpyrt_PyArgs_t newArgs = cpyrt_PyArgs_New(maxargs);
 
@@ -828,46 +912,53 @@ bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
   for (Py_ssize_t i = 0; i < maxargs; ++i)
     cpyrt_PyArgs_SET_ITEM(newArgs, i, nullptr);
 
-  // fill out the positional arguments
-  Py_ssize_t start = 0;
-  if (self_in) {
-    Py_INCREF(self_in);
-    cpyrt_PyArgs_SET_ITEM(newArgs, 0, self_in);
-    start = 1;
-  }
+  auto cleanup = [&]() {
+    for (Py_ssize_t i = 0; i < maxargs; ++i)
+      Py_XDECREF(cpyrt_PyArgs_GET_ITEM(newArgs, i));
+    cpyrt_PyArgs_DEL(newArgs);
+    Py_XDECREF(structKwds);
+  };
 
-  for (Py_ssize_t i = start; i < nArgs; ++i) {
-    if (vArgs[i]) {
+  // fill out the positional arguments
+  for (Py_ssize_t ipos = 0; ipos < nArgs; ++ipos) {
+    Py_ssize_t iarg = paramIndex(ipos);
+    if (vArgs[iarg]) {
       SetPyError_(PyUnicode_FromFormat(
           "%s::%s got multiple values for argument %d",
           interop::GetFinalName(fScope).c_str(),
           interop::GetName(interop::TCppScope_t(fMethod.data)).c_str(),
-          (int)i + 1));
-      cpyrt_PyArgs_DEL(newArgs);
+          (int)iarg + 1));
+      cleanup();
       return false;
     }
 
-    PyObject* item = cpyrt_PyArgs_GET_ITEM(cargs.fArgs, i);
+    PyObject* item = !self_in    ? cpyrt_PyArgs_GET_ITEM(cargs.fArgs, ipos)
+                     : ipos == 0 ? self_in
+                                 : cpyrt_PyArgs_GET_ITEM(cargs.fArgs, ipos - 1);
     Py_INCREF(item);
-    cpyrt_PyArgs_SET_ITEM(newArgs, i, item);
+    cpyrt_PyArgs_SET_ITEM(newArgs, iarg, item);
   }
 
-  // fill out the keyword arguments
-  for (Py_ssize_t i = nArgs; i < maxargs; ++i) {
+  // fill out the keyword arguments, and the defaults of skipped parameters
+  for (Py_ssize_t i = 0; i < maxargs; ++i) {
+    if (cpyrt_PyArgs_GET_ITEM(newArgs, i))
+      continue;
+
     PyObject* item = vArgs[i];
     if (item) {
       Py_INCREF(item);
-      cpyrt_PyArgs_SET_ITEM(newArgs, i, item);
     } else {
       // try retrieving the default
       item = GetArgDefault((int)i, false /* i.e. not silent */);
       if (!item) {
-        cpyrt_PyArgs_DEL(newArgs);
+        cleanup();
         return false;
       }
-      cpyrt_PyArgs_SET_ITEM(newArgs, i, item);
     }
+    cpyrt_PyArgs_SET_ITEM(newArgs, i, item);
   }
+
+  Py_XDECREF(structKwds);
 
   if (cargs.fFlags & PyCallArgs::kDoFree) {
     if (cargs.fFlags & PyCallArgs::kIsOffset)
@@ -886,7 +977,7 @@ bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
 bool cpyrt::CPPMethod::ProcessArgs(PyCallArgs& cargs) {
   // verify existence of self, return if ok
   if (cargs.fSelf) {
-    if (cargs.fKwds) {
+    if (cargs.fKwds || HasKwargsParam()) {
       return ProcessKwds(nullptr, cargs);
     }
     return true;
@@ -914,7 +1005,7 @@ bool cpyrt::CPPMethod::ProcessArgs(PyCallArgs& cargs) {
         cargs.fNArgsf -= 1;
 
         // put the keywords, if any, in their places in the arguments array
-        if (cargs.fKwds)
+        if (cargs.fKwds || HasKwargsParam())
           return ProcessKwds(nullptr, cargs);
         return true;
       }
@@ -930,6 +1021,141 @@ bool cpyrt::CPPMethod::ProcessArgs(PyCallArgs& cargs) {
       interop::GetFinalName(fScope).c_str()));
   return false;
 }
+
+//----------------------------------------------------------------------------
+// A parameter named "kwargs" that takes an aggregate is the equivalent of
+// Python's **kwargs: it collects the keyword arguments that match no other
+// parameter. The struct is default-constructed, so default member initializers
+// apply, and each keyword argument then initializes the data member of the
+// same name. Members of class type are initialized following C++ initializer
+// syntax: a tuple or list like a braced-init-list, a dict like a designated
+// initializer list (i.e. as keyword arguments), None like nullptr, anything
+// else like a copy-initialization. If unpacking a tuple, list, or dict does not
+// work, the value is tried as a whole.
+namespace cppjit::cpyrt {
+static PyObject* BuildKwargsStruct(interop::TCppScope_t klass, PyObject* kwds);
+
+static bool HasOnlyStringKeys(PyObject* dict) {
+  PyObject *key, *value;
+  Py_ssize_t pos = 0;
+  while (PyDict_Next(dict, &pos, &key, &value)) {
+    if (!PyUnicode_Check(key))
+      return false;
+  }
+  return true;
+}
+
+static PyObject* InitKwargsMember(interop::TCppScope_t mklass,
+                                  PyObject* value) {
+  PyObject* pyclass = CreateScopeProxy(mklass);
+  if (!pyclass)
+    return nullptr;
+
+  if (PyObject_TypeCheck(value, (PyTypeObject*)pyclass)) {
+    Py_DECREF(pyclass);
+    Py_INCREF(value);
+    return value;
+  }
+
+  if (value == Py_None)
+    value = gNullPtrObject;
+
+  PyObject* result = nullptr;
+  bool unpacked = false;
+  if (PyTuple_Check(value) || PyList_Check(value)) {
+    PyObject* args = PySequence_Tuple(value);
+    if (args) {
+      result = PyObject_Call(pyclass, args, nullptr);
+      Py_DECREF(args);
+    }
+    unpacked = true;
+  } else if (PyDict_Check(value) && HasOnlyStringKeys(value)) {
+    if (interop::IsComplete(mklass) && interop::IsAggregate(mklass)) {
+      result = BuildKwargsStruct(mklass, value);
+    } else {
+      PyObject* args = PyTuple_New(0);
+      result = PyObject_Call(pyclass, args, value);
+      Py_DECREF(args);
+    }
+    unpacked = true;
+  }
+
+  if (!result) {
+    // the error of unpacking is the more informative one if both fail
+    Utility::PyError_t error;
+    if (unpacked)
+      error = Utility::FetchPyError();
+    result = PyObject_CallFunctionObjArgs(pyclass, value, nullptr);
+    if (!result && unpacked) {
+      PyErr_Clear();
+      Utility::RestorePyError(error);
+    }
+  }
+
+  Py_DECREF(pyclass);
+  return result;
+}
+
+static PyObject* BuildKwargsStruct(interop::TCppScope_t klass, PyObject* kwds) {
+  void* address = interop::Construct(klass).data;
+  if (!address) {
+    PyErr_Format(PyExc_TypeError, "can not default-construct %s",
+                 interop::GetScopedFinalName(klass).c_str());
+    return nullptr;
+  }
+
+  PyObject* pystruct =
+      BindCppObjectNoCast(address, klass, CPPInstance::kIsOwner);
+  if (!pystruct)
+    return nullptr;
+
+  PyObject *key, *value;
+  Py_ssize_t pos = 0;
+  while (PyDict_Next(kwds, &pos, &key, &value)) {
+    // data member descriptors are added to the class proxy when it is built
+    PyObject* descr =
+        PyUnicode_Check(key) ? _PyType_Lookup(Py_TYPE(pystruct), key) : nullptr;
+    if (!CPPDataMember_Check(descr) ||
+        interop::IsStaticDatamember(((CPPDataMember*)descr)->fScope)) {
+      PyErr_Format(PyExc_AttributeError,
+                   "unexpected keyword argument '%S' (%s has no data member "
+                   "of that name)",
+                   key, interop::GetScopedFinalName(klass).c_str());
+      Py_DECREF(pystruct);
+      return nullptr;
+    }
+
+    interop::TCppType_t mtype = interop::ResolveType(
+        interop::GetDatamemberType(((CPPDataMember*)descr)->fScope));
+    PyObject* mvalue = nullptr;
+    if (interop::IsClassType(mtype)) {
+      mvalue = InitKwargsMember(interop::GetScopeFromType(mtype), value);
+    } else {
+      Py_INCREF(value);
+      mvalue = value;
+    }
+
+    if (!mvalue || Py_TYPE(descr)->tp_descr_set(descr, pystruct, mvalue) != 0) {
+      // conversion failures don't tell which keyword argument was the culprit
+      if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+        Utility::PyError_t error = Utility::FetchPyError();
+        PyObject* msg = PyObject_Str(error.fValue.get());
+        if (msg) {
+          PyErr_Format(PyExc_TypeError, "keyword argument '%S': %S", key, msg);
+          Py_DECREF(msg);
+        } else
+          Utility::RestorePyError(error);
+      }
+      Py_XDECREF(mvalue);
+      Py_DECREF(pystruct);
+      return nullptr;
+    }
+    Py_DECREF(mvalue);
+  }
+
+  return pystruct;
+}
+} // namespace cppjit::cpyrt
 
 //----------------------------------------------------------------------------
 bool cpyrt::CPPMethod::ConvertAndSetArgs(cpyrt_PyArgs_t args, size_t nargsf,
@@ -948,8 +1174,21 @@ bool cpyrt::CPPMethod::ConvertAndSetArgs(cpyrt_PyArgs_t args, size_t nargsf,
   bool isOK = true;
   Parameter* cppArgs = ctxt->GetArgs(argc);
   for (int i = 0; i < (int)argc; ++i) {
-    if (!fConverters[i]->SetArg(cpyrt_PyArgs_GET_ITEM(args, i), cppArgs[i],
-                                ctxt)) {
+    PyObject* pyarg = cpyrt_PyArgs_GET_ITEM(args, i);
+    if (i == fKwargsIndex && PyDict_CheckExact(pyarg)) {
+      // the preceding arguments converted, so this overload accepts the call:
+      // build the kwargs struct, kept alive until the call completes, and give
+      // errors in doing so priority over the failures of other overloads
+      pyarg = BuildKwargsStruct(fKwargsScope, pyarg);
+      if (!pyarg) {
+        Utility::MarkPriorityError();
+        isOK = false;
+        break;
+      }
+      ctxt->AddTemporary(pyarg);
+    }
+
+    if (!fConverters[i]->SetArg(pyarg, cppArgs[i], ctxt)) {
       SetPyError_(
           PyUnicode_FromFormat("could not convert argument %d: %s", i + 1,
                                fConverters[i]->GetFailureMsg().c_str()));
