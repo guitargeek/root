@@ -9,7 +9,7 @@
 ################################################################################
 
 
-from ._utils import _kwargs_to_roocmdargs, cpp_signature
+from ._utils import cpp_signature
 
 
 class RooWorkspace(object):
@@ -21,20 +21,6 @@ class RooWorkspace(object):
     """
 
     __cpp_name__ = 'RooWorkspace'
-
-    @cpp_signature(
-        "Bool_t RooWorkspace::import(const RooAbsArg& arg,"
-        "    const RooCmdArg& arg1={},const RooCmdArg& arg2={},const RooCmdArg& arg3={},"
-        "    const RooCmdArg& arg4={},const RooCmdArg& arg5={},const RooCmdArg& arg6={},"
-        "    const RooCmdArg& arg7={},const RooCmdArg& arg8={},const RooCmdArg& arg9={}) ;"
-    )
-    def __init__(self, *args, **kwargs):
-        r"""The RooWorkspace constructor is pythonized with the command argument pythonization.
-        The keywords must correspond to the CmdArgs of the constructor.
-        """
-        # Redefinition of `RooWorkspace` constructor for keyword arguments.
-        args, kwargs = _kwargs_to_roocmdargs(*args, **kwargs)
-        self._init(*args, **kwargs)
 
     def __getitem__(self, key):
         # To enable accessing objects in the RooWorkspace with dictionary-like syntax.
@@ -117,16 +103,3 @@ class RooWorkspace(object):
         the workspace.
         """
         return [c.GetName() for c in self.components()]
-
-
-def RooWorkspace_import(self, *args, **kwargs):
-    r"""The RooWorkspace::import function can't be used in PyROOT because `import` is a reserved python keyword.
-    So, Import() is used and pythonized with the command argument pythonization.
-    The keywords must correspond to the CmdArg of the `import()` function.
-    """
-    # Redefinition of `RooWorkspace.import()` for keyword arguments.
-    args, kwargs = _kwargs_to_roocmdargs(*args, **kwargs)
-    return self._import(*args, **kwargs)
-
-
-setattr(RooWorkspace, "import", RooWorkspace_import)

@@ -11,20 +11,7 @@
 ################################################################################
 
 
-from ._utils import _kwargs_to_roocmdargs, cpp_signature
-
-
 class RooAbsCollection(object):
-    r"""Some member functions of RooAbsCollection that take a RooCmdArg as argument also support keyword arguments.
-    So far, this applies to RooAbsCollection::printLatex. For example, the following code is equivalent in PyROOT:
-    \code{.py}
-    # Directly passing a RooCmdArg:
-    params.printLatex(ROOT.RooFit.Sibling(initParams), ROOT.RooFit.Columns(2))
-
-    # With keyword arguments:
-    params.printLatex(Sibling=initParams, Columns =2)
-    \endcode
-    """
     __cpp_name__ = 'RooAbsCollection'
 
     def addClone(self, arg, silent=False):
@@ -53,17 +40,3 @@ class RooAbsCollection(object):
 
         self._addOwned(arg, silent)
         ROOT.SetOwnership(arg, False)
-
-    @cpp_signature(
-        "RooAbsCollection::printLatex(const RooCmdArg& arg1={}, const RooCmdArg& arg2={},"
-        "                        const RooCmdArg& arg3={}, const RooCmdArg& arg4={},"
-        "                        const RooCmdArg& arg5={}, const RooCmdArg& arg6={},"
-        "                        const RooCmdArg& arg7={}, const RooCmdArg& arg8={}) const ;"
-    )
-    def printLatex(self, *args, **kwargs):
-        r"""The RooAbsCollection::printLatex() function is pythonized with the command argument pythonization.
-        The keywords must correspond to the CmdArgs of the function.
-        """
-        # Redefinition of `RooAbsCollection.printLatex` for keyword arguments.
-        args, kwargs = _kwargs_to_roocmdargs(*args, **kwargs)
-        return self._printLatex(*args, **kwargs)

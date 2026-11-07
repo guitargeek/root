@@ -13,8 +13,6 @@
 
 from .. import pythonization
 from ._rooabscollection import RooAbsCollection
-from ._rooabsdata import RooAbsData
-from ._rooabspdf import RooAbsPdf
 from ._rooabsreal import RooAbsReal
 from ._rooabsreallvalue import RooAbsRealLValue
 from ._rooarglist import RooArgList
@@ -23,36 +21,22 @@ from ._roocategory import RooCategory
 from ._roodatahist import RooDataHist
 from ._roodataset import RooDataSet
 from ._roodecays import RooBCPEffDecay, RooBCPGenDecay, RooBDecay, RooBMixDecay, RooDecay
-from ._roogenfitstudy import RooGenFitStudy
 from ._rooglobalfunc import (
     DataError,
-    FitOptions,
-    Format,
-    Frame,
     Import,
     Link,
-    MultiArg,
     Slice,
-    YVar,
-    ZVar,
     bindFunction,
 )
-from ._roomcstudy import RooMCStudy
-from ._roomsgservice import RooMsgService
 from ._rooplot import RooPlot
-from ._rooprodpdf import RooProdPdf
 from ._roorealvar import RooRealVar
 from ._roosimultaneous import RooSimultaneous
-from ._roosimwstool import RooSimWSTool
-from ._roostats import SPlot
 from ._roovectordatastore import RooVectorDataStore
 from ._rooworkspace import RooWorkspace
 
 # list of python classes that are used to pythonize RooFit classes
 python_classes = [
     RooAbsCollection,
-    RooAbsData,
-    RooAbsPdf,
     RooAbsReal,
     RooAbsRealLValue,
     RooArgList,
@@ -65,33 +49,30 @@ python_classes = [
     RooDataHist,
     RooDataSet,
     RooDecay,
-    RooGenFitStudy,
-    RooMCStudy,
-    RooMsgService,
     RooPlot,
-    RooProdPdf,
     RooRealVar,
     RooSimultaneous,
-    RooSimWSTool,
     RooWorkspace,
     RooVectorDataStore,
-    SPlot,
 ]
 
 # list of python functions that are used to pythonize RooGlobalFunc function in RooFit
 python_roofit_functions = [
     DataError,
-    FitOptions,
-    Format,
-    Frame,
-    MultiArg,
-    YVar,
-    ZVar,
     Slice,
     Import,
     Link,
     bindFunction,
 ]
+
+# Member functions that return a RooFit::OwningPtr, i.e. a pointer that the
+# caller has to delete, which is why Python should take ownership.
+creator_methods = {
+    "RooAbsData": ["createHistogram", "reduce"],
+    "RooAbsPdf": ["createCdf", "createNLL", "fitTo", "generateBinned"],
+    "RooAbsReal": ["chi2FitTo", "createChi2", "createHistogram", "createIntegral", "createRunningIntegral"],
+    "RooAbsRealLValue": ["createHistogram"],
+}
 
 # create a dictionary for convenient access to python classes
 python_classes_dict = dict()
@@ -176,6 +157,9 @@ def pythonize_roofit_class(klass, name):
     # Parameters:
     # klass: class to pythonize
     # name: string containing the name of the class
+
+    for func_name in creator_methods.get(name, []):
+        getattr(klass, func_name).__creates__ = True
 
     if name not in python_classes_dict:
         return

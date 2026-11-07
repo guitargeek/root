@@ -24,8 +24,6 @@ if(roofit)
     list(APPEND PYROOT_EXTRA_PYTHON_SOURCES
         ROOT/_pythonization/_roofit/__init__.py
         ROOT/_pythonization/_roofit/_rooabscollection.py
-        ROOT/_pythonization/_roofit/_rooabsdata.py
-        ROOT/_pythonization/_roofit/_rooabspdf.py
         ROOT/_pythonization/_roofit/_rooabsreallvalue.py
         ROOT/_pythonization/_roofit/_rooabsreal.py
         ROOT/_pythonization/_roofit/_rooarglist.py
@@ -34,16 +32,10 @@ if(roofit)
         ROOT/_pythonization/_roofit/_roodatahist.py
         ROOT/_pythonization/_roofit/_roodataset.py
         ROOT/_pythonization/_roofit/_roodecays.py
-        ROOT/_pythonization/_roofit/_roogenfitstudy.py
         ROOT/_pythonization/_roofit/_rooglobalfunc.py
-        ROOT/_pythonization/_roofit/_roomcstudy.py
-        ROOT/_pythonization/_roofit/_roomsgservice.py
         ROOT/_pythonization/_roofit/_rooplot.py
-        ROOT/_pythonization/_roofit/_rooprodpdf.py
         ROOT/_pythonization/_roofit/_roorealvar.py
         ROOT/_pythonization/_roofit/_roosimultaneous.py
-        ROOT/_pythonization/_roofit/_roosimwstool.py
-        ROOT/_pythonization/_roofit/_roostats.py
         ROOT/_pythonization/_roofit/_roovectordatastore.py
         ROOT/_pythonization/_roofit/_rooworkspace.py
         ROOT/_pythonization/_roofit/_utils.py)

@@ -39,6 +39,9 @@ RenderCore, the WebGL engine of the REve client, is fetched at build time as the
 
 ## Python Interface
 
+* A parameter of a C++ function that is named `kwargs` and takes an aggregate type now collects the Python keyword arguments that don't match any other parameter, like `**kwargs` in Python. Each of them initializes the data member of the same name, where tuples and dicts are unpacked like braced and designated initializer lists. The `kwargs` parameter is keyword-only, so positional arguments skip it.
+* Template methods support the `__creates__` flag for the ownership of returned objects.
+
 ## I/O
 
 ## Core
@@ -49,6 +52,7 @@ RenderCore, the WebGL engine of the REve client, is fetched at build time as the
 
 ## RooFit
 
+* The functions that take RooFit command arguments, like `RooAbsPdf::fitTo()`, got overloads that take a struct named `kwargs` with a member for each command argument they accept, for example `RooFit::FitToKwargs`. In C++20, this makes possible `pdf.fitTo(data, {.PrintLevel = -1, .Save = true})`. In Python, keyword arguments like `pdf.fitTo(data, PrintLevel=-1, Save=True)` now use these overloads instead of pythonizations that translated them to command arguments. Unlike before, keywords that a function doesn't accept are rejected by the Python call itself. See `RooFit/Kwargs.h` for details.
 * Assigning a `RooCmdArg` now gives the same as copy-constructing it. Before, the assigned command argument got empty payload sets where the original had none, which made for example `RooFit::VisualizeError()` with the sampling method hang, and its sub-arguments were appended to the existing ones.
 
 ### Removal of the legacy evaluation backend
