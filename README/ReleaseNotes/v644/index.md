@@ -49,6 +49,8 @@ RenderCore, the WebGL engine of the REve client, is fetched at build time as the
 
 ## RooFit
 
+* Assigning a `RooCmdArg` now gives the same as copy-constructing it. Before, the assigned command argument got empty payload sets where the original had none, which made for example `RooFit::VisualizeError()` with the sampling method hang, and its sub-arguments were appended to the existing ones.
+
 ### Removal of the legacy evaluation backend
 
 The `legacy` evaluation backend for likelihood and chi-square fits is removed.

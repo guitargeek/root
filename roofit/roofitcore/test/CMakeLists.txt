@@ -27,6 +27,7 @@ ROOT_ADD_GTEST(testRooFitCore
     testRooAbsCollection.cxx
     testRooCacheManager.cxx
     testRooCategory.cxx
+    testRooCmdArg.cxx
     testRooCollectionProxy.cxx
     testRooCurve.cxx
     testRooDataHist.cxx

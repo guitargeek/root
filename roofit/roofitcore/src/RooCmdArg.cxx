@@ -148,15 +148,19 @@ RooCmdArg& RooCmdArg::operator=(const RooCmdArg& other)
   _s[2] = other._s[2] ;
   _o[0] = other._o[0] ;
   _o[1] = other._o[1] ;
-  if (!_c) _c = new RooArgSet[2] ;
   if (other._c) {
+    if (!_c) _c = new RooArgSet[2] ;
     _c[0].removeAll() ; _c[0].add(other._c[0]) ;
     _c[1].removeAll() ; _c[1].add(other._c[1]) ;
+  } else {
+    delete[] _c ;
+    _c = nullptr ;
   }
 
   _procSubArgs = other._procSubArgs ;
   _prefixSubArgs = other._prefixSubArgs ;
 
+  _argList.Delete() ;
   for (Int_t i=0 ; i<other._argList.GetSize() ; i++) {
     _argList.Add(new RooCmdArg(static_cast<RooCmdArg&>(*other._argList.At(i)))) ;
   }
