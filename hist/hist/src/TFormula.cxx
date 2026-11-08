@@ -695,7 +695,7 @@ Bool_t TFormula::InitLambdaExpression(const char * formula) {
    //TString lambdaName = TString::Format("mylambda_%s",GetName() );
    TString lineExpr = TString::Format("std::function<double(double*,double*)> %s = %s ;",lambdaName.Data(), lambdaExpression.c_str() );
    gInterpreter->ProcessLine(lineExpr);
-   fLambdaPtr = (void*) gInterpreter->ProcessLine(TString(lambdaName)+TString(";"));  // add ; to avoid printing
+   fLambdaPtr = (void *)gInterpreter->Calc(lambdaName);
    if (fLambdaPtr != nullptr) {
       R__LOCKGUARD(gROOTMutex);
       gClingFunctions.insert ( std::make_pair ( lambdaExpression, fLambdaPtr) );

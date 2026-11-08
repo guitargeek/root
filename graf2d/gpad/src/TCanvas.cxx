@@ -2790,9 +2790,10 @@ Bool_t TCanvas::SaveAll(const std::vector<TPad *> &pads, const char *filename, O
       }
 
       if (isSupported) {
-         auto cmd = TString::Format("TWebCanvas::ProduceImages( *((std::vector<TPad *> *) 0x%zx), \"%s\");", (size_t) &pads, fname.Data());
+         auto cmd = TString::Format("TWebCanvas::ProduceImages( *((std::vector<TPad *> *) 0x%zx), \"%s\")",
+                                    (size_t)&pads, fname.Data());
 
-         return (Bool_t) gROOT->ProcessLine(cmd);
+         return (Bool_t)gROOT->ProcessLineFast(cmd);
       }
 
       if ((ext != "root") && (ext != "xml"))

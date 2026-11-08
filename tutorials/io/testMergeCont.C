@@ -18,7 +18,7 @@ TSeqCollection *GetCollection()
    f = TFile::Open("hsimple.root");
    if( !f ) {
 #ifdef ClingWorkAroundMissingDynamicScope
-     f = (TFile*)gROOT->ProcessLine("hsimple(1);");
+      f = (TFile *)gROOT->ProcessLineFast("hsimple(1)");
 #else
      f = hsimple(1);
 #endif

@@ -27,7 +27,7 @@ void MakeCrazy(TList *list, Int_t maxDepth, Int_t maxObjects, Float_t pList)
          MakeCrazy(slist, maxDepth - 1, maxObjects, pList);
       } else {
          Int_t icl = (Int_t)gRandom->Uniform(0, ncl);
-         TNamed *named = (TNamed *)gROOT->ProcessLine(Form("new %s;", clnames[icl]));
+         TNamed *named = (TNamed *)gROOT->ProcessLineFast(Form("new %s", clnames[icl]));
          named->SetName(Form("%s_%d_%d", clnames[icl], maxDepth, i));
          list->Add(named);
       }

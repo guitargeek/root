@@ -1047,13 +1047,16 @@ void TGFileBrowser::Clicked(TGListTreeItem *item, Int_t btn, Int_t x, Int_t y)
    fListTree->ClearViewPort();
    if (selected && (selected->IsA() != TClass::Class())) {
       if (selected->InheritsFrom("TLeaf"))
-         selected = (TObject *)gROOT->ProcessLine(TString::Format("((TLeaf *)0x%zx)->GetBranch()->GetTree();", (size_t)selected));
+         selected = (TObject *)gROOT->ProcessLineFast(
+            TString::Format("((TLeaf *)0x%zx)->GetBranch()->GetTree()", (size_t)selected));
       if (selected->InheritsFrom("TBranch"))
-         selected = (TObject *)gROOT->ProcessLine(TString::Format("((TBranch *)0x%zx)->GetTree();", (size_t)selected));
+         selected =
+            (TObject *)gROOT->ProcessLineFast(TString::Format("((TBranch *)0x%zx)->GetTree()", (size_t)selected));
       if (selected->InheritsFrom("TTree")) {
          // if a tree not attached to any directory (e.g. in a TFolder)
          // then attach it to the current directory (gDirectory)
-         TDirectory *tdir = (TDirectory *)gROOT->ProcessLine(TString::Format("((TTree *)0x%zx)->GetDirectory();", (size_t)selected));
+         TDirectory *tdir =
+            (TDirectory *)gROOT->ProcessLineFast(TString::Format("((TTree *)0x%zx)->GetDirectory()", (size_t)selected));
          if (!tdir) {
             gROOT->ProcessLine(TString::Format("((TTree *)0x%zx)->SetDirectory(gDirectory);", (size_t)selected));
          }
@@ -1730,8 +1733,8 @@ void TGFileBrowser::PadModified()
          if (fe)
             embed = (TGCompositeFrame *)fe->fFrame;
          if (embed && embed->InheritsFrom("TRootCanvas")) {
-            ULongptr_t canvas = gROOT->ProcessLine(TString::Format("((TRootCanvas *)0x%zx)->Canvas();",
-                                                (size_t)embed));
+            ULongptr_t canvas =
+               gROOT->ProcessLineFast(TString::Format("((TRootCanvas *)0x%zx)->Canvas()", (size_t)embed));
             if ((canvas) && (canvas == (ULongptr_t)gPad ||
                 canvas == (ULongptr_t)gPad->GetCanvas())) {
                tabRight->SetTab(i, kTRUE);
