@@ -3109,8 +3109,6 @@ clang::QualType ROOT::TMetaUtils::AddDefaultParameters(clang::QualType instanceT
       //llvm::SmallVectorImpl<TemplateArgument> Converted; // Need to contains the other arguments.
       // Converted seems to be the same as our 'desArgs'
 
-      unsigned int dropDefault = normCtxt.GetConfig().DropDefaultArg(*Template);
-
       llvm::SmallVector<clang::TemplateArgument, 4> desArgs;
       llvm::SmallVector<clang::TemplateArgument, 4> canonArgs;
       llvm::ArrayRef<clang::TemplateArgument> template_arguments = TST->template_arguments();
@@ -3120,7 +3118,6 @@ clang::QualType ROOT::TMetaUtils::AddDefaultParameters(clang::QualType instanceT
       if (template_arguments.size() > Edecl) {
          Edecl = template_arguments.size();
       }
-      unsigned int maxAddArg = Edecl - dropDefault;
       for (const clang::TemplateArgument *I = template_arguments.begin(), *E = template_arguments.end(); Idecl != Edecl;
            I != E ? ++I : nullptr, ++Idecl, ++Param) {
 
@@ -3176,7 +3173,7 @@ clang::QualType ROOT::TMetaUtils::AddDefaultParameters(clang::QualType instanceT
                desArgs.push_back(*I);
             }
             // Converted.push_back(TemplateArgument(ArgTypeForTemplate));
-         } else if (!isStdDropDefault && Idecl < maxAddArg) {
+         } else if (!isStdDropDefault) {
 
             mightHaveChanged = true;
 
