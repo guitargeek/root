@@ -129,7 +129,7 @@ TEST_P(GemmTest, GemmTestDerivative)
    }
 
    auto *gradient_ptr = reinterpret_cast<void (*)(float *, int, int, int, float *)>(
-      gInterpreter->ProcessLine("static_cast<void (*)(float*, int, int, int, float*)>(gemm_function_grad_0);"));
+      gInterpreter->Calc("static_cast<void (*)(float*, int, int, int, float*)>(gemm_function_grad_0)"));
 
    float variables[] = {1., 1., 4., 2., 2., 4., 0., 6., 1., 2., 5., 7., 3., 1.,
                         4., 2., 3., 1., 1., 2., 0., 9., 3., 4., 1., 2., 6., 3.};

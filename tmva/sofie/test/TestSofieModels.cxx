@@ -54,11 +54,11 @@ int DeclareCode(std::string modelName)
 }
 
 std::vector<float> RunInference(float * x, int sId) {
-   // run inference code using gROOT->ProcessLine
+   // run inference code through the interpreter
    printf("doing inference.....");
    TString cmd = TString::Format("s%d.infer( (float*)0x%lx )", sId,(ULong_t)x);
-   if (!verbose)  cmd += ";";
-   std::vector<float> *result = (std::vector<float> *)gROOT->ProcessLine(cmd);
+   // ProcessLine() also prints the result, ProcessLineFast() does not
+   std::vector<float> *result = (std::vector<float> *)(verbose ? gROOT->ProcessLine(cmd) : gROOT->ProcessLineFast(cmd));
    return *result;
 }
 

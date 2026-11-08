@@ -387,8 +387,8 @@ auto val2 = Ln10_pushforward();
 }
    )cpp");
 
-   auto val1 = *(double *)(uintptr_t)gInterpreter->ProcessLine("&issue_12108::val1.value;");
-   auto val2 = *(double *)(uintptr_t)gInterpreter->ProcessLine("&issue_12108::val2.value;");
+   auto val1 = *(double *)(uintptr_t)gInterpreter->Calc("&issue_12108::val1.value");
+   auto val2 = *(double *)(uintptr_t)gInterpreter->Calc("&issue_12108::val2.value");
 
    EXPECT_DOUBLE_EQ(2.3025850929940459, val1);
    EXPECT_DOUBLE_EQ(2.3025850929940459, val2);
@@ -477,7 +477,7 @@ TEST_F(TClingTests, DeclareAutoloadsSymbolsForStaticInit)
    EXPECT_TRUE(gInterpreter->Declare("#include <TVectorT.h>\n"
                                      "const auto gROOT16601vec = TVectorT<float>(3);"));
    // The variable must exist and be usable, i.e. its constructor ran.
-   EXPECT_EQ(3L, gInterpreter->ProcessLine("gROOT16601vec.GetNrows();"));
+   EXPECT_EQ(3L, gInterpreter->Calc("gROOT16601vec.GetNrows()"));
 }
 
 // A failed static initializer rolls the transaction back: Declare reports it and later initializers still run.
@@ -488,9 +488,9 @@ TEST_F(TClingTests, DeclareReportsFailedStaticInit)
    EXPECT_EQ(nullptr, gInterpreter->GetDataMember(nullptr, "TClingTests_v"));
    EXPECT_TRUE(gInterpreter->Declare("int TClingTests_src() { return 7; }"
                                      "int TClingTests_w = TClingTests_src();"));
-   EXPECT_EQ(7L, gInterpreter->ProcessLine("TClingTests_w;"));
+   EXPECT_EQ(7L, gInterpreter->Calc("TClingTests_w"));
    EXPECT_TRUE(gInterpreter->Declare("int TClingTests_v = 2;"));
-   EXPECT_EQ(2L, gInterpreter->ProcessLine("TClingTests_v;"));
+   EXPECT_EQ(2L, gInterpreter->Calc("TClingTests_v"));
 }
 
 // https://github.com/root-project/root/issues/15818

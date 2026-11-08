@@ -5,7 +5,7 @@
 #ifdef ClingWorkAroundFunctionForwardDeclarations
    gROOT->ProcessLine("#include \"classesFuncFwdDecl.h\"");
 #endif
-   gSystem->Exit(!gROOT->ProcessLine("Classes();"));
+   gSystem->Exit(!gROOT->ProcessLineFast("Classes()"));
 #else
 #ifdef ClingWorkAroundFunctionForwardDeclarations
    #include "classesFuncFwdDecl.h";

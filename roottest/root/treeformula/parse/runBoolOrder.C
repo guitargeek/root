@@ -6,10 +6,10 @@
    printf("G__catchexception=0\n");
 #endif
 #ifdef ClingWorkAroundMissingDynamicScope
-   if (TFile *f = (TFile*)gROOT->ProcessLine("gFile;"))
+   if (TFile *f = (TFile *)gROOT->ProcessLineFast("gFile"))
 #else
-      if (gFile!=0)
-#endif         
+   if (gFile != 0)
+#endif
    {
 #ifdef ClingWorkAroundMissingDynamicScope
       TTree *mk; f->GetObject("mk",mk);
