@@ -3671,7 +3671,7 @@ bool ROOT::TMetaUtils::QualType2Template(const clang::QualType& qt,
       return false;
    }
 
-   if (theType->isPointerType()) {
+   if (theType->isPointerType() || theType->isReferenceType()) {
       return QualType2Template(theType->getPointeeType(), ctd, ctsd);
    }
 
@@ -3874,17 +3874,14 @@ static bool isTypeWithDefault(const clang::NamedDecl* nDecl)
 
 }
 
-static void KeepNParams(clang::QualType& normalizedType,
-                        const clang::QualType& vanillaType,
-                        const cling::Interpreter& interp,
-                        const ROOT::TMetaUtils::TNormalizedCtxt& normCtxt);
+static void KeepNParams(clang::QualType &normalizedType, const clang::QualType &vanillaType,
+                        const cling::Interpreter &interp, const ROOT::TMetaUtils::TNormalizedCtxt &normCtxt,
+                        bool inScope = false);
 
 // Returns true if normTArg might have changed.
-static bool RecurseKeepNParams(clang::TemplateArgument &normTArg,
-                               const clang::TemplateArgument &tArg,
-                               const cling::Interpreter& interp,
-                               const ROOT::TMetaUtils::TNormalizedCtxt& normCtxt,
-                               const clang::ASTContext& astCtxt)
+static bool RecurseKeepNParams(clang::TemplateArgument &normTArg, const clang::TemplateArgument &tArg,
+                               const cling::Interpreter &interp, const ROOT::TMetaUtils::TNormalizedCtxt &normCtxt,
+                               const clang::ASTContext &astCtxt, bool inScope)
 {
    using namespace ROOT::TMetaUtils;
    using namespace clang;
@@ -3897,10 +3894,7 @@ static bool RecurseKeepNParams(clang::TemplateArgument &normTArg,
    if (tArg.getKind() == clang::TemplateArgument::Type) {
       QualType thisNormQualType = normTArg.getAsType();
       QualType thisArgQualType = tArg.getAsType();
-      KeepNParams(thisNormQualType,
-                  thisArgQualType,
-                  interp,
-                  normCtxt);
+      KeepNParams(thisNormQualType, thisArgQualType, interp, normCtxt, inScope);
       normTArg = TemplateArgument(thisNormQualType);
       return (thisNormQualType != thisArgQualType);
    } else if (normTArg.getKind() == clang::TemplateArgument::Pack) {
@@ -3913,7 +3907,7 @@ static bool RecurseKeepNParams(clang::TemplateArgument &normTArg,
            I != E && FI != FE; ++I, ++FI)
       {
          TemplateArgument pack_arg(*I);
-         mightHaveChanged |= RecurseKeepNParams(pack_arg, *FI, interp, normCtxt, astCtxt);
+         mightHaveChanged |= RecurseKeepNParams(pack_arg, *FI, interp, normCtxt, astCtxt, inScope);
          desArgs.push_back(pack_arg);
       }
       if (mightHaveChanged) {
@@ -3927,31 +3921,37 @@ static bool RecurseKeepNParams(clang::TemplateArgument &normTArg,
 
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Apply KeepNParams to a scope, e.g. to drop the default template arguments
+/// of the std::deque an enum is declared in.
+
+static clang::NestedNameSpecifier KeepNParamsNNS(clang::NestedNameSpecifier scope, const cling::Interpreter &interp,
+                                                 const ROOT::TMetaUtils::TNormalizedCtxt &normCtxt)
+{
+   if (scope.getKind() != clang::NestedNameSpecifier::Kind::Type)
+      return scope;
+   clang::QualType scopeType(scope.getAsType(), 0);
+   clang::QualType keptScopeType = scopeType;
+   KeepNParams(keptScopeType, scopeType, interp, normCtxt, /*inScope=*/true);
+   if (keptScopeType == scopeType)
+      return scope;
+   return clang::NestedNameSpecifier(keptScopeType.getTypePtr());
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// This function allows to manipulate the number of arguments in the type
 /// of a template specialisation.
+/// If inScope is true, the type is (part of) the scope of another type and
+/// the number of arguments to keep requested for a template is not applied:
+/// only the default arguments of the STL classes are dropped.
 
-static void KeepNParams(clang::QualType& normalizedType,
-                        const clang::QualType& vanillaType,
-                        const cling::Interpreter& interp,
-                        const ROOT::TMetaUtils::TNormalizedCtxt& normCtxt)
+static void KeepNParams(clang::QualType &normalizedType, const clang::QualType &vanillaType,
+                        const cling::Interpreter &interp, const ROOT::TMetaUtils::TNormalizedCtxt &normCtxt,
+                        bool inScope)
 {
    using namespace ROOT::TMetaUtils;
    using namespace clang;
 
-   // If this type has no template specialisation behind, we don't need to do
-   // anything
-   ClassTemplateSpecializationDecl* ctsd;
-   ClassTemplateDecl* ctd;
-   if (! QualType2Template(vanillaType, ctd,  ctsd)) return ;
-
-   // Even if this is a template, if we don't keep any argument, return
-   const int nArgsToKeep = normCtxt.GetNargsToKeep(ctd);
-
-   // Important in case of early return: we must restore the original qualtype
-   QualType originalNormalizedType = normalizedType;
-
-   const ASTContext& astCtxt = ctsd->getASTContext();
-
+   const ASTContext &astCtxt = interp.getCI()->getASTContext();
 
    // In case of name* we need to strip the pointer first, add the default and attach
    // the pointer once again.
@@ -3959,7 +3959,7 @@ static void KeepNParams(clang::QualType& normalizedType,
       // Get the qualifiers.
       clang::Qualifiers quals = normalizedType.getQualifiers();
       auto valNormalizedType = normalizedType->getPointeeType();
-      KeepNParams(valNormalizedType,vanillaType, interp, normCtxt);
+      KeepNParams(valNormalizedType, vanillaType, interp, normCtxt, inScope);
       normalizedType = astCtxt.getPointerType(valNormalizedType);
       // Add back the qualifiers.
       normalizedType = astCtxt.getQualifiedType(normalizedType, quals);
@@ -3973,7 +3973,7 @@ static void KeepNParams(clang::QualType& normalizedType,
       bool isLValueRefTy = llvm::isa<clang::LValueReferenceType>(normalizedType.getTypePtr());
       clang::Qualifiers quals = normalizedType.getQualifiers();
       auto valNormType = normalizedType->getPointeeType();
-      KeepNParams(valNormType, vanillaType, interp, normCtxt);
+      KeepNParams(valNormType, vanillaType, interp, normCtxt, inScope);
 
       // Add the r- or l- value reference type back to the desugared one
       if (isLValueRefTy)
@@ -3985,19 +3985,33 @@ static void KeepNParams(clang::QualType& normalizedType,
       return;
    }
 
-   // Treat the Scope (factorise the code out to reuse it in AddDefaultParameters)
-   bool prefix_changed = false;
-   clang::NestedNameSpecifier prefix = std::nullopt;
-   clang::Qualifiers prefix_qualifiers = normalizedType.getLocalQualifiers();
+   // Treat the scope, which might be a template specialisation even if the
+   // type itself is not, e.g. for an enum declared in a std::deque.
    NestedNameSpecifier desugaredPrefix = normalizedType->getPrefix();
-   if (desugaredPrefix) {
-      // We have to also handle the prefix.
-      // TODO: we ought to be running KeepNParams
-      prefix = AddDefaultParametersNNS(astCtxt, desugaredPrefix, interp, normCtxt);
-      prefix_changed = prefix != desugaredPrefix;
-      // LLVM22: In the old API this was:
-      // normalizedType = clang::QualType(etype->getNamedType().getTypePtr(),0);
+   NestedNameSpecifier prefix = desugaredPrefix;
+   if (desugaredPrefix)
+      prefix = KeepNParamsNNS(desugaredPrefix, interp, normCtxt);
+   const bool prefix_changed = prefix != desugaredPrefix;
+
+   // If this type has no template specialisation behind, we are done once
+   // its scope is treated.
+   ClassTemplateSpecializationDecl *ctsd;
+   ClassTemplateDecl *ctd;
+   if (!QualType2Template(vanillaType, ctd, ctsd)) {
+      if (prefix_changed) {
+         Qualifiers qualifiers = normalizedType.getLocalQualifiers();
+         normalizedType =
+            cling::utils::TypeName::QualifyTypeUnderPrefix(astCtxt, QualType(normalizedType.getTypePtr(), 0), prefix);
+         normalizedType = astCtxt.getQualifiedType(normalizedType, qualifiers);
+      }
+      return;
    }
+
+   // Even if this is a template, if we don't keep any argument, return
+   const int nArgsToKeep = inScope ? -1 : normCtxt.GetNargsToKeep(ctd);
+
+   // Important in case of early return: we must restore the original qualtype
+   QualType originalNormalizedType = normalizedType;
 
    // The canonical decl does not necessarily have the template default arguments.
    // Need to walk through the redecl chain to find it (we know there will be no
@@ -4088,14 +4102,14 @@ static void KeepNParams(clang::QualType& normalizedType,
             // arguments we just process all remaining argument and exit the main loop.
             for( ; inst != nNormArgs; ++inst) {
                normTArg = normArgs[inst];
-               mightHaveChanged |= RecurseKeepNParams(normTArg, tArg, interp, normCtxt, astCtxt);
+               mightHaveChanged |= RecurseKeepNParams(normTArg, tArg, interp, normCtxt, astCtxt, inScope);
                argsToKeep.push_back(normTArg);
             }
             // Done.
             latestNonDefaultArg = -1;
             break;
          }
-         mightHaveChanged |= RecurseKeepNParams(normTArg, tArg, interp, normCtxt, astCtxt);
+         mightHaveChanged |= RecurseKeepNParams(normTArg, tArg, interp, normCtxt, astCtxt, inScope);
          argsToKeep.push_back(normTArg);
          latestNonDefaultArg = formal;
          continue;
@@ -4123,7 +4137,7 @@ static void KeepNParams(clang::QualType& normalizedType,
       argsToKeep.push_back(normTArg);
       if (!equal) {
          latestNonDefaultArg = formal;
-         mightHaveChanged |= RecurseKeepNParams(normTArg, tArg, interp, normCtxt, astCtxt);
+         mightHaveChanged |= RecurseKeepNParams(normTArg, tArg, interp, normCtxt, astCtxt, inScope);
       } else {
          mightHaveChanged = true;
       }
@@ -4139,25 +4153,20 @@ static void KeepNParams(clang::QualType& normalizedType,
       return;
    }
 
-   // now, let's remanipulate our Qualtype
-   if (mightHaveChanged) {
-      Qualifiers qualifiers = normalizedType.getLocalQualifiers();
-      normalizedType = astCtxt.getTemplateSpecializationType(theKeyword,
-                                                             theTemplateName,
-                                                             argsToKeep,
-                                                             /*CanonicalArgs=*/{},
-                                                             normalizedType.getTypePtr()->getCanonicalTypeInternal());
-      normalizedType = astCtxt.getQualifiedType(normalizedType, qualifiers);
+   // The scope of a template specialisation is part of its template name.
+   if (prefix_changed) {
+      if (QualifiedTemplateName *qualTemplateName = theTemplateName.getAsQualifiedTemplateName()) {
+         theTemplateName = astCtxt.getQualifiedTemplateName(prefix, qualTemplateName->hasTemplateKeyword(),
+                                                            qualTemplateName->getUnderlyingTemplate());
+      }
    }
 
-   // Here we have (prefix_changed==true || mightHaveChanged), in both case
-   // we need to reconstruct the type.
-   if (prefix) {
-      // LLVM22: In the old API this was:
-      // normalizedType = astCtxt.getElaboratedType(clang::ElaboratedTypeKeyword::None, prefix, normalizedType);
-      normalizedType = cling::utils::TypeName::QualifyTypeUnderPrefix(astCtxt, normalizedType, prefix);
-      normalizedType = astCtxt.getQualifiedType(normalizedType,prefix_qualifiers);
-   }
+   // now, let's remanipulate our Qualtype
+   Qualifiers qualifiers = normalizedType.getLocalQualifiers();
+   normalizedType = astCtxt.getTemplateSpecializationType(
+      theKeyword, theTemplateName, mightHaveChanged ? llvm::ArrayRef<TemplateArgument>(argsToKeep) : normArgs,
+      /*CanonicalArgs=*/{}, normalizedType.getTypePtr()->getCanonicalTypeInternal());
+   normalizedType = astCtxt.getQualifiedType(normalizedType, qualifiers);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4165,7 +4174,8 @@ static void KeepNParams(clang::QualType& normalizedType,
 /// keeping only the ROOT opaque typedef (Double32_t, etc.) and
 /// adding default template argument for all types except those explicitly
 /// requested to be drop by the user.
-/// Default template for STL collections are not yet removed by this routine.
+/// Default template arguments of the STL collections are removed, except
+/// in types that are not traversed (e.g. arrays or function types).
 
 clang::QualType ROOT::TMetaUtils::GetNormalizedType(const clang::QualType &type, const cling::Interpreter &interpreter, const TNormalizedCtxt &normCtxt)
 {
@@ -4225,6 +4235,10 @@ void ROOT::TMetaUtils::GetNormalizedName(std::string &norm_name, const clang::Qu
 
    // Still remove the std:: and default template argument for STL container and
    // normalize the location and amount of white spaces.
+   // GetNormalizedType already drops the STL default template arguments, but
+   // not inside types that KeepNParams does not traverse (e.g. arrays,
+   // _Atomic, function types or expanded parameter packs), so the string
+   // based dropping is still needed for those.
    TClassEdit::TSplitType splitname(normalizedNameStep1.c_str(),(TClassEdit::EModType)(TClassEdit::kLong64 | TClassEdit::kDropStd | TClassEdit::kDropStlDefault | TClassEdit::kKeepOuterConst));
    splitname.ShortType(norm_name,TClassEdit::kDropStd | TClassEdit::kDropStlDefault );
 
@@ -4620,9 +4634,12 @@ bool ROOT::TMetaUtils::IsStdDropDefaultClass(const clang::RecordDecl &cl)
 {
    // Might need to reduce it to shared_ptr and STL collection.s
    if (cling::utils::Analyze::IsStdClass(cl)) {
+      // clang-format off
       static const char *names[] =
       {  "shared_ptr", "__shared_ptr",
-         "vector", "list", "deque", "map", "multimap", "set", "multiset", "bitset"};
+         "vector", "list", "forward_list", "deque", "map", "multimap", "set", "multiset",
+         "unordered_set", "unordered_multiset", "unordered_map", "unordered_multimap", "bitset"};
+      // clang-format on
       llvm::StringRef clname(cl.getName());
       for(auto &&name : names) {
          if (clname == name) return true;
