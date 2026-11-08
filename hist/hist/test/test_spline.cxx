@@ -38,9 +38,8 @@ TEST(TSpline, Precision)
    // Interpret the spline macro and get out of the interpreter the function obtained
    std::ifstream ifs(macroName);
    std::string codeToJIT((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
-   codeToJIT+=splineName;
-   codeToJIT+=";";
-   auto spline = (double (*)(double))gInterpreter->ProcessLine(codeToJIT.c_str());
+   gInterpreter->ProcessLine(codeToJIT.c_str());
+   auto spline = (double (*)(double))gInterpreter->Calc(splineName);
 
    const auto tolerance = 0.000001;
    for (unsigned int i = 0; i < n; ++i) {

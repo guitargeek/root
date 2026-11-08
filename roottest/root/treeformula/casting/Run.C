@@ -6,7 +6,7 @@ int SimpleRun(bool debug = false) {
 
 #ifdef ClingWorkAroundMissingDynamicScope
    gROOT->ProcessLine(TString::Format("Create(%d);",debug));
-   return gROOT->ProcessLine(TString::Format("Read(%d);",debug));
+   return gROOT->ProcessLineFast(TString::Format("Read(%d)", debug));
 #else
   Create(debug);
    return Read(debug);

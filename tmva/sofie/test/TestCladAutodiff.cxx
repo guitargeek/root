@@ -110,9 +110,9 @@ float Linear_16_wrapper_num_diff(TMVA_SOFIE_Linear_16::Session const &session, f
 
    double tol = 0.0025;
 
-   auto arr_size = static_cast<std::size_t>(gInterpreter->ProcessLine("std::size(grad_output);"));
-   auto grad_arr = reinterpret_cast<float *>(gInterpreter->ProcessLine("grad_output;"));
-   auto numeric_arr = reinterpret_cast<float *>(gInterpreter->ProcessLine("numeric_output;"));
+   auto arr_size = static_cast<std::size_t>(gInterpreter->Calc("std::size(grad_output)"));
+   auto grad_arr = reinterpret_cast<float *>(gInterpreter->Calc("grad_output"));
+   auto numeric_arr = reinterpret_cast<float *>(gInterpreter->Calc("numeric_output"));
 
    expectNearCapped(grad_arr, numeric_arr, arr_size, tol);
 
@@ -226,8 +226,8 @@ float sig_hvp_dev = 0.0f;
    )")
                                 .c_str());
 
-   auto *gradArr = reinterpret_cast<float *>(gInterpreter->ProcessLine("sig_grad.data();"));
-   auto *fwdArr = reinterpret_cast<float *>(gInterpreter->ProcessLine("sig_fwd.data();"));
+   auto *gradArr = reinterpret_cast<float *>(gInterpreter->Calc("sig_grad.data()"));
+   auto *fwdArr = reinterpret_cast<float *>(gInterpreter->Calc("sig_fwd.data()"));
    for (int i = 0; i < nInputs; ++i) {
       EXPECT_NEAR(fwdArr[i], gradArr[i], 1e-5) << "forward vs reverse derivative at input index " << i;
    }
@@ -266,7 +266,7 @@ float sig_hvp_dev = 0.0f;
    )")
                                 .c_str());
 
-   auto *hvpDev = reinterpret_cast<float *>(gInterpreter->ProcessLine("&sig_hvp_dev;"));
+   auto *hvpDev = reinterpret_cast<float *>(gInterpreter->Calc("&sig_hvp_dev"));
    EXPECT_LT(*hvpDev, 1e-5) << "dinput adjoint vs gradient";
 
    // Reference Hessian: central finite differences of the exact reverse-mode
@@ -300,8 +300,8 @@ void sig_fd_hessian(float *input)
    )");
    gInterpreter->ProcessLine(("sig_fd_hessian(" + inputInterp + ");").c_str());
 
-   auto *hessArr = reinterpret_cast<float *>(gInterpreter->ProcessLine("sig_hess.data();"));
-   auto *hessFdArr = reinterpret_cast<float *>(gInterpreter->ProcessLine("sig_hess_fd.data();"));
+   auto *hessArr = reinterpret_cast<float *>(gInterpreter->Calc("sig_hess.data()"));
+   auto *hessFdArr = reinterpret_cast<float *>(gInterpreter->Calc("sig_hess_fd.data()"));
 
    expectNearCapped(hessArr, hessFdArr, nInputs * nInputs, 1e-3);
 

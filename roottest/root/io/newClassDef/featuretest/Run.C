@@ -2,7 +2,8 @@
 
 gROOT->ProcessLine(".L typeidtest.C++");
 #ifdef ClingWorkAroundMissingDynamicScope
-if (gROOT->ProcessLine("typeidtest();")==0) gApplication->Terminate(1);
+if (gROOT->ProcessLineFast("typeidtest()") == 0)
+   gApplication->Terminate(1);
 #else
 if (typeidtest()==0) gApplication->Terminate(1);
 #endif

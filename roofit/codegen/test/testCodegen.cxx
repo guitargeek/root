@@ -71,7 +71,7 @@ CodegenFunc compileFunction(RooAbsArg &arg, RooArgList const &params)
       ADD_FAILURE() << "generated code does not compile:\n" << ctx.collectedCode();
       return nullptr;
    }
-   return reinterpret_cast<CodegenFunc>(gInterpreter->ProcessLine((funcName + ";").c_str()));
+   return reinterpret_cast<CodegenFunc>(gInterpreter->Calc(funcName.c_str()));
 }
 
 /// How a plain stream formats 0.5 under `loc`, to verify that the facet is

@@ -20,7 +20,8 @@ int wcomp(const char *version, const char *what = "myclass.h")
 {
    int r = compile(version,what);
 #ifdef ClingWorkAroundMissingDynamicScope
-   if (!r) r = gROOT->ProcessLine(TString::Format("write_what(\"%s\");",version));
+   if (!r)
+      r = gROOT->ProcessLineFast(TString::Format("write_what(\"%s\")", version));
 #else
    if (!r) r = write_what(version);
 #endif
@@ -107,7 +108,7 @@ int runVecLong(int mode, const char *whatlib)
       case 1:
          compile(whatlib,"veclong64.h");
 #ifdef ClingWorkAroundMissingDynamicScope
-         return gROOT->ProcessLine("readfile();");
+         return gROOT->ProcessLineFast("readfile()");
 #else
          return readfile();
 #endif

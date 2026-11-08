@@ -11,7 +11,7 @@ if (!res) return !res;
 gROOT->ProcessLine(".L testSelector.C+");
 #if defined(ClingWorkAroundMissingDynamicScope) || defined(ClingWorkAroundBrokenUnnamedReturn)
 bool resInterp;
-resInterp = gROOT->ProcessLine("runtest();");
+resInterp = gROOT->ProcessLineFast("runtest()");
 resInterp = !resInterp;
 #else
 bool res = runtest();

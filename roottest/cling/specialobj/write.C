@@ -5,7 +5,7 @@
    
 #ifdef ClingWorkAroundMissingDynamicScope
    TObject *calib = 0;
-   calib = (TObject*)gROOT->ProcessLine("new RTCalib;");
+   calib = (TObject *)gROOT->ProcessLineFast("new RTCalib");
 #else
    RTCalib *calib = new RTCalib;
 #endif

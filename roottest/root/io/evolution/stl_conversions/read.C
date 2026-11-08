@@ -1,7 +1,7 @@
 #ifdef ClingWorkAroundMissingDynamicScope
 int readfile_trampoline(const char*filename, Bool_t checkValue = kTRUE)
 {
-   return gROOT->ProcessLine(TString::Format("readfile(\"%s\",%d);",filename,checkValue));
+   return gROOT->ProcessLineFast(TString::Format("readfile(\"%s\",%d)", filename, checkValue));
 }
 #endif
 
