@@ -537,7 +537,7 @@ void TRandom::ReadRandom(const char *filename)
 {
    if (!gDirectory) return;
    char *fntmp = gSystem->ExpandPathName(filename);
-   TDirectory *file = (TDirectory*)gROOT->ProcessLine(Form("TFile::Open(\"%s\");",fntmp));
+   TDirectory *file = (TDirectory *)gROOT->ProcessLineFast(Form("TFile::Open(\"%s\")", fntmp));
    delete [] fntmp;
    if(file && file->GetFile()) {
       gDirectory->ReadTObject(this,GetName());
@@ -700,7 +700,7 @@ void TRandom::WriteRandom(const char *filename) const
 {
    if (!gDirectory) return;
    char *fntmp = gSystem->ExpandPathName(filename);
-   TDirectory *file = (TDirectory*)gROOT->ProcessLine(Form("TFile::Open(\"%s\",\"recreate\");",fntmp));
+   TDirectory *file = (TDirectory *)gROOT->ProcessLineFast(Form("TFile::Open(\"%s\",\"recreate\")", fntmp));
    delete [] fntmp;
    if(file && file->GetFile()) {
       gDirectory->WriteTObject(this,GetName());

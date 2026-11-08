@@ -1715,7 +1715,7 @@ TColor *TROOT::GetColor(Int_t color) const
 
 TCanvas *TROOT::MakeDefCanvas() const
 {
-   return (TCanvas*)gROOT->ProcessLine("TCanvas::MakeDefCanvas();");
+   return (TCanvas *)gROOT->ProcessLineFast("TCanvas::MakeDefCanvas()");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

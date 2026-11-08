@@ -47,7 +47,7 @@ Int_t foam_demopers()
 
    //N.B. the integrand functions need to be reset
    // because cannot be made persistent
-   TFoamIntegrand * rho = (TFoamIntegrand*) gROOT->ProcessLine("return new TFDISTR();");
+   TFoamIntegrand *rho = (TFoamIntegrand *)gROOT->ProcessLineFast("new TFDISTR()");
    FoamX->SetRho(rho);
 
    Double_t MCvect[2]; // 2-dim vector generated in the MC run

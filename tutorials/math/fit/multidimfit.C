@@ -15,6 +15,7 @@
 #include "TSystem.h"
 #include "TBrowser.h"
 #include "TFile.h"
+#include "TInterpreter.h"
 #include "TRandom.h"
 #include "TMultiDimFit.h"
 #include "TVectorD.h"
@@ -141,12 +142,11 @@ int CompareResults(TMultiDimFit *fit, bool doFit)
    gROOT->ProcessLine(".L MDF.C");
 
    double refMDF = (doFit) ? 43.95 : 43.98;
-   // this does not work in CLing since the function is not defined
-   //double x[]    = {5,5,5,5};
-   //double rMDF   = MDF(x);
-   //LM:  need to return the address of the result since it is casted to a long (this should not be in a tutorial !)
-   std::intptr_t iret = gROOT->ProcessLine(" double xvalues[] = {5,5,5,5}; double result=MDF(xvalues); &result;");
-   double rMDF = * ( (double*)iret);
+   // MDF() is only known to the interpreter after loading MDF.C above, so get
+   // a pointer to it from the interpreter.
+   auto mdf = reinterpret_cast<double (*)(double *)>(gInterpreter->Calc("MDF"));
+   double xvalues[] = {5, 5, 5, 5};
+   double rMDF = mdf(xvalues);
    //printf("%f\n",rMDF);
    if (TMath::Abs(rMDF -refMDF) > 1e-2) return 4;
    return 0;

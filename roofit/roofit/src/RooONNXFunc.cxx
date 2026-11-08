@@ -138,7 +138,7 @@ Fn resolveLazy(std::string const &name, const char *code)
       }
 
       // Try to resolve the symbol
-      void *symbol = reinterpret_cast<void *>(gInterpreter->ProcessLine((name + ";").c_str()));
+      void *symbol = reinterpret_cast<void *>(gInterpreter->Calc(name.c_str()));
 
       if (!symbol) {
          throw std::runtime_error(std::string("ROOT JIT failed to resolve symbol: ") + name);
@@ -352,8 +352,8 @@ std::string _RooONNXFunc_onnxToCppWithSofie(std::uint8_t const *onnxBytes, std::
    _runtime->_session.emplace(sessionName);
    auto ptrSession = toPtrString(_runtime->_session.ptr, sessionName);
 
-   _runtime->_func = reinterpret_cast<RuntimeCache::Func>(gInterpreter->ProcessLine(
-      ("static_cast<void(*)(void *, float *, float const *)>(" + namespaceName + "::roo_eval_thunk);").c_str()));
+   _runtime->_func = reinterpret_cast<RuntimeCache::Func>(gInterpreter->Calc(
+      ("static_cast<void(*)(void *, float *, float const *)>(" + namespaceName + "::roo_eval_thunk)").c_str()));
 
    // hardcode the gradient for now
    _runtime->_d_session.emplace(sessionName);

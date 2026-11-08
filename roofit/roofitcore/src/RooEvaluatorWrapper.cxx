@@ -372,7 +372,7 @@ RooFuncWrapper::RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooSimul
       throw std::runtime_error(errorMsg.str().c_str());
    }
 
-   _func = reinterpret_cast<Func>(gInterpreter->ProcessLine((_funcName + ";").c_str()));
+   _func = reinterpret_cast<Func>(gInterpreter->Calc(_funcName.c_str()));
 
    _xlArr = ctx.xlArr();
    _collectedFunctions = ctx.collectedFunctions();
@@ -445,8 +445,8 @@ void RooFuncWrapper::createGradient()
    // function pointer would be ambiguous.
    std::stringstream ss;
    ROOT::Math::Util::TimingScope timingScope(print, "Gradient IR to machine code time:");
-   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << gradName << ");";
-   _grad = reinterpret_cast<Grad>(gInterpreter->ProcessLine(ss.str().c_str()));
+   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << gradName << ")";
+   _grad = reinterpret_cast<Grad>(gInterpreter->Calc(ss.str().c_str()));
    _hasGradient = true;
 #else
    _hasGradient = false;
@@ -495,8 +495,8 @@ void RooFuncWrapper::createHessian()
    // function pointer would be ambiguous.
    std::stringstream ss;
    ROOT::Math::Util::TimingScope timingScope(print, "Hessian IR to machine code time:");
-   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << hessianName << ");";
-   _hessian = reinterpret_cast<Hessian>(gInterpreter->ProcessLine(ss.str().c_str()));
+   ss << "static_cast<void (*)(double *, double const *, double const *, double *)>(" << hessianName << ")";
+   _hessian = reinterpret_cast<Hessian>(gInterpreter->Calc(ss.str().c_str()));
    _hasHessian = true;
 #else
    _hasHessian = false;

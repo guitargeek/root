@@ -1270,12 +1270,13 @@ Int_t TDirectory::SaveObjectAs(const TObject *obj, const char *filename, Option_
    opt.ToLower();
 
    if (fname.Index(".json") > 0) {
-      cmd.Form("TBufferJSON::ExportToFile(\"%s\", (TObject *) 0x%zx, \"%s\");", fname.Data(), (size_t) obj, (option ? option : ""));
-      nbytes = gROOT->ProcessLine(cmd);
+      cmd.Form("TBufferJSON::ExportToFile(\"%s\", (TObject *) 0x%zx, \"%s\")", fname.Data(), (size_t)obj,
+               (option ? option : ""));
+      nbytes = gROOT->ProcessLineFast(cmd);
    } else {
-      cmd.Form("TFile::Open(\"%s\",\"%s\");", fname.Data(), opt.Contains("a") ? "update" : "recreate");
+      cmd.Form("TFile::Open(\"%s\",\"%s\")", fname.Data(), opt.Contains("a") ? "update" : "recreate");
       TContext ctxt; // The TFile::Open will change the current directory.
-      TDirectory *local = (TDirectory*)gROOT->ProcessLine(cmd);
+      TDirectory *local = (TDirectory *)gROOT->ProcessLineFast(cmd);
       if (!local) return 0;
       nbytes = obj->Write();
       delete local;

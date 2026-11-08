@@ -988,8 +988,8 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
 
          if (!palette && CanCreateObject("TPaletteAxis") && checkNeedPalette(hist, o)) {
             std::stringstream exec;
-            exec << "new TPaletteAxis(0,0,0,0, (TH1*)" << std::hex << std::showbase << (size_t)hist << ");";
-            palette = (TObject *)gROOT->ProcessLine(exec.str().c_str());
+            exec << "new TPaletteAxis(0,0,0,0, (TH1*)" << std::hex << std::showbase << (size_t)hist << ")";
+            palette = (TObject *)gROOT->ProcessLineFast(exec.str().c_str());
             if (palette)
                hist->GetListOfFunctions()->AddFirst(palette);
          }
@@ -1107,8 +1107,8 @@ void TWebCanvas::CreatePadSnapshot(TPadWebSnapshot &paddata, TPad *pad, Long64_t
 
          if (!palette && CanCreateObject("TPaletteAxis")) {
             std::stringstream exec;
-            exec << "new TPaletteAxis(0,0,0,0,0,0);";
-            palette = (TObject *)gROOT->ProcessLine(exec.str().c_str());
+            exec << "new TPaletteAxis(0,0,0,0,0,0)";
+            palette = (TObject *)gROOT->ProcessLineFast(exec.str().c_str());
             if (palette)
                scatter->GetGraph()->GetListOfFunctions()->AddFirst(palette);
          }
@@ -2161,12 +2161,11 @@ Bool_t TWebCanvas::ProcessData(unsigned connid, const std::string &arg)
 
       if (obj && !buf.empty() && !reply.empty()) {
          std::stringstream exec;
-         exec << "((" << obj->ClassName() << " *) " << std::hex << std::showbase << (size_t)obj
-              << ")->" << buf << ";";
+         exec << "((" << obj->ClassName() << " *) " << std::hex << std::showbase << (size_t)obj << ")->" << buf;
          if (gDebug > 0)
             Info("ProcessData", "Obj %s Exec %s", obj->GetName(), exec.str().c_str());
 
-         auto res = gROOT->ProcessLine(exec.str().c_str());
+         auto res = gROOT->ProcessLineFast(exec.str().c_str());
          TObject *resobj = (TObject *)(res);
          if (resobj) {
             std::string send = reply;

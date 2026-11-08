@@ -449,8 +449,8 @@ void codegen(RooAbsArg &arg, CodegenContext &ctx)
    } else {
       // Can probably done with CppInterop in the future to avoid string manipulation.
       std::stringstream cmd;
-      cmd << "&RooFit::Experimental::Caller_codegenImpl<" << tclass->GetName() << ">::call;";
-      func = reinterpret_cast<Func>(gInterpreter->ProcessLine(cmd.str().c_str()));
+      cmd << "&RooFit::Experimental::Caller_codegenImpl<" << tclass->GetName() << ">::call";
+      func = reinterpret_cast<Func>(gInterpreter->Calc(cmd.str().c_str()));
       dispatchMap[tclass] = func;
    }
 

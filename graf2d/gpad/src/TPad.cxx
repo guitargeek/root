@@ -5034,8 +5034,8 @@ void TPad::Print(const char *filename, Option_t *option)
 
    // to create HTML file web-based canvas functionality is invoked
    if (gtype == TImage::kHtml) {
-      auto cmd = TString::Format("TWebCanvas::ProduceImage((TPad *) 0x%zx, \"%s\");", (size_t) this, psname.Data());
-      Long_t res = gROOT->ProcessLine(cmd);
+      auto cmd = TString::Format("TWebCanvas::ProduceImage((TPad *) 0x%zx, \"%s\")", (size_t)this, psname.Data());
+      Long_t res = gROOT->ProcessLineFast(cmd);
       if (!res)
          Error("Print", "Fail create HTML file %s", psname.Data());
       return;

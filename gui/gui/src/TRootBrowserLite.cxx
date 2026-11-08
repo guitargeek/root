@@ -2064,9 +2064,8 @@ Bool_t TRootBrowserLite::ProcessMessage(Longptr_t msg, Longptr_t parm1, Longptr_
                         if (obj2->InheritsFrom("TTree")) {
                            // if a tree not attached to any directory (e.g. in a TFolder)
                            // then attach it to the current directory (gDirectory)
-                           cmd = TString::Format("((TTree *)0x%zx)->GetDirectory();",
-                                                 (size_t)obj2);
-                           tdir = (TDirectory *)gROOT->ProcessLine(cmd.Data());
+                           cmd = TString::Format("((TTree *)0x%zx)->GetDirectory()", (size_t)obj2);
+                           tdir = (TDirectory *)gROOT->ProcessLineFast(cmd.Data());
                            if (!tdir) {
                               cmd = TString::Format("((TTree *)0x%zx)->SetDirectory(gDirectory);",
                                                     (size_t)obj2);
@@ -2172,9 +2171,8 @@ Bool_t TRootBrowserLite::ProcessMessage(Longptr_t msg, Longptr_t parm1, Longptr_
                            if (obj2 && obj2->InheritsFrom("TTree")) {
                               // if a tree not attached to any directory (e.g. in a TFolder)
                               // then attach it to the current directory (gDirectory)
-                              cmd = TString::Format("((TTree *)0x%zx)->GetDirectory();",
-                                                    (size_t)obj2);
-                              tdir = (TDirectory *)gROOT->ProcessLine(cmd.Data());
+                              cmd = TString::Format("((TTree *)0x%zx)->GetDirectory()", (size_t)obj2);
+                              tdir = (TDirectory *)gROOT->ProcessLineFast(cmd.Data());
                               if (!tdir) {
                                  cmd = TString::Format("((TTree *)0x%zx)->SetDirectory(gDirectory);",
                                                        (size_t)obj2);
@@ -2579,15 +2577,15 @@ void TRootBrowserLite::IconBoxAction(TObject *obj)
          browsable = kTRUE;
 
       if (obj->InheritsFrom("TLeaf")) {
-         TObject *dir = (TObject *)gROOT->ProcessLine(Form("((%s *)0x%zx)->GetBranch()->GetDirectory();",
-                                                      obj->ClassName(), (size_t)obj));
+         TObject *dir = (TObject *)gROOT->ProcessLineFast(
+            Form("((%s *)0x%zx)->GetBranch()->GetDirectory()", obj->ClassName(), (size_t)obj));
          if (!dir) {
             browsable = kFALSE;
          }
       }
       if (obj->InheritsFrom("TBranchElement")) {
-         TObject *dir = (TObject *)gROOT->ProcessLine(Form("((%s *)0x%zx)->GetDirectory();",
-                                                      obj->ClassName(), (size_t)obj));
+         TObject *dir =
+            (TObject *)gROOT->ProcessLineFast(Form("((%s *)0x%zx)->GetDirectory()", obj->ClassName(), (size_t)obj));
          if (!dir) {
             browsable = kFALSE;
          }
