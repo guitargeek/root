@@ -510,3 +510,62 @@ using func0_ret_t = typename ROOT::TypeTraits::CallableTraits<decltype(func0)>::
    EXPECT_TRUE(res);
 }
 #endif
+
+// TInterpreter::ProcessLine() and TROOT::ProcessLine() return the value of the
+// last expression of their input also if the input ends with ';'. As at the
+// ROOT prompt, the ';' then only suppresses printing the value. ROOT supports
+// this because cling did it and code relies on it, but the pattern is
+// discouraged: it does not follow the convention that a trailing ';' turns an
+// expression into a statement without a result. For example:
+//  - In C++, `x;` is an expression statement, and the value of x is discarded
+//    ([stmt.expr], https://eel.is/c++draft/stmt.expr).
+//  - clang-repl, LLVM's C++ interpreter, only prints and returns the value of
+//    an expression that does not end with ';'
+//    (https://clang.llvm.org/docs/ClangRepl.html).
+//  - In IPython and Jupyter, a trailing ';' suppresses the output and also
+//    keeps the value out of the output cache (`Out`, `_`)
+//    (https://ipython.readthedocs.io/en/stable/interactive/tips.html#suppress-output).
+//  - In Rust, a block that ends with `x;` evaluates to `()`, not to x
+//    (https://doc.rust-lang.org/reference/expressions/block-expr.html).
+// The convention is not universal: MATLAB or the Julia REPL, for example, only
+// hide the result of an input that ends with ';'. But ROOT's input is C++.
+// To get the value of an expression, use TInterpreter::Calc() or
+// TROOT::ProcessLineFast() instead, which evaluate it without printing it.
+TEST_F(TClingTests, ProcessLineReturnsValueOfExprWithSemicolon)
+{
+   ASSERT_TRUE(gInterpreter->Declare("int TClingTests_semiValue = 42;\n"
+                                     "int TClingTests_semiFunc() { return 7; }"));
+
+   // The ';' only suppresses printing the value, which is still returned.
+   testing::internal::CaptureStdout();
+   Longptr_t value = gROOT->ProcessLine("TClingTests_semiValue;");
+   std::string printed = testing::internal::GetCapturedStdout();
+   EXPECT_EQ(42L, value);
+   EXPECT_EQ("", printed);
+   // Without it, the value is also printed, as at the ROOT prompt.
+   testing::internal::CaptureStdout();
+   value = gROOT->ProcessLine("TClingTests_semiValue");
+   printed = testing::internal::GetCapturedStdout();
+   EXPECT_EQ(42L, value);
+   EXPECT_EQ("(int) 42\n", printed);
+
+   EXPECT_EQ(42L, gInterpreter->ProcessLine("TClingTests_semiValue;"));
+   EXPECT_EQ(7L, gROOT->ProcessLine("TClingTests_semiFunc();"));
+   EXPECT_EQ(42L, gROOT->ProcessLine("TClingTests_semiFunc(); TClingTests_semiValue;"));
+   Longptr_t address = gROOT->ProcessLine("&TClingTests_semiValue;");
+   ASSERT_NE(0L, address);
+   EXPECT_EQ(42, *reinterpret_cast<int *>(address));
+
+   // The alternatives return the same values, without printing them.
+   testing::internal::CaptureStdout();
+   Longptr_t calcValue = gInterpreter->Calc("TClingTests_semiValue");
+   Longptr_t fastValue = gROOT->ProcessLineFast("TClingTests_semiValue");
+   Longptr_t calcFunc = gInterpreter->Calc("TClingTests_semiFunc()");
+   Longptr_t calcAddress = gInterpreter->Calc("&TClingTests_semiValue");
+   printed = testing::internal::GetCapturedStdout();
+   EXPECT_EQ(42L, calcValue);
+   EXPECT_EQ(42L, fastValue);
+   EXPECT_EQ(7L, calcFunc);
+   EXPECT_EQ(address, calcAddress);
+   EXPECT_EQ("", printed);
+}
