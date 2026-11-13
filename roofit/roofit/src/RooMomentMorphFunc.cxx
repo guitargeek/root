@@ -286,12 +286,6 @@ RooMomentMorphFunc::CacheElem *RooMomentMorphFunc::getCache(const RooArgSet * /*
 }
 
 //_____________________________________________________________________________
-RooArgList RooMomentMorphFunc::CacheElem::containedArgs(Action)
-{
-   return RooArgList(*_sumFunc, *_tracker);
-}
-
-//_____________________________________________________________________________
 RooMomentMorphFunc::CacheElem::~CacheElem()
 {
    delete _sumFunc;

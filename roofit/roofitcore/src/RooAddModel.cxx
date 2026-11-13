@@ -681,16 +681,6 @@ void RooAddModel::generateEvent(Int_t /*code*/)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// List all RooAbsArg derived contents in this cache element
-
-RooArgList RooAddModel::IntCacheElem::containedArgs(Action)
-{
-  RooArgList allNodes(_intList) ;
-  return allNodes ;
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Customized printing of arguments of a RooAddModel to more intuitively reflect the contents of the
 /// product operator construction
 

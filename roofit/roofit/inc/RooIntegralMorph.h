@@ -55,7 +55,6 @@ public:
       MorphCacheElem(RooIntegralMorph &self, const RooArgSet *nset);
       ~MorphCacheElem() override;
       void calculate(TIterator *iter);
-      RooArgList containedArgs(Action) override;
 
    protected:
       void findRange();

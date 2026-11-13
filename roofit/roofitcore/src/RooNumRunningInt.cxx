@@ -100,19 +100,6 @@ RooNumRunningInt::RICacheElem::RICacheElem(const RooNumRunningInt &self, const R
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-/// Return all RooAbsArg components contained in cache element
-
-RooArgList RooNumRunningInt::RICacheElem::containedArgs(Action action)
-{
-  RooArgList ret ;
-  ret.add(FuncCacheElem::containedArgs(action)) ;
-  ret.add(*_self) ;
-  ret.add(_xx);
-  return ret ;
-}
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate the numeric running integral and store

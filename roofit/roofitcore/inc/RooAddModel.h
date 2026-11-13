@@ -108,7 +108,6 @@ protected:
   class IntCacheElem : public RooAbsCacheElement {
   public:
     RooArgList _intList ; ///< List of component integrals
-    RooArgList containedArgs(Action) override ;
   } ;
 
   mutable RooObjCacheManager _intCacheMgr ; ///<! Manager of cache with integrals

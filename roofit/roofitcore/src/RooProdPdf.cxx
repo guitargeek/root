@@ -1550,23 +1550,6 @@ void RooProdPdf::generateEvent(Int_t code)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return RooAbsArg components contained in the cache
-
-RooArgList RooProdPdf::CacheElem::containedArgs(Action)
-{
-  RooArgList ret ;
-  ret.add(_partList) ;
-  ret.add(_numList) ;
-  ret.add(_denList) ;
-  if (_rearrangedNum) ret.add(*_rearrangedNum) ;
-  if (_rearrangedDen) ret.add(*_rearrangedDen) ;
-  return ret ;
-
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Hook function to print cache contents in tree printing of RooProdPdf
 
 void RooProdPdf::CacheElem::printCompactTreeHook(ostream& os, const char* indent, Int_t curElem, Int_t maxElem)

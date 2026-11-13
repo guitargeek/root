@@ -40,12 +40,6 @@ private:
       // Payload
       std::unique_ptr<RooAbsPdf> _pdf;
       std::unique_ptr<RooArgSet> _pdfVariables;
-
-      RooArgList containedArgs(Action) override {
-        RooArgList list(*_pdf);
-        list.add(*_pdfVariables, true);
-        return list;
-      }
   };
   mutable RooObjCacheManager _cacheMgr; ///<!
 

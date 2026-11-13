@@ -1318,20 +1318,6 @@ public:
    CacheElem(){};
 
    //////////////////////////////////////////////////////////////////////////////
-   /// retrieve the list of contained args
-
-   RooArgList containedArgs(Action) override
-   {
-      RooArgList args(*_sumFunc);
-      args.add(_weights);
-      args.add(_couplings);
-      for (auto const &it : _formulas) {
-         args.add(*(it.second));
-      }
-      return args;
-   }
-
-   //////////////////////////////////////////////////////////////////////////////
    /// create the basic objects required for the morphing
 
    inline void createComponents(const RooLagrangianMorphFunc::ParamMap &inputParameters,

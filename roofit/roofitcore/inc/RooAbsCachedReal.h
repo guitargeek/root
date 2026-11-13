@@ -61,7 +61,6 @@ protected:
     ~FuncCacheElem() override ;
 
     // Cache management functions
-    RooArgList containedArgs(Action) override ;
     void printCompactTreeHook(std::ostream&, const char *, Int_t, Int_t) override ;
 
     RooHistFunc* func() { return _func ; }

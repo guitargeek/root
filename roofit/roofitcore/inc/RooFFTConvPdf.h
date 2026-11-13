@@ -84,8 +84,6 @@ public:
   public:
     FFTCacheElem(const RooFFTConvPdf& self, const RooArgSet* nset) ;
 
-    RooArgList containedArgs(Action) override ;
-
     std::unique_ptr<RooAbsPdf> pdf1Clone;
     std::unique_ptr<RooAbsPdf> pdf2Clone;
 

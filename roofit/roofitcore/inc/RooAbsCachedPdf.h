@@ -64,7 +64,6 @@ public:
     PdfCacheElem(const RooAbsCachedPdf& self, const RooArgSet* nset) ;
 
     // Cache management functions
-    RooArgList containedArgs(Action) override ;
     void printCompactTreeHook(std::ostream&, const char *, Int_t, Int_t) override ;
 
     RooHistPdf* pdf() { return _pdf.get() ; }

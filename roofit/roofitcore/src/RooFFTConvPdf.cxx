@@ -473,27 +473,6 @@ TString RooFFTConvPdf::histNameSuffix() const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Returns all RooAbsArg objects contained in the cache element
-
-RooArgList RooFFTConvPdf::FFTCacheElem::containedArgs(Action a)
-{
-  RooArgList ret(PdfCacheElem::containedArgs(a)) ;
-
-  ret.add(*pdf1Clone) ;
-  ret.add(*pdf2Clone) ;
-  if (pdf1Clone->ownedComponents()) {
-    ret.add(*pdf1Clone->ownedComponents()) ;
-  }
-  if (pdf2Clone->ownedComponents()) {
-    ret.add(*pdf2Clone->ownedComponents()) ;
-  }
-
-  return ret ;
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Fill the contents of the cache the FFT convolution output
 
 void RooFFTConvPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) const

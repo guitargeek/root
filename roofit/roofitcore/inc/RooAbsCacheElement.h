@@ -36,9 +36,6 @@ public:
     // Destructor
   } ;
 
-  enum Action { OperModeChange,OptimizeCaching } ;
-  virtual RooArgList containedArgs(Action) = 0 ;
-
   void setOwner(RooAbsArg* owner) {
     // Store pointer to owner
     _owner = owner ;

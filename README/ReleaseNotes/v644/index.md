@@ -117,8 +117,9 @@ The following interfaces are removed without replacement:
     `RooAbsCollection::assignFast()` and `RooRealVar::copyCacheFast()`, and the
     `notifyClients` argument of `RooAbsArg::setCachedValue()`.
   * `RooAbsCache::operModeHook()`, `optimizeCacheMode()` and `wireCache()`,
-    `RooAbsCacheElement::operModeHook()` and `optimizeCacheMode()`, and
-    `RooObjCacheManager::doClearObsList()` and `clearObsList()`.
+    `RooAbsCacheElement::operModeHook()`, `optimizeCacheMode()` and
+    `containedArgs()`, and `RooObjCacheManager::doClearObsList()` and
+    `clearObsList()`.
   * `RooAbsData::setDirtyProp()`, `RooAbsDataStore::setDirtyProp()` and
     `RooAbsDataStore::dirtyProp()`.
   * The `checkValues` constructor argument of **RooChangeTracker**, which now

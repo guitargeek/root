@@ -207,24 +207,6 @@ RooAbsCachedPdf::PdfCacheElem *RooIntegralMorph::createCache(const RooArgSet *ns
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return all RooAbsArg components contained in this cache
-
-RooArgList RooIntegralMorph::MorphCacheElem::containedArgs(Action action)
-{
-   RooArgList ret;
-   ret.add(PdfCacheElem::containedArgs(action));
-   ret.add(*_self);
-   ret.add(*_pdf1);
-   ret.add(*_pdf2);
-   ret.add(*_x);
-   ret.add(*_alpha);
-   ret.add(*_c1);
-   ret.add(*_c2);
-
-   return ret;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// Construct of cache element, copy relevant input from RooIntegralMorph,
 /// create the cdfs from the input p.d.fs and instantiate the root finders
 /// on the cdfs to perform the inversion.

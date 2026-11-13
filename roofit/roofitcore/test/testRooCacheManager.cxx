@@ -18,10 +18,7 @@ TEST(RooCacheManager, TestSelectFromArgSet)
    // Test RooCacheManager::selectFromSet1 and RooCacheManager::selectFromSet2.
 
    // the cached class doesn't matter for this test, it just has to be an object that the cache is going to own
-   class CacheElem : public RooAbsCacheElement {
-   public:
-      RooArgList containedArgs(Action) override { return {}; }
-   };
+   class CacheElem : public RooAbsCacheElement {};
 
    // RooObjCacheManager is a wrapper around RooCacheManager
    RooObjCacheManager mgr{nullptr, 100};

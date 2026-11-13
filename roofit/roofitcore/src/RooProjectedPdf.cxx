@@ -234,16 +234,6 @@ bool RooProjectedPdf::redirectServersHook(const RooAbsCollection& newServerList,
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return RooAbsArg elements contained in projection cache element.
-
-RooArgList RooProjectedPdf::CacheElem::containedArgs(Action)
-{
-  return *_projection;
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Customized printing of arguments of a RooRealIntegral to more intuitively reflect the contents of the
 /// integration operation
 

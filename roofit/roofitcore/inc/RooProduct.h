@@ -74,7 +74,6 @@ protected:
       // Payload
       RooArgList _prodList ;
       RooArgList _ownedList ;
-      RooArgList containedArgs(Action) override ;
   };
   mutable RooObjCacheManager _cacheMgr ; ///<! The cache manager
 

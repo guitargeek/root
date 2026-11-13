@@ -26,8 +26,6 @@ public:
                 const RooArgSet *iset, RooArgSet const &refCoefNormSet, std::string const &refCoefNormRange,
                 int verboseEval);
 
-   RooArgList containedArgs(Action) override;
-
    inline double suppNormVal(std::size_t idx) const { return _suppNormList[idx] ? _suppNormList[idx]->getVal() : 1.0; }
 
    inline bool doProjection() const { return !_projList.empty(); }

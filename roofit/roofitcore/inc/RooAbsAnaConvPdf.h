@@ -122,12 +122,6 @@ protected:
 
   class CacheElem : public RooAbsCacheElement {
   public:
-    RooArgList containedArgs(Action) override {
-      RooArgList l(_coefVarList) ;
-      l.add(_normList) ;
-      return l ;
-    }
-
     RooArgList _coefVarList ;
     RooArgList _normList ;
   } ;

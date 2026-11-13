@@ -61,7 +61,6 @@ protected:
               std::unique_ptr<RooChangeTracker> && tracker,
               const RooArgList& flist);
     ~CacheElem() override ;
-    RooArgList containedArgs(Action) override ;
     std::unique_ptr<RooAbsPdf> _sumPdf ;
     std::unique_ptr<RooChangeTracker> _tracker ;
     RooArgList _frac ;

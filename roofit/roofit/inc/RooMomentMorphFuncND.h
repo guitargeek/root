@@ -90,7 +90,6 @@ protected:
    public:
       CacheElem(std::unique_ptr<RooAbsReal> && sumFunc, std::unique_ptr<RooChangeTracker> && tracker, const RooArgList &flist);
       ~CacheElem() override;
-      RooArgList containedArgs(Action) override;
       std::unique_ptr<RooAbsReal> _sum;
       std::unique_ptr<RooChangeTracker> _tracker;
       RooArgList _frac;

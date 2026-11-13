@@ -69,12 +69,6 @@ protected:
 
   class CacheElem : public RooAbsCacheElement {
   public:
-    RooArgList containedArgs(Action) override {
-      RooArgList ret(_funcIntList) ;
-      ret.add(_lowIntList);
-      ret.add(_highIntList);
-      return ret ;
-    }
     RooArgList _funcIntList ;
     RooArgList _lowIntList ;
     RooArgList _highIntList ;

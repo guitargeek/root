@@ -317,7 +317,6 @@ protected:
   public:
     CacheElem(RooAbsReal& norm) : _norm(&norm) {} ;
     ~CacheElem() override ;
-    RooArgList containedArgs(Action) override { return RooArgList(*_norm) ; }
     std::unique_ptr<RooAbsReal> _norm;
   } ;
   mutable RooObjCacheManager _normMgr ; ///<! The cache manager

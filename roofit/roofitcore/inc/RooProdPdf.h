@@ -116,7 +116,6 @@ public:
     std::unique_ptr<RooAbsReal> _rearrangedNum;
     std::unique_ptr<RooAbsReal> _rearrangedDen;
     // Cache management functions
-    RooArgList containedArgs(Action) override ;
     void printCompactTreeHook(std::ostream&, const char *, Int_t, Int_t) override ;
     void writeToStream(std::ostream& os) const ;
   } ;

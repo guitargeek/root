@@ -75,7 +75,6 @@ protected:
   class CacheElem : public RooAbsCacheElement {
   public:
     CacheElem()  {} ;
-    RooArgList containedArgs(Action) override { RooArgList ret(_funcIntList) ; ret.add(_funcNormList) ; return ret ; }
     RooArgList _funcIntList ;
     RooArgList _funcNormList ;
   } ;

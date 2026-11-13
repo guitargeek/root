@@ -191,29 +191,6 @@ void AddCacheElem::print() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// List all RooAbsArg derived contents in this cache element
-
-RooArgList AddCacheElem::containedArgs(Action)
-{
-   RooArgList allNodes;
-   // need to iterate manually because _suppProjList can contain nullptr
-   for (auto const &arg : _projList) {
-      if (arg)
-         allNodes.add(*arg);
-   }
-   for (auto const &arg : _suppProjList) {
-      if (arg)
-         allNodes.add(*arg);
-   }
-   for (auto const &arg : _rangeProjList) {
-      if (arg)
-         allNodes.add(*arg);
-   }
-
-   return allNodes;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// Update the RooAddPdf coefficients for a given normalization set and
 /// projection configuration. The `coefCache` argument should have the same
 /// size as `pdfList`. It needs to be initialized with the raw values of the

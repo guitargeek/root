@@ -250,19 +250,6 @@ void RooAbsCachedPdf::setInterpolationOrder(int order)
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Returns all RooAbsArg objects contained in the cache element
-
-RooArgList RooAbsCachedPdf::PdfCacheElem::containedArgs(Action)
-{
-  RooArgList ret(*_pdf) ;
-  ret.add(*_paramTracker) ;
-  if (_norm) ret.add(*_norm) ;
-  return ret ;
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Print contents of cache when printing self as part of object tree
 

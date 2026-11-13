@@ -598,12 +598,6 @@ RooMomentMorphFuncND::CacheElem::CacheElem(std::unique_ptr<RooAbsReal> &&sumFunc
 }
 
 //_____________________________________________________________________________
-RooArgList RooMomentMorphFuncND::CacheElem::containedArgs(Action)
-{
-   return RooArgList(*_sum, *_tracker);
-}
-
-//_____________________________________________________________________________
 RooMomentMorphFuncND::CacheElem::~CacheElem() = default;
 
 //_____________________________________________________________________________

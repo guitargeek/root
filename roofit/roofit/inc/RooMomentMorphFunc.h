@@ -68,7 +68,6 @@ protected:
          _frac.add(flist);
       };
       ~CacheElem() override;
-      RooArgList containedArgs(Action) override;
       RooAbsReal *_sumFunc;
       RooChangeTracker *_tracker;
       RooArgList _frac;

@@ -61,7 +61,6 @@ protected:
     // Payload
     std::unique_ptr<RooAbsReal> _projection;
     // Cache management functions
-    RooArgList containedArgs(Action) override ;
     void printCompactTreeHook(std::ostream&, const char *, Int_t, Int_t) override ;
   } ;
   mutable RooObjCacheManager _cacheMgr ; ///<! The cache manager

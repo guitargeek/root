@@ -65,7 +65,6 @@ protected:
   public:
       // Payload
       RooArgList _I ;
-      RooArgList containedArgs(Action) override { return _I; }
   };
   mutable RooObjCacheManager _cacheMgr ; ///<! The cache manager
 

@@ -229,22 +229,6 @@ void RooAbsCachedReal::setInterpolationOrder(Int_t order)
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Return list of contained RooAbsArg objects
-
-RooArgList RooAbsCachedReal::FuncCacheElem::containedArgs(Action)
-{
-  RooArgList ret(*func()) ;
-
-  ret.add(*_paramTracker) ;
-  if (_sourceClone) {
-    ret.add(*_sourceClone) ;
-  }
-  return ret ;
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Print contents of cache when printing self as part of object tree
 
