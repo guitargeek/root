@@ -19,7 +19,6 @@
 #include "RooAbsDataStore.h"
 #include "RooAbsCategory.h"
 #include "RooAbsReal.h"
-#include "RooChangeTracker.h"
 #include "RooRealVar.h"
 
 #include <string_view>
@@ -185,22 +184,10 @@ public:
       _vec.reserve(initialCapacity);
     }
 
-    virtual ~RealVector() {
-      delete _tracker;
-      if (_nset) delete _nset ;
-    }
+    virtual ~RealVector() = default;
 
     RealVector(const RealVector& other, RooAbsReal* real=nullptr) :
-      _vec(other._vec), _nativeReal(real?real:other._nativeReal), _real(real?real:other._real), _buf(other._buf), _nativeBuf(other._nativeBuf) {
-      if (other._tracker) {
-        _tracker = new RooChangeTracker(Form("track_%s",_nativeReal->GetName()),"tracker",other._tracker->parameters()) ;
-      } else {
-        _tracker = nullptr ;
-      }
-      if (other._nset) {
-        _nset = new RooArgSet(*other._nset) ;
-      }
-    }
+      _vec(other._vec), _nativeReal(real?real:other._nativeReal), _real(real?real:other._real), _buf(other._buf), _nativeBuf(other._nativeBuf) {}
 
     RealVector& operator=(const RealVector& other) {
       if (&other==this) return *this;
@@ -220,10 +207,6 @@ public:
       return *this;
     }
 
-    void setNset(RooArgSet* newNset) { _nset = newNset ? new RooArgSet(*newNset) : nullptr ; }
-
-    RooArgSet* nset() const { return _nset ; }
-
     void setBufArg(RooAbsReal* arg) { _nativeReal = arg ; }
     const RooAbsReal* bufArg() const { return _nativeReal ; }
 
@@ -237,18 +220,6 @@ public:
 
     void setNativeBuffer(double* newBuf=nullptr) {
       _nativeBuf = newBuf ? newBuf : _buf ;
-    }
-
-    void setDependents(const RooArgSet& deps) {
-      if (_tracker) {
-        delete _tracker ;
-      }
-      _tracker = new RooChangeTracker(Form("track_%s",_nativeReal->GetName()),"tracker",deps) ;
-    }
-
-    bool needRecalc() {
-      if (!_tracker) return false ;
-      return _tracker->hasChanged(true) ;
     }
 
     void fill() {
@@ -313,9 +284,7 @@ public:
     RooAbsReal* _real = nullptr; ///< Instance where we should write data into when load() is called.
     double* _buf = nullptr; ///<!
     double* _nativeBuf = nullptr; ///<!
-    RooChangeTracker* _tracker = nullptr;
-    RooArgSet* _nset = nullptr; ///<!
-    ClassDef(RealVector,1) // STL-vector-based Data Storage class
+    ClassDef(RealVector,2) // STL-vector-based Data Storage class
   } ;
 
 
