@@ -32,7 +32,6 @@ for changes to trigger a refilling of the cache histogram.
 #include "RooMsgService.h"
 #include "RooDataHist.h"
 #include "RooHistPdf.h"
-#include "RooExpensiveObjectCache.h"
 #include "RooFit/Detail/RooNormalizedPdf.h"
 
 
@@ -115,7 +114,6 @@ RooAbsCachedPdf::PdfCacheElem* RooAbsCachedPdf::getCache(const RooArgSet* nset, 
   int sterileIdx = -1 ;
   auto cache = static_cast<PdfCacheElem*>(_cacheMgr.getObj(nset,nullptr,&sterileIdx));
 
-  // Check if we have a cache histogram in the global expensive object cache
   if (cache) {
     if (cache->paramTracker()->hasChanged(true) && (recalculate || !cache->pdf()->haveUnitNorm()) ) {
       cxcoutD(Eval) << "RooAbsCachedPdf::getCache(" << GetName() << ") cache " << cache << " pdf "
@@ -130,9 +128,6 @@ RooAbsCachedPdf::PdfCacheElem* RooAbsCachedPdf::getCache(const RooArgSet* nset, 
   cache = createCache(nset) ;
 
   fillCacheObject(*cache) ;
-
-  auto eoclone = new RooDataHist(*cache->hist()) ;
-  eoclone->removeSelfFromDir() ;
 
   // Store this cache configuration
   int code = _cacheMgr.setObj(nset,nullptr,(static_cast<RooAbsCacheElement*>(cache)),nullptr) ;

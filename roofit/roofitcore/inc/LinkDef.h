@@ -287,11 +287,11 @@
 #pragma link C++ class RooChangeTracker+ ;
 #pragma link C++ class RooNumRunningInt+ ;
 #pragma link C++ class RooHistFunc- ;
-#pragma link C++ class RooExpensiveObjectCache+ ;
-#pragma link C++ class RooExpensiveObjectCache::ExpensiveObject+ ;
 #pragma link C++ class std::map<std::string,RooAbsPdf*>+ ;
 // The nomap options excludes the class from the roomap file
 #pragma link C++ options=nomap class std::map<std::string,TH1*>+ ;
+#pragma link C++ class RooExpensiveObjectCache+ ;
+#pragma link C++ class RooExpensiveObjectCache::ExpensiveObject+ ;
 #pragma link C++ class std::map<std::string,RooAbsDataStore*>+ ;
 #pragma link C++ class std::list<RooAbsData*>+ ;
 #pragma link C++ class std::list<TObject*>+ ;

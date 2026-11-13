@@ -48,9 +48,6 @@ RooGenProdProj::RooGenProdProj(const char *name, const char *title, const RooArg
   _compSetD("compSetD","Set of integral components owned by denominator",this,false),
   _intList("intList","List of integrals",this,true)
 {
-  // Set expensive object cache to that of first item in prodSet
-  setExpensiveObjectCache(_prodSet.first()->expensiveObjectCache()) ;
-
   // Create owners of components created in constructor
   _compSetOwnedN = std::make_unique<RooArgSet>();
   _compSetOwnedD = std::make_unique<RooArgSet>();
@@ -211,7 +208,6 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
   prodSet.snapshot(prodSetClone, false);
 
   auto prod = std::make_unique<RooProduct>(prodName, "product", prodSetClone);
-  prod->setExpensiveObjectCache(expensiveObjectCache()) ;
   prod->setOperMode(_operMode) ;
 
   // Create integral performing remaining numeric integration over (partial) analytic product

@@ -34,7 +34,6 @@ installs an atexit() function that takes care of this
 #include "RooArgSet.h"
 #include "RooRealConstant.h"
 #include "RooResolutionModel.h"
-#include "RooExpensiveObjectCache.h"
 #include "RooDataSet.h"
 
 bool RooSentinel::_active = false ;

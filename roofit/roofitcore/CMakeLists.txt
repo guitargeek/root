@@ -107,7 +107,6 @@ set(ROOFITCORE_HEADERS
   RooErrorHandler.h
   RooErrorVar.h
   RooEvaluatorWrapper.h
-  RooExpensiveObjectCache.h
   RooExtendPdf.h
   RooExtendedBinding.h
   RooExtendedTerm.h
@@ -137,6 +136,7 @@ set(ROOFITCORE_HEADERS
   RooFit/TestStatistics/buildLikelihood.h
   RooFitLegacy/RooCatTypeLegacy.h
   RooFitLegacy/RooCategorySharedProperties.h
+  RooFitLegacy/RooExpensiveObjectCache.h
   RooFitLegacy/RooTreeData.h
   RooFitResult.h
   RooFormulaVar.h
@@ -321,7 +321,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooEllipse.cxx
     src/RooErrorVar.cxx
     src/RooEvaluatorWrapper.cxx
-    src/RooExpensiveObjectCache.cxx
     src/RooExtendPdf.cxx
     src/RooExtendedBinding.cxx
     src/RooExtendedTerm.cxx

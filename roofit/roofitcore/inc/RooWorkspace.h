@@ -20,7 +20,6 @@
 #include "RooArgSet.h"
 #include "RooLinkedList.h"
 #include "RooCmdArg.h"
-#include "RooExpensiveObjectCache.h"
 #include "TUUID.h"
 #include <map>
 #include <list>
@@ -161,8 +160,6 @@ public:
 
   const TUUID& uuid() const { return _uuid ; }
 
-  RooExpensiveObjectCache& expensiveObjectCache() { return _eocache ; }
-
   class CodeRepo : public TObject {
   public:
     CodeRepo(RooWorkspace* wspace=nullptr) : _wspace(wspace), _compiledOK(true) {} ;
@@ -267,14 +264,12 @@ public:
 
     WSDir *_dir = nullptr; ///<! Transient ROOT directory representation of workspace
 
-    RooExpensiveObjectCache _eocache; ///< Cache for expensive objects
-
     std::unique_ptr<RooFactoryWSTool> _factory; ///<! Factory tool associated with workspace
 
     bool _openTrans = false; ///<! Is there a transaction open?
     RooArgSet _sandboxNodes; ///<! Sandbox for incoming objects in a transaction
 
-    ClassDefOverride(RooWorkspace, 8) // Persistable project container for (composite) pdfs, functions, variables and datasets
+    ClassDefOverride(RooWorkspace, 9) // Persistable project container for (composite) pdfs, functions, variables and datasets
 } ;
 
 #endif

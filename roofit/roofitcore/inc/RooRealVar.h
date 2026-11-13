@@ -31,7 +31,6 @@
 class RooArgSet ;
 class RooErrorVar ;
 class RooVectorDataStore ;
-class RooExpensiveObjectCache ;
 class RooRealVarSharedProperties;
 
 class RooRealVar : public RooAbsRealLValue {
@@ -163,7 +162,6 @@ public:
   std::shared_ptr<RooRealVarSharedProperties> sharedProp() const;
   void installSharedProp(std::shared_ptr<RooRealVarSharedProperties>&& prop);
 
-  void setExpensiveObjectCache(RooExpensiveObjectCache&) override { ; } ///< variables don't need caches
   static RooRealVarSharedProperties& _nullProp(); ///< Null property
 
   using SharedPropertiesMap = std::map<RooSharedProperties::UUID,std::weak_ptr<RooRealVarSharedProperties>>;

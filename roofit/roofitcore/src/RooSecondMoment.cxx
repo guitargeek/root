@@ -48,8 +48,6 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
   _if("!if","if",this),
   _xfOffset(0)
 {
-  setExpensiveObjectCache(func.expensiveObjectCache()) ;
-
   std::unique_ptr<RooAbsReal> XF;
   if (centr) {
 
@@ -66,8 +64,6 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
      std::string pname = std::string{name} + "_product";
      XF = std::make_unique<RooProduct>(pname.c_str(), pname.c_str(), RooArgList(x, x, func));
   }
-
-  XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
 
   if (func.isBinnedDistribution(x)) {
     XF->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator");
@@ -96,8 +92,6 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
   _if("!if","if",this),
   _xfOffset(0)
 {
-  setExpensiveObjectCache(func.expensiveObjectCache()) ;
-
   _nset.add(nset) ;
 
   std::unique_ptr<RooAbsReal> XF;
@@ -116,8 +110,6 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
      std::string pname = std::string{name} + "_product";
      XF = std::make_unique<RooProduct>(pname.c_str(), pname.c_str(), RooArgList(x, x, func));
   }
-
-  XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
 
   if (func.isBinnedDistribution(x)) {
     XF->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator");

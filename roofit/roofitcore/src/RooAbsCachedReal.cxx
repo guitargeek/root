@@ -39,7 +39,6 @@ for changes to trigger a refilling of the cache histogram.
 #include "RooDataHist.h"
 #include "RooHistFunc.h"
 #include "RooChangeTracker.h"
-#include "RooExpensiveObjectCache.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
@@ -127,9 +126,6 @@ RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::getCache(const RooArgSet* nse
   }
 
   fillCacheObject(*cache) ;
-
-  RooDataHist* eoclone = new RooDataHist(*cache->hist()) ;
-  eoclone->removeSelfFromDir() ;
 
   // Store this cache configuration
   Int_t code = _cacheMgr.setObj(nset,nullptr,((RooAbsCacheElement*)cache),nullptr) ;

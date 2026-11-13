@@ -39,8 +39,6 @@ using std::endl;
 RooCachedReal::RooCachedReal(const char *name, const char *title, RooAbsReal &_func)
    : RooAbsCachedReal(name, title), func("func", "func", this, _func), _useCdfBoundaries(false), _cacheSource(false)
 {
-   // Choose same expensive object cache as input function
-   setExpensiveObjectCache(_func.expensiveObjectCache()) ;
 }
 
 
@@ -66,9 +64,6 @@ RooCachedReal::RooCachedReal(const char *name, const char *title, RooAbsReal& _f
    _cacheSource(false)
  {
    _cacheObs.add(cacheObs) ;
-
-   // Choose same expensive object cache as input function
-   setExpensiveObjectCache(_func.expensiveObjectCache()) ;
  }
 
 

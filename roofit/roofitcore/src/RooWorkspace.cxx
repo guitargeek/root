@@ -579,14 +579,6 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
      RooArgSet(inArg).snapshot(cloneSet, !noRecursion);
   }
 
-  // Import the expensive-object cache payloads for recycled nodes like the
-  // general code path does via the discarded clones, which always hand over
-  // the global cache instance because the cache pointer of a RooAbsArg is
-  // transient and not copied when cloning.
-  for (RooAbsArg const *arg : recycledSources) {
-     _eocache.importCacheObjects(RooExpensiveObjectCache::instance(), arg->GetName(), true);
-  }
-
   if (pruneClones && cloneSet.empty()) {
      // The whole computation graph is already in the workspace.
      return false;
@@ -734,11 +726,6 @@ bool RooWorkspace::import(const RooAbsArg& inArg,
             << node->ClassName() << "::" << node->GetName() << ", reading of workspace will require external definition of class" << std::endl ;
       }
     }
-
-    // Point expensiveObjectCache to copy in this workspace
-    RooExpensiveObjectCache& oldCache = node->expensiveObjectCache() ;
-    node->setExpensiveObjectCache(_eocache) ;
-    _eocache.importCacheObjects(oldCache,node->GetName(),true) ;
 
     // Check if node is already in workspace (can only happen for variables or identical instances, unless RecycleConflictNodes is specified)
     RooAbsArg* wsnode = _allOwnedNodes.find(node->GetName()) ;
@@ -899,11 +886,6 @@ bool RooWorkspace::import(RooAbsData const& inData,
   dataList.Add(clone) ;
   if (_dir) {
     _dir->InternalAppend(clone) ;
-  }
-
-  // Set expensive object cache of dataset internal buffers to that of workspace
-  for(RooAbsArg* carg : *clone->get()) {
-    carg->setExpensiveObjectCache(expensiveObjectCache()) ;
   }
 
 
@@ -2403,12 +2385,6 @@ void RooWorkspace::Print(Option_t* opts) const
     std::cout << std::endl ;
   }
 
-  if (!_eocache.empty()) {
-    std::cout << "embedded precalculated expensive components" << std::endl ;
-    std::cout << "-------------------------------------------" << std::endl ;
-    _eocache.print() ;
-  }
-
   RooMsgService::instance().setGlobalKillBelow(oldLevel) ;
 
   return ;
@@ -2538,10 +2514,7 @@ void RooWorkspace::Streamer(TBuffer &R__b)
       }
       RooAbsArg::ioStreamerPass2Finalize();
 
-      // Make expensive object cache of all objects point to intermal copy.
-      // Somehow this doesn't work OK automatically
       for (RooAbsArg *node : _allOwnedNodes) {
-         node->setExpensiveObjectCache(_eocache);
          node->setWorkspace(*this);
       }
 
@@ -3009,6 +2982,4 @@ void RooWorkspace::RecursiveRemove(TObject *removedObj)
    for(std::string const& setName : invalidSets) {
       removeSet(setName.c_str());
    }
-
-   _eocache.RecursiveRemove(removedObj); // RooExpensiveObjectCache
 }

@@ -73,7 +73,6 @@ for single nodes.
 #include <RooArgProxy.h>
 #include <RooArgSet.h>
 #include <RooConstVar.h>
-#include <RooExpensiveObjectCache.h>
 #include <RooFit/Evaluator.h>
 #include <RooHelpers.h>
 #include "RooFitImplHelpers.h"
@@ -1972,15 +1971,6 @@ void RooAbsArg::attachToStore(RooAbsDataStore &store)
       attachToTree(*static_cast<RooTreeDataStore &>(store).tree());
    } else if (dynamic_cast<RooVectorDataStore *>(&store)) {
       attachToVStore(static_cast<RooVectorDataStore &>(store));
-   }
-}
-
-RooExpensiveObjectCache &RooAbsArg::expensiveObjectCache() const
-{
-   if (_eocache) {
-      return *_eocache;
-   } else {
-      return RooExpensiveObjectCache::instance();
    }
 }
 

@@ -42,12 +42,9 @@ RooFirstMoment::RooFirstMoment(const char* name, const char* title, RooAbsReal& 
   _ixf("!ixf","ixf",this),
   _if("!if","if",this)
 {
-  setExpensiveObjectCache(func.expensiveObjectCache()) ;
-
   std::string pname = std::string(name) + "_product";
 
   auto XF = std::make_unique<RooProduct>(pname.c_str(),pname.c_str(),RooArgSet(x,func));
-  XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
 
   if (func.isBinnedDistribution(x)) {
     XF->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator");
@@ -74,14 +71,11 @@ RooFirstMoment::RooFirstMoment(const char* name, const char* title, RooAbsReal& 
   _ixf("!ixf","ixf",this),
   _if("!if","if",this)
 {
-  setExpensiveObjectCache(func.expensiveObjectCache()) ;
-
   _nset.add(nset) ;
 
   std::string pname = std::string(name) + "_product";
 
   auto XF = std::make_unique<RooProduct>(pname.c_str(),pname.c_str(),RooArgSet(x,func)) ;
-  XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
 
   if (func.isBinnedDistribution(x)) {
     XF->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator");

@@ -34,7 +34,6 @@ integration is performed in the various implementations of the RooAbsIntegrator 
 #include <RooAbsRealLValue.h>
 #include <RooConstVar.h>
 #include <RooDouble.h>
-#include <RooExpensiveObjectCache.h>
 #include <RooInvTransform.h>
 #include <RooMsgService.h>
 #include <RooNameReg.h>
@@ -362,10 +361,6 @@ RooRealIntegral::RooRealIntegral(const char *name, const char *title,
                  << (funcNormSet?*funcNormSet:RooArgSet()) << " with range identifier "
                  << (rangeName?rangeName:"<none>") << std::endl ;
 
-
-  // Choose same expensive object cache as integrand
-  setExpensiveObjectCache(function.expensiveObjectCache()) ;
-//   std::cout << "RRI::ctor(" << GetName() << ") setting expensive object cache to " << &expensiveObjectCache() << " as taken from " << function.GetName() << std::endl ;
 
   // Use objects integrator configuration if none is specified
   if (!_iconfig) _iconfig = const_cast<RooNumIntConfig*>(function.getIntegratorConfig());

@@ -49,7 +49,6 @@ template <class RooCollection_t>
 class RooCollectionProxy;
 using RooSetProxy = RooCollectionProxy<RooArgSet>;
 using RooListProxy = RooCollectionProxy<RooArgList>;
-class RooExpensiveObjectCache;
 class RooWorkspace;
 namespace RooFit {
 class Evaluator;
@@ -416,9 +415,6 @@ public:
 
    void wireAllCaches();
 
-   RooExpensiveObjectCache &expensiveObjectCache() const;
-   virtual void setExpensiveObjectCache(RooExpensiveObjectCache &cache) { _eocache = &cache; }
-
    /// Overwrite the current value stored in this object, making it look like this object computed that value.
    // \param[in] value Value to store.
    // \param[in] notifyClients Notify users of this object that they need to
@@ -643,8 +639,6 @@ protected:
    RooArgSet *_ownedComponents = nullptr; ///<! Set of owned component
 
    bool _prohibitServerRedirect = false; ///<! Prohibit server redirects -- Debugging tool
-
-   RooExpensiveObjectCache *_eocache{nullptr}; ///<! Pointer to global cache manager for expensive components.
 
    mutable const TNamed *_namePtr = nullptr; ///<! De-duplicated name pointer, equal for all objects with the same name.
    bool _isConstant = false; ///<! Cached isConstant status

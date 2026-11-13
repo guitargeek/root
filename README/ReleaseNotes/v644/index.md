@@ -90,6 +90,16 @@ Concretely, this means:
     the `cpu` backend overestimated the parameter uncertainties by a factor
     of sqrt(2).
 
+### Removal of `RooExpensiveObjectCache`
+
+The **RooExpensiveObjectCache** is removed, as no RooFit class stored objects
+in it anymore. `RooAbsArg::expensiveObjectCache()`,
+`RooAbsArg::setExpensiveObjectCache()` and
+`RooWorkspace::expensiveObjectCache()` are removed with it. Workspaces written
+by older ROOT versions can still be read; the cache they contain is ignored.
+For this purpose, the class remains as an empty shell in
+`RooFitLegacy/RooExpensiveObjectCache.h`.
+
 ## Graphics and GUI
 
 ## Geometry

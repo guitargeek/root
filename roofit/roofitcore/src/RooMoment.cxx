@@ -45,8 +45,6 @@ RooMoment::RooMoment(const char* name, const char* title, RooAbsReal& func, RooR
   _ixf("!ixf","ixf",this),
   _if("!if","if",this)
 {
-  setExpensiveObjectCache(func.expensiveObjectCache()) ;
-
   std::string pname=Form("%s_product",name) ;
 
   std::unique_ptr<RooFormulaVar> XF;
@@ -54,13 +52,11 @@ RooMoment::RooMoment(const char* name, const char* title, RooAbsReal& func, RooR
     std::string formula=Form("pow((@0-@1),%d)*@2",_order) ;
     RooAbsReal* mom1 = func.mean(x) ;
     XF = std::make_unique<RooFormulaVar>(pname.c_str(),formula.c_str(),RooArgList(x,*mom1,func)) ;
-    XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
     addOwnedComponents(*mom1) ;
     _mean.setArg(*mom1) ;
   } else {
     std::string formula=Form("pow(@0,%d)*@1",_order) ;
     XF = std::make_unique<RooFormulaVar>(pname.c_str(),formula.c_str(),RooArgSet(x,func)) ;
-    XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
   }
 
   if (func.isBinnedDistribution(x)) {
@@ -89,8 +85,6 @@ RooMoment::RooMoment(const char* name, const char* title, RooAbsReal& func, RooR
   _ixf("!ixf","ixf",this),
   _if("!if","if",this)
 {
-  setExpensiveObjectCache(func.expensiveObjectCache()) ;
-
   _nset.add(nset) ;
 
   std::string pname=Form("%s_product",name) ;
@@ -99,13 +93,11 @@ RooMoment::RooMoment(const char* name, const char* title, RooAbsReal& func, RooR
     std::string formula=Form("pow((@0-@1),%d)*@2",_order) ;
     RooAbsReal* mom1 = func.mean(x,nset) ;
     XF = std::make_unique<RooFormulaVar>(pname.c_str(),formula.c_str(),RooArgList(x,*mom1,func)) ;
-    XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
     addOwnedComponents(*mom1) ;
     _mean.setArg(*mom1) ;
   } else {
     std::string formula=Form("pow(@0,%d)*@1",_order) ;
     XF = std::make_unique<RooFormulaVar>(pname.c_str(),formula.c_str(),RooArgSet(x,func)) ;
-    XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
   }
 
   if (func.isBinnedDistribution(x)) {
