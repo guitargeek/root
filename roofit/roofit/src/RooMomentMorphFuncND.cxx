@@ -587,8 +587,7 @@ RooMomentMorphFuncND::CacheElem *RooMomentMorphFuncND::getCache(const RooArgSet 
 
    // Store it in the cache
    cache = new CacheElem(std::move(theSum),
-                         std::make_unique<RooChangeTracker>(trackerName.c_str(), trackerName.c_str(), _parList, true),
-                         fracl);
+                         std::make_unique<RooChangeTracker>(trackerName.c_str(), trackerName.c_str(), _parList), fracl);
    _cacheMgr.setObj(nullptr, nullptr, cache, nullptr);
 
    return cache;

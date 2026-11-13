@@ -279,7 +279,7 @@ RooMomentMorphFunc::CacheElem *RooMomentMorphFunc::getCache(const RooArgSet * /*
 
    // change tracker for fraction parameters
    std::string trackerName = Form("%s_frac_tracker", GetName());
-   RooChangeTracker *tracker = new RooChangeTracker(trackerName.c_str(), trackerName.c_str(), m.arg(), true);
+   RooChangeTracker *tracker = new RooChangeTracker(trackerName.c_str(), trackerName.c_str(), m.arg());
 
    // Store it in the cache
    cache = new CacheElem(*theSumFunc, *tracker, fracl);

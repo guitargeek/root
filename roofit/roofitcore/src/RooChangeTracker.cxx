@@ -19,15 +19,8 @@
 \class RooChangeTracker
 \ingroup Roofitcore
 
-Meta object that tracks value
-changes in a given set of RooAbsArgs by registering itself as value
-client of these objects. The change tracker can perform an
-additional validation step where it also compares the numeric
-values of the tracked arguments with reference values to ensure
-that values have actually changed. This may be useful in case some
-of the tracked observables are in binned datasets where each
-observable propagates a valueDirty flag when an event is loaded even
-though usually only one observable actually changes.
+Meta object that tracks value changes in a given set of RooAbsArgs by
+comparing their values with reference values.
 **/
 
 #include "RooChangeTracker.h"
@@ -37,21 +30,15 @@ though usually only one observable actually changes.
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructor. The set trackSet contains the observables to be
-/// tracked for changes. If checkValues is true an additional
-/// validation step is activated where the numeric values of the
-/// tracked arguments are compared with reference values ensuring
-/// that values have actually changed.
+/// Constructor. The set trackSet contains the arguments to be tracked for
+/// changes.
 
-RooChangeTracker::RooChangeTracker(const char* name, const char* title, const RooArgSet& trackSet, bool checkValues) :
+RooChangeTracker::RooChangeTracker(const char* name, const char* title, const RooArgSet& trackSet) :
   RooAbsReal(name, title),
   _realSet("realSet","Set of real-valued components to be tracked",this),
-  _catSet("catSet","Set of discrete-valued components to be tracked",this),
-  _realRef(trackSet.size()),
-  _catRef(trackSet.size()),
-  _checkVal(checkValues)
+  _catSet("catSet","Set of discrete-valued components to be tracked",this)
 {
-for (const auto arg : trackSet) {
+  for (const auto arg : trackSet) {
     if (dynamic_cast<const RooAbsReal*>(arg)) {
       _realSet.add(*arg) ;
     }
@@ -60,18 +47,15 @@ for (const auto arg : trackSet) {
     }
   }
 
-  if (_checkVal) {
-    for (unsigned int i=0; i < _realSet.size(); ++i) {
-      auto real = static_cast<const RooAbsReal*>(_realSet.at(i));
-      _realRef[i++] = real->getVal() ;
-    }
-
-    for (unsigned int i=0; i < _catSet.size(); ++i) {
-      auto cat = static_cast<const RooAbsCategory*>(_catSet.at(i));
-      _catRef[i++] = cat->getCurrentIndex() ;
-    }
+  _realRef.reserve(_realSet.size());
+  for (auto *real : static_range_cast<RooAbsReal *>(_realSet)) {
+    _realRef.push_back(real->getVal());
   }
 
+  _catRef.reserve(_catSet.size());
+  for (auto *cat : static_range_cast<RooAbsCategory *>(_catSet)) {
+    _catRef.push_back(cat->getCurrentIndex());
+  }
 }
 
 
@@ -84,90 +68,43 @@ RooChangeTracker::RooChangeTracker(const RooChangeTracker& other, const char* na
   _realSet("realSet",this,other._realSet),
   _catSet("catSet",this,other._catSet),
   _realRef(other._realRef),
-  _catRef(other._catRef),
-  _checkVal(other._checkVal)
+  _catRef(other._catRef)
 {
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Returns true if state has changed since last call with clearState=true.
-/// If clearState is true, changeState flag will be cleared.
+/// Returns true if a tracked value differs from its reference value. If
+/// clearState is true, the current values become the new reference values.
+/// The first call with clearState=true always returns true.
 
 bool RooChangeTracker::hasChanged(bool clearState)
 {
+  bool valuesChanged = false;
 
-  // If dirty flag did not change, object has not changed in any case
-  if (!isValueDirty()) {
-    return false ;
+  for (std::size_t i = 0; i < _realSet.size(); ++i) {
+    const double val = static_cast<const RooAbsReal &>(_realSet[i]).getVal();
+    if (val != _realRef[i]) {
+      valuesChanged = true;
+      if (clearState) _realRef[i] = val;
+    }
   }
 
-  // If no value checking is required and dirty flag has changed, return true
-  if (!_checkVal) {
-
-    if (clearState) {
-      // Clear dirty flag by calling getVal()
-      clearValueDirty() ;
+  for (std::size_t i = 0; i < _catSet.size(); ++i) {
+    const Int_t idx = static_cast<const RooAbsCategory &>(_catSet[i]).getCurrentIndex();
+    if (idx != _catRef[i]) {
+      valuesChanged = true;
+      if (clearState) _catRef[i] = idx;
     }
-
-    return true ;
   }
 
-  // Compare values against reference
-  if (clearState) {
-
-    bool valuesChanged(false) ;
-
-    // Check if any of the real values changed
-    for (unsigned int i=0; i < _realSet.size(); ++i) {
-      auto real = static_cast<const RooAbsReal*>(_realSet.at(i));
-      if (real->getVal() != _realRef[i]) {
-        valuesChanged = true ;
-        _realRef[i] = real->getVal() ;
-      }
-    }
-    // Check if any of the categories changed
-    for (unsigned int i=0; i < _catSet.size(); ++i) {
-      auto cat = static_cast<const RooAbsCategory*>(_catSet.at(i));
-      if (cat->getCurrentIndex() != _catRef[i]) {
-        valuesChanged = true ;
-        _catRef[i] = cat->getCurrentIndex() ;
-      }
-    }
-
-    clearValueDirty() ;
-
-
-    if (!_init) {
-      valuesChanged=true ;
-      _init = true ;
-    }
-
-    return valuesChanged ;
-
-  } else {
-
-    // Return true as soon as any input has changed
-
-    // Check if any of the real values changed
-    for (unsigned int i=0; i < _realSet.size(); ++i) {
-      auto real = static_cast<const RooAbsReal*>(_realSet.at(i));
-      if (real->getVal() != _realRef[i]) {
-        return true ;
-      }
-    }
-    // Check if any of the categories changed
-    for (unsigned int i=0; i < _catSet.size(); ++i) {
-      auto cat = static_cast<const RooAbsCategory*>(_catSet.at(i));
-      if (cat->getCurrentIndex() != _catRef[i]) {
-        return true ;
-      }
-    }
-
+  if (clearState && !_init) {
+    valuesChanged = true;
+    _init = true;
   }
 
-  return false ;
+  return valuesChanged;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

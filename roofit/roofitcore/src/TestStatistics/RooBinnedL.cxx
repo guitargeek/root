@@ -53,7 +53,7 @@ RooBinnedL::RooBinnedL(RooAbsPdf *pdf, RooAbsData *data)
 
    RooArgSet params;
    pdf->getParameters(data->get(), params);
-   paramTracker_ = std::make_unique<RooChangeTracker>("chtracker", "change tracker", params, true);
+   paramTracker_ = std::make_unique<RooChangeTracker>("chtracker", "change tracker", params);
 
    std::unique_ptr<RooArgSet> obs(pdf->getObservables(data));
    if (obs->size() != 1) {

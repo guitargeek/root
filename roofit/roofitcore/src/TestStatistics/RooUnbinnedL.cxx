@@ -55,7 +55,7 @@ RooUnbinnedL::RooUnbinnedL(RooAbsPdf *pdf, RooAbsData *data, RooAbsL::Extended e
    : RooAbsL(clonePdfData(*pdf, *data), data->numEntries(), 1, extended)
 {
    std::unique_ptr<RooArgSet> params(pdf->getParameters(data));
-   paramTracker_ = std::make_unique<RooChangeTracker>("chtracker", "change tracker", *params, true);
+   paramTracker_ = std::make_unique<RooChangeTracker>("chtracker", "change tracker", *params);
 
    evaluator_ = std::make_unique<RooFit::Evaluator>(*pdf_, evalBackend.value() == RooFit::EvalBackend::Value::Cuda);
    std::stack<std::vector<double>>{}.swap(_vectorBuffers);

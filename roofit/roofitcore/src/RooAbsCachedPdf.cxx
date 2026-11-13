@@ -198,7 +198,7 @@ RooAbsCachedPdf::PdfCacheElem::PdfCacheElem(const RooAbsCachedPdf& self, const R
   params->remove(pdfFinalObs,true,true) ;
 
   auto name = std::string(_pdf->GetName()) + "_CACHEPARAMS";
-  _paramTracker = std::make_unique<RooChangeTracker>(name.c_str(),name.c_str(),*params,true) ;
+  _paramTracker = std::make_unique<RooChangeTracker>(name.c_str(),name.c_str(),*params) ;
   _paramTracker->hasChanged(true) ; // clear dirty flag as cache is up-to-date upon creation
 
   // Introduce formal dependency of RooHistPdf on parameters so that const optimization code

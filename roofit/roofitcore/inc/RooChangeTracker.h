@@ -24,7 +24,7 @@ class RooChangeTracker : public RooAbsReal {
 public:
 
   RooChangeTracker() = default;
-  RooChangeTracker(const char *name, const char *title, const RooArgSet& trackSet, bool checkValues=false) ;
+  RooChangeTracker(const char *name, const char *title, const RooArgSet& trackSet) ;
 
   RooChangeTracker(const RooChangeTracker& other, const char* name = nullptr);
   TObject* clone(const char* newname=nullptr) const override { return new RooChangeTracker(*this, newname); }
@@ -40,13 +40,12 @@ protected:
   RooListProxy     _catSet ;         ///< List of categories to check
   std::vector<double> _realRef ;   ///< Reference values for reals
   std::vector<Int_t>    _catRef ;    ///< Reference values for categories
-  bool       _checkVal = false;           ///< Check contents as well if true
 
   bool        _init = false; ///<!
 
   double evaluate() const override { return 1 ; }
 
-  ClassDefOverride(RooChangeTracker,1) // Meta object that tracks changes in set of other arguments
+  ClassDefOverride(RooChangeTracker,3) // Meta object that tracks changes in set of other arguments
 };
 
 #endif

@@ -286,7 +286,7 @@ RooMomentMorph::CacheElem* RooMomentMorph::getCache(const RooArgSet* nset) const
 
   // change tracker for fraction parameters
   std::string trackerName = Form("%s_frac_tracker",GetName()) ;
-  auto tracker = std::make_unique<RooChangeTracker>(trackerName.c_str(),trackerName.c_str(),m.arg(),true) ;
+  auto tracker = std::make_unique<RooChangeTracker>(trackerName.c_str(),trackerName.c_str(),m.arg()) ;
 
   // Store it in the cache
   auto cache = new CacheElem(std::move(theSumPdf),std::move(tracker),fracl) ;

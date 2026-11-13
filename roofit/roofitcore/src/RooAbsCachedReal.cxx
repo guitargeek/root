@@ -175,7 +175,7 @@ RooAbsCachedReal::FuncCacheElem::FuncCacheElem(const RooAbsCachedReal &self, con
   // Create pseudo-object that tracks changes in parameter values
   std::unique_ptr<RooArgSet> params{self.actualParameters(orderedObs)};
   string name= Form("%s_CACHEPARAMS",_func->GetName()) ;
-  _paramTracker = new RooChangeTracker(name.c_str(),name.c_str(),*params,true) ;
+  _paramTracker = new RooChangeTracker(name.c_str(),name.c_str(),*params) ;
   _paramTracker->hasChanged(true) ; // clear dirty flag as cache is up-to-date upon creation
 
   // Introduce formal dependency of RooHistFunc on parameters so that const optimization code

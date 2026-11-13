@@ -155,7 +155,7 @@ RooNDKeysPdf::RooNDKeysPdf(const char *name, const char *title, const RooArgList
    }
 
    // keep track of changes in rho parameters
-   _tracker = new RooChangeTracker("tracker", "track rho parameters", _rhoList, true); // check for value updates
+   _tracker = new RooChangeTracker("tracker", "track rho parameters", _rhoList);
    (void)_tracker->hasChanged(true); // first evaluation always true for new parameters (?)
 
    createPdf(true, data);
@@ -194,7 +194,7 @@ RooNDKeysPdf::RooNDKeysPdf(const char *name, const char *title, const RooArgList
    }
 
    // keep track of changes in rho parameters
-   _tracker = new RooChangeTracker("tracker", "track rho parameters", _rhoList, true); // check for value updates
+   _tracker = new RooChangeTracker("tracker", "track rho parameters", _rhoList);
    (void)_tracker->hasChanged(true); // first evaluation always true for new parameters (?)
 
    createPdf(true, *std::unique_ptr<RooDataSet>{createDatasetFromHist(varList, hist)});
