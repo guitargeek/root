@@ -22,7 +22,6 @@
 #include <string>
 
 class TRegexp;
-class RooMappedCategoryCache;
 
 class RooMappedCategory : public RooAbsCategory {
 public:
@@ -76,15 +75,11 @@ protected:
   value_type _defCat{NoCatIdx}; ///< Default (unmapped) output type
   RooCategoryProxy _inputCat ;  ///< Input category
   std::map<std::string,RooMappedCategory::Entry> _mapArray ;  ///< List of mapping rules
-  mutable std::unique_ptr<RooMappedCategoryCache> _mapcache; ///<! transient member: cache the mapping
 
   value_type evaluate() const override ;
-  const RooMappedCategoryCache* getOrCreateCache() const;
 
-  /// When the input category changes states, the cached state mappings are invalidated
-  void recomputeShape() override;
-
-  friend class RooMappedCategoryCache;
+  /// Only defining new mappings changes the states, so there is nothing to recompute.
+  void recomputeShape() override {}
 
 private:
   inline void setDefCat(value_type defCat) { _defCat = defCat; }

@@ -129,7 +129,7 @@ public:
 
   void deleteSharedProperties() ;
 
-  void copyCacheFast(const RooRealVar& other, bool setValDirty=true) { _value = other._value ; if (setValDirty) setValueDirty() ; }
+  void copyCacheFast(const RooRealVar& other) { _value = other._value ; }
 
   static void cleanup() ;
 
@@ -144,11 +144,10 @@ public:
          ++_valueResetCounter;
       }
       _value = value;
-      setValueDirty();
    }
 
   double evaluate() const override { return _value ; } // dummy because we overloaded getVal()
-  void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
+  void copyCache(const RooAbsArg* source, bool valueOnly=false) override ;
   void attachToTree(TTree& t, Int_t bufSize=32000) override ;
   void attachToVStore(RooVectorDataStore& vstore) override ;
   void fillTreeBranch(TTree& t) override ;

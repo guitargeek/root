@@ -24,7 +24,6 @@
 #include <memory>
 #include <stack>
 
-class ChangeOperModeRAII;
 class RooAbsArg;
 class RooAbsCategory;
 class RooAbsPdf;
@@ -65,8 +64,6 @@ public:
 
    void setUseGeneratedFunctionCode(bool);
    void writeDebugMacro(std::string const &) const;
-
-   std::unique_ptr<ChangeOperModeRAII> setOperModes(RooAbsArg::OperMode opMode);
 
    RooFit::Evaluator &evaluator() const { return *_evaluator; }
 

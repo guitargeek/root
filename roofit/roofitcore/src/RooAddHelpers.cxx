@@ -130,7 +130,6 @@ AddCacheElem::AddCacheElem(RooAbsPdf const &addPdf, RooArgList const &pdfList, R
          std::unique_ptr<RooAbsReal> pdfProj;
          if (!refCoefNormSet.empty() && !nset2.equals(refCoefNormSet)) {
             pdfProj = std::unique_ptr<RooAbsReal>{pdf->createIntegral(nset2, refCoefNormSet, normRange.c_str())};
-            pdfProj->setOperMode(addPdf.operMode());
             oocxcoutD(&addPdf, Caching) << addPdf.ClassName() << "(" << addPdf.GetName() << ")::getPC nset2(" << nset2
                                         << ")!=_refCoefNormSet(" << refCoefNormSet
                                         << ") --> pdfProj = " << pdfProj->GetName() << std::endl;

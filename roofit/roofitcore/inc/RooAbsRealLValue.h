@@ -114,7 +114,7 @@ public:
   bool isValidReal(double value, bool verbose = false) const override;
 
   // Constant and Projected flags
-  inline void setConstant(bool value= true) { setAttribute("Constant",value); setValueDirty() ; setShapeDirty() ; }
+  inline void setConstant(bool value= true) { setAttribute("Constant",value); }
 
   // I/O streaming interface (machine readable)
   bool readFromStream(std::istream& is, bool compact, bool verbose=false) override ;
@@ -165,7 +165,7 @@ protected:
   virtual void setValFast(double value) { setVal(value) ; }
 
   bool fitRangeOKForPlotting() const ;
-  void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
+  void copyCache(const RooAbsArg* source, bool valueOnly=false) override ;
 
   ClassDefOverride(RooAbsRealLValue,1) // Abstract modifiable real-valued object
 };

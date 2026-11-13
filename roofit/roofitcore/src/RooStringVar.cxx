@@ -37,7 +37,6 @@ RooStringVar::RooStringVar(const char *name, const char *title, const char* valu
   RooAbsArg(name, title),
   _string(value), _stringAddr(&_string)
 {
-  setValueDirty();
 }
 
 
@@ -49,7 +48,6 @@ RooStringVar::RooStringVar(const RooStringVar& other, const char* name) :
   RooAbsArg(other, name),
   _string(other._string), _stringAddr(&_string)
 {
-  setValueDirty();
 }
 
 
@@ -72,27 +70,20 @@ bool RooStringVar::readFromStream(std::istream& is, bool compact, bool)
   }
 
   _string = newValue;
-  setValueDirty();
 
   return false;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Copy cache of another RooAbsArg to our cache
-///
-/// Warning: This function copies the cached values of source,
-///          it is the callers responsibility to make sure the cache is clean
+/// Copy the string of another RooStringVar to our string
 
-void RooStringVar::copyCache(const RooAbsArg* source, bool /*valueOnly*/, bool setValDirty)
+void RooStringVar::copyCache(const RooAbsArg* source, bool /*valueOnly*/)
 {
   auto other = dynamic_cast<const RooStringVar*>(source) ;
   assert(other);
 
   _string = other->_string;
-  if (setValDirty) {
-    setValueDirty() ;
-  }
 }
 
 

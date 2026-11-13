@@ -457,7 +457,6 @@ xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, in
          if (RooAbsPdf *p = dynamic_cast<RooAbsPdf *>(obj); p) {
             p->setNormRange(p->normRange());
          }
-         obj->setValueDirty();
       }
       // xRooNode(pdf.workspace()).sterilize();
    }

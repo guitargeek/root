@@ -332,14 +332,6 @@ const RooArgSet* RooAbsData::get(Int_t index) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Control propagation of dirty flags from observables in dataset
-
-void RooAbsData::setDirtyProp(bool flag)
-{
-  _dstore->setDirtyProp(flag) ;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// Create a reduced copy of this dataset. The caller takes ownership of the returned dataset
 ///
 /// The following optional named arguments are accepted

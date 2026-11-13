@@ -29,7 +29,6 @@ public:
          std::cout << "Error - observable " << xvar << "is not in the list of pdf variables" << std::endl;
       assert(arg != nullptr);
       RooArgSet obsList(*arg);
-      // arg.setDirtyInhibit(true); // do have faster setter of values
       fX = std::unique_ptr<RooArgSet>{fPdf->getObservables(obsList)};
       fParams = std::unique_ptr<RooArgSet>{fPdf->getParameters(obsList)};
       assert(fX != nullptr);
@@ -55,11 +54,6 @@ public:
       fX->Print("v");
       fParams->Print("v");
 #endif
-      //       // iterate on fX
-      //       for (auto *arg : *fX) {
-      //          assert(arg != 0);
-      //          arg->setDirtyInhibit(true); // for having faster setter later  in DoEval
-      //       }
    }
 
    /**
@@ -127,9 +121,6 @@ private:
       // iterate on observables
       for (auto *var : dynamic_range_cast<RooRealVar *>(*fX)) {
          assert(var != nullptr);
-#ifndef _WIN32
-         var->setDirtyInhibit(true);
-#endif
          var->setVal(*x++);
       }
 

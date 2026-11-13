@@ -62,7 +62,6 @@ RooMultiCategory::RooMultiCategory(const char *name, const char *title, const Ro
     }
     _catSet.add(*arg) ;
   }
-  setShapeDirty();
 }
 
 
@@ -73,7 +72,6 @@ RooMultiCategory::RooMultiCategory(const char *name, const char *title, const Ro
 RooMultiCategory::RooMultiCategory(const RooMultiCategory& other, const char *name) :
   RooAbsCategory(other,name), _catSet("input",this,other._catSet)
 {
-  setShapeDirty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,11 +147,12 @@ void RooMultiCategory::writeToStream(ostream& os, bool compact) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Get current label. If labels haven't been computed, yet, or if the shape is
-/// dirty, a recomputation is triggered.
+/// Get current label. If labels haven't been computed, yet, or if the states of
+/// the input categories changed, a recomputation is triggered.
 const char* RooMultiCategory::getCurrentLabel() const {
+  const auto index = getCurrentIndex();
   for (const auto& item : stateNames()) {
-    if (item.second == getCurrentIndex())
+    if (item.second == index)
       return item.first.c_str();
   }
 
@@ -164,8 +163,20 @@ const char* RooMultiCategory::getCurrentLabel() const {
 ////////////////////////////////////////////////////////////////////////////////
 /// Inspect all the subcategories, and enumerate and name their states.
 void RooMultiCategory::recomputeShape() {
-  // Propagate up:
-  setShapeDirty();
+  // Our states only change if the states of the input categories change.
+  // Don't touch them otherwise, because this invalidates iterators.
+  std::vector<std::string> inputStates;
+  for (const auto arg : _catSet) {
+    auto cat = static_cast<const RooAbsCategory*>(arg);
+    const std::size_t nStates = cat->size();
+    for (std::size_t i = 0; i < nStates; ++i) {
+      inputStates.push_back(cat->getOrdinal(i).first);
+    }
+    inputStates.emplace_back(); // separates the input categories
+  }
+  if (_shapeComputed && inputStates == _inputStates) return;
+  _inputStates = std::move(inputStates);
+  _shapeComputed = true;
 
   clearTypes();
 
@@ -193,7 +204,4 @@ void RooMultiCategory::recomputeShape() {
   }
   assert(_stateNames.size() == totalSize);
   assert(_insertionOrder.size() == totalSize);
-
-  // Possible new state numbers will invalidate all cached numbers
-  setValueDirty();
 }

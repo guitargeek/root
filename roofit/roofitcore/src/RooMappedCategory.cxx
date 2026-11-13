@@ -26,58 +26,12 @@
 
 #include "RooStreamParser.h"
 #include "RooMsgService.h"
-#include "RooAbsCache.h"
 
 #include "TBuffer.h"
 #include "TString.h"
 #include "TRegexp.h"
 
 #include <ostream>
-
-class RooMappedCategoryCache : public RooAbsCache {
-  public:
-    RooMappedCategoryCache(RooAbsArg* owner) : RooAbsCache(owner)
-  { initialise(); }
-    RooMappedCategoryCache(const RooAbsCache& /*other*/, RooAbsArg* owner) :
-      RooAbsCache(owner)
-    { initialise(); }
-
-    // look up our parent's output based on our parent's input category index
-    RooAbsCategory::value_type lookup(Int_t idx) const
-    { return _map[idx]; }
-
-    void wireCache() override
-    { _map.clear(); initialise(); }
-
-    bool redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/, bool /*nameChange*/, bool /*isRecursive*/) override
-    { _map.clear(); initialise(); return false; }
-
-  private:
-    mutable std::map<Int_t, RooAbsCategory::value_type> _map;
-
-    // pre-map categories of input category on something easily searchable
-    // like the index (not the name!)
-    void initialise()
-    {
-      const RooMappedCategory& parent = *static_cast<const RooMappedCategory*>(_owner);
-
-      for (const auto& inCat : *parent._inputCat) {
-        const std::string& inKey = inCat.first;
-        // Scan array of regexps
-        bool found = false;
-        for (const auto& strAndEntry : parent._mapArray) {
-          if (strAndEntry.second.match(inKey.c_str())) {
-            found = true;
-            _map[inCat.second] = strAndEntry.second.outCat();
-            break;
-          }
-        }
-
-        if (!found)
-          _map[inCat.second] = parent._defCat;
-      }
-    }
-};
 
 RooMappedCategory::RooMappedCategory() : _defCat(0) { }
 
@@ -150,17 +104,17 @@ bool RooMappedCategory::map(const char* inKeyRegExp, const char* outKey, Int_t o
 
 
 
+/// Return the output state of the first mapping rule that matches the current
+/// label of the input category, or the default state if no rule matches.
 RooAbsCategory::value_type RooMappedCategory::evaluate() const
 {
-    const RooMappedCategoryCache* cache = getOrCreateCache();
-    return cache->lookup(_inputCat->getCurrentIndex());
-}
-
-const RooMappedCategoryCache* RooMappedCategory::getOrCreateCache() const
-{
-    if (!_mapcache) _mapcache = std::make_unique<RooMappedCategoryCache>(
-            const_cast<RooMappedCategory*>(this));
-    return _mapcache.get();
+   const char *inKey = _inputCat->getCurrentLabel();
+   for (const auto &strAndEntry : _mapArray) {
+      if (strAndEntry.second.match(inKey)) {
+         return strAndEntry.second.outCat();
+      }
+   }
+   return _defCat;
 }
 
 void RooMappedCategory::printMultiline(std::ostream& os, Int_t content, bool verbose, TString indent) const
@@ -200,7 +154,6 @@ bool RooMappedCategory::readFromStream(std::istream& is, bool compact, bool /*ve
      //Clear existing definitions, but preserve default output
      TString defCatName(lookupName(_defCat));
      _mapArray.clear() ;
-     _mapcache = nullptr;
      clearTypes() ;
      _defCat = defineState(defCatName.Data()).second;
 
@@ -306,16 +259,6 @@ void RooMappedCategory::writeToStream(std::ostream& os, bool compact) const
   }
 }
 
-
-/// When the input category changes states, the cached state mappings are invalidated
-void RooMappedCategory::recomputeShape() {
-  // There is no need to recompute _stateNames and _insertionOrder, as only defining new
-  // mappings has an effect on these. When the input category changes it shape, it is sufficient
-  // to clear the cached state mappings.
-  if (_mapcache) {
-    _mapcache->wireCache();
-  }
-}
 
 RooMappedCategory::Entry::Entry(const char *exp, RooAbsCategory::value_type cat) : _expr(exp), _catIdx(cat) {}
 RooMappedCategory::Entry::Entry(const Entry &other) : _expr(other._expr), _catIdx(other._catIdx) {}

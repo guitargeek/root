@@ -35,16 +35,9 @@ public:
   ~RooObjCacheManager() override ;
 
   bool redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/, bool /*nameChange*/, bool /*isRecursive*/) override ;
-  void operModeHook() override ;
-  void optimizeCacheMode(const RooArgSet& /*obs*/, RooArgSet& /*optSet*/, RooLinkedList& /*processedNodes*/) override ;
   void printCompactTreeHook(std::ostream&, const char *) override ;
 
   void insertObjectHook(RooAbsCacheElement&) override ;
-
-  void sterilize() override ;
-
-  static void doClearObsList(bool flag) { _clearObsList = flag ; }
-  static bool clearObsList() { return _clearObsList ; }
 
   void setClearOnRedirect(bool flag) { _clearOnRedirect = flag ; }
 
@@ -52,11 +45,6 @@ protected:
 
   bool _clearOnRedirect ;
   bool _allowOptimize ; ///< No longer used, but kept because it is a persistent member (schema evolution)
-  bool _optCacheModeSeen  ;              ///<!
-
-  RooArgSet* _optCacheObservables = nullptr; ///<! current optCacheObservables
-
-  static bool _clearObsList ; ///< Clear obslist on sterilize?
 
   ClassDefOverride(RooObjCacheManager,3) ///< Cache manager for generic caches that contain RooAbsArg objects
 } ;

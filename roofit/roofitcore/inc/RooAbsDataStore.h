@@ -40,7 +40,7 @@ public:
   RooAbsDataStore(const RooAbsDataStore& other, const char* newname=nullptr)
     : RooAbsDataStore(other, other._vars, newname) {}
   RooAbsDataStore(const RooAbsDataStore& other, const RooArgSet& vars, const char* newname=nullptr)
-    : TNamed(other), RooPrintable(other), _vars{vars}, _doDirtyProp{other._doDirtyProp}
+    : TNamed(other), RooPrintable(other), _vars{vars}
   {
     if(newname) SetName(newname);
   }
@@ -121,9 +121,6 @@ public:
   int defaultPrintContents(Option_t* /*opt*/) const override { return kName|kClassName|kArgs|kValue ; }
 
 
-  virtual void setDirtyProp(bool flag) { _doDirtyProp = flag ; }
-  bool dirtyProp() const { return _doDirtyProp ; }
-
   virtual void checkInit() const {} ;
 
   virtual void dump() {}
@@ -134,11 +131,8 @@ public:
  protected:
 
   RooArgSet _vars;
-  RooArgSet _cachedVars;
 
-  bool _doDirtyProp = true; ///< Switch do (de)activate dirty state propagation when loading a data point
-
-  ClassDefOverride(RooAbsDataStore,1) // Abstract Data Storage class
+  ClassDefOverride(RooAbsDataStore,2) // Abstract Data Storage class
 };
 
 

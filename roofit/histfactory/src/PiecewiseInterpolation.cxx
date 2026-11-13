@@ -403,10 +403,8 @@ void PiecewiseInterpolation::setAllInterpCodes(int code)
 
 void PiecewiseInterpolation::setInterpCodeForParam(int iParam, int code)
 {
-   if (RooStats::HistFactory::Detail::setInterpolationCode(*this, "PiecewiseInterpolation", _paramSet[iParam],
-                                                           _interpCode, iParam, code, /*maxCode=*/6)) {
-      setValueDirty();
-   }
+   RooStats::HistFactory::Detail::setInterpolationCode(*this, "PiecewiseInterpolation", _paramSet[iParam], _interpCode,
+                                                       iParam, code, /*maxCode=*/6);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

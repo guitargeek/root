@@ -70,7 +70,6 @@ public:
   }
 
   inline T* getObj(const RooArgSet* nset, const RooArgSet* iset, Int_t* sterileIdx, const char* isetRangeName)  {
-    if (_wired) return _object[0] ;
     return getObj(nset,iset,sterileIdx,RooNameReg::ptr(isetRangeName)) ;
   }
 
@@ -95,9 +94,6 @@ public:
                  bool /*nameChange*/, bool /*isRecursive*/) override {
     return false ;
   }
-  /// Interface function to intercept cache operation mode changes
-  void operModeHook() override {
-  }
   /// Interface function to cache add contents to output in tree printing mode
   void printCompactTreeHook(std::ostream&, const char *) override {
   }
@@ -110,17 +106,6 @@ public:
   virtual void insertObjectHook(T&) {
   }
 
-  void wireCache() override {
-    if (_size==0) {
-      oocoutI(_owner,Optimization) << "RooCacheManager::wireCache(" << _owner->GetName() << ") no cached elements!" << std::endl ;
-    } else if (_size==1) {
-      oocoutI(_owner,Optimization) << "RooCacheManager::wireCache(" << _owner->GetName() << ") now wiring cache" << std::endl ;
-      _wired=true ;
-    } else if (_size>1) {
-      oocoutI(_owner,Optimization) << "RooCacheManager::wireCache(" << _owner->GetName() << ") cache cannot be wired because it contains more than one element" << std::endl ;
-    }
-  }
-
 protected:
 
   Int_t _maxSize ;       ///<! Maximum size
@@ -129,7 +114,6 @@ protected:
 
   std::vector<RooNormSetCache> _nsetCache ; ///<! Normalization/Integration set manager
   std::vector<T*> _object ;                 ///<! Payload
-  bool _wired = false;               ///<! In wired mode, there is a single payload which is returned always
 
   ClassDefOverride(RooCacheManager,2) // Cache Manager class generic objects
 } ;
@@ -137,8 +121,7 @@ protected:
 
 /// Constructor for simple caches without RooAbsArg payload. A cache
 /// made with this constructor is not registered with its owner
-/// and will not receive information on server redirects and
-/// cache operation mode changes.
+/// and will not receive information on server redirects.
 template <class T>
 RooCacheManager<T>::RooCacheManager(Int_t maxSize) : _maxSize(maxSize)
 {
@@ -150,8 +133,7 @@ RooCacheManager<T>::RooCacheManager(Int_t maxSize) : _maxSize(maxSize)
 
 /// Constructor for simple caches with RooAbsArg derived payload. A cache
 /// made with this constructor is registered with its owner
-/// and will receive information on server redirects and
-/// cache operation mode changes.
+/// and will receive information on server redirects.
 template <class T>
 RooCacheManager<T>::RooCacheManager(RooAbsArg *owner, Int_t maxSize)
    : RooAbsCache(owner), _maxSize(maxSize)
@@ -276,9 +258,6 @@ Int_t RooCacheManager<T>::setObj(const RooArgSet* nset, const RooArgSet* iset, T
   // Allow optional post-processing of object inserted in cache
   insertObjectHook(*obj) ;
 
-  // Unwire cache in case it was wired
-  _wired = false ;
-
   return _size-1 ;
 }
 
@@ -289,12 +268,6 @@ Int_t RooCacheManager<T>::setObj(const RooArgSet* nset, const RooArgSet* iset, T
 template<class T>
 T* RooCacheManager<T>::getObj(const RooArgSet* nset, const RooArgSet* iset, Int_t* sterileIdx, const TNamed* isetRangeName)
 {
-  // Fast-track for wired mode
-  if (_wired) {
-    if(_object[0]==nullptr && sterileIdx) *sterileIdx=0 ;
-    return _object[0] ;
-  }
-
   Int_t i ;
   for (i=0 ; i<_size ; i++) {
     if (_nsetCache[i].contains(nset,iset,isetRangeName)==true) {

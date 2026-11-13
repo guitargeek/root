@@ -43,8 +43,6 @@ to other RooAbsArgs must be invertible.
 RooAbsCategoryLValue::RooAbsCategoryLValue(const char *name, const char *title) :
   RooAbsCategory(name,title)
 {
-  setValueDirty() ;
-  setShapeDirty() ;
 }
 
 
@@ -97,7 +95,6 @@ RooAbsArg& RooAbsCategoryLValue::operator=(const RooAbsCategory& other)
   }
 
   _currentIndex = index;
-  setValueDirty();
 
   return *this;
 }
@@ -114,14 +111,14 @@ bool RooAbsCategoryLValue::setOrdinal(UInt_t n)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Copy the cached value from given source and raise dirty flag.
-/// It is the callers responsibility to ensure that the sources
-/// cache is clean(valid) before this function is called, e.g. by
+/// Copy the stored index from given source.
+/// It is the callers responsibility to ensure that the stored index of
+/// the source is up to date before this function is called, e.g. by
 /// calling syncCache() on the source.
 
-void RooAbsCategoryLValue::copyCache(const RooAbsArg* source, bool valueOnly, bool setValDirty)
+void RooAbsCategoryLValue::copyCache(const RooAbsArg* source, bool valueOnly)
 {
-  RooAbsCategory::copyCache(source,valueOnly,setValDirty) ;
+  RooAbsCategory::copyCache(source,valueOnly) ;
 
   if (isValid()) {
     setIndex(_currentIndex); // force back-propagation

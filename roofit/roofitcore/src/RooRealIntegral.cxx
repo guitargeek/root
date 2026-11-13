@@ -631,9 +631,6 @@ RooRealIntegral::RooRealIntegral(const char *name, const char *title,
   // server or not.
   _function.setArg(const_cast<RooAbsReal&>(function));
 
-  // Determine auto-dirty status
-  autoSelectDirtyMode() ;
-
   // Create value caches for _intList and _sumList
   _intList.snapshot(_saveInt) ;
   _sumList.snapshot(_saveSum) ;
@@ -651,31 +648,6 @@ RooRealIntegral::RooRealIntegral(const char *name, const char *title,
     }
   }
 
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Set appropriate cache operation mode for integral depending on cache operation
-/// mode of server objects
-
-void RooRealIntegral::autoSelectDirtyMode()
-{
-  // If any of our servers are is forcedDirty or a projectedDependent, then we need to be ADirty
-  for (const auto server : _serverList) {
-    if (server->isValueServer(*this)) {
-      RooArgSet leafSet ;
-      server->leafNodeServerList(&leafSet) ;
-      for (const auto leaf : leafSet) {
-        if (leaf->operMode()==ADirty && leaf->isValueServer(*this)) {
-          setOperMode(ADirty) ;
-          break ;
-        }
-        if (leaf->getAttribute("projectedDependent")) {
-          setOperMode(ADirty) ;
-          break ;
-        }
-      }
-    }
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -807,27 +779,16 @@ RooFit::OwningPtr<RooAbsReal> RooRealIntegral::createIntegral(const RooArgSet& i
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return value of object. If the cache is clean, return the
-/// cached value, otherwise recalculate on the fly and refill
-/// the cache
+/// Evaluate the integral and return its value.
 
 double RooRealIntegral::getValV(const RooArgSet* nset) const
 {
-//   // fast-track clean-cache processing
-//   if (_operMode==AClean) {
-//     return _value ;
-//   }
-
   if (nset && nset->uniqueId().value() != _lastNormSetId) {
     const_cast<RooRealIntegral*>(this)->setProxyNormSet(nset);
     _lastNormSetId = nset->uniqueId().value();
   }
 
-  if (isValueOrShapeDirtyAndClear()) {
-    _value = traceEval(nset) ;
-  }
-
-  return _value ;
+  return traceEval(nset) ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -847,14 +808,6 @@ double RooRealIntegral::evaluate() const
           coutE(Integration) << ClassName() << "::" << GetName()
                              << ":evaluate: cannot initialize numerical integrator" << std::endl;
           return 0;
-        }
-
-        // Not clear why this is still needed
-        RooArgList serverList;
-        _function->treeNodeServerList(&serverList, nullptr, true, true, false, true);
-
-        for (auto *arg : serverList) {
-           arg->syncCache();
         }
 
         // Save current integral dependent values
@@ -989,8 +942,6 @@ bool RooRealIntegral::redirectServersHook(const RooAbsCollection& newServerList,
                    bool mustReplaceAll, bool nameChange, bool isRecursive)
 {
   _restartNumIntEngine = true ;
-
-  autoSelectDirtyMode() ;
 
   // Update contents value caches for _intList and _sumList
   _saveInt.removeAll() ;

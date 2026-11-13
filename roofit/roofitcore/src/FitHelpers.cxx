@@ -532,12 +532,6 @@ std::unique_ptr<RooAbsReal> createNLLNew(RooAbsPdf &pdf, RooAbsData &data, std::
                                          std::string const &rangeName, RooArgSet const &projDeps, bool isExtended,
                                          double integrateOverBinsPrecision, RooFit::OffsetMode offset)
 {
-   if (constraints) {
-      // The computation graph for the constraints is very small, no need to do
-      // the tracking of clean and dirty nodes here.
-      constraints->setOperMode(RooAbsArg::ADirty);
-   }
-
    RooArgSet observables;
    pdf.getObservables(data.get(), observables);
    observables.remove(projDeps, true, true);

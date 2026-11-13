@@ -167,11 +167,3 @@ RooFit::OwningPtr<RooArgSet> RooCachedReal::actualParameters(const RooArgSet& ns
 {
    return func->getParameters(_cacheObs.empty() ? nset : _cacheObs);
 }
-
-
-void RooCachedReal::operModeHook()
-{
-  if (operMode()==ADirty) {
-    ((RooAbsArg*)func.absArg())->setOperMode(ADirty) ;
-  }
-}

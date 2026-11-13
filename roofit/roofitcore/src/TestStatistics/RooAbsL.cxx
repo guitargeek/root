@@ -216,18 +216,6 @@ void RooAbsL::initClones(RooAbsPdf &inpdf, RooAbsData &indata)
    // *********************************************************************
 
    // TODO
-
-   // *********************************************************************
-   // *** PART 4 *** Finalization and activation of optimization          *
-   // *********************************************************************
-
-   // optimization steps (copied from ROATS::optimizeCaching)
-
-   pdf_->getVal(normSet_.get());
-   // Set value caching mode for all nodes that depend on any of the observables to ADirty
-   pdf_->optimizeCacheMode(*_funcObsSet);
-   // Disable propagation of dirty state flags for observables
-   data_->setDirtyProp(false);
 }
 
 std::unique_ptr<RooArgSet> RooAbsL::getParameters()

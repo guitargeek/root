@@ -218,8 +218,6 @@ public:
 
   /// Print the contents of the dataset to the specified output stream.
   virtual void printContents(std::ostream& os = std::cout) const = 0;
-  
-  void setDirtyProp(bool flag) ;
 
   double moment(const RooRealVar& var, double order, const char* cutSpec=nullptr, const char* cutRange=nullptr) const ;
   double moment(const RooRealVar& var, double order, double offset, const char* cutSpec=nullptr, const char* cutRange=nullptr) const ;
@@ -340,7 +338,6 @@ protected:
 
   // Column structure definition
   RooArgSet _vars;         ///< Dimensions of this data set
-  RooArgSet _cachedVars ;  ///<! External variables cached with this data set
 
   std::unique_ptr<RooAbsDataStore> _dstore; ///< Data storage implementation
 

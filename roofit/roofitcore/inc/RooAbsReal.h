@@ -91,8 +91,7 @@ public:
 
 
   //////////////////////////////////////////////////////////////////////////////////
-  /// Evaluate object. Returns either cached value or triggers a recalculation.
-  /// The recalculation happens by calling getValV(), which in the end calls the
+  /// Evaluate object by calling getValV(), which in the end calls the
   /// virtual evaluate() functions of the respective PDFs.
   /// \param[in] normalisationSet getValV() reacts differently depending on the value of the normalisation set.
   /// If the set is `nullptr`, an unnormalised value is returned.
@@ -113,17 +112,7 @@ public:
     if(normalisationSet && normalisationSet->empty()) {
       normalisationSet = nullptr;
     }
-#ifdef ROOFIT_CHECK_CACHED_VALUES
-    return _DEBUG_getVal(normalisationSet);
-#else
-
-#ifndef _WIN32
-    return (_fast && !_inhibitDirty) ? _value : getValV(normalisationSet) ;
-#else
-    return (_fast && !inhibitDirty()) ? _value : getValV(normalisationSet) ;
-#endif
-
-#endif
+    return _fast ? _value : getValV(normalisationSet) ;
   }
 
   /// Like getVal(const RooArgSet*), but always requires an argument for normalisation.
@@ -298,7 +287,7 @@ public:
   void printValue(std::ostream& os) const override ;
   void printMultiline(std::ostream& os, Int_t contents, bool verbose=false, TString indent="") const override ;
 
-  inline void setCachedValue(double value, bool notifyClients = true) final;
+  void setCachedValue(double value) final { _value = value; }
 
   // Evaluation error logging
   class EvalError {
@@ -454,8 +443,8 @@ protected:
   virtual double evaluate() const = 0;
 
   // Hooks for RooDataSet interface
-  void syncCache(const RooArgSet* set=nullptr) override { getVal(set) ; }
-  void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
+  void syncCache(const RooArgSet* set=nullptr) override { _value = getVal(set) ; }
+  void copyCache(const RooAbsArg* source, bool valueOnly=false) override ;
   void attachToTree(TTree& t, Int_t bufSize=32000) override ;
   void attachToVStore(RooVectorDataStore& vstore) override ;
   void fillTreeBranch(TTree& t) override ;
@@ -529,9 +518,6 @@ private:
   std::unique_ptr<RooAbsReal> createChi2Impl(RooDataHist& data, const RooLinkedList& cmdList);
   std::unique_ptr<RooFitResult> chi2FitToImpl(RooDataHist& data, const RooLinkedList& cmdList);
 
-  /// Debug version of getVal(), which is slow and does error checking.
-  double _DEBUG_getVal(const RooArgSet* normalisationSet) const;
-
   //--------------------------------------------------------------------
 
  protected:
@@ -539,7 +525,7 @@ private:
    double _plotMin = 0.0;                                  ///< Minimum of plot range
    double _plotMax = 0.0;                                  ///< Maximum of plot range
    Int_t _plotBins = 100;                                  ///< Number of plot bins
-   mutable double _value = 0.0;                            ///< Cache for current value of object
+   double _value = 0.0;                                    ///< Stored value, see getVal() and syncCache()
    TString _unit;                                          ///< Unit for objects value
    TString _label;                                         ///< Plot label for objects value
    bool _forceNumInt = false;                              ///< Force numerical integration if flag set
@@ -553,22 +539,6 @@ private:
 
    ClassDefOverride(RooAbsReal,3); // Abstract real-valued variable
 };
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Overwrite the value stored in this object's cache.
-/// This can be used to fake a computation that resulted in `value`.
-/// \param[in] value Value to write.
-/// \param[in] notifyClients If true, notify users of this object that its value changed.
-/// This is the default.
-void RooAbsReal::setCachedValue(double value, bool notifyClients) {
-  _value = value;
-
-  if (notifyClients) {
-    setValueDirty();
-    _valueDirty = false;
-  }
-}
 
 
 #endif

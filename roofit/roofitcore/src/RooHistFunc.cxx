@@ -210,7 +210,7 @@ void RooHistFunc::doEval(RooFit::EvalContext & ctx) const
       const auto histObs = _histObsList[j];
 
       if (i < inputValues[j].size()) {
-        histObs->setCachedValue(inputValues[j][i], false);
+        histObs->setCachedValue(inputValues[j][i]);
         if (!histObs->inRange(nullptr)) {
           skip = true;
           break;
@@ -559,7 +559,7 @@ std::vector<Int_t> RooHistFunc::getBins(RooFit::EvalContext & ctx) const {
         const auto harg = _histObsList[i];
 
         if (evt < depData[i].size())
-          harg->setCachedValue(depData[i][evt], false);
+          harg->setCachedValue(depData[i][evt]);
 
         if (!harg->inRange(nullptr)) {
           results.push_back(-1);

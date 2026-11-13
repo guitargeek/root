@@ -202,7 +202,7 @@ double RooProjectedPdf::analyticalIntegralWN(Int_t code, const RooArgSet* /*norm
 ////////////////////////////////////////////////////////////////////////////////
 /// Intercept a server redirection all and update list of dependents if necessary
 /// Specifically update the set proxy 'deps' which introduces the dependency
-/// on server value dirty flags of ourselves
+/// on the parameters of the projected p.d.f.
 
 bool RooProjectedPdf::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll,
                                           bool nameChange, bool isRecursive)
@@ -310,9 +310,9 @@ RooProjectedPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::Com
    // would force the integrand to evaluate the *normalized* pdf, hiding the
    // normalization integral inside RooAbsPdf::_normMgr. That hidden integral
    // is invisible to the RooFit::Evaluator and is therefore re-run for every
-   // step of the outer integrator during minimization (because the evaluator
-   // sets all its tracked nodes to ADirty). Exposing the normalization as a
-   // sibling node lets the evaluator cache it once per likelihood evaluation.
+   // step of the outer integrator during minimization. Exposing the
+   // normalization as a sibling node lets the evaluator cache it once per
+   // likelihood evaluation.
    std::unique_ptr<RooAbsReal> numerator{intpdf->createIntegral(intobs)};
    std::unique_ptr<RooAbsReal> denominator{intpdf->createIntegral(nset2)};
 

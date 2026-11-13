@@ -285,12 +285,6 @@ RooAbsPdf::~RooAbsPdf()
 /// Return current value, normalized by integrating over
 /// the observables in `nset`. If `nset` is 0, the unnormalized value
 /// is returned. All elements of `nset` must be lvalues.
-///
-/// Unnormalized values are not cached.
-/// Doing so would be complicated as `_norm->getVal()` could
-/// spoil the cache and interfere with returning the cached
-/// return value. Since unnormalized calls are typically
-/// done in integration calls, there is no performance hit.
 
 double RooAbsPdf::getValV(const RooArgSet* nset) const
 {
@@ -307,26 +301,17 @@ double RooAbsPdf::getValV(const RooArgSet* nset) const
 
 
   // Process change in last data set used
-  bool nintChanged(false) ;
   if (!isActiveNormSet(nset) || _norm==nullptr) {
-    nintChanged = syncNormalization(nset) ;
+    syncNormalization(nset) ;
   }
 
-  // Return value of object. Calculated if dirty, otherwise cached value is returned.
-  if (isValueDirty() || nintChanged || _norm->isValueDirty()) {
+  // Evaluate numerator
+  const double rawVal = evaluate();
 
-    // Evaluate numerator
-    const double rawVal = evaluate();
+  // Evaluate denominator
+  const double normVal = _norm->getVal();
 
-    // Evaluate denominator
-    const double normVal = _norm->getVal();
-
-    _value = RooFit::Detail::normalizeWithNaNPacking(*this, rawVal, normVal);
-
-    clearValueAndShapeDirty();
-  }
-
-  return _value ;
+  return RooFit::Detail::normalizeWithNaNPacking(*this, rawVal, normVal);
 }
 
 
@@ -539,9 +524,6 @@ bool RooAbsPdf::syncNormalization(const RooArgSet *nset, bool adjustProxies) con
             cachedIntegral->setInterpolationOrder(2);
             cachedIntegral->addOwnedComponents(*normInt);
             cachedIntegral->setCacheSource(true);
-            if (normInt->operMode() == ADirty) {
-               cachedIntegral->setOperMode(ADirty);
-            }
             normInt = cachedIntegral;
          }
       }
@@ -1066,7 +1048,6 @@ void RooAbsPdf::printMultiline(ostream& os, Int_t contents, bool verbose, TStrin
 {
   RooAbsReal::printMultiline(os,contents,verbose,indent);
   os << indent << "--- RooAbsPdf ---" << std::endl;
-  os << indent << "Cached value = " << _value << std::endl ;
   if (_norm) {
     os << indent << " Normalization integral: " << std::endl ;
     auto moreIndent = std::string(indent.Data()) + "   " ;

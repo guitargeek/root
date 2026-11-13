@@ -459,11 +459,6 @@ RooFFTConvPdf::FFTCacheElem::FFTCacheElem(const RooFFTConvPdf& self, const RooAr
 
   scanBinning = std::make_unique<RooUniformBinning>(convObs->getMin()-Nbuf*obw,convObs->getMax()+Nbuf*obw,N2);
   histBinning.reset(convObs->getBinning().clone());
-
-  // Deactivate dirty state propagation on datahist observables
-  // and set all nodes on both pdfs to operMode AlwaysDirty
-  hist()->setDirtyProp(false) ;
-  convObs->setOperMode(ADirty,true) ;
 }
 
 
@@ -504,9 +499,6 @@ RooArgList RooFFTConvPdf::FFTCacheElem::containedArgs(Action a)
 void RooFFTConvPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) const
 {
   RooDataHist& cacheHist = *cache.hist() ;
-
-  (static_cast<FFTCacheElem&>(cache)).pdf1Clone->setOperMode(ADirty,true) ;
-  (static_cast<FFTCacheElem&>(cache)).pdf2Clone->setOperMode(ADirty,true) ;
 
   // Determine if there other observables than the convolution observable in the cache
   RooArgSet otherObs ;

@@ -88,11 +88,6 @@ bool RooAbsMinimizerFcn::synchronizeParameterSettings(std::vector<ROOT::Fit::Par
 
       auto &par = floatableParam(index);
 
-      // make sure the parameter are in dirty state to enable
-      // a real NLL computation when the minimizer calls the function the first time
-      // (see issue #7659)
-      par.setValueDirty();
-
       // Set the limits, if not infinite
       double pmin = par.hasMin() ? par.getMin() : 0.0;
       double pmax = par.hasMax() ? par.getMax() : 0.0;

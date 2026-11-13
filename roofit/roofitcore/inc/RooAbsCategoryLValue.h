@@ -118,7 +118,7 @@ protected:
   }
   /// \endcond
 
-  void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
+  void copyCache(const RooAbsArg* source, bool valueOnly=false) override ;
 
   ClassDefOverride(RooAbsCategoryLValue,1) // Abstract modifiable index variable
 };

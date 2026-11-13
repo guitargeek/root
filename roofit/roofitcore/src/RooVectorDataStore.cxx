@@ -346,13 +346,6 @@ const RooArgSet* RooVectorDataStore::get(Int_t index) const
     catP->load(index);
   }
 
-  if (_doDirtyProp) {
-    // Raise all dirty flags
-    for (auto var : _vars) {
-      var->setValueDirty(); // This triggers recalculation of all clients
-    }
-  }
-
   // Update current weight cache
   _currentWeightIndex = index;
 
@@ -479,7 +472,6 @@ void RooVectorDataStore::loadValues(const RooAbsDataStore *ads, const RooFormula
   if (select) {
     selectClone.reset( static_cast<RooFormulaVar*>(select->cloneTree()) );
     selectClone->recursiveRedirectServers(*ads->get()) ;
-    selectClone->setOperMode(RooAbsArg::ADirty,true) ;
   }
 
   // Force DS internal initialization

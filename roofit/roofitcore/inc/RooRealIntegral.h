@@ -93,7 +93,6 @@ protected:
   //friend class RooAbsPdf ;
 
   bool initNumIntegrator() const;
-  void autoSelectDirtyMode() ;
 
   virtual double sum() const ;
   virtual double integrate() const ;

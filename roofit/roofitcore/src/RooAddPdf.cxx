@@ -525,29 +525,25 @@ double RooAddPdf::getValV(const RooArgSet* normSet) const
   updateCoefficients(*cache, nset);
 
   // Process change in last data set used
-  bool nsetChanged(false) ;
   if (!isActiveNormSet(nset) || _norm==nullptr) {
-    nsetChanged = syncNormalization(nset) ;
+    syncNormalization(nset) ;
   }
 
   // Do running sum of coef/pdf pairs, calculate lastCoef.
-  if (isValueDirty() || nsetChanged) {
-    _value = 0.0;
+  double value = 0.0;
 
-    for (unsigned int i=0; i < _pdfList.size(); ++i) {
-      auto& pdf = static_cast<RooAbsPdf&>(_pdfList[i]);
-      double snormVal = 1.;
-      snormVal = cache->suppNormVal(i);
+  for (unsigned int i=0; i < _pdfList.size(); ++i) {
+    auto& pdf = static_cast<RooAbsPdf&>(_pdfList[i]);
+    double snormVal = 1.;
+    snormVal = cache->suppNormVal(i);
 
-      double pdfVal = pdf.getVal(nset);
-      if (pdf.isSelectedComp()) {
-        _value += pdfVal*_coefCache[i]/snormVal;
-      }
+    double pdfVal = pdf.getVal(nset);
+    if (pdf.isSelectedComp()) {
+      value += pdfVal*_coefCache[i]/snormVal;
     }
-    clearValueAndShapeDirty();
   }
 
-  return _value;
+  return value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

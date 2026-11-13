@@ -21,7 +21,7 @@ Concrete proxy for RooArgSet or RooArgList objects.
 A RooCollectionProxy is the general mechanism to store a RooArgSet or RooArgList
 with RooAbsArgs in a RooAbsArg.
 Creating a RooCollectionProxy adds all members of the proxied RooArgSet to the proxy owners
-server list (thus receiving value/shape dirty flags from it) and
+server list and
 registers itself with the owning class. The latter allows the
 owning class to update the pointers of RooArgSet or RooArgList contents to reflect
 the serverRedirect changes.
@@ -46,8 +46,8 @@ public:
    RooCollectionProxy() {}
 
    /// Construct proxy with given name and description, with given owner
-   /// The default value and shape dirty propagation of the set contents
-   /// to the set owner is controlled by flags defValueServer and defShapeServer.
+   /// Whether the set contents become value and shape servers of the set owner
+   /// by default is controlled by flags defValueServer and defShapeServer.
    RooCollectionProxy(const char *inName, const char * /*desc*/, RooAbsArg *owner, bool defValueServer = true,
                       bool defShapeServer = false)
       : RooCollection_t(inName), _owner(owner), _defValueServer(defValueServer), _defShapeServer(defShapeServer)
@@ -129,7 +129,7 @@ public:
 
    /// Overloaded RooCollection_t::add() method inserts 'var' into set
    /// and registers 'var' as server to owner with default value
-   /// and shape dirty flag propagation.
+   /// and shape server flags.
    bool add(const RooAbsArg &var, bool silent = false) override
    {
       return add(var, _defValueServer, _defShapeServer, silent);
@@ -204,7 +204,7 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 /// Overloaded RooCollection_t::add() method insert object into set
 /// and registers object as server to owner with given value
-/// and shape dirty flag propagation requests
+/// and shape server flags
 
 template <class RooCollection_t>
 bool RooCollectionProxy<RooCollection_t>::add(const RooAbsArg &var, bool valueServer, bool shapeServer, bool silent)
@@ -220,7 +220,7 @@ bool RooCollectionProxy<RooCollection_t>::add(const RooAbsArg &var, bool valueSe
 ////////////////////////////////////////////////////////////////////////////////
 /// Overloaded RooCollection_t::addOwned() method insert object into owning set
 /// and registers object as server to owner with default value
-/// and shape dirty flag propagation
+/// and shape server flags
 
 template <class RooCollection_t>
 bool RooCollectionProxy<RooCollection_t>::addOwned(RooAbsArg &var, bool silent)
@@ -236,7 +236,7 @@ bool RooCollectionProxy<RooCollection_t>::addOwned(RooAbsArg &var, bool silent)
 ////////////////////////////////////////////////////////////////////////////////
 /// Overloaded RooCollection_t::addClone() method insert clone of object into owning set
 /// and registers cloned object as server to owner with default value
-/// and shape dirty flag propagation
+/// and shape server flags
 
 template <class RooCollection_t>
 RooAbsArg *RooCollectionProxy<RooCollection_t>::addClone(const RooAbsArg &var, bool silent)
@@ -252,7 +252,7 @@ RooAbsArg *RooCollectionProxy<RooCollection_t>::addClone(const RooAbsArg &var, b
 ////////////////////////////////////////////////////////////////////////////////
 /// Replace object 'var1' in set with 'var2'. Deregister var1 as
 /// server from owner and register var2 as server to owner with
-/// default value and shape dirty propagation flags
+/// default value and shape server flags
 
 template <class RooCollection_t>
 bool RooCollectionProxy<RooCollection_t>::replace(const RooAbsArg &var1, const RooAbsArg &var2)

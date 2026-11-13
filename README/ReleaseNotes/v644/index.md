@@ -90,6 +90,44 @@ Concretely, this means:
     the `cpu` backend overestimated the parameter uncertainties by a factor
     of sqrt(2).
 
+### No more value caching and dirty flags in RooFit computation graphs
+
+The nodes of a RooFit computation graph used to cache their values, and to
+track with "dirty flags" which of them had to be recomputed when
+`RooAbsReal::getVal()` was called. Likelihood fits don't use this mechanism
+anymore: the `RooFit::Evaluator` keeps track of what needs to be recomputed
+itself. To simplify RooFit, the caching in the nodes is removed, and
+`getVal()` now evaluates the node and all nodes it depends on at every call.
+
+Fits are not affected. Code that calls `getVal()` in a loop can get much
+slower though, in particular for pdfs with numeric normalization integrals,
+because `pdf.getVal(normSet)` computes the integral at every call.
+
+The following interfaces are removed without replacement:
+
+  * In **RooAbsArg**: the `OperMode` enum with `operMode()`, `setOperMode()`
+    and `operModeHook()`; `setValueDirty()`, `setShapeDirty()`,
+    `isValueDirty()`, `isShapeDirty()`, `isValueDirtyAndClear()`,
+    `isValueOrShapeDirtyAndClear()`, `clearValueDirty()`, `clearShapeDirty()`
+    and `clearValueAndShapeDirty()`; `setDirtyInhibit()`,
+    `setLocalNoDirtyInhibit()`, `localNoDirtyInhibit()`, `verboseDirty()` and
+    `printDirty()`; `optimizeCacheMode()`, `optimizeDirtyHook()` and
+    `wireAllCaches()`.
+  * The `setValDirty` argument of `RooAbsArg::copyCache()`,
+    `RooAbsCollection::assignFast()` and `RooRealVar::copyCacheFast()`, and the
+    `notifyClients` argument of `RooAbsArg::setCachedValue()`.
+  * `RooAbsCache::operModeHook()`, `optimizeCacheMode()` and `wireCache()`,
+    `RooAbsCacheElement::operModeHook()` and `optimizeCacheMode()`, and
+    `RooObjCacheManager::doClearObsList()` and `clearObsList()`.
+  * `RooAbsData::setDirtyProp()`, `RooAbsDataStore::setDirtyProp()` and
+    `RooAbsDataStore::dirtyProp()`.
+  * The `checkValues` constructor argument of **RooChangeTracker**, which now
+    always compares the tracked values with its reference values.
+
+Classes that depend on the states of other categories, like
+**RooMultiCategory** and **RooSuperCategory**, now find out by comparison
+whether their states need to be updated.
+
 ### Removal of `RooExpensiveObjectCache`
 
 The **RooExpensiveObjectCache** is removed, as no RooFit class stored objects

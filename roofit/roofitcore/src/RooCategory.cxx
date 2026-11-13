@@ -111,8 +111,6 @@ RooCategory::RooCategory(const char *name, const char *title) :
   RooAbsCategoryLValue(name,title),
   _ranges{std::make_unique<RangeMap_t>()}
 {
-  setValueDirty() ;
-  setShapeDirty() ;
 }
 
 
@@ -165,7 +163,6 @@ bool RooCategory::setIndex(Int_t index, bool printError)
   }
 
   _currentIndex = index;
-  setValueDirty();
 
   return false;
 }
@@ -182,7 +179,6 @@ bool RooCategory::setLabel(const char* label, bool printError)
   const auto item = stateNames().find(label);
   if (item != stateNames().end()) {
     _currentIndex = item->second;
-    setValueDirty();
     return false;
   }
 
@@ -248,7 +244,6 @@ void RooCategory::defineTypes(const std::map<std::string, int>& allowedStates) {
 /// \param[in] stateName Name of the state to be accessed.
 /// \return Reference to the category index. If no state exists, it will be created on the fly.
 RooAbsCategory::value_type& RooCategory::operator[](const std::string& stateName) {
-  setShapeDirty();
   if (stateNames().count(stateName) == 0) {
     _insertionOrder.push_back(stateName);
     return stateNames()[stateName] = nextAvailableStateIndex();
@@ -262,14 +257,10 @@ RooAbsCategory::value_type& RooCategory::operator[](const std::string& stateName
 ////////////////////////////////////////////////////////////////////////////////
 /// Return a reference to the map of state names to index states.
 /// This can be used to manipulate the category.
-/// \note Calling this function will **always** trigger recomputations of
-/// of **everything** that depends on this category, since in case the map gets
-/// manipulated, names or indices might change. Also, the order that states have
-/// been inserted in gets lost. This changes what is returned by getOrdinal().
+/// \note The order that states have been inserted in gets lost. This changes
+/// what is returned by getOrdinal().
 std::map<std::string, RooAbsCategory::value_type>& RooCategory::states() {
   auto& theStates = stateNames();
-  setValueDirty();
-  setShapeDirty();
   _insertionOrder.clear();
   return theStates;
 }

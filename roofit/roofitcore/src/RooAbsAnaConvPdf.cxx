@@ -264,7 +264,6 @@ Int_t RooAbsAnaConvPdf::declareBasis(const char* expression, const RooArgList& p
 
   auto basisFunc = std::make_unique<RooFormulaVar>(basisName, expression, basisArgs);
   basisFunc->setAttribute("RooWorkspace::Recycle") ;
-  basisFunc->setOperMode(operMode()) ;
 
   // Instantiate resModel x basisFunc convolution
   RooAbsReal *conv = _model->convolution(basisFunc.get(), this);

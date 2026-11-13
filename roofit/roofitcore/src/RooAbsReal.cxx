@@ -72,7 +72,6 @@
 #include "RooSecondMoment.h"
 #include "RooVectorDataStore.h"
 #include "TreeReadBuffer.h"
-#include "ValueChecking.h"
 
 #include "ROOT/StringUtils.hxx"
 #include "Compression.h"
@@ -213,8 +212,6 @@ RooAbsReal::RooAbsReal(const char *name, const char *title, double inMinVal,
              double inMaxVal, const char *unit) :
   RooAbsArg(name,title), _plotMin(inMinVal), _plotMax(inMaxVal), _unit(unit)
 {
-  setValueDirty() ;
-  setShapeDirty() ;
 }
 
 
@@ -292,9 +289,7 @@ TString RooAbsReal::getTitle(bool appendUnit) const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Return value of object. If the cache is clean, return the
-/// cached value, otherwise recalculate on the fly and refill
-/// the cache
+/// Evaluate the object and return its value.
 
 double RooAbsReal::getValV(const RooArgSet* nset) const
 {
@@ -303,12 +298,9 @@ double RooAbsReal::getValV(const RooArgSet* nset) const
     _lastNormSetId = nset->uniqueId().value();
   }
 
-  if (isValueDirtyAndClear()) {
-    _value = traceEval(nullptr) ;
-    //     clearValueDirty() ;
-  }
+  const double value = traceEval(nullptr);
 
-  return hideOffset() ? _value + offset() : _value;
+  return hideOffset() ? value + offset() : value;
 }
 
 
@@ -322,8 +314,6 @@ double RooAbsReal::traceEval(const RooArgSet* /*nset*/) const
   if (TMath::IsNaN(value)) {
     logEvalError("function value is NAN") ;
   }
-
-  //cxcoutD(Tracing) << "RooAbsReal::getValF(" << GetName() << ") operMode = " << _operMode << " recalculated, new value = " << value << std::endl ;
 
   //Standard tracing code goes here
   if (!isValidReal(value)) {
@@ -675,11 +665,7 @@ RooFit::OwningPtr<RooAbsReal> RooAbsReal::createIntObj(const RooArgSet& iset2, c
       auto cachedIntegral = std::make_unique<RooCachedReal>(name.c_str(),name.c_str(),*integral,cacheParams);
       cachedIntegral->setInterpolationOrder(2) ;
       cachedIntegral->setCacheSource(true) ;
-      if (integral->operMode()==ADirty) {
-   cachedIntegral->setOperMode(ADirty) ;
-      }
       cachedIntegral->addOwnedComponents(std::move(integral));
-      //cachedIntegral->disableCache(true) ;
       return RooFit::makeOwningPtr<RooAbsReal>(std::move(cachedIntegral));
     }
   }
@@ -2528,15 +2514,6 @@ double RooAbsReal::getPropagatedError(const RooFitResult &fr, const RooArgSet &n
     rrv.setVal(cenVal) ;
   }
 
-  // Re-evaluate this RooAbsReal with the central parameters just to be
-  // extra-safe that a call to `getPropagatedError()` doesn't change any state.
-  // It should not be necessary because thanks to the dirty flag propagation
-  // the RooAbsReal is re-evaluated anyway the next time getVal() is called.
-  // Still there are imaginable corner cases where it would not be triggered,
-  // for example if the user changes the RooFit operation more after the error
-  // propagation.
-  getVal(nset);
-
   TMatrixDSym C(paramList.size()) ;
   std::vector<double> errVec(paramList.size()) ;
   for (std::size_t i=0 ; i<paramList.size() ; i++) {
@@ -3000,20 +2977,17 @@ RooFit::OwningPtr<RooAbsFunc> RooAbsReal::bindVars(const RooArgSet &vars, const 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Copy the cached value of another RooAbsArg to our cache.
-/// Warning: This function just copies the cached values of source,
-/// it is the callers responsibility to make sure the cache is clean.
+/// Copy the stored value of another RooAbsArg to our stored value.
+/// Warning: This function just copies the stored value of source,
+/// it is the callers responsibility to make sure it is up to date,
+/// e.g. by calling syncCache() on the source.
 
-void RooAbsReal::copyCache(const RooAbsArg* source, bool /*valueOnly*/, bool setValDirty)
+void RooAbsReal::copyCache(const RooAbsArg* source, bool /*valueOnly*/)
 {
   auto other = static_cast<const RooAbsReal*>(source);
   assert(dynamic_cast<const RooAbsReal*>(source));
 
   _value = other->_treeReadBuffer ? other->_treeReadBuffer->operator double() : other->_value;
-
-  if (setValDirty) {
-    setValueDirty() ;
-  }
 }
 
 
@@ -4118,15 +4092,14 @@ void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
 {
   std::span<double> output = ctx.output();
 
-  // Find all servers that are serving real numbers to us, retrieve their batch data,
-  // and switch them into "always clean" operating mode, so they return always the last-set value.
+  // Find all servers that are serving values to us, retrieve their batch data,
+  // and make them return their stored value instead of evaluating, so we can
+  // side load the values of each event.
   struct ServerData {
     RooAbsArg* server;
     std::span<const double> batch;
     double oldValue;
-    RooAbsArg::OperMode oldOperMode;
-    bool oldValueDirty;
-    bool oldShapeDirty;
+    bool oldFast;
   };
   std::vector<ServerData> ourServers;
   ourServers.reserve(servers().size());
@@ -4137,19 +4110,11 @@ void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
 
     if(!server->isValueServer(*this)) continue;
 
-    // maybe we are still missing inhibit dirty here
-    auto oldOperMode = server->operMode();
-    // See note at the bottom of this function to learn why we can only set
-    // the operation mode to "always clean" if there are no other value
-    // clients.
-    server->setOperMode(RooAbsArg::AClean);
     ourServers.push_back({server,
         serverValues,
         server->isCategory() ? static_cast<RooAbsCategory const*>(server)->getCurrentIndex() : static_cast<RooAbsReal const*>(server)->_value,
-        oldOperMode,
-        server->_valueDirty,
-        server->_shapeDirty});
-    // Prevent the server from evaluating; just return cached result, which we will side load:
+        server->_fast});
+    server->_fast = true;
   }
 
 
@@ -4160,10 +4125,8 @@ void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
 
     ~RestoreStateRAII() {
       for (auto& serverData : _servers) {
-        serverData.server->setCachedValue(serverData.oldValue, true);
-        serverData.server->setOperMode(serverData.oldOperMode);
-        serverData.server->_valueDirty = serverData.oldValueDirty;
-        serverData.server->_shapeDirty = serverData.oldShapeDirty;
+        serverData.server->setCachedValue(serverData.oldValue);
+        serverData.server->_fast = serverData.oldFast;
       }
     }
 
@@ -4185,56 +4148,16 @@ void RooAbsReal::doEval(RooFit::EvalContext & ctx) const
   }
 
 
-  // For each event, write temporary values into our servers' caches, and run a single-value computation.
+  // For each event, write temporary values into our servers, and run a single-value computation.
 
   for (std::size_t i=0; i < output.size(); ++i) {
     for (auto& serv : ourServers) {
-      serv.server->setCachedValue(serv.batch[std::min(i, serv.batch.size()-1)], false);
+      serv.server->setCachedValue(serv.batch[std::min(i, serv.batch.size()-1)]);
     }
 
     output[i] = evaluate();
   }
 }
-
-double RooAbsReal::_DEBUG_getVal(const RooArgSet* normalisationSet) const {
-
-  const bool tmpFast = _fast;
-  const double tmp = _value;
-
-  double fullEval = 0.;
-  try {
-    fullEval = getValV(normalisationSet);
-  }
-  catch (CachingError& error) {
-    throw CachingError(std::move(error),
-        FormatPdfTree() << *this);
-  }
-
-  const double ret = (_fast && !_inhibitDirty) ? _value : fullEval;
-
-  if (std::isfinite(ret) && ( ret != 0. ? (ret - fullEval)/ret : ret - fullEval) > 1.E-9) {
-#ifndef NDEBUG
-    gSystem->StackTrace();
-#endif
-    FormatPdfTree formatter;
-    formatter << "--> (Scalar computation wrong here:)\n"
-            << GetName() << " " << this << " _fast=" << tmpFast
-            << "\n\tcached _value=" << std::setprecision(16) << tmp
-            << "\n\treturning    =" << ret
-            << "\n\trecomputed   =" << fullEval
-            << "\n\tnew _value   =" << _value << "] ";
-    formatter << "\nServers:";
-    for (const auto server : _serverList) {
-      formatter << "\n  ";
-      server->printStream(formatter.stream(), kName | kClassName | kArgs | kExtras | kAddress | kValue, kInline);
-    }
-
-    throw CachingError(formatter);
-  }
-
-  return ret;
-}
-
 
 bool RooAbsReal::redirectServersHook(const RooAbsCollection & newServerList, bool mustReplaceAll,
                                     bool nameChange, bool isRecursiveStep)
@@ -4266,9 +4189,9 @@ RooAbsReal::Ref::Ref(double val) : _ref{RooFit::RooConst(val)} {}
 ///
 /// Creating the RooArgSet can cause quite some overhead, especially when the
 /// evaluated object is just a simple variable. Even worse, many RooFit objects
-/// internally cache information using the uniqueId() of the normalization set
-/// as the key. So by constructing normalization sets in place, RooFits caching
-/// logic is broken.
+/// internally cache objects like normalization integrals using the uniqueId()
+/// of the normalization set as the key. So by constructing normalization sets
+/// in place, these caches are never hit.
 ///
 /// To avoid these kind of problems, getVal() will just throw an error when
 /// it's called with an r-value reference. This also catches the cases where
@@ -4278,7 +4201,7 @@ double RooAbsReal::getVal(RooArgSet &&) const
 {
    std::stringstream errMsg;
    errMsg << "calling RooAbsReal::getVal() with r-value references to the normalization set is not allowed, because "
-             "it breaks RooFits caching logic and potentially introduces significant overhead. Please explicitly "
+             "it defeats the caches for normalization integrals and potentially introduces significant overhead. Please explicitly "
              "create the RooArgSet outside the call to getVal().";
    coutF(Eval) << errMsg.str() << std::endl;
    throw std::runtime_error(errMsg.str());

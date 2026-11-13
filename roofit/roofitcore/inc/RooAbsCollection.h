@@ -86,7 +86,7 @@ public:
 
   void assign(const RooAbsCollection& other) const;
   RooAbsCollection &assignValueOnly(const RooAbsCollection& other, bool forceIfSizeOne=false);
-  void assignFast(const RooAbsCollection& other, bool setValDirty=true) const;
+  void assignFast(const RooAbsCollection& other) const;
 
   // Move constructor
   RooAbsCollection(RooAbsCollection && other);

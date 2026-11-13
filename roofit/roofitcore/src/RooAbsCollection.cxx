@@ -325,7 +325,7 @@ RooAbsCollection &RooAbsCollection::assignValueOnly(const RooAbsCollection& othe
 /// Functional equivalent of assign() but assumes this and other collection
 /// have same layout. Also no attributes are copied
 
-void RooAbsCollection::assignFast(const RooAbsCollection& other, bool setValDirty) const
+void RooAbsCollection::assignFast(const RooAbsCollection& other) const
 {
   if (&other==this) return ;
   assert(hasSameLayout(other));
@@ -340,10 +340,10 @@ void RooAbsCollection::assignFast(const RooAbsCollection& other, bool setValDirt
       // All contents are known to be RooRealVars - fast version of assignment
       auto ours   = static_cast<RooRealVar*>(*iter1);
       auto theirs = static_cast<RooRealVar*>(*iter2);
-      ours->copyCacheFast(*theirs,setValDirty);
+      ours->copyCacheFast(*theirs);
     } else {
       (*iter2)->syncCache() ;
-      (*iter1)->copyCache(*iter2,true,setValDirty) ;
+      (*iter1)->copyCache(*iter2,true) ;
     }
   }
 

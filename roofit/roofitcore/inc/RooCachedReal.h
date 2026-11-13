@@ -56,7 +56,6 @@ protected:
     return func ;
   }
 
-  void operModeHook() override ;
 
   FuncCacheElem* createCache(const RooArgSet* nset) const override ;
 

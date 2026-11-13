@@ -81,8 +81,6 @@ RooAbsCategory::RooAbsCategory() {}
 RooAbsCategory::RooAbsCategory(const char *name, const char *title) :
   RooAbsArg(name,title), _currentIndex(0)
 {
-  setValueDirty() ;
-  setShapeDirty() ;
 }
 
 
@@ -95,8 +93,6 @@ RooAbsCategory::RooAbsCategory(const RooAbsCategory& other,const char* name) :
   _stateNames(other._stateNames),
   _insertionOrder(other._insertionOrder)
 {
-  setValueDirty() ;
-  setShapeDirty() ;
 }
 
 
@@ -119,13 +115,7 @@ RooAbsCategory::~RooAbsCategory()
 
 RooAbsCategory::value_type RooAbsCategory::getCurrentIndex() const
 {
-  if (isValueDirty() || isShapeDirty()) {
-    _currentIndex = evaluate();
-
-    clearValueDirty() ;
-  }
-
-  return _currentIndex;
+  return _fast ? _currentIndex : evaluate();
 }
 
 
@@ -232,8 +222,6 @@ void RooAbsCategory::defineStateUnchecked(const std::string& label, RooAbsCatego
 
   if (_stateNames.size() == 1)
     _currentIndex = index;
-
-  setShapeDirty();
 }
 
 
@@ -263,8 +251,6 @@ const std::map<std::string, RooAbsCategory::value_type>::value_type& RooAbsCateg
   if (theStateNames.size() == 1)
     _currentIndex = index;
 
-  setShapeDirty();
-
   return *(result.first);
 }
 
@@ -277,8 +263,8 @@ void RooAbsCategory::clearTypes()
 {
   _stateNames.clear();
   _insertionOrder.clear();
+  _legacyStates.clear();
   _currentIndex = invalidCategory().second;
-  setShapeDirty() ;
 }
 
 
@@ -529,48 +515,36 @@ void RooAbsCategory::fillTreeBranch(TTree& t)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Explicitly synchronize RooAbsCategory internal cache
+/// Explicitly synchronize the stored index with the current state
 
 void RooAbsCategory::syncCache(const RooArgSet*)
 {
-  getCurrentIndex() ;
+  _currentIndex = getCurrentIndex() ;
 }
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Copy the cached value from given source and raise dirty flag.
-/// It is the callers responsibility to ensure that the sources
-/// cache is clean(valid) before this function is called, e.g. by
+/// Copy the stored index from given source.
+/// It is the callers responsibility to ensure that the stored index of
+/// the source is up to date before this function is called, e.g. by
 /// calling syncCache() on the source.
 
-void RooAbsCategory::copyCache(const RooAbsArg *source, bool /*valueOnly*/, bool setValDirty)
+void RooAbsCategory::copyCache(const RooAbsArg *source, bool /*valueOnly*/)
 {
    auto other = static_cast<const RooAbsCategory*>(source);
    assert(dynamic_cast<const RooAbsCategory*>(source));
 
    _currentIndex = other->_treeReadBuffer ? *other->_treeReadBuffer : other->_currentIndex;
-
-   if (setValDirty) {
-     setValueDirty();
-   }
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Overwrite the value stored in this object's cache.
-/// This can be used to fake a computation that resulted in `value`.
+/// Overwrite the index stored in this object.
 /// \param[in] value Value to write. The argument is reinterpreted as a category state.
 /// If such a state does not exist, this will create undefined behaviour.
-/// \param[in] notifyClients If true, notify users of this object that its value changed.
-/// This is the default.
-void RooAbsCategory::setCachedValue(double value, bool notifyClients) {
+void RooAbsCategory::setCachedValue(double value) {
   _currentIndex = static_cast<value_type>(value);
-
-  if (notifyClients) {
-    setValueDirty();
-    _valueDirty = false;
-  }
 }
 
 

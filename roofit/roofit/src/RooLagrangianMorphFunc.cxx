@@ -774,9 +774,8 @@ void collectHistograms(const char *name, TDirectory *file, std::map<std::string,
 
       auto it = list_hf.find(sample);
       if (it != list_hf.end()) {
-         RooHistFunc *hf = static_cast<RooHistFunc *>(physics.at(it->second));
-         hf->setValueDirty();
          // commenting out To-be-resolved
+         // RooHistFunc *hf = static_cast<RooHistFunc *>(physics.at(it->second));
          // RooDataHist* dh = &(hf->dataHist());
          // RooLagrangianMorphFunc::setDataHistogram(hist,&var,dh);
          // RooArgSet vars;
@@ -1317,7 +1316,6 @@ public:
    double _condition = 0.0;
 
    CacheElem(){};
-   void operModeHook(RooAbsArg::OperMode) override{};
 
    //////////////////////////////////////////////////////////////////////////////
    /// retrieve the list of contained args
@@ -1704,7 +1702,6 @@ inline void RooLagrangianMorphFunc::updateSampleWeights()
          sampleformula->setCoefficient(formulaidx, val);
          assert(sampleformula->getCoefficient(formulaidx) == val);
       }
-      sampleformula->setValueDirty();
       ++sampleidx;
    }
    //#else

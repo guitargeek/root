@@ -50,13 +50,14 @@ protected:
     return _multiCat->getCurrentIndex();
   }
 
-  /// Ask server category to recompute shape, and copy its information.
+  /// Ask server category to recompute shape, and copy its information if it changed.
   void recomputeShape() override {
-    // Propagate up
-    setShapeDirty();
     _multiCat->recomputeShape();
-    _stateNames = _multiCat->_stateNames;
-    _insertionOrder = _multiCat->_insertionOrder;
+    if (_stateNames != _multiCat->_stateNames || _insertionOrder != _multiCat->_insertionOrder) {
+      _stateNames = _multiCat->_stateNames;
+      _insertionOrder = _multiCat->_insertionOrder;
+      _legacyStates.clear();
+    }
   }
 
 

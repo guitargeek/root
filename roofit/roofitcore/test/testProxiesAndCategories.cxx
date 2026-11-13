@@ -169,10 +169,6 @@ struct DummyClass : public RooAbsPdf {
       return 1.;
     }
 
-    void clear() {
-      clearValueAndShapeDirty();
-    }
-
     TObject* clone(const char*) const override {
       return new TObject();
     }
@@ -194,29 +190,20 @@ TEST(RooTemplateProxy, CategoryProxy) {
   RooRealVar x("x", "x", -10, 10);
 
   DummyClass dummy(myCat, x);
-  dummy.clear();
 
   dummy.cat = 2;
-  EXPECT_TRUE(dummy.isValueDirty());
-  dummy.clear();
   EXPECT_TRUE(dummy.cat == 2);
   EXPECT_STREQ(dummy.cat.label(), "B");
 
   dummy.cat = longStr;
-  EXPECT_TRUE(dummy.isValueDirty());
-  dummy.clear();
   EXPECT_TRUE(dummy.cat == 500);
   EXPECT_STREQ(dummy.cat.label(), longStr.c_str());
 
   dummy.cat = std::string("NotA");
-  EXPECT_TRUE(dummy.isValueDirty());
-  dummy.clear();
   EXPECT_TRUE(dummy.cat == -1);
   EXPECT_STREQ(dummy.cat.label(), "NotA");
 
   dummy.var = 2.;
-  EXPECT_TRUE(dummy.isValueDirty());
-  dummy.clear();
   EXPECT_TRUE(dummy.var == 2.);
 }
 

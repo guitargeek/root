@@ -31,8 +31,6 @@ private:
    RooAbsReal *makeIntegral(const char *name, const RooArgSet &compSet, const RooArgSet &intSet, RooArgSet &saveSet,
                             const char *isetRangeName, bool doFactorize);
 
-   void operModeHook() override;
-
    double evaluate() const override;
    std::unique_ptr<RooArgSet> _compSetOwnedN; ///< Owner of numerator components
    std::unique_ptr<RooArgSet> _compSetOwnedD; ///< Owner of denominator components

@@ -108,9 +108,7 @@ void RooAbsGenContext::attach(const RooArgSet& /*params*/)
 
 RooDataSet* RooAbsGenContext::createDataSet(const char* name, const char* title, const RooArgSet& obs)
 {
-  RooDataSet* ret = new RooDataSet(name, title, obs);
-  ret->setDirtyProp(false) ;
-  return ret ;
+  return new RooDataSet(name, title, obs);
 }
 
 
@@ -231,7 +229,6 @@ RooDataSet *RooAbsGenContext::generate(double nEvents, bool skipInit, bool exten
 
   RooDataSet* output = _genData ;
   _genData = nullptr ;
-  output->setDirtyProp(true) ;
 
   return output;
 }

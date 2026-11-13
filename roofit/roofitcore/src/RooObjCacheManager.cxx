@@ -22,8 +22,7 @@
 Implementation of a RooCacheManager<RooAbsCacheElement>
 that specializes in the storage of cache elements that contain RooAbsArg objects.
 Caches with RooAbsArg derived payload require special care as server redirects
-cache operation mode changes and constant term optimization calls may need to be
-forwarded to such cache payload. This cache manager takes care of all these operations
+may need to be forwarded to such cache payload. This cache manager takes care of this
 by forwarding these calls to the RooAbsCacheElement interface functions, which
 have a sensible default implementation.
 **/
@@ -33,8 +32,6 @@ have a sensible default implementation.
 
 #include <ostream>
 #include <vector>
-
-bool RooObjCacheManager::_clearObsList(false) ;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor of object cache manager for given owner. If clearCacheOnServerRedirect is true
@@ -46,8 +43,7 @@ bool RooObjCacheManager::_clearObsList(false) ;
 RooObjCacheManager::RooObjCacheManager(RooAbsArg* owner, Int_t maxSize, bool clearCacheOnServerRedirect, bool allowOptimize) :
   RooCacheManager<RooAbsCacheElement>(owner,maxSize),
   _clearOnRedirect(clearCacheOnServerRedirect),
-  _allowOptimize(allowOptimize),
-  _optCacheModeSeen(false)
+  _allowOptimize(allowOptimize)
 {
 }
 
@@ -58,8 +54,7 @@ RooObjCacheManager::RooObjCacheManager(RooAbsArg* owner, Int_t maxSize, bool cle
 RooObjCacheManager::RooObjCacheManager(const RooObjCacheManager& other, RooAbsArg* owner) :
   RooCacheManager<RooAbsCacheElement>(other,owner),
   _clearOnRedirect(other._clearOnRedirect),
-  _allowOptimize(other._allowOptimize),
-  _optCacheModeSeen(false) // cache mode properties are not transferred in copy constructor
+  _allowOptimize(other._allowOptimize)
 {
 }
 
@@ -67,12 +62,7 @@ RooObjCacheManager::RooObjCacheManager(const RooObjCacheManager& other, RooAbsAr
 ////////////////////////////////////////////////////////////////////////////////
 /// Destructor
 
-RooObjCacheManager::~RooObjCacheManager()
-{
-  if (_optCacheObservables) {
-    delete _optCacheObservables ;
-  }
-}
+RooObjCacheManager::~RooObjCacheManager() = default;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,86 +92,11 @@ bool RooObjCacheManager::redirectServersHook(const RooAbsCollection& newServerLi
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Intercept changes to cache operation mode and forward to cache elements
-
-void RooObjCacheManager::operModeHook()
-{
-  if (!_owner) {
-    return ;
-  }
-
-  for (Int_t i=0 ; i<cacheSize() ; i++) {
-    if (_object[i]) {
-      _object[i]->operModeHook(_owner->operMode()) ;
-    }
-  }
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Intercept calls to perform automatic optimization of cache mode operation.
-/// Forward calls to existing cache elements and save configuration of
-/// cache mode optimization so that it can be applied on new cache elements
-/// upon insertion
-
-void RooObjCacheManager::optimizeCacheMode(const RooArgSet& obs, RooArgSet& optNodes, RooLinkedList& processedNodes)
-{
-  oocxcoutD(_owner,Caching) << "RooObjCacheManager::optimizeCacheMode(owner=" << _owner->GetName() << ") obs = " << obs << std::endl;
-
-  _optCacheModeSeen = true ;
-
-  if (_optCacheObservables) {
-    _optCacheObservables->removeAll() ;
-    _optCacheObservables->add(obs) ;
-  } else {
-    _optCacheObservables = (RooArgSet*) new RooArgSet(obs) ;
-  }
-
-  for (Int_t i=0 ; i<cacheSize() ; i++) {
-    if (_object[i]) {
-      _object[i]->optimizeCacheMode(obs,optNodes,processedNodes) ;
-    }
-  }
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-
-void RooObjCacheManager::sterilize()
-{
-  RooCacheManager<RooAbsCacheElement>::sterilize() ;
-
-  // WVE - adding this causes trouble with IntegralMorpht????
-  // Perhaps this should not be done in sterilize, but be a separate operation
-  // called specially from RooAbsObsTestStatistic::setData()
-
-  if (_optCacheObservables && _clearObsList) {
-    delete _optCacheObservables ;
-    _optCacheObservables = nullptr ;
-    _optCacheModeSeen = false ;
-  }
-
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Set owner link on all object inserted into cache.
-/// Also if cache mode optimization was requested, apply
-/// it now to cache element being inserted
 
 void RooObjCacheManager::insertObjectHook(RooAbsCacheElement& obj)
 {
   obj.setOwner(_owner) ;
-
-  // If value caching mode optimization has happened, process it now on object being inserted
-  if (_optCacheModeSeen) {
-    RooLinkedList l ;
-    RooArgSet s ;
-    obj.optimizeCacheMode(*_optCacheObservables,s,l) ;
-  }
-
 }
 
 

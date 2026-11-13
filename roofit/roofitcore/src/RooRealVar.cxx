@@ -287,7 +287,6 @@ void RooRealVar::setVal(double value)
   }
 
   if (clipValue != _value) {
-    setValueDirty() ;
     _value = clipValue;
     ++_valueResetCounter;
   }
@@ -312,7 +311,6 @@ void RooRealVar::setVal(double value, const char* rangeName)
   }
 
   if (clipValue != _value) {
-    setValueDirty() ;
     _value = clipValue;
     ++_valueResetCounter;
   }
@@ -527,8 +525,6 @@ void RooRealVar::setMin(const char* name, double value, bool shared)
       setVal(clipValue) ;
     }
   }
-
-  setShapeDirty() ;
 }
 
 
@@ -557,8 +553,6 @@ void RooRealVar::setMax(const char* name, double value, bool shared)
       setVal(clipValue) ;
     }
   }
-
-  setShapeDirty() ;
 }
 
 
@@ -592,8 +586,6 @@ void RooRealVar::setRange(const char* name, double min, double max, bool shared)
       << ") new range named '" << name << "' created with bounds ["
       << min << "," << max << "]" << std::endl ;
   }
-
-  setShapeDirty() ;
 }
 
 
@@ -1207,15 +1199,15 @@ void RooRealVar::fillTreeBranch(TTree& t)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Copy the cached value of another RooAbsArg to our cache
-/// Warning: This function copies the cached values of source,
-///          it is the callers responsibility to make sure the cache is clean
+/// Copy the stored value of another RooAbsArg to our value.
+/// Warning: This function copies the stored value of source,
+///          it is the callers responsibility to make sure it is up to date
 
-void RooRealVar::copyCache(const RooAbsArg* source, bool valueOnly, bool setValDirty)
+void RooRealVar::copyCache(const RooAbsArg* source, bool valueOnly)
 {
   // Follow usual procedure for valueklog
   double oldVal = _value;
-  RooAbsReal::copyCache(source,valueOnly,setValDirty) ;
+  RooAbsReal::copyCache(source,valueOnly) ;
   if(_value != oldVal) {
     ++_valueResetCounter;
   }

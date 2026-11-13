@@ -122,7 +122,6 @@ struct NodeInfo {
    bool isScalar() const { return outputSize == 1; }
 
    RooAbsArg *absArg = nullptr;
-   RooAbsArg::OperMode originalOperMode = RooAbsArg::Auto;
 
    std::shared_ptr<RooBatchCompute::AbsBuffer> buffer;
    std::size_t iNode = 0;
@@ -182,7 +181,6 @@ Evaluator::Evaluator(const RooAbsReal &absReal, bool useGPU)
       _nodesMap[arg->namePtr()] = &nodeInfo;
 
       nodeInfo.absArg = arg;
-      nodeInfo.originalOperMode = arg->operMode();
       nodeInfo.iNode = iNode;
       nodeInfos[arg] = &nodeInfo;
 
@@ -701,57 +699,6 @@ void Evaluator::setNThreads(int nThreads)
       cfg.setNThreads(nThreads);
       _evalContextCPU.setConfig(info.absArg, cfg);
    }
-}
-
-/// Temporarily change the operation mode of a RooAbsArg until the
-/// Evaluator gets deleted.
-void Evaluator::setOperMode(RooAbsArg *arg, RooAbsArg::OperMode opMode)
-{
-   if (!_operModeChanges)
-      _operModeChanges = std::make_unique<ChangeOperModeRAII>();
-   _operModeChanges->change(arg, opMode);
-}
-
-// Change the operation modes of all RooAbsArgs in the computation graph.
-// The changes are reset when the returned RAII object goes out of scope.
-//
-// We also walk transitively through value clients of the nodes to cover any
-// node that RooAbsReal::doEval (the fallback scalar implementation) might
-// inadvertently propagate the ADirty mode to via its recursive restore: that
-// helper sets servers temporarily to AClean and then calls
-// setOperMode(oldOperMode) to restore, which recurses to value clients when
-// oldOperMode is ADirty. If we did not protect those clients here, any node
-// outside the computation graph that shares a fundamental (e.g. a parameter
-// like a RooRealVar) would be left permanently in ADirty after the first
-// minimization, dramatically slowing down later scalar evaluations.
-std::unique_ptr<ChangeOperModeRAII> Evaluator::setOperModes(RooAbsArg::OperMode opMode)
-{
-   auto out = std::make_unique<ChangeOperModeRAII>();
-   std::unordered_set<RooAbsArg *> visited;
-
-   std::vector<RooAbsArg *> queue;
-   queue.reserve(_nodes.size());
-   for (auto &info : _nodes) {
-      queue.push_back(info.absArg);
-   }
-
-   while (!queue.empty()) {
-      RooAbsArg *node = queue.back();
-      queue.pop_back();
-      if (!visited.insert(node).second)
-         continue;
-
-      out->change(node, opMode);
-
-      // Only follow value-client links: that is exactly the propagation path
-      // used by RooAbsArg::setOperMode with mode==ADirty.
-      if (opMode == RooAbsArg::ADirty) {
-         for (auto *client : node->valueClients()) {
-            queue.push_back(client);
-         }
-      }
-   }
-   return out;
 }
 
 void Evaluator::print(std::ostream &os)

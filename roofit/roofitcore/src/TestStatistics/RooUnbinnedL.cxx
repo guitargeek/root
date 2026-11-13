@@ -91,7 +91,6 @@ bool RooUnbinnedL::setApplyWeightSquared(bool flag)
       apply_weight_squared = flag;
       return true;
    }
-   //   setValueDirty();
    return false;
 }
 
@@ -182,6 +181,9 @@ RooUnbinnedL::evaluatePartition(Section events, std::size_t /*components_begin*/
        numEvalErrorsBefore == RooAbsReal::numEvalErrors()) {
       cachedResult_ = result;
       lastSection_ = events;
+   } else {
+      // The parameter tracker was reset above, so the cached result is stale.
+      cachedResult_ = ROOT::Math::KahanSum<double>{0.};
    }
    return result;
 }

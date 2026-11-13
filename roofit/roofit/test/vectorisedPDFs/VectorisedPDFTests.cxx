@@ -345,22 +345,6 @@ void PDFTest::compareFixedValues(double &maximalError, bool normalise, bool comp
 
          if (fabs(relDiff) > thresholdFarOff)
             ++nFarOff;
-
-#ifdef ROOFIT_CHECK_CACHED_VALUES
-         try {
-            observables->assign(*_dataUniform->get(i));
-            _pdf->getVal(normSet);
-
-            BatchInterfaceAccessor::checkBatchComputation(*_pdf, evalData[currentBatch - batchResults.begin()],
-                                                          currentBatchIndex, normSet, toleranceCompare);
-
-         } catch (std::exception &e) {
-            ADD_FAILURE() << " ERROR when checking batch computation for event " << i << ":\n"
-                          << e.what() << "\n"
-                          << "PDF is:" << std::endl;
-            _pdf->Print("T");
-         }
-#endif
       }
    }
 

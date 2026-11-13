@@ -21,8 +21,7 @@
 
 Abstract base class for objects to be stored
 in RooAbsCache cache manager objects. Each storage element has an
-interface to pass on calls for server redirection, operation mode
-change calls and constant term optimization management calls
+interface to pass on calls for server redirection.
 **/
 
 #include "RooAbsCacheElement.h"
@@ -49,16 +48,4 @@ void RooAbsCacheElement::printCompactTreeHook(std::ostream&, const char *, Int_t
 {
 }
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Interface for cache optimization calls. The default implementation is to forward all these
-/// calls to all contained RooAbsArg objects as publicized through containedArg()
-
-void RooAbsCacheElement::optimizeCacheMode(const RooArgSet& obs, RooArgSet& optNodes, RooLinkedList& processedNodes)
-{
-  for (RooAbsArg * arg : containedArgs(OptimizeCaching)) {
-    arg->optimizeCacheMode(obs, optNodes, processedNodes) ;
-  }
-}
 

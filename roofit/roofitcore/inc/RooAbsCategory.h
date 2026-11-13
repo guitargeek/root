@@ -154,28 +154,15 @@ protected:
 
 
 protected:
-  /// Access the map of state names to index numbers. Triggers a recomputation
-  /// if the shape is dirty.
+  /// Access the map of state names to index numbers. Gives categories whose
+  /// states depend on other categories the chance to update them first.
   const std::map<std::string, value_type>& stateNames() const {
-    if (isShapeDirty()) {
-      _legacyStates.clear();
-      const_cast<RooAbsCategory*>(this)->recomputeShape();
-      clearShapeDirty();
-    }
-
+    const_cast<RooAbsCategory*>(this)->recomputeShape();
     return _stateNames;
   }
   /// \copydoc stateNames() const
   std::map<std::string, value_type>& stateNames() {
-    if (isShapeDirty()) {
-      _legacyStates.clear();
-      recomputeShape();
-      clearShapeDirty();
-    }
-
-    //Somebody might modify the states
-    setShapeDirty();
-
+    recomputeShape();
     return _stateNames;
   }
 
@@ -197,14 +184,14 @@ protected:
   /// If a category depends on the shape of others, i.e.\ its state numbers or names depend
   /// on the states of other categories, this function has to be implemented to recompute
   /// _stateNames and _insertionOrder.
-  /// If one of these two changes, setShapeDirty() has to be called to propagate this information
-  /// to possible users of this category.
+  /// It is called on every access to the states, so it must leave them untouched if the
+  /// other categories didn't change. Otherwise, iterators over the states are invalidated.
   virtual void recomputeShape() = 0;
 
   friend class RooVectorDataStore ;
   void syncCache(const RooArgSet* set=nullptr) override ;
-  void copyCache(const RooAbsArg *source, bool valueOnly = false, bool setValDirty = true) override;
-  void setCachedValue(double value, bool notifyClients = true) final;
+  void copyCache(const RooAbsArg *source, bool valueOnly = false) override;
+  void setCachedValue(double value) final;
   void attachToTree(TTree& t, Int_t bufSize=32000) override ;
   void attachToVStore(RooVectorDataStore& vstore) override ;
   void fillTreeBranch(TTree& t) override ;
@@ -213,7 +200,7 @@ protected:
   value_type nextAvailableStateIndex() const;
 
 
-  mutable value_type _currentIndex{std::numeric_limits<int>::min()}; ///< Current category state
+  value_type _currentIndex{std::numeric_limits<int>::min()}; ///< Stored category state
   std::map<std::string, value_type> _stateNames;                     ///< Map state names to index numbers. Make sure state names are updated in recomputeShape().
   std::vector<std::string> _insertionOrder;                          ///< Keeps track in which order state numbers have been inserted. Make sure this is updated in recomputeShape().
   mutable std::map<value_type, std::unique_ptr<RooCatType, std::function<void(RooCatType*)>> > _legacyStates; ///<! Map holding pointers to RooCatType instances. Only for legacy interface. Don't use if possible.

@@ -63,7 +63,6 @@ RooSuperCategory::RooSuperCategory(const char *name, const char *title, const Ro
       throw std::invalid_argument("Arguments of RooSuperCategory must be lvalues.");
     }
   }
-  setShapeDirty();
 }
 
 
@@ -76,7 +75,6 @@ RooSuperCategory::RooSuperCategory(const RooSuperCategory& other, const char *na
     _multiCat("MultiCatProxy", this, other._multiCat)
 {
   RooSuperCategory::setIndex(other.getCurrentIndex(), true);
-  setShapeDirty();
 }
 
 

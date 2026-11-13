@@ -95,7 +95,6 @@
 
 #include "RooBinSamplingPdf.h"
 
-#include "RooFitImplHelpers.h"
 #include "RooRealBinding.h"
 #include "RooRealVar.h"
 #include "RooGlobalFunc.h"
@@ -147,12 +146,7 @@ double RooBinSamplingPdf::evaluate() const {
   const double high = _observable->getBinning().binHigh(bin);
 
   const double oldX = _observable->getVal();
-  double result;
-  {
-    // Important: When the integrator samples x, caching of sub-tree values needs to be off.
-    DisableCachingRAII disableCaching(inhibitDirty());
-    result = integrate(_normSet, low, high) / (high-low);
-  }
+  const double result = integrate(_normSet, low, high) / (high-low);
 
   _observable->setVal(oldX);
 
@@ -171,9 +165,6 @@ void RooBinSamplingPdf::doEval(RooFit::EvalContext &ctx) const
    auto boundaries = binBoundaries();
    auto xValues = ctx.at(_observable);
 
-   // Important: When the integrator samples x, caching of sub-tree values needs to be off.
-   DisableCachingRAII disableCaching(inhibitDirty());
-
    // Now integrate PDF in each bin:
    for (unsigned int i = 0; i < xValues.size(); ++i) {
       const double x = xValues[i];
@@ -188,21 +179,16 @@ void RooBinSamplingPdf::doEval(RooFit::EvalContext &ctx) const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Get the bin boundaries for the observable.
-/// These will be recomputed whenever the shape of this object is dirty.
 std::span<const double> RooBinSamplingPdf::binBoundaries() const {
-  if (isShapeDirty() || _binBoundaries.empty()) {
-    _binBoundaries.clear();
-    const RooAbsBinning& binning = _observable->getBinning(nullptr);
-    const double* boundaries = binning.array();
+  _binBoundaries.clear();
+  const RooAbsBinning& binning = _observable->getBinning(nullptr);
+  const double* boundaries = binning.array();
 
-    for (int i=0; i < binning.numBoundaries(); ++i) {
-      _binBoundaries.push_back(boundaries[i]);
-    }
-
-    assert(std::is_sorted(_binBoundaries.begin(), _binBoundaries.end()));
-
-    clearShapeDirty();
+  for (int i=0; i < binning.numBoundaries(); ++i) {
+    _binBoundaries.push_back(boundaries[i]);
   }
+
+  assert(std::is_sorted(_binBoundaries.begin(), _binBoundaries.end()));
 
   return {_binBoundaries};
 }

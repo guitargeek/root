@@ -42,26 +42,17 @@ a client of node A. Using functions like dependsOn(), or getObservables()
 one can create a visualisation of the expression tree.
 
 
-An instance of RooAbsArg can have named attributes. It also has flags
-to indicate that either its value or its shape were changed (= it is dirty).
+An instance of RooAbsArg can have named attributes.
 RooAbsArg provides functionality to manage client/server relations in
-a computation graph (\ref clientServerInterface), and helps propagating
-value/shape changes through the graph. RooAbsArg implements interfaces
+a computation graph (\ref clientServerInterface). RooAbsArg implements interfaces
 for inspecting client/server relationships (\ref clientServerInterface) and
 setting/clearing/querying named attributes.
 
-### Caching of values
-The values of nodes in the computation graph are cached in RooFit. If
-a value is used in two nodes of a graph, it doesn't need to be recomputed. If
-a node acquires a new value, it notifies its consumers ("clients") that
-their cached values are dirty. See the functions in \ref optimisationInterface
-for details.
-A node uses its isValueDirty() and isShapeDirty() functions to decide if a
-computation is necessary. Caching can be vetoed globally by setting a
-bit using setDirtyInhibit(). This will make computations slower, but all the
-nodes of the computation graph will be evaluated irrespective of whether their
-state is clean or dirty. Using setOperMode(), caching can also be enabled/disabled
-for single nodes.
+### No caching of values
+The values of nodes in the computation graph are not cached: every request
+for a value evaluates the node and, recursively, the nodes it depends on. To
+evaluate a computation graph efficiently, for example in a fit, use the
+RooFit::Evaluator, which keeps track of the nodes that need to be recomputed.
 
 */
 
@@ -94,13 +85,6 @@ for single nodes.
 #include <fstream>
 #include <sstream>
 
-bool RooAbsArg::_verboseDirty(false);
-bool RooAbsArg::_inhibitDirty(false);
-bool RooAbsArg::inhibitDirty() const
-{
-   return _inhibitDirty && !_localNoInhibitDirty;
-}
-
 namespace {
 
 auto &ioEvoList()
@@ -124,8 +108,7 @@ auto &ioReadStack()
 RooAbsArg::RooAbsArg() : _namePtr(RooNameReg::instance().constPtr(GetName())) {}
 
 /// Create an object with the specified name and descriptive title.
-/// The newly created object has no clients or servers and has its
-/// dirty flags set.
+/// The newly created object has no clients or servers.
 
 RooAbsArg::RooAbsArg(const char *name, const char *title) : TNamed(name, title)
 {
@@ -147,8 +130,7 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
      _stringAttrib(other._stringAttrib),
      _deleteWatch(other._deleteWatch),
      _namePtr(name ? RooNameReg::instance().constPtr(name) : other._namePtr),
-     _isConstant(other._isConstant),
-     _localNoInhibitDirty(other._localNoInhibitDirty)
+     _isConstant(other._isConstant)
 {
 
    // Copy server list by hand
@@ -159,9 +141,6 @@ RooAbsArg::RooAbsArg(const RooAbsArg &other, const char *name)
       shapeProp = server->_clientListShape.containsByNamePtr(&other);
       addServer(*server, valueProp, shapeProp);
    }
-
-   setValueDirty();
-   setShapeDirty();
 }
 
 /// Destructor.
@@ -182,46 +161,18 @@ RooAbsArg::~RooAbsArg()
    // Notify all clients that they are in limbo
    std::vector<RooAbsArg *> clientListTmp(_clientList.begin(),
                                           _clientList.end()); // have to copy, as we invalidate iterators
-   bool first(true);
    for (auto client : clientListTmp) {
       client->setAttribute("ServerDied");
       std::stringstream attr;
       attr << "ServerDied:" << GetName() << "(" << reinterpret_cast<std::size_t>(this) << ")";
       client->setAttribute(attr.str().c_str());
       client->removeServer(*this, true);
-
-      if (_verboseDirty) {
-
-         if (first) {
-            cxcoutD(Tracing) << "RooAbsArg::dtor(" << GetName() << "," << this
-                             << ") DeleteWatch: object is being destroyed" << std::endl;
-            first = false;
-         }
-
-         cxcoutD(Tracing) << fName << "::" << ClassName() << ":~RooAbsArg: dependent \"" << client->GetName()
-                          << "\" should have been deleted first" << std::endl;
-      }
    }
 
    if (_ownedComponents) {
       delete _ownedComponents;
       _ownedComponents = nullptr;
    }
-}
-
-/// Control global dirty inhibit mode. When set to true no value or shape dirty
-/// flags are propagated and cache is always considered to be dirty.
-
-void RooAbsArg::setDirtyInhibit(bool flag)
-{
-   _inhibitDirty = flag;
-}
-
-/// Activate verbose messaging related to dirty flag propagation
-
-void RooAbsArg::verboseDirty(bool flag)
-{
-   _verboseDirty = flag;
 }
 
 /// Set (default) or clear a named boolean attribute of this object.
@@ -323,10 +274,6 @@ void RooAbsArg::addServer(RooAbsArg &server, bool valueProp, bool shapeProp, std
                           << server.GetName() << "(" << &server << ") for " << (valueProp ? "value " : "")
                           << (shapeProp ? "shape" : "") << std::endl;
 
-   if (server.operMode() == ADirty && operMode() != ADirty && valueProp) {
-      setOperMode(ADirty);
-   }
-
    // LM: use hash tables for larger lists
    //  if (_serverList.GetSize() > 999 && _serverList.getHashTableSize() == 0) _serverList.setHashTableSize(1000);
    //  if (server._clientList.GetSize() > 999 && server._clientList.getHashTableSize() == 0)
@@ -368,11 +315,6 @@ void RooAbsArg::removeServer(RooAbsArg &server, bool force)
       throw std::runtime_error(ss.str());
    }
 
-   if (_verboseDirty) {
-      cxcoutD(LinkStateMgmt) << "RooAbsArg::removeServer(" << GetName() << "): removing server " << server.GetName()
-                             << "(" << &server << ")" << std::endl;
-   }
-
    // Remove server link to given server
    _serverList.Remove(&server, force);
 
@@ -412,7 +354,7 @@ void RooAbsArg::replaceServer(RooAbsArg &oldServer, RooAbsArg &newServer, bool v
    addServer(newServer, valueProp, shapeProp, count);
 }
 
-/// Change dirty flag propagation mask for specified server
+/// Change whether we depend on the value or the shape of the specified server
 
 void RooAbsArg::changeServer(RooAbsArg &server, bool valueProp, bool shapeProp)
 {
@@ -790,80 +732,6 @@ bool RooAbsArg::observableOverlaps(const RooArgSet *nset, const RooAbsArg &testA
    return testArg.dependsOn(*std::unique_ptr<RooArgSet>{getObservables(nset)});
 }
 
-/// Mark this object as having changed its value, and propagate this status
-/// change to all of our clients. If the object is not in automatic dirty
-/// state propagation mode, this call has no effect.
-
-void RooAbsArg::setValueDirty(const RooAbsArg *source)
-{
-   if (_operMode != Auto || _inhibitDirty)
-      return;
-
-   // Handle no-propagation scenarios first
-   if (_clientListValue.empty()) {
-      _valueDirty = true;
-      return;
-   }
-
-   // Cyclical dependency interception
-   if (source == nullptr) {
-      source = this;
-   } else if (source == this) {
-      // Cyclical dependency, abort
-      coutE(LinkStateMgmt) << "RooAbsArg::setValueDirty(" << GetName()
-                           << "): cyclical dependency detected, source = " << source->GetName() << std::endl;
-      // assert(0) ;
-      return;
-   }
-
-   // Propagate dirty flag to all clients if this is a down->up transition
-   if (_verboseDirty) {
-      cxcoutD(LinkStateMgmt) << "RooAbsArg::setValueDirty(" << (source ? source->GetName() : "self") << "->"
-                             << GetName() << "," << this << "): dirty flag " << (_valueDirty ? "already " : "")
-                             << "raised" << std::endl;
-   }
-
-   _valueDirty = true;
-
-   for (auto client : _clientListValue) {
-      client->setValueDirty(source);
-   }
-}
-
-/// Mark this object as having changed its shape, and propagate this status
-/// change to all of our clients.
-
-void RooAbsArg::setShapeDirty(const RooAbsArg *source)
-{
-   if (_verboseDirty) {
-      cxcoutD(LinkStateMgmt) << "RooAbsArg::setShapeDirty(" << GetName() << "): dirty flag "
-                             << (_shapeDirty ? "already " : "") << "raised" << std::endl;
-   }
-
-   if (_clientListShape.empty()) {
-      _shapeDirty = true;
-      return;
-   }
-
-   // Set 'dirty' shape state for this object and propagate flag to all its clients
-   if (source == nullptr) {
-      source = this;
-   } else if (source == this) {
-      // Cyclical dependency, abort
-      coutE(LinkStateMgmt) << "RooAbsArg::setShapeDirty(" << GetName() << "): cyclical dependency detected"
-                           << std::endl;
-      return;
-   }
-
-   // Propagate dirty flag to all clients if this is a down->up transition
-   _shapeDirty = true;
-
-   for (auto client : _clientListShape) {
-      client->setShapeDirty(source);
-      client->setValueDirty(source);
-   }
-}
-
 /// Replace all direct servers of this object with the new servers in `newServerList`.
 /// This substitutes objects that we receive values from with new objects that have the same name.
 /// See: recursiveRedirectServers() Use recursive version if servers that are only indirectly serving this object should
@@ -945,9 +813,6 @@ bool RooAbsArg::redirectServers(const RooAbsCollection &newServerList, bool must
       }
    }
 
-   setValueDirty();
-   setShapeDirty();
-
    bool ret(false);
 
    // Process the proxies
@@ -983,10 +848,6 @@ void RooAbsArg::substituteServer(RooAbsArg *oldServer, RooAbsArg *newServer)
    newServer->_clientList.Add(this, clientListRefCount);
    newServer->_clientListValue.Add(this, clientListValueRefCount);
    newServer->_clientListShape.Add(this, clientListShapeRefCount);
-
-   if (clientListValueRefCount > 0 && newServer->operMode() == ADirty && operMode() != ADirty) {
-      setOperMode(ADirty);
-   }
 }
 
 /// Private helper function for RooAbsArg::redirectServers().
@@ -1033,9 +894,6 @@ bool RooAbsArg::redirectServers(std::unordered_map<RooAbsArg *, RooAbsArg *> con
    // redirectServersHook.
    if (newList.empty())
       return ret;
-
-   setValueDirty();
-   setShapeDirty();
 
    // Process the proxies
    for (int i = 0; i < numProxies(); i++) {
@@ -1312,10 +1170,6 @@ void RooAbsArg::setProxyNormSet(const RooArgSet *nset)
    for (auto &p : _proxyListCache.cache) {
       p->changeNormSet(nset);
    }
-
-   // If the proxy normSet changed, we also have to set our value dirty flag.
-   // Otherwise, value for the new normalization set might not get recomputed!
-   setValueDirty();
 }
 
 /// Overloadable function for derived classes to implement
@@ -1394,14 +1248,6 @@ Int_t RooAbsArg::defaultPrintContents(Option_t * /*opt*/) const
 void RooAbsArg::printMultiline(std::ostream &os, Int_t /*contents*/, bool /*verbose*/, TString indent) const
 {
    os << indent << "--- RooAbsArg ---" << std::endl;
-   // dirty state flags
-   os << indent << "  Value State: ";
-   switch (_operMode) {
-   case ADirty: os << "FORCED DIRTY"; break;
-   case AClean: os << "FORCED clean"; break;
-   case Auto: os << (isValueDirty() ? "DIRTY" : "clean"); break;
-   }
-   os << std::endl << indent << "  Shape State: " << (isShapeDirty() ? "DIRTY" : "clean") << std::endl;
    // attribute list
    os << indent << "  Attributes: ";
    printAttribList(os);
@@ -1529,137 +1375,6 @@ Int_t RooAbsArg::Compare(const TObject *other) const
    return strcmp(GetName(), other->GetName());
 }
 
-/// Print information about current value dirty state information.
-/// If depth flag is true, information is recursively printed for
-/// all nodes in this arg tree.
-
-void RooAbsArg::printDirty(bool depth) const
-{
-   if (depth) {
-
-      RooArgSet branchList;
-      branchNodeServerList(&branchList);
-      for (RooAbsArg *branch : branchList) {
-         branch->printDirty(false);
-      }
-
-   } else {
-      std::cout << GetName() << " : ";
-      switch (_operMode) {
-      case AClean: std::cout << "FORCED clean"; break;
-      case ADirty: std::cout << "FORCED DIRTY"; break;
-      case Auto: std::cout << "Auto  " << (isValueDirty() ? "DIRTY" : "clean");
-      }
-      std::cout << std::endl;
-   }
-}
-
-/// Activate cache mode optimization with given definition of observables.
-/// The cache operation mode of all objects in the expression tree will
-/// modified such that all nodes that depend directly or indirectly on
-/// any of the listed observables will be set to ADirty, as they are
-/// expected to change every time. This save change tracking overhead for
-/// nodes that are a priori known to change every time
-
-void RooAbsArg::optimizeCacheMode(const RooArgSet &observables)
-{
-   RooLinkedList proc;
-   RooArgSet opt;
-   optimizeCacheMode(observables, opt, proc);
-
-   coutI(Optimization) << "RooAbsArg::optimizeCacheMode(" << GetName() << ") nodes " << opt
-                       << " depend on observables, "
-                       << "changing cache operation mode from change tracking to unconditional evaluation" << std::endl;
-}
-
-/// Activate cache mode optimization with given definition of observables.
-/// The cache operation mode of all objects in the expression tree will
-/// modified such that all nodes that depend directly or indirectly on
-/// any of the listed observables will be set to ADirty, as they are
-/// expected to change every time. This save change tracking overhead for
-/// nodes that are a priori known to change every time
-
-void RooAbsArg::optimizeCacheMode(const RooArgSet &observables, RooArgSet &optimizedNodes,
-                                  RooLinkedList &processedNodes)
-{
-   // Optimization applies only to branch nodes, not to leaf nodes
-   if (!isDerived()) {
-      return;
-   }
-
-   // Terminate call if this node was already processed (tree structure may be cyclical)
-   // LM : RooLinkedList::findArg looks by name and not but by object pointer,
-   //  should one use RooLinkedList::FindObject (look by pointer) instead of findArg when
-   // tree contains nodes with the same name ?
-   // Add an info message if the require node does not exist but a different node already exists with same name
-
-   if (processedNodes.FindObject(this))
-      return;
-
-   // check if findArgs returns something different (i.e. a different node with same name) when
-   // this node has not been processed (FindObject returns a null pointer)
-   auto obj = processedNodes.findArg(this);
-   assert(obj != this); // obj == this cannot happen
-   if (obj) {
-      // here for nodes with duplicate names
-      cxcoutI(Optimization) << "RooAbsArg::optimizeCacheMode(" << GetName() << " node " << this << " exists already as "
-                            << obj << " but with the SAME name !" << std::endl;
-   }
-
-   processedNodes.Add(this);
-
-   // Set cache mode operator to 'AlwaysDirty' if we depend on any of the given observables
-   if (dependsOnValue(observables)) {
-
-      if (dynamic_cast<RooRealIntegral *>(this)) {
-         cxcoutI(Integration)
-            << "RooAbsArg::optimizeCacheMode(" << GetName()
-            << ") integral depends on value of one or more observables and will be evaluated for every event"
-            << std::endl;
-      }
-      optimizedNodes.add(*this, true);
-      if (operMode() == AClean) {
-      } else {
-         setOperMode(ADirty, true); // WVE propagate flag recursively to top of tree
-      }
-   } else {
-   }
-   // Process any RooAbsArgs contained in any of the caches of this object
-   for (Int_t i = 0; i < numCaches(); i++) {
-      getCache(i)->optimizeCacheMode(observables, optimizedNodes, processedNodes);
-   }
-
-   // Forward calls to all servers
-   for (const auto server : _serverList) {
-      server->optimizeCacheMode(observables, optimizedNodes, processedNodes);
-   }
-}
-
-/// Change cache operation mode to given mode. If recurseAdirty
-/// is true, then a mode change to AlwaysDirty will automatically
-/// be propagated recursively to all client nodes
-
-void RooAbsArg::setOperMode(OperMode mode, bool recurseADirty)
-{
-   // Prevent recursion loops
-   if (mode == _operMode)
-      return;
-
-   _operMode = mode;
-   _fast = ((mode == AClean) || dynamic_cast<RooRealVar *>(this) || dynamic_cast<RooConstVar *>(this));
-   for (Int_t i = 0; i < numCaches(); i++) {
-      getCache(i)->operModeHook();
-   }
-   operModeHook();
-
-   // Propagate to all clients
-   if (mode == ADirty && recurseADirty) {
-      for (auto clientV : _clientListValue) {
-         clientV->setOperMode(mode);
-      }
-   }
-}
-
 /// Print tree structure of expression tree on stdout, or to file if filename is specified.
 /// If namePat is not "*", only nodes with names matching the pattern will be printed.
 /// The client argument is used in recursive calls to properly display the value or shape nature
@@ -1701,14 +1416,6 @@ void RooAbsArg::printCompactTree(std::ostream &os, const char *indent, const cha
 
       os << ClassName() << "::" << GetName() << " = ";
       printValue(os);
-
-      if (!_serverList.empty()) {
-         switch (operMode()) {
-         case Auto: os << " [Auto," << (isValueDirty() ? "Dirty" : "Clean") << "] "; break;
-         case AClean: os << " [ACLEAN] "; break;
-         case ADirty: os << " [ADIRTY] "; break;
-         }
-      }
       os << std::endl;
 
       for (Int_t i = 0; i < numCaches(); i++) {
@@ -1789,8 +1496,7 @@ void RooAbsArg::printCompactTreeHook(std::ostream &, const char *) {}
 /// by RooAbsCache constructors for objects that are a datamember
 /// of this RooAbsArg. By registering itself the RooAbsArg is aware
 /// of all its cache data members and will forward server change
-/// and cache mode change calls to the cache objects, which in turn
-/// can forward them their contents
+/// calls to the cache objects, which in turn can forward them their contents
 
 void RooAbsArg::registerCache(RooAbsCache &cache)
 {
@@ -1986,17 +1692,6 @@ const char *RooAbsArg::aggregateCacheUniqueSuffix() const
          suffix += tmp;
    }
    return Form("%s", suffix.c_str());
-}
-
-void RooAbsArg::wireAllCaches()
-{
-   RooArgSet branches;
-   branchNodeServerList(&branches);
-   for (auto const &arg : branches) {
-      for (auto const &arg2 : arg->_cacheList) {
-         arg2->wireCache();
-      }
-   }
 }
 
 void RooAbsArg::SetName(const char *name)

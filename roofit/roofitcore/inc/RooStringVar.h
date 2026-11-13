@@ -30,8 +30,8 @@ public:
 
   // Parameter value and error accessors
   operator TString() {return TString(_string.c_str()); }
-  const char* getVal() const { clearValueDirty(); return _string.c_str(); }
-  void setVal(const char* newVal) { _string = newVal ? newVal : ""; setValueDirty(); }
+  const char* getVal() const { return _string.c_str(); }
+  void setVal(const char* newVal) { _string = newVal ? newVal : ""; }
   RooAbsArg& operator=(const char* newVal) { setVal(newVal); return *this; }
 
   // We implement a fundamental type of AbsArg that can be stored in a dataset
@@ -65,7 +65,7 @@ protected:
   bool isValidString(const char*, bool /*printError=false*/) const { return true; }
 
   void syncCache(const RooArgSet* /*nset*/ = nullptr) override { }
-  void copyCache(const RooAbsArg *source, bool valueOnly = false, bool setValDirty = true) override;
+  void copyCache(const RooAbsArg *source, bool valueOnly = false) override;
   void attachToTree(TTree& t, Int_t bufSize=32000) override;
   void attachToVStore(RooVectorDataStore&) override { }
   void fillTreeBranch(TTree& t) override;

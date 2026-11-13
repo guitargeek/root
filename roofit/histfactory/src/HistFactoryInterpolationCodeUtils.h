@@ -21,7 +21,7 @@ namespace Detail {
 /// the historical behaviour where the two were equivalent. `self` and `param` are
 /// only used for the error messages.
 ///
-/// \return true if a code was stored, so the caller can flag itself value-dirty.
+/// \return true if a code was stored.
 inline bool setInterpolationCode(RooAbsReal const &self, const char *className, RooAbsArg const &param,
                                  std::vector<int> &codes, std::size_t iParam, int code, int maxCode)
 {

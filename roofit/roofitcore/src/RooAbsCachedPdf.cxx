@@ -77,7 +77,7 @@ double RooAbsCachedPdf::getValV(const RooArgSet* nset) const
   auto * cachedPdf = getCache(nset)->pdf();
   double value = cachedPdf->getVal(nset) ;
   _norm = cachedPdf->_norm;
-  return _value = value ;
+  return value ;
 }
 
 
@@ -105,8 +105,8 @@ RooDataHist* RooAbsCachedPdf::getCacheHist(const RooArgSet* nset) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Retrieve cache object associated with given choice of observables. If cache object
 /// does not exist, create and fill and register it on the fly. If recalculate=false
-/// recalculation of cache contents of existing caches that are marked dirty due to
-/// dependent parameter changes is suppressed.
+/// recalculation of cache contents of existing caches after dependent parameter
+/// changes is suppressed.
 
 RooAbsCachedPdf::PdfCacheElem* RooAbsCachedPdf::getCache(const RooArgSet* nset, bool recalculate) const
 {
@@ -119,7 +119,6 @@ RooAbsCachedPdf::PdfCacheElem* RooAbsCachedPdf::getCache(const RooArgSet* nset, 
       cxcoutD(Eval) << "RooAbsCachedPdf::getCache(" << GetName() << ") cache " << cache << " pdf "
           << cache->pdf()->GetName() << " requires recalculation as parameters changed" << std::endl ;
       fillCacheObject(*cache) ;
-      cache->pdf()->setValueDirty() ;
     }
     return cache ;
   }
@@ -199,14 +198,10 @@ RooAbsCachedPdf::PdfCacheElem::PdfCacheElem(const RooAbsCachedPdf& self, const R
 
   auto name = std::string(_pdf->GetName()) + "_CACHEPARAMS";
   _paramTracker = std::make_unique<RooChangeTracker>(name.c_str(),name.c_str(),*params) ;
-  _paramTracker->hasChanged(true) ; // clear dirty flag as cache is up-to-date upon creation
+  _paramTracker->hasChanged(true) ; // clear change state as cache is up-to-date upon creation
 
-  // Introduce formal dependency of RooHistPdf on parameters so that const optimization code
-  // makes the correct decisions
+  // Introduce formal dependency of RooHistPdf on parameters
   _pdf->addServerList(*params) ;
-
-  // Set initial state of cache to dirty
-  _pdf->setValueDirty() ;
 }
 
 

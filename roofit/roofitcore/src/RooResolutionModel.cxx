@@ -227,18 +227,7 @@ double RooResolutionModel::getValV(const RooArgSet* nset) const
 {
   if (!_basis) return RooAbsPdf::getValV(nset) ;
 
-  // Return value of object. Calculated if dirty, otherwise cached value is returned.
-  if (isValueDirty()) {
-    _value = evaluate() ;
-
-    // WVE insert traceEval traceEval
-    if (_verboseDirty) cxcoutD(Tracing) << "RooResolutionModel(" << GetName() << ") value = " << _value << std::endl ;
-
-    clearValueDirty() ;
-    clearShapeDirty() ;
-  }
-
-  return _value ;
+  return evaluate() ;
 }
 
 

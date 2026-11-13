@@ -80,9 +80,7 @@ double RooAbsCachedReal::getValV(const RooArgSet* nset) const
   // coverity[NULL_RETURNS]
   FuncCacheElem* cache = getCache(nset) ;
 
-  _value = cache->func()->getVal() ;
-
-  return _value ;
+  return cache->func()->getVal() ;
 }
 
 
@@ -113,17 +111,11 @@ RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::getCache(const RooArgSet* nse
       ccoutD(Eval) << "RooAbsCachedReal::getCache(" << GetName() << ") cached function "
         << cache->func()->GetName() << " requires recalculation as parameters changed" << std::endl ;
       fillCacheObject(*cache) ;
-      cache->func()->setValueDirty() ;
     }
     return cache ;
   }
 
   cache = createCache(nset) ;
-
-  // Set cache function data to ADirty since function will need update every time in cache update process
-  for (auto* arg : *(cache->hist()->get()) ) {
-    arg->setOperMode(ADirty);
-  }
 
   fillCacheObject(*cache) ;
 
@@ -167,19 +159,14 @@ RooAbsCachedReal::FuncCacheElem::FuncCacheElem(const RooAbsCachedReal &self, con
   funcname.Append("_CACHE") ;
   funcname.Append(self.cacheNameSuffix(*nset2)) ;
   _func = new RooHistFunc(funcname,funcname,*observables,*_hist,self.getInterpolationOrder()) ;
-  if (self.operMode()==ADirty) _func->setOperMode(ADirty) ;
-
-  // Set initial state of cache to dirty
-  _func->setValueDirty() ;
 
   // Create pseudo-object that tracks changes in parameter values
   std::unique_ptr<RooArgSet> params{self.actualParameters(orderedObs)};
   string name= Form("%s_CACHEPARAMS",_func->GetName()) ;
   _paramTracker = new RooChangeTracker(name.c_str(),name.c_str(),*params) ;
-  _paramTracker->hasChanged(true) ; // clear dirty flag as cache is up-to-date upon creation
+  _paramTracker->hasChanged(true) ; // clear change state as cache is up-to-date upon creation
 
-  // Introduce formal dependency of RooHistFunc on parameters so that const optimization code
-  // makes the correct decisions
+  // Introduce formal dependency of RooHistFunc on parameters
   _func->addServerList(*params) ;
 }
 

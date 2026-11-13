@@ -364,7 +364,6 @@ void RooTreeDataStore::loadValues(const TTree *t, const RooFormulaVar* select, c
   if (select) {
     selectClone.reset( static_cast<RooFormulaVar*>(select->cloneTree()) );
     selectClone->recursiveRedirectServers(sourceArgSet) ;
-    selectClone->setOperMode(RooAbsArg::ADirty,true) ;
   }
 
   // Loop over events in source tree
@@ -436,7 +435,6 @@ void RooTreeDataStore::loadValues(const RooAbsDataStore *ads, const RooFormulaVa
   if (select) {
     selectClone.reset( static_cast<RooFormulaVar*>(select->cloneTree()) );
     selectClone->recursiveRedirectServers(*ads->get()) ;
-    selectClone->setOperMode(RooAbsArg::ADirty,true) ;
   }
 
   // Force RDS internal initialization
@@ -517,13 +515,6 @@ const RooArgSet* RooTreeDataStore::get(Int_t index) const
   Int_t ret = _tree->GetEntry(index, 1);
 
   if(!ret) return nullptr;
-
-  if (_doDirtyProp) {
-    // Raise all dirty flags
-    for (auto var : _vars) {
-      var->setValueDirty(); // This triggers recalculation of all clients
-    }
-  }
 
   // Update current weight cache
   if (_extWgtArray) {

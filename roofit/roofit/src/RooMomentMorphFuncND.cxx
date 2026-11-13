@@ -504,9 +504,6 @@ RooMomentMorphFuncND::CacheElem *RooMomentMorphFuncND::getCache(const RooArgSet 
             RooAbsMoment *mom = nObs == 1 ? (static_cast<Base_t *>(_pdfList.at(i)))->sigma(static_cast<RooRealVar &>(*obsList.at(j)))
                                           : (static_cast<Base_t *>(_pdfList.at(i)))->sigma(static_cast<RooRealVar &>(*obsList.at(j)), obsList);
 
-            mom->setLocalNoDirtyInhibit(true);
-            mom->mean()->setLocalNoDirtyInhibit(true);
-
             sigmarv[sij(i, j)] = mom;
             meanrv[sij(i, j)] = mom->mean();
 

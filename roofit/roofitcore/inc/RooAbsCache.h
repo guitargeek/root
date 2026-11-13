@@ -42,18 +42,8 @@ public:
                                      bool /*nameChange*/,
                                      bool /*isRecursive*/) { return false; }
 
-  /// Interface for operation mode changes.
-  virtual void operModeHook() {}
-
-  /// Interface for processing of cache mode optimization calls.
-  virtual void optimizeCacheMode(const RooArgSet&, RooArgSet&, RooLinkedList& ) {}
-
-  /// Interface for constant term node finding calls.
-
   /// Interface for printing of cache guts in tree mode printing.
   virtual void printCompactTreeHook(std::ostream&, const char *) {}
-
-  virtual void wireCache() {}
 
 protected:
 

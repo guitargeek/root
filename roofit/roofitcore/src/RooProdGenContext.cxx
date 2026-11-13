@@ -186,7 +186,6 @@ RooProdGenContext::RooProdGenContext(const RooProdPdf &model, const RooArgSet &v
      cmdList.Delete() ;
      pdfSetList.Delete() ;
 
-     multiPdf->setOperMode(RooAbsArg::ADirty,true) ;
      multiPdf->useDefaultGen(true) ;
 
         coutI(Generation) << "RooProdGenContext()::ctor creating subcontext for generation of observables " << *termDeps
@@ -258,7 +257,6 @@ RooProdGenContext::RooProdGenContext(const RooProdPdf &model, const RooArgSet &v
     cmdList.Delete() ;
     pdfSetList.Delete() ;
 
-    multiPdf->setOperMode(RooAbsArg::ADirty,true) ;
     multiPdf->useDefaultGen(true) ;
 
     cxcoutD(Generation) << "RooProdGenContext(" << model.GetName() << "): creating context for irreducible composite trailer term "

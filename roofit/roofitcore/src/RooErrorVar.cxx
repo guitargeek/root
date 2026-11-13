@@ -204,8 +204,6 @@ void RooErrorVar::setMin(const char* name, double value)
       setVal(clipValue) ;
     }
   }
-
-  setShapeDirty() ;
 }
 
 
@@ -234,8 +232,6 @@ void RooErrorVar::setMax(const char* name, double value)
       setVal(clipValue) ;
     }
   }
-
-  setShapeDirty() ;
 }
 
 /// Set default binning to nBins uniform bins
@@ -268,8 +264,6 @@ void RooErrorVar::setRange( const char* name, double min, double max)
            << ") new range named '" << name << "' created with bounds ["
            << min << "," << max << "]" << std::endl ;
   }
-
-  setShapeDirty() ;
 }
 
 

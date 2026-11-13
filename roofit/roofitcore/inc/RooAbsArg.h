@@ -135,10 +135,10 @@ public:
 
    /// List of all clients of this object.
    const RefCountList_t &clients() const { return _clientList; }
-   /// List of all value clients of this object. Value clients receive value updates.
+   /// List of all value clients of this object. The value of a value client depends on our value.
    const RefCountList_t &valueClients() const { return _clientListValue; }
-   /// List of all shape clients of this object. Shape clients receive property information such as
-   /// changes of a value range.
+   /// List of all shape clients of this object. The value of a shape client depends on our
+   /// properties, such as the value range.
    const RefCountList_t &shapeClients() const { return _clientListShape; }
 
    /// List of all servers of this object.
@@ -308,126 +308,17 @@ public:
       return false;
    }
 
-   enum OperMode {
-      Auto = 0,
-      AClean = 1,
-      ADirty = 2
-   };
-
-   ////////////////////////////////////////////////////////////////////////////
-   /// \anchor optimisationInterface
-   /// \name Optimisation interface
-   /// These functions allow RooFit to optimise a computation graph, to keep track
-   /// of cached values, and to invalidate caches.
-   /// @{
-
-   // Cache mode optimization (tracks changes & do lazy evaluation vs evaluate always)
-   virtual void optimizeCacheMode(const RooArgSet &observables);
-   virtual void
-   optimizeCacheMode(const RooArgSet &observables, RooArgSet &optimizedNodes, RooLinkedList &processedNodes);
-
-   // Dirty state accessor
-   inline bool isShapeDirty() const
-   {
-      // Return true is shape has been invalidated by server value change
-      return isDerived() ? _shapeDirty : false;
-   }
-
-   inline bool isValueDirty() const
-   {
-      // Returns true of value has been invalidated by server value change
-      if (inhibitDirty())
-         return true;
-      switch (_operMode) {
-      case AClean: return false;
-      case ADirty: return true;
-      case Auto:
-         if (_valueDirty)
-            return isDerived();
-         return false;
-      }
-      return true; // we should never get here
-   }
-
-   inline bool isValueDirtyAndClear() const
-   {
-      // Returns true of value has been invalidated by server value change
-      if (inhibitDirty())
-         return true;
-      switch (_operMode) {
-      case AClean: return false;
-      case ADirty: return true;
-      case Auto:
-         if (_valueDirty) {
-            _valueDirty = false;
-            return isDerived();
-         }
-         return false;
-      }
-      return true; // But we should never get here
-   }
-
-   inline bool isValueOrShapeDirtyAndClear() const
-   {
-      // Returns true of value has been invalidated by server value change
-
-      if (inhibitDirty())
-         return true;
-      switch (_operMode) {
-      case AClean: return false;
-      case ADirty: return true;
-      case Auto:
-         if (_valueDirty || _shapeDirty) {
-            _shapeDirty = false;
-            _valueDirty = false;
-            return isDerived();
-         }
-         _shapeDirty = false;
-         _valueDirty = false;
-         return false;
-      }
-      return true; // But we should never get here
-   }
-
    // Cache management
    void registerCache(RooAbsCache &cache);
    void unRegisterCache(RooAbsCache &cache);
    Int_t numCaches() const;
    RooAbsCache *getCache(Int_t index) const;
 
-   /// Query the operation mode of this node.
-   inline OperMode operMode() const { return _operMode; }
-   /// Set the operation mode of this node.
-   void setOperMode(OperMode mode, bool recurseADirty = true);
-
-   // Dirty state modifiers
-   /// Mark the element dirty. This forces a re-evaluation when a value is requested.
-   void setValueDirty()
-   {
-      if (_operMode == Auto && !inhibitDirty())
-         setValueDirty(nullptr);
-   }
-   /// Notify that a shape-like property (*e.g.* binning) has changed.
-   void setShapeDirty() { setShapeDirty(nullptr); }
-
    const char *aggregateCacheUniqueSuffix() const;
    virtual const char *cacheUniqueSuffix() const { return nullptr; }
 
-   void wireAllCaches();
-
-   /// Overwrite the current value stored in this object, making it look like this object computed that value.
-   // \param[in] value Value to store.
-   // \param[in] notifyClients Notify users of this object that they need to
-   /// recompute their values.
-   virtual void setCachedValue(double /*value*/, bool /*notifyClients*/ = true) {};
-
-   /// @}
-   ////////////////////////////////////////////////////////////////////////////
-
-   // Debug hooks
-   static void verboseDirty(bool flag);
-   void printDirty(bool depth = true) const;
-   static void setDirtyInhibit(bool flag);
+   /// Overwrite the value stored in this object.
+   virtual void setCachedValue(double /*value*/) {};
 
    void graphVizTree(const char *fileName, const char *delimiter = "\n", bool useTitle = false, bool useLatex = false);
    void graphVizTree(std::ostream &os, const char *delimiter = "\n", bool useTitle = false, bool useLatex = false);
@@ -513,28 +404,10 @@ public:
 protected:
    void graphVizAddConnections(std::set<std::pair<RooAbsArg *, RooAbsArg *>> &);
 
-   virtual void operModeHook() {};
-
-   virtual void optimizeDirtyHook(const RooArgSet * /*obs*/) {};
-
    virtual bool isValid() const;
 
    virtual void
    getParametersHook(const RooArgSet * /*nset*/, RooArgSet * /*list*/, bool /*stripDisconnected*/) const {};
-
-   void clearValueAndShapeDirty() const
-   {
-      _valueDirty = false;
-      _shapeDirty = false;
-   }
-
-   void clearValueDirty() const { _valueDirty = false; }
-   void clearShapeDirty() const { _shapeDirty = false; }
-
-   /// Force element to re-evaluate itself when a value is requested.
-   void setValueDirty(const RooAbsArg *source);
-   /// Notify that a shape-like property (*e.g.* binning) has changed.
-   void setShapeDirty(const RooAbsArg *source);
 
    virtual void ioStreamerPass2();
    static void ioStreamerPass2Finalize();
@@ -553,8 +426,8 @@ protected:
    friend class RooRealIntegral;
    RefCountList_t _serverList;      // list of server objects
    RefCountList_t _clientList;      // list of client objects
-   RefCountList_t _clientListShape; // subset of clients that requested shape dirty flag propagation
-   RefCountList_t _clientListValue; // subset of clients that requested value dirty flag propagation
+   RefCountList_t _clientListShape; // subset of clients that depend on our shape
+   RefCountList_t _clientListValue; // subset of clients that depend on our value
 
    RooRefArray _proxyList; // list of proxies
 
@@ -586,7 +459,7 @@ protected:
    friend class RooVectorDataStore;
    friend class RooDataSet;
    virtual void syncCache(const RooArgSet *nset = nullptr) = 0;
-   virtual void copyCache(const RooAbsArg *source, bool valueOnly = false, bool setValDirty = true) = 0;
+   virtual void copyCache(const RooAbsArg *source, bool valueOnly = false) = 0;
 
    virtual void attachToTree(TTree &t, Int_t bufSize = 32000) = 0;
    virtual void attachToVStore(RooVectorDataStore &vstore) = 0;
@@ -608,16 +481,9 @@ protected:
    ProxyListCache _proxyListCache; ///<! cache of the list of proxies. Avoids type casting.
 
    // Debug stuff
-   static bool _verboseDirty; // Static flag controlling verbose messaging for dirty state changes
-   static bool _inhibitDirty; // Static flag controlling global inhibit of dirty state propagation
    bool _deleteWatch = false; ///<! Delete watch flag
 
-   bool inhibitDirty() const;
-
 public:
-   void setLocalNoDirtyInhibit(bool flag) const { _localNoInhibitDirty = flag; }
-   bool localNoDirtyInhibit() const { return _localNoInhibitDirty; }
-
    /// Returns the token for retrieving results in the BatchMode. For internal use only.
    std::size_t dataToken() const { return _dataToken; }
    bool hasDataToken() const { return _dataToken != std::numeric_limits<std::size_t>::max(); }
@@ -629,11 +495,7 @@ public:
    }
 
 protected:
-   mutable bool _valueDirty = true; // Flag set if value needs recalculating because input values modified
-   mutable bool _shapeDirty = true; // Flag set if value needs recalculating because input shapes modified
-
-   OperMode _operMode = Auto; // Dirty state propagation mode
-   bool _fast = false;        // Allow fast access mode in getVal() and proxies
+   bool _fast = false; ///<! If true, the stored value is returned instead of evaluating
 
    // Owned components
    RooArgSet *_ownedComponents = nullptr; ///<! Set of owned component
@@ -642,8 +504,6 @@ protected:
 
    mutable const TNamed *_namePtr = nullptr; ///<! De-duplicated name pointer, equal for all objects with the same name.
    bool _isConstant = false; ///<! Cached isConstant status
-
-   mutable bool _localNoInhibitDirty = false; ///<! Prevent 'AlwaysDirty' mode for this node
 
    RooWorkspace *_myws = nullptr; ///<! In which workspace do I live, if any
 
@@ -665,7 +525,7 @@ private:
    bool
    callRedirectServersHook(RooAbsCollection const &newSet, bool mustReplaceAll, bool nameChange, bool isRecursionStep);
 
-   ClassDefOverride(RooAbsArg, 9) // Abstract variable
+   ClassDefOverride(RooAbsArg, 10) // Abstract variable
 };
 
 std::ostream &operator<<(std::ostream &os, const RooAbsArg &arg);

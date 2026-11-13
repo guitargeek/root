@@ -28,7 +28,7 @@ class RooSuperCategory;
 class RooMultiCategory : public RooAbsCategory {
 public:
   // Constructors etc.
-  inline RooMultiCategory() { setShapeDirty(); }
+  RooMultiCategory() = default;
   RooMultiCategory(const char *name, const char *title, const RooArgSet &inputCategories);
   RooMultiCategory(const RooMultiCategory& other, const char *name=nullptr) ;
   TObject* clone(const char* newname=nullptr) const override { return new RooMultiCategory(*this,newname); }
@@ -50,6 +50,8 @@ protected:
   void recomputeShape() override;
 
   RooSetProxy _catSet ; ///< Set of input category
+  std::vector<std::string> _inputStates; ///<! States of the input categories that our states were computed from
+  bool _shapeComputed = false;           ///<! Whether our states were computed from the input categories already
 
   friend class RooSuperCategory;
   ClassDefOverride(RooMultiCategory,1) // Product operator for categories

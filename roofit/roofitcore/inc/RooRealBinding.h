@@ -58,10 +58,6 @@ protected:
   mutable std::vector<double> _xsave ;
   const TNamed* _rangeName ; ///<!
 
-  mutable std::vector<RooAbsReal*> _compList ; ///<!
-  mutable std::vector<double>    _compSave ; ///<!
-  mutable double _funcSave ; ///<!
-
   ClassDefOverride(RooRealBinding,0) // Function binding to RooAbsReal object
 };
 

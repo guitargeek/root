@@ -21,7 +21,6 @@
 
 #include <memory>
 
-class ChangeOperModeRAII;
 class RooAbsArg;
 
 namespace RooBatchCompute {
@@ -49,8 +48,6 @@ public:
 
    void setOffsetMode(RooFit::EvalContext::OffsetMode);
 
-   std::unique_ptr<ChangeOperModeRAII> setOperModes(RooAbsArg::OperMode opMode);
-
    void unregisterNode(RooAbsArg const &arg);
 
 private:
@@ -61,7 +58,6 @@ private:
    void markGPUNodes();
    void assignToGPU(NodeInfo &info);
    void computeCPUNode(const RooAbsArg *node, NodeInfo &info);
-   void setOperMode(RooAbsArg *arg, RooAbsArg::OperMode opMode);
    void syncDataTokens();
    void setupLogEvaluation();
    void updateOutputSizes();
@@ -75,7 +71,6 @@ private:
    RooFit::EvalContext _evalContextCUDA;
    std::vector<NodeInfo> _nodes;                             // the ordered computation graph
    std::unordered_map<TNamed const *, NodeInfo *> _nodesMap; // for quick lookup of nodes
-   std::unique_ptr<ChangeOperModeRAII> _operModeChanges;
    // the single CUDA stream on which all GPU work of this Evaluator is enqueued
    RooBatchCompute::CudaInterface::CudaStream *_cudaStream = nullptr;
 };

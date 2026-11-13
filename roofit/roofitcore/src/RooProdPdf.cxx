@@ -1227,7 +1227,6 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
       RooAbsPdf* pdf = static_cast<RooAbsPdf*>(term->first()) ;
 
       ret.x0 = std::unique_ptr<RooAbsReal>{pdf->createIntegral(termISet,termNSet,isetRangeName)}.release();
-      ret.x0->setOperMode(operMode()) ;
       ret.x0->setStringAttribute("PROD_TERM_TYPE","IIIa") ;
 
       ret.isOwned=true ;
@@ -1247,7 +1246,6 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
       const std::string name = makeRGPPName("GENPROJ_",*term,termISet,termNSet,isetRangeName) ;
       ret.x0 = new RooGenProdProj(name.c_str(),name.c_str(),*term,termISet,termNSet,isetRangeName) ;
       ret.x0->setStringAttribute("PROD_TERM_TYPE","IIIb") ;
-      ret.x0->setOperMode(operMode()) ;
 
       ret.isOwned=true ;
 
@@ -1272,7 +1270,6 @@ RooProdPdf::ProcessProductTermOutput RooProdPdf::processProductTerm(const RooArg
     ret.x0 = new RooGenProdProj(name.c_str(),name.c_str(),*term,termISet,termNSet,isetRangeName,normRange()) ;
 
     ret.x0->setStringAttribute("PROD_TERM_TYPE","IVa") ;
-    ret.x0->setOperMode(operMode()) ;
 
     ret.isOwned=true ;
 

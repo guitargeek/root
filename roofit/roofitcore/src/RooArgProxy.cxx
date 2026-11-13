@@ -30,7 +30,7 @@ A RooArgProxy is the general mechanism to store references
 to other RooAbsArgs inside a RooAbsArg.
 
 Creating a RooArgProxy adds the proxied object to the proxy owners
-server list (thus receiving value/shape dirty flags from it) and
+server list and
 registers itself with the owning class. The latter allows the
 owning class to change the proxied pointer when the server it
 points to gets redirected (e.g. in a copy or clone operation).
@@ -54,8 +54,8 @@ RooArgProxy::RooArgProxy(const char* inName, const char* desc, RooAbsArg* owner,
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor with owner and proxied variable. The valueServer and shapeServer booleans
-/// control if the inserted client-server link in the owner propagates value and/or
-/// shape dirty flags. If proxyOwnsArg is true, the proxy takes ownership of its component
+/// control if the owner is registered as value and/or shape client of the proxied
+/// variable. If proxyOwnsArg is true, the proxy takes ownership of its component
 
 RooArgProxy::RooArgProxy(const char *inName, const char *desc, RooAbsArg *owner, RooAbsArg &arg, bool valueServer,
                          bool shapeServer, bool proxyOwnsArg)

@@ -1098,11 +1098,6 @@ void RooEvaluatorWrapper::writeDebugMacro(std::string const &filename) const
       return _funcWrapper->writeDebugMacro(filename);
 }
 
-std::unique_ptr<ChangeOperModeRAII> RooEvaluatorWrapper::setOperModes(RooAbsArg::OperMode opMode)
-{
-   return _evaluator->setOperModes(opMode);
-}
-
 } // namespace RooFit::Experimental
 
 /// \endcond

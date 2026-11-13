@@ -961,7 +961,7 @@ void RooDataSet::addFast(const RooArgSet& row, double weight, double weightError
 
   const double oldW = _wgtVar ? _wgtVar->getVal() : 0.;
 
-  _varsNoWgt.assignFast(row,_dstore->dirtyProp());
+  _varsNoWgt.assignFast(row);
   if (_wgtVar) {
     _wgtVar->setVal(weight) ;
     if (weightError!=0.) {

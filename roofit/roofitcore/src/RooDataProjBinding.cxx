@@ -74,8 +74,6 @@ double RooDataProjBinding::operator()(const double xvector[]) const
   assert(isValid());
   loadValues(xvector);
 
-  //RooAbsArg::setDirtyInhibit(true) ;
-
   double result(0) ;
   double wgtSum(0) ;
 
@@ -130,8 +128,6 @@ double RooDataProjBinding::operator()(const double xvector[]) const
       }
     }
   }
-
-  //RooAbsArg::setDirtyInhibit(false) ;
 
   if (wgtSum==0) return 0 ;
   return result / wgtSum ;

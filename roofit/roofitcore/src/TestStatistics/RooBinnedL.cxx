@@ -137,17 +137,14 @@ RooBinnedL::evaluatePartition(Section bins, std::size_t /*components_begin*/, st
       result += sumWeight.Sum() * log(1.0 * sim_count_);
    }
 
-   // At the end of the first full calculation, wire the caches
-   if (_first) {
-      _first = false;
-      pdf_->wireAllCaches();
-   }
-
    if ((RooAbsReal::evalErrorLoggingMode() == RooAbsReal::CollectErrors ||
         RooAbsReal::evalErrorLoggingMode() == RooAbsReal::CountErrors) &&
        numEvalErrorsBefore == RooAbsReal::numEvalErrors()) {
       cachedResult_ = result;
       lastSection_ = bins;
+   } else {
+      // The parameter tracker was reset above, so the cached result is stale.
+      cachedResult_ = ROOT::Math::KahanSum<double>{0.};
    }
    return result;
 }

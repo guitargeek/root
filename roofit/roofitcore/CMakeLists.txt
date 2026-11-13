@@ -536,7 +536,6 @@ target_sources(
         src/RooGrid.h
         src/RooAddHelpers.h
         src/RooAdaptiveIntegratorND.h
-        src/ValueChecking.h
         src/RooImproperIntegrator1D.h
         res/RooFitImplHelpers.h
         res/RooUnitTest.h

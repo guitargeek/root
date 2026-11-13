@@ -128,10 +128,8 @@ void FlexibleInterpVar::setAllInterpCodes(int code)
 
 void FlexibleInterpVar::setInterpCodeForParam(int iParam, int code)
 {
-   if (Detail::setInterpolationCode(*this, "FlexibleInterpVar", _paramList[iParam], _interpCode, iParam, code,
-                                    /*maxCode=*/5)) {
-      setValueDirty();
-   }
+   Detail::setInterpolationCode(*this, "FlexibleInterpVar", _paramList[iParam], _interpCode, iParam, code,
+                                /*maxCode=*/5);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -139,8 +137,6 @@ void FlexibleInterpVar::setInterpCodeForParam(int iParam, int code)
 void FlexibleInterpVar::setNominal(double newNominal){
   coutW(InputArguments) << "FlexibleInterpVar::setNominal : nominal is now " << newNominal << std::endl ;
   _nominal = newNominal;
-
-  setValueDirty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -155,8 +151,6 @@ void FlexibleInterpVar::setLow(RooAbsReal& param, double newLow){
              << " is now " << newLow << std::endl ;
     _low.at(index) = newLow;
   }
-
-  setValueDirty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -171,8 +165,6 @@ void FlexibleInterpVar::setHigh(RooAbsReal& param, double newHigh){
              << " is now " << newHigh << std::endl ;
     _high.at(index) = newHigh;
   }
-
-  setValueDirty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

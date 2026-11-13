@@ -92,13 +92,6 @@ RooGenProdProj::RooGenProdProj(const RooGenProdProj &other, const char *name)
   other._compSetD.snapshot(*_compSetOwnedD);
   _compSetD.add(*_compSetOwnedD) ;
 
-  for (RooAbsArg * arg : *_compSetOwnedN) {
-    arg->setOperMode(_operMode) ;
-  }
-  for (RooAbsArg * arg : *_compSetOwnedD) {
-    arg->setOperMode(_operMode) ;
-  }
-
   // Fill _intList
 
   _intList.add(*_compSetN.find(other._intList.at(0)->GetName())) ;
@@ -170,7 +163,6 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
       if (code!=0) {
         // Analytical integral, create integral object
         std::unique_ptr<RooAbsReal> pai{pdf->createIntegral(anaSet,emptyNormSet,isetRangeName)};
-        pai->setOperMode(_operMode) ;
 
         // Add to integral to product
         prodSet.add(*pai) ;
@@ -208,11 +200,9 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
   prodSet.snapshot(prodSetClone, false);
 
   auto prod = std::make_unique<RooProduct>(prodName, "product", prodSetClone);
-  prod->setOperMode(_operMode) ;
 
   // Create integral performing remaining numeric integration over (partial) analytic product
   std::unique_ptr<RooAbsReal> integral{prod->createIntegral(numIntSet,emptyNormSet,isetRangeName)};
-  integral->setOperMode(_operMode) ;
   auto ret = integral.get();
 
   // Declare ownership of prodSet, product, and integral
@@ -245,25 +235,5 @@ double RooGenProdProj::evaluate() const
   return nom / den ;
 }
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Intercept cache mode operation changes and propagate them to the components
-
-void RooGenProdProj::operModeHook()
-{
-  // WVE use cache manager here!
-
-  for(RooAbsArg * arg : *_compSetOwnedN) {
-    arg->setOperMode(_operMode) ;
-  }
-
-  for(RooAbsArg * arg : *_compSetOwnedD) {
-    arg->setOperMode(_operMode) ;
-  }
-
-  _intList.at(0)->setOperMode(_operMode) ;
-  if (_haveD) _intList.at(1)->setOperMode(Auto) ; // Denominator always stays in Auto mode (normalization integral)
-}
 
 /// \endcond

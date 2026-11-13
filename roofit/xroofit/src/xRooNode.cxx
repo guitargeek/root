@@ -2176,7 +2176,6 @@ xRooNode xRooNode::Add(const xRooNode &child, Option_t *opt)
                _f->dataHist().set(*bin_pars, _f->dataHist().weight(i) / _f->dataHist().binVolume(*bin_pars));
             }
             _f->setAttribute("autodensity", false);
-            _f->setValueDirty();
          }
 
          // promote the axis vars to observables
@@ -3400,7 +3399,6 @@ xRooNode xRooNode::Multiply(const xRooNode &child, Option_t *opt)
                auto bin_pars = _f->dataHist().get(i);
                _f->dataHist().set(*bin_pars, _f->dataHist().weight(i) / _f->dataHist().binVolume(*bin_pars));
             }
-            _f->setValueDirty();
 
             // promote the axis vars to observables
             for (auto &x : xRooNode("tmp", _f).vars()) {
@@ -3424,7 +3422,6 @@ xRooNode xRooNode::Multiply(const xRooNode &child, Option_t *opt)
 #else
          const_cast<RooArgList &>(p->realComponents()).add(*_f);
 #endif
-         p->setValueDirty();
 
          browse();
          xRooNode _out(_f, *this);
@@ -3876,7 +3873,6 @@ xRooNode xRooNode::Vary(const xRooNode &child)
          const_cast<std::vector<int> &>(p2->interpolationCodes()).push_back(4);
          const_cast<RooArgList &>(p2->paramList()).add(*v);
 #endif
-         p2->setValueDirty();
          f = ((parVal > 0) ? ups : downs).get();
          otherf = ((parVal > 0) ? downs : ups).get();
          // start off with everything being symmetric
@@ -3894,7 +3890,6 @@ xRooNode xRooNode::Vary(const xRooNode &child)
       if (f) {
          if (child.get())
             xRooNode("tmp", *f, *this) = *child.get();
-         f->setValueDirty();
          xRooNode out(*f, *this);
          out.sterilize();
          return out;
@@ -4808,7 +4803,6 @@ bool xRooNode::SetBinContent(int bin, double value, const char *par, double parV
          value /= f->dataHist().binVolume(*bin_pars);
       }
       f->dataHist().set(*bin_pars, value);
-      f->setValueDirty();
 
       if (auto otherfName = f->getStringAttribute("symmetrized_by"); otherfName) {
          // broken symmetry, so update flags ...
@@ -4822,7 +4816,6 @@ bool xRooNode::SetBinContent(int bin, double value, const char *par, double parV
          auto otherf = getObject<RooHistFunc>(otherfName2);
          if (nomf && otherf) {
             otherf->dataHist().set(*bin_pars, 2 * nomf->dataHist().weight(bin - 1) - value);
-            otherf->setValueDirty();
          }
       }
       sterilize();
@@ -8664,7 +8657,6 @@ void xRooNode::sterilize() const
          p->_lastNSet = nullptr;
       }
 #endif
-      obj->setValueDirty();
    };
    if (auto w = get<RooWorkspace>(); w) {
       // sterilizing all nodes
