@@ -1,0 +1,5 @@
+<lcgdict>
+  <class name="MembersOfModuleClassPattern"/>
+  <!-- Selects nested classes of a class from another C++ module -->
+  <class pattern="MembersOfModuleClass::Outer::*"/>
+</lcgdict>

@@ -249,6 +249,9 @@ public:
       return true;
    }
 
+   /// Customize the traversal of the members of classes from C++ modules
+   bool TraverseDeclContextHelper(clang::DeclContext *DC);
+
 private:
 
 

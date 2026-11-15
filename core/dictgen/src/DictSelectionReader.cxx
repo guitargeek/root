@@ -5,9 +5,12 @@
 #include "cling/Interpreter/Interpreter.h"
 
 #include "ClassSelectionRule.h"
+#include "Scanner.h"
 #include "SelectionRules.h"
 #include "TClingUtils.h"
 #include "TClassEdit.h"
+
+#include "llvm/ADT/SmallVector.h"
 
 #include "RootMetaSelection.h"
 
@@ -30,14 +33,12 @@ DictSelectionReader::DictSelectionReader(cling::Interpreter &interp, SelectionRu
       cling::Interpreter::PushTransactionRAII RAII(&interp);
       // Inspect the AST
       TraverseDecl(translUnitDecl);
-   }
 
-   // Now re-inspect the AST to find autoselected classes (double-tap)
-   fIsFirstPass = false;
-   if (!fTemplateInfoMap.empty() ||
-         !fAutoSelectedClassFieldNames.empty() ||
-         !fNoAutoSelectedClassFieldNames.empty())
-      TraverseDecl(translUnitDecl);
+      // Now re-inspect the AST to find autoselected classes (double-tap)
+      fIsFirstPass = false;
+      if (!fTemplateInfoMap.empty() || !fAutoSelectedClassFieldNames.empty() || !fNoAutoSelectedClassFieldNames.empty())
+         TraverseDecl(translUnitDecl);
+   }
 
    // Now push all the selection rules
    for (llvm::StringMap<ClassSelectionRule>::iterator it =
@@ -387,6 +388,36 @@ bool DictSelectionReader::VisitRecordDecl(clang::RecordDecl *recordDecl)
       return FirstPass(*recordDecl);
    else
       return SecondPass(*recordDecl);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Like RecursiveASTVisitor::TraverseDeclContextHelper (which is private, so
+/// we can't call it), but in the first pass, only traverse the members of
+/// classes etc. from C++ modules that are already loaded (see
+/// ROOT::Internal::CanTraverseOnlyLoadedDecls()). The first pass only looks
+/// for classes in the ROOT::Meta::Selection namespace, which are never members
+/// of classes. The second pass looks at classes that are referred to by name or
+/// pattern in the selection namespace, which might not be loaded yet, so it
+/// traverses everything. It only runs if the first pass found such references.
+
+bool DictSelectionReader::TraverseDeclContextHelper(clang::DeclContext *DC)
+{
+   if (!DC)
+      return true;
+
+   auto traverseChildren = [this](auto &&children) {
+      for (clang::Decl *Child : children) {
+         if (!canIgnoreChildDeclWhileTraversingDeclContext(Child) && !TraverseDecl(Child))
+            return false;
+      }
+      return true;
+   };
+   if (fIsFirstPass && CanTraverseOnlyLoadedDecls(DC)) {
+      llvm::SmallVector<clang::Decl *, 32> loadedDecls;
+      GetLoadedDecls(DC, loadedDecls);
+      return traverseChildren(loadedDecls);
+   }
+   return traverseChildren(DC->decls());
 }
 
 ////////////////////////////////////////////////////////////////////////////////

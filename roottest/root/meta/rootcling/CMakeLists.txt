@@ -16,6 +16,59 @@ ROOTTEST_ADD_TEST(xmlusedByRootcling
                   MACRO xmlusedByRootclingDict.C
                   FIXTURES_REQUIRED root-meta-roocling-xmlusedByRootclingDict-fixture)
 
+# Nested class templates of classes from other C++ modules
+ROOTTEST_GENERATE_DICTIONARY(nestedTemplateOfModuleClassDict
+                             nestedTemplateOfModuleClass.h
+                             LINKDEF nestedTemplateOfModuleClassLinkDef.h
+                             FIXTURES_SETUP root-meta-rootcling-nestedTemplateOfModuleClassDict-fixture)
+
+ROOTTEST_ADD_TEST(nestedTemplateOfModuleClass
+                  MACRO nestedTemplateOfModuleClass.C
+                  FIXTURES_REQUIRED root-meta-rootcling-nestedTemplateOfModuleClassDict-fixture)
+
+# Selection rules that select members of classes from another C++ module
+ROOTTEST_GENERATE_DICTIONARY(membersOfModuleClassDict
+                             membersOfModuleClass.h
+                             LINKDEF membersOfModuleClassLinkDef.h
+                             FIXTURES_SETUP root-meta-rootcling-membersOfModuleClassDict-fixture)
+
+ROOTTEST_GENERATE_DICTIONARY(membersOfModuleClassPatternDict
+                             membersOfModuleClassPattern.h
+                             LINKDEF membersOfModuleClassPattern_selection.xml
+                             FIXTURES_REQUIRED root-meta-rootcling-membersOfModuleClassDict-fixture
+                             FIXTURES_SETUP root-meta-rootcling-membersOfModuleClassPatternDict-fixture)
+
+ROOTTEST_ADD_TEST(membersOfModuleClassPattern
+                  MACRO membersOfModuleClass.C
+                  MACROARG "\"membersOfModuleClassPatternDict\", \"MembersOfModuleClass::Outer::Inner1,MembersOfModuleClass::Outer::Inner2\""
+                  FIXTURES_REQUIRED root-meta-rootcling-membersOfModuleClassPatternDict-fixture)
+
+ROOTTEST_GENERATE_DICTIONARY(membersOfModuleClassRedeclDict
+                             membersOfModuleClassRedecl.h
+                             LINKDEF membersOfModuleClassRedeclLinkDef.h
+                             OPTIONS -failOnWarnings
+                             FIXTURES_REQUIRED root-meta-rootcling-membersOfModuleClassDict-fixture
+                             FIXTURES_SETUP root-meta-rootcling-membersOfModuleClassRedeclDict-fixture)
+
+ROOTTEST_ADD_TEST(membersOfModuleClassRedecl
+                  MACRO membersOfModuleClass.C
+                  MACROARG "\"membersOfModuleClassRedeclDict\", \"MembersOfModuleClass::OuterWithRedecls::DefinedOutside<float>,MembersOfModuleClass::OuterWithRedecls::Redeclared<int>,MembersOfModuleClass::FriendTmplFirstDeclaredAsFriend<int>,MembersOfModuleClass::TmplWithForwardDecl<int>::Member,MembersOfModuleClass::BaseWithForwardDecl::Inner\", \"MembersOfModuleClass::OuterWithTypedef::Tmpl<int>,MembersOfModuleClass::OuterWithTypedefStruct::Inner\""
+                  FIXTURES_REQUIRED root-meta-rootcling-membersOfModuleClassRedeclDict-fixture)
+
+# GCC doesn't accept explicit specializations in class scope.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  ROOTTEST_GENERATE_DICTIONARY(membersOfModuleClassSpecDict
+                               membersOfModuleClassSpec.h
+                               LINKDEF membersOfModuleClassSpecLinkDef.h
+                               FIXTURES_REQUIRED root-meta-rootcling-membersOfModuleClassDict-fixture
+                               FIXTURES_SETUP root-meta-rootcling-membersOfModuleClassSpecDict-fixture)
+
+  ROOTTEST_ADD_TEST(membersOfModuleClassSpec
+                    MACRO membersOfModuleClass.C
+                    MACROARG "\"membersOfModuleClassSpecDict\", \"MembersOfModuleClass::OuterWithSpecialization::Tmpl<char>\""
+                    FIXTURES_REQUIRED root-meta-rootcling-membersOfModuleClassSpecDict-fixture)
+endif()
+
 # ROOT-9335
 ROOTTEST_ADD_TEST(classDelCtor
                   MACRO classDelCtor.C+)

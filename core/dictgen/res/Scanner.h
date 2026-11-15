@@ -47,10 +47,22 @@ class SelectionRules;
 class BaseSelectionRule;
 class ClassSelectionRule;
 
+namespace ROOT {
+namespace Internal {
+bool CanTraverseOnlyLoadedDecls(const clang::DeclContext *DC);
+void GetLoadedDecls(clang::DeclContext *DC, llvm::SmallVectorImpl<clang::Decl *> &decls);
+} // namespace Internal
+} // namespace ROOT
+
 class RScanner: public clang::RecursiveASTVisitor<RScanner>
 {
 
    bool shouldVisitDecl(clang::NamedDecl *D);
+   void CollectMemberRulePrefixes();
+   bool MayHaveSelectedUnloadedMembers(const clang::Decl &D) const;
+   bool IsInPartlyTraversedDeclContext(const clang::Decl &D) const;
+   template <class TemplateDecl>
+   bool TraverseInstantiationsFromCanonicalDecl(TemplateDecl *D);
 
 public:
    class AnnotatedNamespaceDecl {
@@ -107,6 +119,12 @@ public:
 
    bool TraverseDeclContextHelper(clang::DeclContext *DC); // Here is the code magic :) - every Decl
    // according to its type is processed by the corresponding Visitor method
+
+   // Also traverse the instantiations of templates whose first declaration
+   // might not be traversed, see TraverseInstantiationsFromCanonicalDecl().
+   bool TraverseClassTemplateDecl(clang::ClassTemplateDecl *D);
+   bool TraverseVarTemplateDecl(clang::VarTemplateDecl *D);
+   bool TraverseFunctionTemplateDecl(clang::FunctionTemplateDecl *D);
 
    // Set a callback to record which are declared.
    DeclCallback SetRecordDeclCallback(DeclCallback callback);
@@ -199,6 +217,13 @@ private:
    EScanType fScanType; // Differentiate among different kind of scans
    bool fFirstPass; // This flag allows to run twice, for example in presence of dict selection and recursive template list manipulations.
    DeclsSelRulesMap_t fDeclSelRuleMap; // Map decls to selection rules which selected them
+   /// Name prefixes of the entities that selection rules might select without
+   /// them being loaded. See CollectMemberRulePrefixes().
+   std::vector<std::string> fMemberRulePrefixes;
+   bool fTraverseAllMembers = false; ///< If the selection rules might select any member of any class
+   /// Canonical declarations of templates from C++ modules whose instantiations
+   /// were traversed. See TraverseInstantiationsFromCanonicalDecl().
+   std::set<const clang::Decl *> fTemplatesWithTraversedInstantiations;
 
 };
 

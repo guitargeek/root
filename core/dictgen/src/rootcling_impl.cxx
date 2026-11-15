@@ -19,6 +19,7 @@
 #include <iostream>
 #include <iomanip>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <algorithm>
 #include <cstdio>
@@ -4723,6 +4724,21 @@ int RootClingMain(int argc,
    if (dictSelection)
       scanType = RScanner::EScanType::kTwoPasses;
 
+   // The RScanner and the dictionary generation below look at declarations from
+   // the C++ modules we depend on, which makes the ASTReader deserialize them
+   // lazily. Cling requires a transaction to be open for deserialized decls, so
+   // keep one open from here until we write the module.
+   // It must not be open while the selection files are parsed (above) though:
+   // code parsed there may fail to compile (e.g. a selected template instance
+   // with invalid arguments), and rootcling continues after that, which only
+   // works if the failing transaction is not nested in another one. If errors
+   // are pending when this transaction is closed, rootcling fails (see there).
+   // Without C++ modules (e.g. with a PCH), all members of classes are
+   // traversed up front as before, so no transaction is needed.
+   std::optional<cling::Interpreter::PushTransactionRAII> deserializationRAII;
+   if (CI->getLangOpts().Modules && CI->getASTContext().getExternalSource())
+      deserializationRAII.emplace(&interp);
+
    RScanner scan(selectionRules,
                  scanType,
                  interp,
@@ -4991,6 +5007,17 @@ int RootClingMain(int argc,
 
    if (genreflex::verbose)
       tmpCatalog.dump();
+
+   // If errors are pending, closing the transaction would roll it back: cling
+   // would unload the decls and instantiations that were created while it was
+   // open (but not the ones deserialized from C++ modules), and the module would
+   // be written from an incomplete AST. Errors from nested transactions don't
+   // count: cling resets the error state when it rolls these back.
+   if (deserializationRAII && CI->getDiagnostics().hasErrorOccurred()) {
+      ROOT::TMetaUtils::Error(nullptr, "rootcling: errors occurred while generating the dictionary\n");
+      return 1;
+   }
+   deserializationRAII.reset();
 
    // Manually call end of translation unit because we never call the
    // appropriate deconstructors in the interpreter. This writes out the C++

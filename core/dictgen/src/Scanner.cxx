@@ -11,9 +11,12 @@
 
 #include "Scanner.h"
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/DeclLookups.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Frontend/CompilerInstance.h"
 
@@ -22,8 +25,11 @@
 
 #include "TClassEdit.h"
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <sstream> // class ostringstream
+#include <type_traits>
 #include "llvm/ADT/StringExtras.h"
 
 #include "SelectionRules.h"
@@ -88,6 +94,7 @@ RScanner::RScanner (SelectionRules &rules,
 {
    // Build the cache for all selection rules
    fSelectionRules.FillCache();
+   CollectMemberRulePrefixes();
 
    for (int i = 0; i <= fgDeclLast; i ++)
       fDeclTable [i] = false;
@@ -950,6 +957,330 @@ bool RScanner::VisitFunctionDecl(clang::FunctionDecl* D)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Whether it is enough for the AST visitors to traverse only the members of
+/// DC that are already loaded (see ROOT::Internal::GetLoadedDecls()), instead
+/// of all of them. This is the case for classes, enums, functions, etc. that
+/// were deserialized from a C++ module, e.g. the one of a dictionary we depend
+/// on. Iterating over all members of such a DeclContext with decls() makes the
+/// ASTReader deserialize every one of them, which dominates the memory usage
+/// and run time of rootcling.
+///
+/// Namespaces, linkage specs and export decls are always traversed fully. So
+/// is everything if modules are disabled (e.g. with a PCH), since then the
+/// ASTReader doesn't add the decls it loads to the lookup tables.
+
+bool ROOT::Internal::CanTraverseOnlyLoadedDecls(const clang::DeclContext *DC)
+{
+   auto *D = llvm::dyn_cast_or_null<clang::Decl>(DC);
+   return D && D->isFromASTFile() && D->getASTContext().getLangOpts().Modules &&
+          !llvm::isa<clang::NamespaceDecl, clang::LinkageSpecDecl, clang::ExportDecl>(D);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Collect the decls lexically contained in DC that are already loaded,
+/// without deserializing the other members of DC. These are:
+///
+///  - the lexical decls of DC that are loaded already,
+///  - the named decls in the lookup table of DC: when the ASTReader
+///    deserializes the first declaration of a named member for any reason
+///    (e.g. name lookup, or because it is needed by a template
+///    instantiation), it adds it to the lookup table of its DeclContext, so
+///    that it can be merged with declarations of the same entity from other
+///    modules (see clang::ASTDeclReader::FindExistingResult's destructor,
+///    which calls DeclContext::makeDeclVisibleInContextImpl()). A name lookup
+///    might replace it by another declaration of the same entity,
+///  - the first declarations of the templates and the definitions of the
+///    classes found above, if they are in DC,
+///  - the explicit specializations of the member templates found above, which
+///    are not in the lookup table, and which RecursiveASTVisitor would only
+///    visit as lexical decls of DC.
+///
+/// Getting the specializations loads the lazy specializations of these member
+/// templates, like RecursiveASTVisitor does when it visits their
+/// instantiations anyway.
+///
+/// The decls are sorted by source location, so they are visited in a
+/// deterministic order that does not depend on the lookup table, which is a
+/// hash map, and in the same order as in a full traversal.
+
+void ROOT::Internal::GetLoadedDecls(clang::DeclContext *DC, llvm::SmallVectorImpl<clang::Decl *> &decls)
+{
+   llvm::SmallPtrSet<clang::Decl *, 32> seen;
+   auto add = [&](clang::Decl *Child) {
+      if (seen.insert(Child).second)
+         decls.push_back(Child);
+   };
+   auto addIfInDC = [&](clang::Decl *Child) {
+      if (Child && Child->getLexicalDeclContext() == DC)
+         add(Child);
+   };
+   // RecursiveASTVisitor traverses the instantiations of a template from its
+   // first declaration, and the RScanner selects a class at its definition.
+   // Add these if they are in DC, so that they are visited at their position
+   // in DC, like in a full traversal. This matters if a class is selected by
+   // several rules, e.g. by its name and by a typedef: the first one wins.
+   auto addWithFirstDeclOrDefinition = [&](clang::Decl *Child) {
+      addIfInDC(Child);
+      if (auto *TD = llvm::dyn_cast<clang::RedeclarableTemplateDecl>(Child))
+         addIfInDC(TD->getCanonicalDecl());
+      else if (auto *RD = llvm::dyn_cast<clang::CXXRecordDecl>(Child))
+         addIfInDC(RD->getDefinition());
+   };
+
+   // Collect the loaded decls first: getting the first declaration or the
+   // definition of a decl might deserialize declarations, which the ASTReader
+   // adds to the lookup table of DC that we iterate over.
+   llvm::SmallVector<clang::Decl *, 32> loaded;
+   for (clang::Decl *Child : DC->noload_decls())
+      loaded.push_back(Child);
+   for (clang::DeclContextLookupResult lookupResult : DC->noload_lookups(/*PreserveInternalState=*/true)) {
+      for (clang::NamedDecl *ND : lookupResult)
+         loaded.push_back(ND);
+   }
+   for (clang::Decl *Child : loaded)
+      addWithFirstDeclOrDefinition(Child);
+
+   auto addExplicitSpecializations = [&](auto *TD) {
+      for (auto *Spec : TD->specializations()) {
+         using SpecDecl = std::remove_pointer_t<decltype(Spec)>;
+         for (auto *RD : Spec->redecls()) {
+            const clang::TemplateSpecializationKind kind = llvm::cast<SpecDecl>(RD)->getSpecializationKind();
+            if (kind != clang::TSK_ImplicitInstantiation && kind != clang::TSK_Undeclared &&
+                RD->getLexicalDeclContext() == DC)
+               add(RD);
+         }
+      }
+   };
+   for (std::size_t i = 0, n = decls.size(); i < n; ++i) {
+      if (auto *CTD = llvm::dyn_cast<clang::ClassTemplateDecl>(decls[i]))
+         addExplicitSpecializations(CTD);
+      else if (auto *VTD = llvm::dyn_cast<clang::VarTemplateDecl>(decls[i]))
+         addExplicitSpecializations(VTD);
+   }
+
+   // Sort by source location. Use the location of the name, not the beginning
+   // of the decl: the parser adds a class to DC when it sees its name, and a
+   // typedef etc. after its declarator, so the class in
+   // `typedef struct A {} B;` comes before the typedef in the list of lexical
+   // decls of DC. Decls without a valid location go first. Decls at the same
+   // location are sorted by their ID in the AST file, except for the ones that
+   // were not deserialized, which go first and keep their order in the list of
+   // lexical decls.
+   // A member class of a class template specialization that was declared before
+   // its definition gets the location of the definition in the template when
+   // it is instantiated. Use the location of the declaration it was instantiated
+   // from, which is where a full traversal visits it.
+   auto getLoc = [](clang::Decl *D) {
+      if (auto *RD = llvm::dyn_cast<clang::CXXRecordDecl>(D)) {
+         if (clang::CXXRecordDecl *pattern = RD->getInstantiatedFromMemberClass())
+            return pattern->getLocation();
+      }
+      return D->getLocation();
+   };
+   const clang::SourceManager &SM = DC->getParentASTContext().getSourceManager();
+   std::stable_sort(decls.begin(), decls.end(), [&SM, &getLoc](clang::Decl *A, clang::Decl *B) {
+      const clang::SourceLocation locA = getLoc(A);
+      const clang::SourceLocation locB = getLoc(B);
+      if (locA.isInvalid() != locB.isInvalid())
+         return locA.isInvalid();
+      if (locA.isValid() && locA != locB) {
+         if (SM.isBeforeInTranslationUnit(locA, locB))
+            return true;
+         if (SM.isBeforeInTranslationUnit(locB, locA))
+            return false;
+      }
+      if (A->isFromASTFile() != B->isFromASTFile())
+         return !A->isFromASTFile();
+      return A->isFromASTFile() && A->getGlobalID() < B->getGlobalID();
+   });
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// The decls that the RScanner visits in a class etc. from an AST file are
+/// limited to the ones that are already loaded (see
+/// ROOT::Internal::GetLoadedDecls()). This is enough for the class selection
+/// rules that select by name: SelectionRules::SearchNames() has looked up
+/// these classes before the scan, which loaded them. Other selection rules
+/// might select members that are not loaded, so collect the beginnings of the
+/// qualified names they can match, up to the first wildcard or template
+/// argument list. These are:
+///
+///  - class selection rules with a pattern, or with a name that was not found
+///    by SearchNames(),
+///  - enum and variable selection rules (e.g. for static data members).
+///
+/// Rules on the file name can select any decl, so with these all members are
+/// traversed. Function selection rules don't select member functions, and the
+/// only functions lexically declared in classes are friend functions, which
+/// are not considered here. Class and enum rules that don't select anything
+/// are not relevant either, but variable rules are, because
+/// SelectionRules::AreAllSelectionRulesUsed() warns about the ones that don't
+/// match any variable.
+
+void RScanner::CollectMemberRulePrefixes()
+{
+   fMemberRulePrefixes.clear();
+   fTraverseAllMembers = fSelectionRules.GetHasFileNameRule();
+
+   auto addPrefix = [this](const std::string &nameOrPattern) {
+      std::string prefix;
+      for (char c : nameOrPattern) {
+         if (c == '*' || c == '\\' || c == '<')
+            break;
+         if (!std::isspace(static_cast<unsigned char>(c)))
+            prefix += c;
+      }
+      if (prefix.compare(0, 2, "::") == 0)
+         prefix.erase(0, 2);
+      if (prefix.empty())
+         fTraverseAllMembers = true;
+      else
+         fMemberRulePrefixes.push_back(prefix);
+   };
+
+   auto processRule = [&](const BaseSelectionRule &rule, bool nameIsLoaded, bool needsMatchIfNotSelecting) {
+      if (rule.GetSelected() == BaseSelectionRule::kNo && !needsMatchIfNotSelecting)
+         return;
+      if (rule.HasAttributeFileName() || rule.HasAttributeFilePattern())
+         fTraverseAllMembers = true;
+      else if (rule.HasAttributePattern())
+         addPrefix(rule.GetAttributePattern());
+      else if (rule.HasAttributeName() && !nameIsLoaded)
+         addPrefix(rule.GetAttributeName());
+   };
+
+   for (const ClassSelectionRule &rule : fSelectionRules.GetClassSelectionRules()) {
+      const clang::CXXRecordDecl *decl = rule.GetCXXRecordDecl();
+      processRule(rule, decl && decl != reinterpret_cast<const clang::CXXRecordDecl *>(-1),
+                  /*needsMatchIfNotSelecting=*/false);
+   }
+   for (const BaseSelectionRule &rule : fSelectionRules.GetEnumSelectionRules())
+      processRule(rule, false, /*needsMatchIfNotSelecting=*/false);
+   for (const BaseSelectionRule &rule : fSelectionRules.GetVariableSelectionRules())
+      processRule(rule, false, /*needsMatchIfNotSelecting=*/true);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Whether one of the selection rules might select a member of D that is not
+/// loaded yet. See CollectMemberRulePrefixes().
+
+bool RScanner::MayHaveSelectedUnloadedMembers(const clang::Decl &D) const
+{
+   if (fTraverseAllMembers)
+      return true;
+   if (fMemberRulePrefixes.empty())
+      return false;
+
+   // Build the qualified name of D up to the first template or unnamed scope,
+   // both with and without inline namespaces, since the selection rules might
+   // be matched against either.
+   llvm::SmallVector<const clang::Decl *, 8> scopes;
+   for (const clang::Decl *S = &D; S && !llvm::isa<clang::TranslationUnitDecl>(S);
+        S = llvm::dyn_cast<clang::Decl>(S->getDeclContext()))
+      scopes.push_back(S);
+
+   std::string name;
+   std::string nameNoInline;
+   bool complete = true;
+   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+      const clang::Decl *S = *it;
+      if (llvm::isa<clang::LinkageSpecDecl, clang::ExportDecl>(S))
+         continue;
+      std::string component;
+      bool isInline = false;
+      if (auto *NS = llvm::dyn_cast<clang::NamespaceDecl>(S)) {
+         component = NS->isAnonymousNamespace() ? "(anonymous namespace)" : NS->getNameAsString();
+         isInline = NS->isInline();
+      } else if (auto *RD = llvm::dyn_cast<clang::CXXRecordDecl>(S)) {
+         component = RD->getNameAsString();
+         if (component.empty() || llvm::isa<clang::ClassTemplateSpecializationDecl>(RD) ||
+             RD->getDescribedClassTemplate())
+            complete = false;
+      } else if (auto *ND = llvm::dyn_cast<clang::NamedDecl>(S)) {
+         component = ND->getNameAsString();
+         if (!llvm::isa<clang::TagDecl>(ND) || component.empty())
+            complete = false;
+      } else {
+         complete = false;
+      }
+      name += component;
+      if (!isInline)
+         nameNoInline += component;
+      if (!complete)
+         break;
+      name += "::";
+      if (!isInline)
+         nameNoInline += "::";
+   }
+
+   // If the name is complete, all members have names starting with name, and
+   // otherwise with an unknown continuation of it.
+   auto mayMatch = [](const std::string &prefix, const std::string &scopeName) {
+      const std::size_t n = std::min(prefix.size(), scopeName.size());
+      return prefix.compare(0, n, scopeName, 0, n) == 0;
+   };
+   for (const std::string &prefix : fMemberRulePrefixes) {
+      if (mayMatch(prefix, name) || mayMatch(prefix, nameNoInline))
+         return true;
+   }
+   return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Whether D might not be traversed because it is lexically in a class etc.
+/// from a C++ module of which only the loaded members are traversed.
+
+bool RScanner::IsInPartlyTraversedDeclContext(const clang::Decl &D) const
+{
+   for (const clang::DeclContext *DC = D.getLexicalDeclContext(); DC; DC = DC->getLexicalParent()) {
+      if (ROOT::Internal::CanTraverseOnlyLoadedDecls(DC) &&
+          !MayHaveSelectedUnloadedMembers(*llvm::cast<clang::Decl>(DC)))
+         return true;
+   }
+   return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// RecursiveASTVisitor only traverses the instantiations of a template when it
+/// visits the canonical, i.e. first, declaration of the template. This might
+/// not be visited if it is in a class etc. from a C++ module of which only the
+/// loaded members are traversed, e.g. for a member template that is defined
+/// outside of the class, or for a template that is first declared as a friend.
+/// So when visiting another declaration of such a template, traverse the
+/// instantiations of its canonical declaration, unless this has been done.
+
+template <class TemplateDecl>
+bool RScanner::TraverseInstantiationsFromCanonicalDecl(TemplateDecl *D)
+{
+   TemplateDecl *canonical = D->getCanonicalDecl();
+   if (!canonical->isFromASTFile())
+      return true;
+   if (D == canonical) {
+      // RecursiveASTVisitor has traversed its instantiations.
+      fTemplatesWithTraversedInstantiations.insert(canonical);
+      return true;
+   }
+   if (!IsInPartlyTraversedDeclContext(*canonical) || !fTemplatesWithTraversedInstantiations.insert(canonical).second)
+      return true;
+   return TraverseTemplateInstantiations(canonical);
+}
+
+bool RScanner::TraverseClassTemplateDecl(clang::ClassTemplateDecl *D)
+{
+   return RecursiveASTVisitor<RScanner>::TraverseClassTemplateDecl(D) && TraverseInstantiationsFromCanonicalDecl(D);
+}
+
+bool RScanner::TraverseVarTemplateDecl(clang::VarTemplateDecl *D)
+{
+   return RecursiveASTVisitor<RScanner>::TraverseVarTemplateDecl(D) && TraverseInstantiationsFromCanonicalDecl(D);
+}
+
+bool RScanner::TraverseFunctionTemplateDecl(clang::FunctionTemplateDecl *D)
+{
+   return RecursiveASTVisitor<RScanner>::TraverseFunctionTemplateDecl(D) && TraverseInstantiationsFromCanonicalDecl(D);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 bool RScanner::TraverseDeclContextHelper(DeclContext *DC)
 {
@@ -961,6 +1292,18 @@ bool RScanner::TraverseDeclContextHelper(DeclContext *DC)
    clang::Decl* D = dyn_cast<clang::Decl>(DC);
    // skip implicit decls
    if (D && D->isImplicit()){
+      return true;
+   }
+
+   // For classes etc. from C++ modules, only traverse the members that are
+   // already loaded, unless the selection rules might select others.
+   if (ROOT::Internal::CanTraverseOnlyLoadedDecls(DC) && !MayHaveSelectedUnloadedMembers(*D)) {
+      llvm::SmallVector<clang::Decl *, 32> loadedDecls;
+      ROOT::Internal::GetLoadedDecls(DC, loadedDecls);
+      for (clang::Decl *Child : loadedDecls) {
+         if (!TraverseDecl(Child))
+            return false;
+      }
       return true;
    }
 
@@ -1070,6 +1413,7 @@ void RScanner::Scan(const clang::ASTContext &C)
    fSelectedTypedefs.clear();
    fSelectedVariables.clear();
    fSelectedFunctions.clear();
+   fTemplatesWithTraversedInstantiations.clear();
    TraverseDecl(C.getTranslationUnitDecl());
 
    // The RecursiveASTVisitor uses range-based for; we must not modify the AST
