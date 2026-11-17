@@ -2493,9 +2493,12 @@ int FinalizeStreamerInfoWriting(cling::Interpreter &interp, bool writeEmptyRootP
                              "#include \"TMessageHandler.h\"\n"
                              "#include \"TArray.h\"\n"
                              "#include \"TRefArray.h\"\n"
-                             "#include \"root_std_complex.h\"\n")
-       != cling::Interpreter::kSuccess)
-       return 1;
+                             "#include \"root_std_complex.h\"\n") != cling::Interpreter::kSuccess) {
+      ROOT::TMetaUtils::Error("FinalizeStreamerInfoWriting",
+                              "Failed to parse the headers for writing the streamer infos. This can be caused by "
+                              "previous errors.\n");
+      return 1;
+   }
    if (!gDriverConfig->fCloseStreamerInfoROOTFile(writeEmptyRootPCM)) {
       return 1;
    }
