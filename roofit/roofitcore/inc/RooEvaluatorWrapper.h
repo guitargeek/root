@@ -99,6 +99,8 @@ private:
    /// Number of data columns consumed by the computation graph, for the
    /// structural-compatibility check when resetting the data.
    std::size_t _nUsedDataSpans = 0;
+   // See RooChannelIndicatorPdf::indexCategoryStates()
+   std::map<std::string, std::map<std::string, int>> _indexCatStates;
 };
 
 } // namespace RooFit::Experimental

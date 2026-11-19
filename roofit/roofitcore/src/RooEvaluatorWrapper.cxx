@@ -37,12 +37,17 @@ Wraps a RooFit::Evaluator that evaluates a RooAbsReal back into a RooAbsReal.
 #include <TInterpreter.h>
 
 #include <algorithm>
+#include <cctype>
 #include <deque>
 #include <fstream>
 #include <functional>
 #include <limits>
+#include <set>
+#include <string_view>
 
 namespace {
+
+using IndexCategoryStates = std::map<std::string, std::map<std::string, int>>;
 
 // Throws an exception if any value in `span` is outside of the (default,
 // unnamed) range of `var`.
@@ -396,6 +401,133 @@ void validateBinnedLikelihoodData(RooAbsPdf const *pdf, RooAbsData const &data, 
    }
 }
 
+// The states of the index categories of the simultaneous mixtures in the
+// graph, by label for each index variable (see
+// RooChannelIndicatorPdf::indexCategoryStates()).
+IndexCategoryStates mixtureIndexCategoryStates(RooAbsArg const &topNode)
+{
+   IndexCategoryStates out;
+   RooArgSet nodes;
+   topNode.treeNodeServerList(&nodes);
+   for (RooAbsArg *node : nodes) {
+      auto *indicator = dynamic_cast<RooFit::Detail::RooChannelIndicatorPdf const *>(node);
+      if (!indicator)
+         continue;
+      auto const &states = indicator->indexCategoryStates();
+      for (std::size_t i = 0; i < states.size(); ++i) {
+         out[indicator->indexVars()[i].GetName()] = states[i];
+      }
+   }
+   return out;
+}
+
+// Like RooAbsData::split(), the channels of a simultaneous mixture are matched
+// to the data by the labels of the index states. The data categories can use
+// other indices for the same labels, so their columns are recoded. Only
+// filled for the categories whose indices differ.
+struct IndexRecoding {
+   std::map<std::string, std::map<int, int>> dataToPdf;
+   std::map<std::string, std::map<int, int>> pdfToData;
+};
+
+IndexRecoding makeIndexRecoding(IndexCategoryStates const &pdfStates, RooAbsData const &data)
+{
+   IndexRecoding out;
+   for (auto const &[name, pdfIndices] : pdfStates) {
+      auto *dataCat = dynamic_cast<RooAbsCategory const *>(data.get()->find(name.c_str()));
+      if (!dataCat)
+         continue;
+      std::set<int> pdfIndexSet;
+      for (auto const &item : pdfIndices) {
+         pdfIndexSet.insert(item.second);
+      }
+      // Labels that the pdf doesn't know select no channel
+      const int noPdfIndex = pdfIndexSet.empty() ? 0 : *pdfIndexSet.rbegin() + 1;
+      std::map<int, int> dataToPdf;
+      bool differ = false;
+      for (auto const &[label, dataIndex] : *dataCat) {
+         auto found = pdfIndices.find(label);
+         int pdfIndex = dataIndex;
+         if (found != pdfIndices.end()) {
+            pdfIndex = found->second;
+         } else if (pdfIndexSet.count(dataIndex)) {
+            pdfIndex = noPdfIndex;
+         }
+         differ |= pdfIndex != dataIndex;
+         dataToPdf[dataIndex] = pdfIndex;
+      }
+      if (!differ)
+         continue;
+      int noDataIndex = 0;
+      for (auto const &item : *dataCat) {
+         noDataIndex = std::max(noDataIndex, item.second + 1);
+      }
+      std::map<int, int> &pdfToData = out.pdfToData[name];
+      for (auto const &[label, pdfIndex] : pdfIndices) {
+         pdfToData[pdfIndex] = dataCat->hasLabel(label) ? dataCat->lookupIndex(label) : noDataIndex;
+      }
+      out.dataToPdf[name] = std::move(dataToPdf);
+   }
+   return out;
+}
+
+void recodeIndexSpans(std::map<RooFit::Detail::DataKey, std::span<const double>> &spans, IndexRecoding const &recoding,
+                      std::stack<std::vector<double>> &buffers)
+{
+   for (auto &[key, span] : spans) {
+      auto found = recoding.dataToPdf.find(key->GetName());
+      if (found == recoding.dataToPdf.end())
+         continue;
+      std::vector<double> &buffer = buffers.emplace(span.size());
+      for (std::size_t i = 0; i < span.size(); ++i) {
+         auto item = found->second.find(static_cast<int>(span[i]));
+         buffer[i] = item != found->second.end() ? item->second : span[i];
+      }
+      span = buffer;
+   }
+}
+
+// Translates the "<index> == <state index>" comparisons that
+// RooSimultaneous::compileForNormSet() writes into the data selection cut of
+// a mixture to the indices of the data categories.
+std::string recodeCut(std::string const &cut, IndexRecoding const &recoding)
+{
+   if (recoding.pdfToData.empty())
+      return cut;
+   auto isNameChar = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_'; };
+   constexpr std::string_view eq = " == ";
+   std::string out;
+   std::size_t i = 0;
+   while (i < cut.size()) {
+      if (!isNameChar(cut[i])) {
+         out += cut[i++];
+         continue;
+      }
+      std::size_t end = i;
+      while (end < cut.size() && isNameChar(cut[end]))
+         ++end;
+      const std::string name = cut.substr(i, end - i);
+      out += name;
+      i = end;
+      auto found = recoding.pdfToData.find(name);
+      if (found == recoding.pdfToData.end() || cut.compare(i, eq.size(), eq) != 0)
+         continue;
+      const std::size_t numBegin = i + eq.size();
+      std::size_t numEnd = numBegin + (numBegin < cut.size() && cut[numBegin] == '-');
+      const std::size_t digitsBegin = numEnd;
+      while (numEnd < cut.size() && std::isdigit(static_cast<unsigned char>(cut[numEnd])))
+         ++numEnd;
+      if (numEnd == digitsBegin)
+         continue;
+      const int pdfIndex = std::stoi(cut.substr(numBegin, numEnd - numBegin));
+      auto item = found->second.find(pdfIndex);
+      out += eq;
+      out += std::to_string(item != found->second.end() ? item->second : pdfIndex);
+      i = numEnd;
+   }
+   return out;
+}
+
 } // namespace
 
 namespace RooFit::Experimental {
@@ -410,7 +542,8 @@ RooEvaluatorWrapper::RooEvaluatorWrapper(RooAbsReal &topNode, RooAbsData *data, 
      _paramSet("paramSet", "Set of parameters", this),
      _rangeName{rangeName},
      _pdf{pdf},
-     _takeGlobalObservablesFromData{takeGlobalObservablesFromData}
+     _takeGlobalObservablesFromData{takeGlobalObservablesFromData},
+     _indexCatStates{mixtureIndexCategoryStates(topNode)}
 {
    if (nWorkers > 1 && !useGPU) {
       _evaluator->setNThreads(nWorkers);
@@ -433,7 +566,8 @@ RooEvaluatorWrapper::RooEvaluatorWrapper(const RooEvaluatorWrapper &other, const
      _rangeName{other._rangeName},
      _pdf{other._pdf},
      _takeGlobalObservablesFromData{other._takeGlobalObservablesFromData},
-     _dataSpans{other._dataSpans}
+     _dataSpans{other._dataSpans},
+     _indexCatStates{other._indexCatStates}
 {
    _paramSet.add(other._paramSet);
 }
@@ -491,7 +625,7 @@ bool RooEvaluatorWrapper::getParameters(const RooArgSet *observables, RooArgSet 
 class RooFuncWrapper {
 public:
    RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooArgSet const &paramSet, std::string const &rangeName,
-                  bool skipZeroWeights);
+                  bool skipZeroWeights, IndexRecoding const &indexRecoding);
 
    bool hasGradient() const { return _hasGradient; }
    bool hasHessian() const { return _hasHessian; }
@@ -521,7 +655,8 @@ public:
       return _func(_varBuffer.data(), _observables.data(), _xlArr.data());
    }
 
-   void loadData(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights);
+   void loadData(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights,
+                 IndexRecoding const &indexRecoding);
 
 private:
    void updateGradientVarBuffer() const;
@@ -586,11 +721,11 @@ auto getDependsOnData(RooAbsReal &obj, RooArgSet const &dataObs)
 } // namespace
 
 RooFuncWrapper::RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooArgSet const &paramSet,
-                               std::string const &rangeName, bool skipZeroWeights)
+                               std::string const &rangeName, bool skipZeroWeights, IndexRecoding const &indexRecoding)
 {
    // Load the observables from the dataset
    if (data) {
-      loadData(*data, rangeName, skipZeroWeights);
+      loadData(*data, rangeName, skipZeroWeights, indexRecoding);
    }
 
    // Define the parameters
@@ -651,11 +786,13 @@ RooFuncWrapper::RooFuncWrapper(RooAbsReal &obj, const RooAbsData *data, RooArgSe
    _collectedFunctions = ctx.collectedFunctions();
 }
 
-void RooFuncWrapper::loadData(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights)
+void RooFuncWrapper::loadData(RooAbsData const &data, std::string const &rangeName, bool skipZeroWeights,
+                              IndexRecoding const &indexRecoding)
 {
    // Extract observables
    std::stack<std::vector<double>> vectorBuffers; // for data loading
    auto spans = RooFit::BatchModeDataHelpers::getDataSpans(data, rangeName, skipZeroWeights, false, vectorBuffers);
+   recodeIndexSpans(spans, indexRecoding, vectorBuffers);
 
    _observables.clear();
    // The first elements contain the sizes of the packed observable arrays
@@ -1020,6 +1157,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
 
    _data = &data;
    bool isInitializing = _paramSet.empty();
+   const IndexRecoding indexRecoding = makeIndexRecoding(_indexCatStates, data);
 
    // If the compiled pdf declares that it only describes a subset of the
    // data rows, evaluate on a reduced copy of the dataset. This is how a
@@ -1032,7 +1170,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
          // Known limitation: reduce() also drops entries where any column
          // lies outside its variable's current range, a validity filter that
          // the plain span-based data loading does not apply.
-         _selectedData = std::unique_ptr<RooAbsData>{data.reduce(RooFit::Cut(cut))};
+         _selectedData = std::unique_ptr<RooAbsData>{data.reduce(RooFit::Cut(recodeCut(cut, indexRecoding).c_str()))};
          if (data.getGlobalObservables()) {
             _selectedData->setGlobalObservables(*data.getGlobalObservables());
          }
@@ -1052,6 +1190,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
 
    _dataSpans = RooFit::BatchModeDataHelpers::getDataSpans(*dataForEval(), rangeNameForLoading, skipZeroWeights,
                                                            _takeGlobalObservablesFromData, _vectorBuffers);
+   recodeIndexSpans(_dataSpans, indexRecoding, _vectorBuffers);
    if (_rangeName.empty()) {
       validateObservableRanges(_pdf, *dataForEval(), _dataSpans);
    }
@@ -1080,7 +1219,7 @@ bool RooEvaluatorWrapper::setData(RooAbsData &data, bool /*cloneData*/)
    }
    _nUsedDataSpans = nUsedSpans;
    if (_funcWrapper) {
-      _funcWrapper->loadData(*dataForEval(), rangeNameForLoading, skipZeroWeights);
+      _funcWrapper->loadData(*dataForEval(), rangeNameForLoading, skipZeroWeights, indexRecoding);
    }
    return true;
 }
@@ -1093,8 +1232,9 @@ void RooEvaluatorWrapper::createFuncWrapper()
 
    const bool isChi2 = _topNode->getAttribute("Chi2EvaluationActive");
    const bool skipZeroWeights = !isChi2 && (!_pdf || !_pdf->getAttribute("BinnedLikelihoodActive"));
-   _funcWrapper = std::make_unique<RooFuncWrapper>(*_topNode, dataForEval(), paramSet,
-                                                   _selectedData ? std::string{} : _rangeName, skipZeroWeights);
+   const IndexRecoding indexRecoding = _data ? makeIndexRecoding(_indexCatStates, *_data) : IndexRecoding{};
+   _funcWrapper = std::make_unique<RooFuncWrapper>(
+      *_topNode, dataForEval(), paramSet, _selectedData ? std::string{} : _rangeName, skipZeroWeights, indexRecoding);
 }
 
 void RooEvaluatorWrapper::generateGradient()

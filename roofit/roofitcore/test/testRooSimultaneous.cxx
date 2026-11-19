@@ -1464,6 +1464,52 @@ TEST(RooSimultaneous, MixtureCompilationStateWithoutPdf)
    EXPECT_THAT(nllMix->getVal(), RelativeNear(refVal, 1e-14)) << "after parameter reset";
 }
 
+/// The channels are matched to the data by the labels of the index states,
+/// like in RooAbsData::split(), so the index category of the dataset can use
+/// other indices for the same labels. Covers the index columns and the data
+/// selection cuts for index states without pdfs and for ranged fits.
+TEST(RooSimultaneous, MixtureCompilationDataIndexByLabel)
+{
+   using namespace RooFit;
+
+   RooRandom::randomGenerator()->SetSeed(1337);
+
+   RooRealVar x{"x", "x", -8, 8};
+   x.setRange("r", -2, 5);
+   RooRealVar m1{"m1", "m1", -1., -3., 3.};
+   RooRealVar m2{"m2", "m2", 2., -3., 3.};
+   RooRealVar sigma{"sigma", "sigma", 1.0, 0.1, 10.};
+   RooGaussian g1{"g1", "g1", x, m1, sigma};
+   RooGaussian g2{"g2", "g2", x, m2, sigma};
+
+   // The "ctl" state has data entries but no pdf attached.
+   RooCategory sample{"sample", "sample", {{"one", 0}, {"ctl", 1}, {"two", 2}}};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"one", &g1}, {"two", &g2}}, sample};
+
+   std::unique_ptr<RooDataSet> data1{g1.generate(x, 500)};
+   std::unique_ptr<RooDataSet> dataCtl{g1.generate(x, 300)};
+   std::unique_ptr<RooDataSet> data2{g2.generate(x, 700)};
+   std::map<std::string, RooDataSet *> channelData{{"one", data1.get()}, {"ctl", dataCtl.get()}, {"two", data2.get()}};
+
+   // The same entries in the same order, with other indices for the labels.
+   RooCategory sampleOtherIndices{"sample", "sample", {{"one", 2}, {"ctl", 0}, {"two", 1}}};
+   RooDataSet dataRef{"dataRef", "dataRef", x, Index(sample), Import(channelData)};
+   RooDataSet dataOther{"dataOther", "dataOther", x, Index(sampleOtherIndices), Import(channelData)};
+
+   std::vector<EvalBackend> backends{EvalBackend::Cpu(), EvalBackend::CodegenNoGrad()};
+   for (auto const &backend : backends) {
+      for (bool ranged : {false, true}) {
+         auto createNLL = [&](RooAbsData &data) {
+            return std::unique_ptr<RooAbsReal>{ranged ? simPdf.createNLL(data, backend, Range("r"))
+                                                      : simPdf.createNLL(data, backend)};
+         };
+         std::unique_ptr<RooAbsReal> nllRef = createNLL(dataRef);
+         std::unique_ptr<RooAbsReal> nll = createNLL(dataOther);
+         EXPECT_DOUBLE_EQ(nll->getVal(), nllRef->getVal()) << backend.name() << (ranged ? ", ranged" : "");
+      }
+   }
+}
+
 /// Validate the mixture compilation with conditional observables (the
 /// ProjectedObservables command argument of createNLL): the conditional
 /// observables are excluded from the mixture normalization, reproducing the

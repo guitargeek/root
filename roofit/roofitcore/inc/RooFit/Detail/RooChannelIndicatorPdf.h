@@ -19,6 +19,9 @@
 #include <TError.h>
 
 #include <cmath>
+#include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace RooFit {
@@ -62,7 +65,10 @@ public:
    }
 
    RooChannelIndicatorPdf(const RooChannelIndicatorPdf &other, const char *name = nullptr)
-      : RooAbsPdf(other, name), _indexVars("indexVars", this, other._indexVars), _states{other._states}
+      : RooAbsPdf(other, name),
+        _indexVars("indexVars", this, other._indexVars),
+        _states{other._states},
+        _indexCatStates{other._indexCatStates}
    {
    }
 
@@ -81,6 +87,12 @@ public:
    std::vector<int> const &states() const { return _states; }
    RooArgList const &indexVars() const { return _indexVars; }
 
+   /// The states of the categories that the index variables stand in for,
+   /// with their indices by label. Data columns of these categories can use
+   /// other indices for the same labels, and have to be recoded.
+   std::vector<std::map<std::string, int>> const &indexCategoryStates() const { return _indexCatStates; }
+   void setIndexCategoryStates(std::vector<std::map<std::string, int>> states) { _indexCatStates = std::move(states); }
+
    void doEval(RooFit::EvalContext &) const override;
 
 protected:
@@ -91,6 +103,7 @@ private:
 
    RooListProxy _indexVars;
    std::vector<int> _states;
+   std::vector<std::map<std::string, int>> _indexCatStates; //!
 
    ClassDefOverride(RooFit::Detail::RooChannelIndicatorPdf, 0);
 };

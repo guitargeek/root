@@ -1249,6 +1249,9 @@ namespace {
 struct MixtureIndexStandIns {
    std::vector<std::unique_ptr<RooRealVar>> standIns;
    std::map<RooAbsCategory::value_type, std::vector<int>> channelTargets;
+   /// The states of the replaced categories by label, to match data columns
+   /// by label (see RooChannelIndicatorPdf::indexCategoryStates()).
+   std::vector<std::map<std::string, int>> categoryStates;
    std::string error; ///< non-empty: configuration not supported
 
    RooArgList standInList() const
@@ -1369,6 +1372,10 @@ MixtureIndexStandIns makeIndexStandIns(RooAbsCategoryLValue const &indexCat, Roo
       standIn->setRange(minIndex - 0.5, maxIndex + 0.5);
       standIn->setVal(cat.getCurrentIndex());
       out.standIns.emplace_back(std::move(standIn));
+      auto &states = out.categoryStates.emplace_back();
+      for (auto const &catState : cat) {
+         states[catState.first] = catState.second;
+      }
    }
 
    return out;
@@ -1534,6 +1541,7 @@ compileSimPdfAsBinnedMixture(RooSimultaneous const &simPdf, RooArgSet const &nor
       auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
          (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(),
          indexStandIns.standInList(), indexStandIns.channelTargets.at(catState.second));
+      indicator->setIndexCategoryStates(indexStandIns.categoryStates);
       // Declare to the RooFit::Evaluator that this node is a data-only
       // {0,1}-valued mask, so that it can restrict the evaluation of the
       // other factors in the gated product to the events of this channel (see
@@ -1805,6 +1813,7 @@ compileSimPdfAsGatedSum(RooSimultaneous const &simPdf, RooArgSet const &normSet,
          auto indicator = std::make_unique<RooFit::Detail::RooChannelIndicatorPdf>(
             (baseName + "_mixtureIndicator").c_str(), (baseName + "_mixtureIndicator").c_str(),
             indexStandIns.standInList(), indexStandIns.channelTargets.at(catState.second));
+         indicator->setIndexCategoryStates(indexStandIns.categoryStates);
          // See compileSimPdfAsBinnedMixture() for the meaning of the
          // "BinaryMask" attribute and the naming conventions.
          indicator->setAttribute("BinaryMask");
