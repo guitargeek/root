@@ -95,6 +95,11 @@ namespace RooStats {
       /// so the constraint pdf's will be normalized correctly on the global observables when computing the NLL
       virtual void SetGlobalObservables(const RooArgSet& set) {fGlobalObs.removeAll(); fGlobalObs.add(set);}
 
+      /// set the constraint terms to include in the NLL. They are no part of
+      /// the pdf, so a calculator that is constructed from a pdf and not from
+      /// a ModelConfig has no constraint terms unless they are set here.
+      virtual void SetExternalConstraints(const RooArgSet& set) {fExternalConstraints.removeAll(); fExternalConstraints.add(set);}
+
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
       void SetTestSize( double size ) override {
          fSize = size;
@@ -160,15 +165,16 @@ namespace RooStats {
       // virtual SimpleInterval* GetInterval( RooRealVar* parameter  ) const { return 0; }
 
       RooAbsData* fData;                         ///< data set
-      RooAbsPdf* fPdf;                           ///< model pdf  (could contain the nuisance pdf as constraint term)
+      RooAbsPdf* fPdf;                           ///< model pdf  (without constraint terms)
       RooArgSet fPOI;                            ///< POI
       RooAbsPdf* fPriorPdf;                      ///< prior pdf (typically for the POI)
       RooAbsPdf* fNuisancePdf;                   ///< nuisance pdf (needed when using nuisance sampling technique)
       RooArgSet fNuisanceParameters;             ///< nuisance parameters
       RooArgSet fConditionalObs    ;             ///< conditional observables
       RooArgSet fGlobalObs;                      ///< global observables
+      RooArgSet fExternalConstraints;            ///< constraint terms
 
-      mutable RooAbsPdf* fProductPdf;            ///< internal pointer to model * prior
+      mutable RooAbsPdf* fProductPdf;            ///< internal pointer to the product of the constraint terms
       mutable std::unique_ptr<RooAbsReal> fLogLike; ///< internal pointer to log likelihood function
       mutable RooAbsReal* fLikelihood;           ///< internal pointer to likelihood function
       mutable RooAbsReal* fIntegratedLikelihood; ///< integrated likelihood function, i.e - unnormalized posterior function
@@ -189,7 +195,7 @@ namespace RooStats {
 
    protected:
 
-      ClassDefOverride(BayesianCalculator,3)  // BayesianCalculator class
+      ClassDefOverride(BayesianCalculator,4)  // BayesianCalculator class
 
    };
 }

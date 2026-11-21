@@ -38,6 +38,7 @@ set(ROOFIT_HEADERS
   RooDecay.h
   RooDstD0BG.h
   RooExponential.h
+  RooFit/AsimovGlobalObservables.h
   RooFit/Detail/CFunctionBinding.h
   RooFunctor1DBinding.h
   RooFunctorBinding.h
@@ -88,6 +89,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFit
   HEADERS
     ${ROOFIT_HEADERS}
   SOURCES
+    src/AsimovGlobalObservables.cxx
     src/Roo2DKeysPdf.cxx
     src/RooArgusBG.cxx
     src/RooBCPEffDecay.cxx

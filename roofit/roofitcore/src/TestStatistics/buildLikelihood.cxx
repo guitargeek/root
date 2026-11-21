@@ -60,143 +60,80 @@ namespace TestStatistics {
 
 namespace { // private implementation details
 
-RooArgSet getConstraintsSet(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrained_parameters,
-                            RooArgSet const &external_constraints, RooArgSet global_observables,
-                            std::string const &global_observables_tag)
-{
-   // BEGIN CONSTRAINT COLLECTION; copied from RooAbsPdf::createNLL
-
-   bool doStripDisconnected = false;
-   // If no explicit list of parameters to be constrained is specified apply default algorithm
-   // All terms of RooProdPdfs that do not contain observables and share parameters with one or more
-   // terms that do contain observables are added as constraints.
-#ifndef NDEBUG
-   bool did_default_constraint_algo = false;
-   std::size_t N_default_constraints = 0;
-#endif
-   if (constrained_parameters.empty()) {
-      std::unique_ptr<RooArgSet> default_constraints{pdf->getParameters(*data, false)};
-      constrained_parameters.add(*default_constraints);
-      doStripDisconnected = true;
-#ifndef NDEBUG
-      did_default_constraint_algo = true;
-      N_default_constraints = default_constraints->size();
-#endif
-   }
-#ifndef NDEBUG
-   if (did_default_constraint_algo) {
-      assert(N_default_constraints == static_cast<std::size_t>(constrained_parameters.size()));
-   }
-#endif
-
-   // Collect internal and external constraint specifications
-   RooArgSet allConstraints;
-
-   if (!global_observables_tag.empty()) {
-      if (!global_observables.empty()) {
-         global_observables.removeAll();
-      }
-      std::unique_ptr<RooArgSet> allVars{pdf->getVariables()};
-      global_observables.add(
-         *std::unique_ptr<RooArgSet>{allVars->selectByAttrib(global_observables_tag.c_str(), true)});
-      oocoutI(nullptr, Minimization) << "User-defined specification of global observables definition with tag named '"
-                                     << global_observables_tag << "'" << std::endl;
-   } else if (global_observables.empty()) {
-      // neither global_observables nor global_observables_tag was given - try if a default tag is defined in the head
-      // node
-      const char *defGlobObsTag = pdf->getStringAttribute("DefaultGlobalObservablesTag");
-      if (defGlobObsTag) {
-         oocoutI(nullptr, Minimization)
-            << "p.d.f. provides built-in specification of global observables definition with tag named '"
-            << defGlobObsTag << "'" << std::endl;
-         std::unique_ptr<RooArgSet> allVars{pdf->getVariables()};
-         global_observables.add(*std::unique_ptr<RooArgSet>{allVars->selectByAttrib(defGlobObsTag, true)});
-      }
-   }
-
-   // EGP: removed workspace (RooAbsPdf::_myws) based stuff for now; TODO: reconnect this class to workspaces
-
-   if (!constrained_parameters.empty()) {
-      std::unique_ptr<RooArgSet> constraints{
-         pdf->getAllConstraints(*data->get(), constrained_parameters, doStripDisconnected)};
-      allConstraints.add(*constraints);
-   }
-   if (!external_constraints.empty()) {
-      allConstraints.add(external_constraints);
-   }
-
-   return allConstraints;
-}
-
 /*
- * \brief Extract a collection of subsidiary likelihoods from a pdf
+ * \brief Build the subsidiary likelihood from the constraint terms
  *
  * \param[in] pdf Raw pointer to the pdf
  * \param[in] data Raw pointer to the dataset
- * \param[in] constrained_parameters Set of parameters that are constrained. Pdf components dependent on these alone are
- * added to the subsidiary likelihood.
- * \param[in] external_constraints Set of external constraint pdfs, i.e. constraints
- * not necessarily in the pdf itself. These are always added to the subsidiary likelihood.
+ * \param[in] constraints Set of constraint pdfs. Constraint terms are no
+ * part of the pdf, so this is the only way to add them to the likelihood.
  * \param[in] global_observables
- * Observables that have a constant value, independent of the dataset events. Pdf components dependent on these alone
- * are added to the subsidiary likelihood. \note Overrides all other likelihood parameters (like those in \p
- * constrained_parameters) if present.
- * \param[in] global_observables_tag String that can be set as attribute in pdf
- * components to indicate that it is a global observable. Can be used instead of or in addition to \p
- * global_observables.
- * \return A unique pointer to a RooSubsidiaryL that contains all terms in the pdf that can be
- * calculated separately from the other components in the full likelihood.
+ * Observables that have a constant value, independent of the dataset events. They are the normalization set of the
+ * constraint terms. If empty, the constraint terms are normalized over the parameters of the pdf.
+ * \param[in] global_observables_tag String that can be set as attribute in the variables of the constraint terms
+ * to indicate that it is a global observable. Can be used instead of \p global_observables.
+ * \return A unique pointer to a RooSubsidiaryL with all constraint terms, or a nullptr if there are none.
  */
-std::unique_ptr<RooSubsidiaryL> buildSubsidiaryL(RooAbsPdf *pdf, RooAbsData *data, RooArgSet constrained_parameters,
-                                                 RooArgSet const &external_constraints, RooArgSet global_observables,
+std::unique_ptr<RooSubsidiaryL> buildSubsidiaryL(RooAbsPdf *pdf, RooAbsData *data, RooArgSet const &constraints,
+                                                 RooArgSet global_observables,
                                                  std::string const &global_observables_tag)
 {
-   auto allConstraints = getConstraintsSet(pdf, data, constrained_parameters, external_constraints, global_observables,
-                                           global_observables_tag);
-
-   std::unique_ptr<RooSubsidiaryL> subsidiary_likelihood;
-   // Include constraints, if any, in likelihood
-   if (!allConstraints.empty()) {
-
-      oocoutI(nullptr, Minimization) << " Including the following constraint terms in minimization: " << allConstraints
-                                     << std::endl;
-      if (!global_observables.empty()) {
-         oocoutI(nullptr, Minimization) << "The following global observables have been defined: " << global_observables
-                                        << std::endl;
-      }
-      std::string name("likelihood for pdf ");
-      name += pdf->GetName();
-      subsidiary_likelihood = std::make_unique<RooSubsidiaryL>(
-         name, allConstraints, (!global_observables.empty()) ? global_observables : constrained_parameters);
+   if (constraints.empty()) {
+      return nullptr;
    }
 
-   return subsidiary_likelihood;
+   std::string tag = global_observables_tag;
+   if (!tag.empty()) {
+      oocoutI(nullptr, Minimization) << "User-defined specification of global observables definition with tag named '"
+                                     << tag << "'" << std::endl;
+   } else if (global_observables.empty()) {
+      // neither global_observables nor global_observables_tag was given - try if a default tag is defined in the head
+      // node
+      if (const char *defGlobObsTag = pdf->getStringAttribute("DefaultGlobalObservablesTag")) {
+         oocoutI(nullptr, Minimization)
+            << "p.d.f. provides built-in specification of global observables definition with tag named '"
+            << defGlobObsTag << "'" << std::endl;
+         tag = defGlobObsTag;
+      }
+   }
+   if (!tag.empty()) {
+      // The global observables are variables of the constraint terms, which are not part of the pdf.
+      global_observables.removeAll();
+      RooArgSet allVars;
+      for (RooAbsArg *constraint : constraints) {
+         RooArgSet constraintVars;
+         constraint->getParameters(nullptr, constraintVars);
+         allVars.add(constraintVars, /*silent=*/true);
+      }
+      global_observables.add(*std::unique_ptr<RooArgSet>{allVars.selectByAttrib(tag.c_str(), true)});
+   }
+
+   oocoutI(nullptr, Minimization) << " Including the following constraint terms in minimization: " << constraints
+                                  << std::endl;
+   RooArgSet pdfParams;
+   if (!global_observables.empty()) {
+      oocoutI(nullptr, Minimization) << "The following global observables have been defined: " << global_observables
+                                     << std::endl;
+   } else {
+      pdf->getParameters(data->get(), pdfParams, false);
+   }
+   std::string name("likelihood for pdf ");
+   name += pdf->GetName();
+   return std::make_unique<RooSubsidiaryL>(name, constraints,
+                                           (!global_observables.empty()) ? global_observables : pdfParams);
 }
 
 /// Get the binned part of a pdf
 ///
 /// \param pdf Raw pointer to the pdf
 /// \return A pdf is binned if it has attribute "BinnedLikelihood" and it is a RooRealSumPdf (or derived class).
-///         If \p pdf itself is binned, it will be returned. If the pdf is a RooProdPdf (or derived), the product terms
-///         will be searched for a binned component and the first such term that is found will be returned. Note that
-///         the simultaneous pdf setup is such that it is assumed that only one component is binned, so this should
-///         always return the correct binned component. If no binned component is found, nullptr is returned.
+///         In this case \p pdf itself is returned, otherwise a nullptr.
 RooAbsPdf *getBinnedPdf(RooAbsPdf *pdf)
 {
-   RooAbsPdf *binnedPdf = nullptr;
    if (pdf->getAttribute("BinnedLikelihood") && pdf->IsA()->InheritsFrom(RooRealSumPdf::Class())) {
-      // Simplest case: top-level of pdf is a RRSP
-      binnedPdf = pdf;
-   } else if (pdf->IsA()->InheritsFrom(RooProdPdf::Class())) {
-      // Default case: top-level pdf is a product of RRSP and other pdfs
-      for (const auto component : (static_cast<RooProdPdf *>(pdf))->pdfList()) {
-         if (component->getAttribute("BinnedLikelihood") && component->IsA()->InheritsFrom(RooRealSumPdf::Class())) {
-            binnedPdf = static_cast<RooAbsPdf *>(component);
-            break;
-         }
-      }
+      return pdf;
    }
-   return binnedPdf;
+   return nullptr;
 }
 
 } // namespace
@@ -260,34 +197,16 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
          ooccoutI(nullptr, Fitting) << "getSimultaneousComponents: creating slave calculator #" << n << " for state "
                                     << catName << " (" << dset->numEntries() << " dataset entries)" << std::endl;
 
-         RooAbsPdf *binnedPdf = getBinnedPdf(component_pdf);
-         bool binnedL = (binnedPdf != nullptr);
-         if (binnedPdf == nullptr && component_pdf->IsA()->InheritsFrom(RooProdPdf::Class())) {
-            // Default case: top-level pdf is a product of RRSP and other pdfs
-            for (const auto component : (static_cast<RooProdPdf *>(component_pdf))->pdfList()) {
-               if (component->getAttribute("MAIN_MEASUREMENT")) {
-                  // not really a binned pdf, but this prevents a (potentially) long list of subsidiary measurements to
-                  // be passed to the slave calculator
-                  binnedPdf = static_cast<RooAbsPdf *>(component);
-                  break;
-               }
-            }
-         }
-         // Below here directly pass binnedPdf instead of PROD(binnedPdf,constraints) as constraints are evaluated
-         // elsewhere anyway and omitting them reduces model complexity and associated handling/cloning times
-         if (binnedL) {
-            components.push_back(std::make_unique<RooBinnedL>((binnedPdf ? binnedPdf : component_pdf), dset));
+         if (getBinnedPdf(component_pdf)) {
+            components.push_back(std::make_unique<RooBinnedL>(component_pdf, dset));
          } else {
-            components.push_back(
-               std::make_unique<RooUnbinnedL>((binnedPdf ? binnedPdf : component_pdf), dset, _extended, _evalBackend));
+            components.push_back(std::make_unique<RooUnbinnedL>(component_pdf, dset, _extended, _evalBackend));
          }
-         //         }
          components.back()->setSimCount(N_components);
 
          // Servers may have been redirected between instantiation and (deferred) initialization
 
-         std::unique_ptr<RooArgSet> actualParams{binnedPdf ? binnedPdf->getParameters(dset)
-                                                           : component_pdf->getParameters(dset)};
+         std::unique_ptr<RooArgSet> actualParams{component_pdf->getParameters(dset)};
          RooArgSet params;
          _pdf.getParameters(_data.get(), params);
          RooArgSet selTargetParams;
@@ -295,7 +214,7 @@ std::vector<std::unique_ptr<RooAbsL>> NLLFactory::getSimultaneousComponents()
 
          // Sanity check that the parameters of the component likelihood are among the parameters that the component
          // pdf has in common with the full model. With a non-legacy evaluation backend, the component pdf is
-         // additionally "compiled" for the dataset, which can move constant constraint factors out of the pdf (see
+         // additionally "compiled" for the dataset, which can drop factors that cancel in the normalization (see
          // RooProdPdf::compileForNormSet and RooFixedProdPdf). The component likelihood can then legitimately report
          // fewer parameters than the original component pdf, so only containment can be asserted, not set equality.
          assert([&] {
@@ -354,8 +273,7 @@ std::unique_ptr<RooAbsL> NLLFactory::build()
       likelihood = std::make_unique<RooUnbinnedL>(&_pdf, &_data, _extended, _evalBackend);
    }
 
-   auto subsidiary = buildSubsidiaryL(&_pdf, &_data, _constrainedParameters, _externalConstraints, _globalObservables,
-                                      _globalObservablesTag);
+   auto subsidiary = buildSubsidiaryL(&_pdf, &_data, _externalConstraints, _globalObservables, _globalObservablesTag);
    if (subsidiary) {
       if (likelihood) {
          components.push_back(std::move(likelihood));
@@ -377,18 +295,9 @@ NLLFactory &NLLFactory::Extended(RooAbsL::Extended extended)
    return *this;
 }
 
-/// \param[in] constrainedParameters Set of parameters that are constrained.
-///            Pdf components dependent on these alone are added to the
-///            subsidiary likelihood.
-NLLFactory &NLLFactory::ConstrainedParameters(const RooArgSet &constrainedParameters)
-{
-   _constrainedParameters.add(constrainedParameters);
-   return *this;
-}
-
-/// \param[in] externalConstraints Set of external constraint pdfs, i.e.
-///            constraints not necessarily in the pdf itself. These are always
-///            added to the subsidiary likelihood.
+/// \param[in] externalConstraints Set of constraint pdfs. Constraint terms
+///            are no part of the pdf, so this is the only way to add them to
+///            the subsidiary likelihood.
 NLLFactory &NLLFactory::ExternalConstraints(const RooArgSet &externalConstraints)
 {
    _externalConstraints.add(externalConstraints);
@@ -396,10 +305,8 @@ NLLFactory &NLLFactory::ExternalConstraints(const RooArgSet &externalConstraints
 }
 
 /// \param[in] globalObservables Observables that have a constant value,
-///            independent of the dataset events. Pdf components dependent on
-///            these alone are added to the subsidiary likelihood.
-///            \note Overrides all other likelihood parameters (like those in
-///            NLLFactory::ConstrainedParameters()) if present.
+///            independent of the dataset events. They are the normalization
+///            set of the constraint terms.
 NLLFactory &NLLFactory::GlobalObservables(const RooArgSet &globalObservables)
 {
    _globalObservables.add(globalObservables);
@@ -407,8 +314,8 @@ NLLFactory &NLLFactory::GlobalObservables(const RooArgSet &globalObservables)
 }
 
 /// \param[in] globalObservablesTag String that can be set as attribute in
-///            pdf components to indicate that it is a global observable. Can
-///            be used instead of or in addition to
+///            the variables of the constraint terms to indicate that it is a
+///            global observable. Can be used instead of
 ///            NLLFactory::GlobalObservables().
 NLLFactory &NLLFactory::GlobalObservablesTag(const char *globalObservablesTag)
 {

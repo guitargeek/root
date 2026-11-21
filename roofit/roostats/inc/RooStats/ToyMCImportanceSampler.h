@@ -78,7 +78,7 @@ class ToyMCImportanceSampler: public ToyMCSampler {
          fImpNLLs.push_back( nullptr );
       }
 
-      /// The pdf can be nullptr in which case the density from SetPdf()
+      /// The pdf can be nullptr in which case the density from SetModel()
       /// is used. The snapshot and TestStatistic is also optional.
       void AddNullDensity(RooAbsPdf* p, const RooArgSet* s = nullptr) {
          if( p == nullptr && s == nullptr ) {
@@ -96,14 +96,15 @@ class ToyMCImportanceSampler: public ToyMCSampler {
          ClearCache();
       }
       /// overwrite from ToyMCSampler
-      void SetPdf(RooAbsPdf& pdf) override {
-         ToyMCSampler::SetPdf(pdf);
+      void SetModel(const ModelConfig& model) override {
+         ToyMCSampler::SetModel(model);
+         RooAbsPdf& pdf = *model.GetPdf();
 
          if( fNullDensities.size() == 1 ) { fNullDensities[0] = &pdf;
          } else if (fNullDensities.empty()) {
             AddNullDensity(&pdf);
          } else {
-            oocoutE(nullptr,InputArguments) << "Cannot use SetPdf() when already multiple null densities are specified. Please use AddNullDensity()." << std::endl;
+            oocoutE(nullptr,InputArguments) << "Cannot use SetModel() when already multiple null densities are specified. Please use AddNullDensity()." << std::endl;
          }
       }
       /// overwrite from ToyMCSampler

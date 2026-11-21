@@ -126,7 +126,7 @@ RooFit::OwningPtr<RooAbsReal>  ProfileLikelihoodCalculator::DoGlobalFit() const 
    RemoveConstantParameters(&*constrainedParams);
 
    const auto& config = GetGlobalRooStatsConfig();
-   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data, CloneData(true), Constrain(*constrainedParams),ConditionalObservables(fConditionalObs), GlobalObservables(fGlobalObs),
+   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data, CloneData(true), ExternalConstraints(fExternalConstraints),ConditionalObservables(fConditionalObs), GlobalObservables(fGlobalObs),
        RooFit::Offset(config.useLikelihoodOffset) )};
 
    // check if global fit has been already done
@@ -215,12 +215,6 @@ LikelihoodInterval* ProfileLikelihoodCalculator::GetInterval() const {
    std::unique_ptr<RooArgSet> constrainedParams{pdf->getParameters(*data)};
    RemoveConstantParameters(&*constrainedParams);
 
-
-   /*
-   RooNLLVar* nll = new RooNLLVar("nll","",*pdf,*data, Extended(),Constrain(*constrainedParams));
-   RooProfileLL* profile = new RooProfileLL("pll","",*nll, *fPOI);
-   profile->addOwnedComponents(*nll) ;  // to avoid memory leak
-   */
 
    // do a global fit cloning the data
    std::unique_ptr<RooAbsReal> nll{DoGlobalFit()};

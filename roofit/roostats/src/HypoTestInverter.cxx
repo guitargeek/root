@@ -1114,7 +1114,7 @@ SamplingDistribution * HypoTestInverter::RebuildDistributions(bool isUpper, int 
    if (dynamic_cast<RooStats::AsymptoticCalculator*>(fCalculator0) ) {
       toymcSampler->SetObservables(*sbModel->GetObservables() );
       toymcSampler->SetParametersForTestStat(*sbModel->GetParametersOfInterest());
-      toymcSampler->SetPdf(*sbModel->GetPdf());
+      toymcSampler->SetModel(*sbModel);
       toymcSampler->SetNuisanceParameters(*sbModel->GetNuisanceParameters());
       if (sbModel->GetGlobalObservables() )  toymcSampler->SetGlobalObservables(*sbModel->GetGlobalObservables() );
       // set number of events
@@ -1170,7 +1170,9 @@ SamplingDistribution * HypoTestInverter::RebuildDistributions(bool isUpper, int 
    // save all parameters to restore them later
    assert(bModel->GetPdf() );
    assert(bModel->GetObservables() );
-   std::unique_ptr<RooArgSet> allParams{bModel->GetPdf()->getParameters( *bModel->GetObservables() )};
+   // the parameters of the model include the global observables, which are no
+   // parameters of its pdf
+   std::unique_ptr<RooArgSet> allParams{bModel->getParameters( *bModel->GetObservables() )};
    RooArgSet saveParams;
    allParams->snapshot(saveParams);
 
@@ -1212,9 +1214,9 @@ SamplingDistribution * HypoTestInverter::RebuildDistributions(bool isUpper, int 
         allParams->assign(saveParams);
       }
 
-      // need to set th epdf to clear the cache in ToyMCSampler
-      // pdf we must use is background pdf
-      toymcSampler->SetPdf(*bModel->GetPdf() );
+      // need to set the model to clear the cache in ToyMCSampler
+      // model we must use is background model
+      toymcSampler->SetModel(*bModel);
 
 
       RooAbsData * bkgdata = toymcSampler->GenerateToyData(paramPoint);
@@ -1237,9 +1239,11 @@ SamplingDistribution * HypoTestInverter::RebuildDistributions(bool isUpper, int 
       inverter.SetData(*bkgdata);
 
       // print global observables
-      std::unique_ptr<RooArgSet> bModelVars{bModel->GetPdf()->getVariables()};
-      std::unique_ptr<RooAbsCollection> gobs{bModelVars->selectCommon(*sbModel->GetGlobalObservables())};
-      gobs->Print("v");
+      if (sbModel->GetGlobalObservables()) {
+         std::unique_ptr<RooArgSet> bModelVars{bModel->getVariables()};
+         std::unique_ptr<RooAbsCollection> gobs{bModelVars->selectCommon(*sbModel->GetGlobalObservables())};
+         gobs->Print("v");
+      }
 
       HypoTestInverterResult * r  = inverter.GetInterval();
 

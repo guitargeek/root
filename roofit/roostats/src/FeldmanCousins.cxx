@@ -108,14 +108,14 @@ TestStatSampler*  FeldmanCousins::GetTestStatSampler() const{
 
 void FeldmanCousins::CreateTestStatSampler() const{
   // use the profile likelihood ratio as the test statistic
-  ProfileLikelihoodTestStat* testStatistic = new ProfileLikelihoodTestStat(*fModel.GetPdf());
+  ProfileLikelihoodTestStat* testStatistic = new ProfileLikelihoodTestStat(fModel);
 
   // create the ToyMC test statistic sampler
   fTestStatSampler = new ToyMCSampler(*testStatistic,int(fAdditionalNToysFactor*50./fSize)) ;
   fTestStatSampler->SetParametersForTestStat(*fModel.GetParametersOfInterest() );
   if(fModel.GetObservables())
     fTestStatSampler->SetObservables(*fModel.GetObservables());
-  fTestStatSampler->SetPdf(*fModel.GetPdf());
+  fTestStatSampler->SetModel(fModel);
 
   if(!fAdaptiveSampling){
     ooccoutP(&fModel,Generation) << "FeldmanCousins: ntoys per point = " << (int) (fAdditionalNToysFactor*50./fSize) << std::endl;
@@ -170,7 +170,7 @@ void FeldmanCousins::CreateParameterPoints() const{
     // make profile construction
     RooFit::MsgLevel previous  = RooMsgService::instance().globalKillBelow();
     RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL) ;
-    std::unique_ptr<RooAbsReal> nll{pdf->createNLL(fData,RooFit::CloneData(false))};
+    std::unique_ptr<RooAbsReal> nll{fModel.createNLL(fData,RooFit::CloneData(false))};
     std::unique_ptr<RooAbsReal> profile{nll->createProfile(*fModel.GetParametersOfInterest())};
 
     RooDataSet* profileConstructionPoints = new RooDataSet("profileConstruction",

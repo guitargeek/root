@@ -57,8 +57,7 @@ void buildHistFactoryDist(RooJSONFactoryWSTool &tool, std::string const &name, H
 
 /// Create the RooSimultaneous of a combined distribution in the workspace of the tool. The other terms of the
 /// likelihoods that have the distribution are the candidates for the constraint terms of its components.
-void buildCombinedDist(RooJSONFactoryWSTool &tool, std::string const &name, CombinedDist const &dist,
-                       std::vector<std::string> const &otherLikelihoodTerms = {});
+void buildCombinedDist(RooJSONFactoryWSTool &tool, std::string const &name, CombinedDist const &dist);
 
 /// Called by the exporter of a HistFactory distribution, which is then written by the tool. The constraint terms that
 /// no modifier names are passed separately.

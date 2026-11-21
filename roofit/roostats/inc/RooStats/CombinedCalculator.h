@@ -115,6 +115,7 @@ in a common way for several concrete calculators.
          if (model.GetNuisanceParameters()) SetNuisanceParameters(*model.GetNuisanceParameters());
          if (model.GetConditionalObservables()) SetConditionalObservables(*model.GetConditionalObservables());
          if (model.GetGlobalObservables()) SetGlobalObservables(*model.GetGlobalObservables());
+         if (model.GetExternalConstraints()) SetExternalConstraints(*model.GetExternalConstraints());
       }
 
       void SetNullModel( const ModelConfig &) override {  // to be understood what to do
@@ -145,6 +146,11 @@ in a common way for several concrete calculators.
        /// set global observables needed for computing the NLL
       virtual void SetGlobalObservables(const RooArgSet& set) {fGlobalObs.removeAll(); fGlobalObs.add(set);}
 
+      /// set the constraint terms to include in the NLL. They are no part of
+      /// the pdf, so a calculator that is constructed from a pdf and not from
+      /// a ModelConfig has no constraint terms unless they are set here.
+      virtual void SetExternalConstraints(const RooArgSet& set) {fExternalConstraints.removeAll(); fExternalConstraints.add(set);}
+
 
    protected:
 
@@ -161,9 +167,10 @@ in a common way for several concrete calculators.
       RooArgSet fNuisParams;      ///< RooArgSet specifying nuisance parameters for interval
       RooArgSet fConditionalObs;  ///< RooArgSet specifying the conditional observables
       RooArgSet fGlobalObs;       ///< RooArgSet specifying the global observables
+      RooArgSet fExternalConstraints; ///< RooArgSet specifying the constraint terms
 
 
-      ClassDefOverride(CombinedCalculator,2) // A base class that is for tools that can be both HypoTestCalculators and IntervalCalculators
+      ClassDefOverride(CombinedCalculator,3) // A base class that is for tools that can be both HypoTestCalculators and IntervalCalculators
 
    };
 }

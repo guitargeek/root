@@ -748,7 +748,9 @@ TEST_P(OffsetBinTest, CrossCheck)
 }
 
 // Verify that the binned likelihood optimization works also when fitting a
-// single-channel RooRealSumPdf or RooProdPdf.
+// single-channel RooRealSumPdf or a RooProdPdf of only this RooRealSumPdf, and
+// that it is not used for a RooRealSumPdf that is only one of the components
+// of another pdf.
 TEST_P(TestStatisticTest, BinnedLikelihood)
 {
    using namespace RooFit;
@@ -778,11 +780,15 @@ TEST_P(TestStatisticTest, BinnedLikelihood)
       // (like in HistFactory).
       pdf.setAttribute("BinnedLikelihood");
 
-      // Wrap the channel pdf in a RooProdPdf to mimic HistFactory
+      // Wrap the channel pdf in a RooProdPdf
       RooProdPdf prodPdf{"prod_pdf", "prod_pdf", pdf};
 
       ws.import(prodPdf);
    }
+
+   // A product of the channel pdf with the pdf of another variable
+   ws.factory("Gaussian::gauss_y(y[0, -10, 10], 0.0, 1.0)");
+   ws.factory("PROD::prod_xy_pdf(pdf, gauss_y)");
 
    ws.factory("SIMUL::simPdf( cat[A=0], A=pdf)");
    auto &realSumPdf = *ws.pdf("pdf");
@@ -800,11 +806,23 @@ TEST_P(TestStatisticTest, BinnedLikelihood)
    double prodNllVal = prodNll->getVal();
    double simNllVal = simNll->getVal();
 
-   // If using the RooRealSumPdf or RooProdPdf directly is successfully hitting
-   // the binned likelihood code path, the likelihood values will be identical
-   // with the one of the RooSimultaneous.
+   // If using the RooRealSumPdf directly, or the RooProdPdf of only this pdf,
+   // is successfully hitting the binned likelihood code path, the likelihood
+   // values will be identical with the one of the RooSimultaneous.
    EXPECT_DOUBLE_EQ(realSumNllVal, simNllVal);
    EXPECT_DOUBLE_EQ(prodNllVal, simNllVal);
+
+   // The binned likelihood is only valid if the likelihood is built from the
+   // values of the RooRealSumPdf itself. As one of the factors of a RooProdPdf,
+   // it is a pdf like any other, and the likelihood is the same as without the
+   // "BinnedLikelihood" attribute.
+   std::unique_ptr<RooAbsReal> prodXYNll{ws.pdf("prod_xy_pdf")->createNLL(*data, _evalBackend)};
+   const double prodXYNllVal = prodXYNll->getVal();
+   realSumPdf.setAttribute("BinnedLikelihood", false);
+   std::unique_ptr<RooAbsReal> noBinnedLikelihoodNll{realSumPdf.createNLL(*data, _evalBackend)};
+   const double noBinnedLikelihoodNllVal = noBinnedLikelihoodNll->getVal();
+   EXPECT_NEAR(prodXYNllVal, noBinnedLikelihoodNllVal, 1e-10 * std::abs(noBinnedLikelihoodNllVal));
+   EXPECT_NE(prodXYNllVal, simNllVal);
 }
 
 // The binned likelihood optimization takes each data entry as a bin, so the
@@ -1018,57 +1036,40 @@ TEST(NLL, SetData)
    EXPECT_DOUBLE_EQ(valSimB, valSimA + 0.5);
 }
 
-// In some frameworks like CMS combine, all constraints are contained in a
-// single RooProdPdf, even if the constrained parameters are not used in this
-// pdf. The RooFit logic to figure out constrained parameters should however
-// now be confused by this, and not strip away these parameters from the list
-// of constrained parameters.
+// A constraint term is no part of the pdf: a factor of a RooProdPdf that
+// doesn't depend on the observables cancels in the normalization of the pdf.
+// Creating the likelihood must not silently leave the parameter
+// unconstrained, but tell the user to pass the constraint term separately.
 
-TEST(CreateNLL, CombineStyleConstraints)
+TEST(CreateNLL, ConstraintInProductThrows)
 {
-   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
+   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::FATAL);
 
    RooWorkspace ws;
-   ws.factory("Gaussian::g_main_1(x_1[0., -10, 10], mu_1[0., -10, 10], 1.0)");
-   ws.factory("Gaussian::g_main_2(x_2[0., -10, 10], mu_2[0., -10, 10], 1.0)");
-   ws.factory("Gaussian::g_constr_1(mu_1, 0.0, 1.0)");
-   ws.factory("Gaussian::g_constr_2(mu_2, 0.0, 1.0)");
+   ws.factory("Gaussian::g_main(x[0., -10, 10], mu[0., -10, 10], 1.0)");
+   ws.factory("Gaussian::g_constr(mu, 0.0, 1.0)");
+   ws.factory("PROD::model(g_main, g_constr)");
 
-   // The RooProdPdf model_1 will contain all the constraints, also the one
-   // that applies to g_main_1. This is the corner case that this test is
-   // covering.
-   ws.factory("PROD::model_1(g_main_1, g_constr_1, g_constr_2)");
-   ws.factory("PROD::model_2(g_main_2)");
-   ws.factory("SIMUL::model(cat[A=0, B=1], A=model_1, B=model_2)");
+   auto &x = *ws.var("x");
 
-   auto &x1 = *ws.var("x_1");
-   auto &x2 = *ws.var("x_2");
-   auto &cat = *ws.cat("cat");
-   auto &model = static_cast<RooSimultaneous &>(*ws.pdf("model"));
+   RooDataSet data{"data", "data", x};
+   data.add(x);
 
-   RooArgSet vars{x1, x2, cat};
-   RooDataSet data{"data", "data", vars};
-   cat.setIndex(0);
-   data.add(vars);
-   cat.setIndex(1);
-   data.add(vars);
+   EXPECT_THROW(ws.pdf("model")->createNLL(data), std::runtime_error);
 
-   RooArgSet parameters;
-   model.getParameters(data.get(), parameters);
-
-   model.getAllConstraints(*data.get(), parameters, true);
-
-   EXPECT_EQ(parameters.size(), 2);
-   EXPECT_EQ(parameters.find("mu_1"), ws.var("mu_1"));
-   EXPECT_EQ(parameters.find("mu_2"), ws.var("mu_2"));
-
-   // Now, try it out in the context of createNLL
-   std::unique_ptr<RooAbsReal> nll{model.createNLL(data)};
+   // Passed separately, the constraint term contributes to the likelihood once
+   std::unique_ptr<RooAbsReal> nll{ws.pdf("g_main")->createNLL(data, RooFit::ExternalConstraints(*ws.pdf("g_constr")))};
    const double proba = TMath::Gaus(0, 0, 1, true);
-   const double nChannels = model.indexCat().size();
-   //                                     main Gaussians                one constraint per channel
-   const double refNllVal = -nChannels * (std::log(proba / nChannels) + std::log(proba));
+   //                         main Gaussian     constraint
+   const double refNllVal = -(std::log(proba) + std::log(proba));
    EXPECT_FLOAT_EQ(nll->getVal(), refNllVal);
+
+   // A factor without floating parameters in common with the other factors is
+   // no constraint term, and just cancels in the normalization.
+   ws.factory("Gaussian::g_other(y[0., -10, 10], mu_y[0., -10, 10], 1.0)");
+   ws.factory("PROD::model_xy(g_main, g_other)");
+   std::unique_ptr<RooAbsReal> nllXY{ws.pdf("model_xy")->createNLL(data)};
+   EXPECT_FLOAT_EQ(nllXY->getVal(), -std::log(proba));
 }
 
 // Check that RooAbsArg::setData() works for codegen likelihoods.

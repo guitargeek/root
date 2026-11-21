@@ -36,7 +36,6 @@ namespace HistFactory{
            << sim_channel->GetName() << std::endl;
 
     // Now, get the RooRealSumPdf
-    // ie the channel WITHOUT constraints
     RooAbsPdf* sum_pdf = nullptr;
     bool FoundSumPdf=false;
     std::unique_ptr<RooArgSet> components{sim_channel->getComponents()};
@@ -63,32 +62,6 @@ namespace HistFactory{
     return sum_pdf;
 
   }
-
-
- void FactorizeHistFactoryPdf(const RooArgSet &observables, RooAbsPdf &pdf, RooArgList &obsTerms, RooArgList &constraints) {
-   // utility function to factorize constraint terms from a pdf
-   // (from G. Petrucciani)
-   const std::type_info & id = typeid(pdf);
-   if (id == typeid(RooProdPdf)) {
-      RooProdPdf *prod = dynamic_cast<RooProdPdf *>(&pdf);
-      RooArgList list(prod->pdfList());
-      for (int i = 0, n = list.size(); i < n; ++i) {
-         RooAbsPdf *pdfi = static_cast<RooAbsPdf *>(list.at(i));
-            FactorizeHistFactoryPdf(observables, *pdfi, obsTerms, constraints);
-         }
-      } else if (id == typeid(RooSimultaneous)) {    //|| id == typeid(RooSimultaneousOpt)) {
-         RooSimultaneous *sim  = dynamic_cast<RooSimultaneous *>(&pdf);
-         std::unique_ptr<RooAbsCategoryLValue> cat{static_cast<RooAbsCategoryLValue *>(sim->indexCat().Clone())};
-         for (int ic = 0, nc = cat->numBins((const char *)nullptr); ic < nc; ++ic) {
-            cat->setBin(ic);
-            FactorizeHistFactoryPdf(observables, *sim->getPdf(cat->getCurrentLabel()), obsTerms, constraints);
-         }
-      } else if (pdf.dependsOn(observables)) {
-         if (!obsTerms.contains(pdf)) obsTerms.add(pdf);
-      } else {
-         if (!constraints.contains(pdf)) constraints.add(pdf);
-      }
-   }
 
 
   bool getStatUncertaintyFromChannel( RooAbsPdf* channel, ParamHistFunc*& paramfunc, RooArgList* gammaList ) {

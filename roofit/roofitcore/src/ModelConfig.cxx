@@ -39,14 +39,29 @@ specific value. Examples:
 \f[
   \mathrm{Constraint}_b = \mathrm{Gauss}(b_0 \, | \, b, 0.2)
 \f]
-- **External constraints** Include given external constraints to likelihood by multiplying them with the original
-likelihood.
+- **External constraints** The constraint terms of the model, which are multiplied with the likelihood of the
+observables. The ModelConfig is the only place that knows about them: the pdf is the probability density of the
+observables and contains no constraint terms. The product of the constraint terms is the probability density of the
+global observables, which the RooStats tools use to sample them for toy experiments.
+
+To make sure the constraint terms are considered, the likelihood has to be created with ModelConfig::createNLL() or
+ModelConfig::fitTo(), and not with the functions of the pdf.
+
+The functions in RooFit/Constraints.h help with the constraint terms: RooFit::constraintsOf() selects the ones of a
+component of the model, like a channel, RooFit::generateGlobalObservables() samples the global observables, and
+RooFit::splitOffConstraints() converts a pdf that has its constraint terms as factors.
+RooFit::setGlobalObservablesToAsimov() in RooFit/AsimovGlobalObservables.h sets the global observables to their
+expected values.
 */
 
 #include <RooFit/ModelConfig.h>
 
+#include <RooFit/Constraints.h>
+
+#include <RooDataSet.h>
 #include <RooFitResult.h>
 #include <RooMsgService.h>
+#include <RooProdPdf.h>
 #include <RooRealVar.h>
 
 #include <sstream>
@@ -160,6 +175,10 @@ void ModelConfig::Print(Option_t *) const
       os << "Constraint Parameters:   ";
       GetConstraintParameters()->Print("");
    }
+   if (GetExternalConstraints()) {
+      os << "External Constraints:    ";
+      GetExternalConstraints()->Print("");
+   }
    if (GetConditionalObservables()) {
       os << "Conditional Observables: ";
       GetConditionalObservables()->Print("");
@@ -188,6 +207,61 @@ void ModelConfig::Print(Option_t *) const
    }
 
    os << std::endl;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Sample values of the global observables from the constraint terms of the
+/// model, whose product is the pdf of the global observables. The values of
+/// the global observables in the model are not changed: to use the sampled
+/// values, assign an entry of the returned dataset to the global observables.
+///
+/// Global observables that no constraint term depends on are not generated.
+/// Returns a `nullptr` if the model has no global observables or no constraint
+/// terms.
+
+std::unique_ptr<RooDataSet> ModelConfig::generateGlobalObservables(int nEvents) const
+{
+   const RooArgSet *globalObservables = GetGlobalObservables();
+   const RooArgSet *constraints = GetExternalConstraints();
+   if (!globalObservables || !constraints) {
+      return nullptr;
+   }
+   return RooFit::generateGlobalObservables(*constraints, *globalObservables, nEvents);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Get all variables of the model: the ones of the pdf and the ones of the
+/// constraint terms, which are no part of the pdf. This includes the
+/// observables and the global observables.
+
+std::unique_ptr<RooArgSet> ModelConfig::getVariables() const
+{
+   auto vars = std::make_unique<RooArgSet>();
+   if (RooAbsPdf *pdf = GetPdf()) {
+      pdf->getParameters(nullptr, *vars);
+   }
+   if (const RooArgSet *constraints = GetExternalConstraints()) {
+      for (RooAbsArg *constraint : *constraints) {
+         RooArgSet constraintVars;
+         constraint->getParameters(nullptr, constraintVars);
+         vars->add(constraintVars, /*silent=*/true);
+      }
+   }
+   return vars;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Get all parameters of the model: the variables of the pdf and of the
+/// constraint terms (see getVariables()) that are not in the set of
+/// observables, where the variables are matched by name. Like for
+/// RooAbsArg::getParameters(), the global observables are among the parameters
+/// if they are no observables in the set.
+
+std::unique_ptr<RooArgSet> ModelConfig::getParameters(const RooArgSet &observables) const
+{
+   std::unique_ptr<RooArgSet> params = getVariables();
+   params->remove(observables, /*silent=*/true, /*matchByNameOnly=*/true);
+   return params;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

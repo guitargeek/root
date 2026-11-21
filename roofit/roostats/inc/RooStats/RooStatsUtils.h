@@ -106,16 +106,12 @@ namespace RooStats {
 
    }
 
-   void FactorizePdf(const RooArgSet &observables, RooAbsPdf &pdf, RooArgList &obsTerms, RooArgList &constraints);
-
-   void FactorizePdf(RooStats::ModelConfig &model, RooAbsPdf &pdf, RooArgList &obsTerms, RooArgList &constraints);
-
-   /// extract constraint terms from pdf
-   RooAbsPdf * MakeNuisancePdf(RooAbsPdf &pdf, const RooArgSet &observables, const char *name);
+   /// Create the product of the constraint terms of the model (see
+   /// ModelConfig::GetExternalConstraints()), which is the pdf of the global
+   /// observables, or the pdf of the nuisance parameters if it is used as
+   /// their prior. Returns a nullptr if the model has no constraint terms.
+   /// The caller owns the returned pdf.
    RooAbsPdf * MakeNuisancePdf(const RooStats::ModelConfig &model, const char *name);
-   /// remove constraints from pdf and return the unconstrained pdf
-   RooAbsPdf * MakeUnconstrainedPdf(RooAbsPdf &pdf, const RooArgSet &observables, const char *name = nullptr);
-   RooAbsPdf * MakeUnconstrainedPdf(const RooStats::ModelConfig &model, const char *name = nullptr);
 
    /// Create a TTree with the given name and description. All RooRealVars in the RooDataSet are represented as branches that contain values of type double.
    TTree* GetAsTTree(TString name, TString desc, const RooDataSet& data);

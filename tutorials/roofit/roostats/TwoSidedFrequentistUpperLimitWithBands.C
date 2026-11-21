@@ -266,7 +266,8 @@ void TwoSidedFrequentistUpperLimitWithBands(const char *infile = "", const char 
    // Now we generate the expected bands and power-constraint
 
    // First: find parameter point for mu=0, with conditional MLEs for nuisance parameters
-   std::unique_ptr<RooAbsReal> nll{mc->GetPdf()->createNLL(*data)};
+   // ModelConfig::createNLL() includes the constraint terms of the model
+   std::unique_ptr<RooAbsReal> nll{mc->createNLL(*data)};
    std::unique_ptr<RooAbsReal> profile{nll->createProfile(*mc->GetParametersOfInterest())};
    firstPOI->setVal(0.);
    profile->getVal(); // this will do fit and set nuisance parameters to profiled values
@@ -309,10 +310,11 @@ void TwoSidedFrequentistUpperLimitWithBands(const char *infile = "", const char 
          toyData = std::unique_ptr<RooDataSet>{mc->GetPdf()->generate(*mc->GetObservables(), Extended())};
       }
 
-      // generate global observables
-      std::unique_ptr<RooDataSet> one{mc->GetPdf()->generateSimGlobal(*mc->GetGlobalObservables(), 1)};
+      // generate global observables from the constraint terms of the model,
+      // which are no part of its pdf
+      std::unique_ptr<RooDataSet> one{mc->generateGlobalObservables(1)};
       const RooArgSet *values = one->get();
-      std::unique_ptr<RooArgSet> allVars{mc->GetPdf()->getVariables()};
+      std::unique_ptr<RooArgSet> allVars{mc->getVariables()};
       allVars->assign(*values);
 
       // get test stat at observed UL in observed data

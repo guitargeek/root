@@ -8,6 +8,7 @@
 
 ROOT_ADD_GTEST(testRooFit
     stabilityTests.cxx
+    testAsimovGlobalObservables.cxx
     testRooBernstein.cxx
     testRooBifurGauss.cxx
     testRooCrystalBall.cxx

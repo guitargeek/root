@@ -147,6 +147,18 @@ public:
 
 xRooNLLVar::~xRooNLLVar() {}
 
+namespace {
+
+// The constraint terms that the likelihood is built with. They are no part of the pdf: they are passed to the
+// likelihood with the ExternalConstraints option.
+const RooArgSet *externalConstraints(RooLinkedList const *opts)
+{
+   auto extCon = opts ? dynamic_cast<RooCmdArg *>(opts->find("ExternalConstraints")) : nullptr;
+   return extCon ? extCon->getSet(0) : nullptr;
+}
+
+} // namespace
+
 xRooNLLVar::xRooNLLVar(RooAbsPdf &pdf, const std::pair<RooAbsData *, const RooAbsCollection *> &data,
                        const RooLinkedList &nllOpts)
    : xRooNLLVar(std::shared_ptr<RooAbsPdf>(&pdf, [](RooAbsPdf *) {}),
@@ -195,10 +207,11 @@ xRooNLLVar::xRooNLLVar(const std::shared_ptr<RooAbsPdf> &pdf,
    }
    if (fGlobs) {
       // add global observables opt with function obs
+      // the global observables are variables of the constraint terms, which are no part of the pdf
       auto _vars = std::unique_ptr<RooArgSet>(fPdf->getVariables());
-      if (auto extCon = dynamic_cast<RooCmdArg *>(fOpts->find("ExternalConstraints"))) {
-         for (auto con : *extCon->getSet(0)) {
-            _vars->add(*std::unique_ptr<RooArgSet>(con->getVariables()));
+      if (auto constraints = externalConstraints(fOpts.get())) {
+         for (auto con : *constraints) {
+            _vars->add(*std::unique_ptr<RooArgSet>(con->getVariables()), true);
          }
       }
       auto _funcGlobs = std::unique_ptr<RooArgSet>(dynamic_cast<RooArgSet *>(_vars->selectCommon(*fGlobs)));
@@ -490,11 +503,19 @@ xRooNLLVar::generate(bool expected, int seed)
    fr->setFinalParList(RooArgList());
    RooArgList l;
    l.add((fFuncVars) ? *fFuncVars : *std::unique_ptr<RooAbsCollection>(fPdf->getParameters(*fData)));
+   if (!fFuncVars) {
+      // the variables of the constraint terms are no variables of the pdf
+      if (auto constraints = externalConstraints(fOpts.get())) {
+         for (auto con : *constraints) {
+            l.add(*std::unique_ptr<RooAbsCollection>(con->getParameters(*fData)), true);
+         }
+      }
+   }
    fr->setConstParList(l);
    const_cast<RooArgList &>(fr->constPars()).setAttribAll("global", false);
    if (fGlobs)
       std::unique_ptr<RooAbsCollection>(fr->constPars().selectCommon(*fGlobs))->setAttribAll("global", true);
-   return xRooFit::generateFrom(*fPdf, *fr, expected, seed);
+   return xRooFit::generateFrom(*fPdf, *fr, expected, seed, externalConstraints(fOpts.get()));
 }
 
 xRooNLLVar::xRooFitResult::xRooFitResult(const RooFitResult &fr) : xRooFitResult(std::make_shared<xRooNode>(fr)) {}
@@ -1187,12 +1208,19 @@ bool xRooNLLVar::setData(const std::pair<std::shared_ptr<RooAbsData>, std::share
       if (!_dglobs)
          throw std::runtime_error("Missing globs");
       // ignore 'extra' globs
+      // the global observables are variables of the constraint terms, which are no part of the pdf
+      auto _modelVars = std::unique_ptr<RooArgSet>(fPdf->getVariables());
+      if (auto constraints = externalConstraints(fOpts.get())) {
+         for (auto con : *constraints) {
+            _modelVars->add(*std::unique_ptr<RooArgSet>(con->getVariables()), true);
+         }
+      }
       RooArgSet s;
       s.add(*fGlobs);
-      std::unique_ptr<RooAbsCollection> _actualGlobs(fPdf->getObservables(s));
+      std::unique_ptr<RooAbsCollection> _actualGlobs(_modelVars->selectCommon(s));
       RooArgSet s2;
       s2.add(*_dglobs);
-      std::unique_ptr<RooAbsCollection> _actualGlobs2(fPdf->getObservables(s2));
+      std::unique_ptr<RooAbsCollection> _actualGlobs2(_modelVars->selectCommon(s2));
       if (!_actualGlobs->equals(*_actualGlobs2)) {
          RooArgSet rC;
          rC.add(*_actualGlobs2);
@@ -1728,7 +1756,7 @@ std::pair<std::shared_ptr<RooAbsData>, std::shared_ptr<const RooAbsCollection>> 
       return fData;
    if (fGenFit && isExpected) {
       // std::cout << "Generating asimov" << std::endl;poi().Print("v");
-      fData = xRooFit::generateFrom(*nllVar->fPdf, *fGenFit, true);
+      fData = xRooFit::generateFrom(*nllVar->fPdf, *fGenFit, true, 0, externalConstraints(nllVar->fOpts.get()));
    }
    return fData;
 }
@@ -2365,7 +2393,7 @@ xRooNLLVar::xRooHypoPoint xRooNLLVar::xRooHypoPoint::generateNull(int seed)
       nllVar->reinitialize();
    //*nllVar->fFuncVars = cfit_null()->floatParsFinal();
    //*nllVar->fFuncVars = cfit_null()->constPars();
-   out.fData = xRooFit::generateFrom(*nllVar->fPdf, *_cfit, false, seed); // nllVar->generate(false,seed);
+   out.fData = xRooFit::generateFrom(*nllVar->fPdf, *_cfit, false, seed, externalConstraints(nllVar->fOpts.get()));
    out.fGenFit = _cfit;
    return out;
 }
@@ -2384,8 +2412,7 @@ xRooNLLVar::xRooHypoPoint xRooNLLVar::xRooHypoPoint::generateAlt(int seed)
       nllVar->reinitialize();
    //*nllVar->fFuncVars = cfit_alt()->floatParsFinal();
    //*nllVar->fFuncVars = cfit_alt()->constPars();
-   out.fData =
-      xRooFit::generateFrom(*nllVar->fPdf, *cfit_alt(), false, seed); // out.data = nllVar->generate(false,seed);
+   out.fData = xRooFit::generateFrom(*nllVar->fPdf, *cfit_alt(), false, seed, externalConstraints(nllVar->fOpts.get()));
    out.fGenFit = cfit_alt();
    return out;
 }

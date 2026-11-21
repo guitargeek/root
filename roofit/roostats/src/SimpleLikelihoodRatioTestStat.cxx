@@ -27,20 +27,25 @@ bool RooStats::SimpleLikelihoodRatioTestStat::fgAlwaysReuseNll = true ;
 
 void RooStats::SimpleLikelihoodRatioTestStat::SetAlwaysReuseNLL(bool flag) { fgAlwaysReuseNll = flag ; }
 
+/// Create the likelihood of the pdf of the model, without the constraint
+/// terms: they are the same for both hypotheses and cancel in the ratio.
+std::unique_ptr<RooAbsReal>
+RooStats::SimpleLikelihoodRatioTestStat::createNLL(const ModelConfig &model, RooAbsData &data)
+{
+   RooArgSet conditionalObs;
+   if (model.GetConditionalObservables()) {
+      conditionalObs.add(*model.GetConditionalObservables());
+   }
+   return std::unique_ptr<RooAbsReal>{
+      model.GetPdf()->createNLL(data, RooFit::CloneData(false), RooFit::ConditionalObservables(conditionalObs))};
+}
+
 double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooArgSet& nullPOI) {
 
    if (fFirstEval && ParamsAreEqual()) {
       oocoutW(fNullParameters,InputArguments)
          << "Same RooArgSet used for null and alternate, so you must explicitly SetNullParameters and SetAlternateParameters or the likelihood ratio will always be 1."
          << std::endl;
-   }
-
-   // strip pdfs of constraints (which cancel out in the ratio) to avoid unnecessary computations and computational errors
-   if (fFirstEval) {
-      std::unique_ptr<RooArgSet> nullObs{fNullPdf->getObservables(data)};
-      fNullPdf = RooStats::MakeUnconstrainedPdf(*fNullPdf, *nullObs);
-      std::unique_ptr<RooArgSet> altObs{fAltPdf->getObservables(data)};
-      fAltPdf = RooStats::MakeUnconstrainedPdf(*fAltPdf, *altObs);
    }
 
    fFirstEval = false;
@@ -52,9 +57,7 @@ double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooAr
 
    bool created = false ;
    if (!fNllNull) {
-      std::unique_ptr<RooArgSet> allParams{fNullPdf->getParameters(data)};
-      using namespace RooFit;
-      fNllNull = std::unique_ptr<RooAbsReal>{fNullPdf->createNLL(data, CloneData(false), Constrain(*allParams), GlobalObservables(fGlobalObs), ConditionalObservables(fConditionalObs))};
+      fNllNull = createNLL(*fNullModel, data);
       created = true ;
    }
    if (reuse && !created) {
@@ -77,9 +80,7 @@ double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooAr
 
    created = false ;
    if (!fNllAlt) {
-      std::unique_ptr<RooArgSet> allParams{fAltPdf->getParameters(data)};
-      using namespace RooFit;
-      fNllAlt = std::unique_ptr<RooAbsReal>{fAltPdf->createNLL(data, CloneData(false), Constrain(*allParams), GlobalObservables(fGlobalObs), ConditionalObservables(fConditionalObs))};
+      fNllAlt = createNLL(*fAltModel, data);
       created = true ;
    }
    if (reuse && !created) {

@@ -51,12 +51,16 @@ public:
   RooAbsReal& nll() { return const_cast<RooAbsReal&>(_nll.arg()) ; }
   void setPdf(RooAbsPdf* pdf) { _pdf = pdf; }
   void setDataset(RooAbsData* data) { _data = data; }
+  /// Set the constraint terms of the model. They are no part of the pdf, so
+  /// they have to be passed separately (see ModelConfig::GetExternalConstraints()).
+  void setConstraints(const RooArgSet& constraints) { _constraints.removeAll(); _constraints.add(constraints); }
 
 protected:
 
   RooRealProxy _nll ;    ///< Input -log(L) function
   RooAbsPdf* _pdf = nullptr;
   RooAbsData* _data = nullptr;
+  RooArgList _constraints;
   mutable std::map< std::string, std::vector< BarlowCache > > _barlowCache;
   std::set<std::string> _statUncertParams;
   mutable std::map<std::string,bool> _paramFixed ; ///< Parameter constant status at last time of use

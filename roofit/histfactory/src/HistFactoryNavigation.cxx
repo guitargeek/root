@@ -66,6 +66,12 @@ namespace RooStats {
       // Set the observables member
       fObservables = observables_in_mc;
 
+      // The constraint terms are no part of the pdf: the ModelConfig keeps
+      // them as a separate set
+      if( mc->GetExternalConstraints() ) {
+        fConstraintTerms.add(*mc->GetExternalConstraints());
+      }
+
       // Initialize the rest of the members
       _GetNodes(fModel, fObservables);
 
@@ -131,6 +137,12 @@ namespace RooStats {
 
       // Set the observables member
       fObservables = observables_in_mc;
+
+      // The constraint terms are no part of the pdf: the ModelConfig keeps
+      // them as a separate set
+      if( mc->GetExternalConstraints() ) {
+        fConstraintTerms.add(*mc->GetExternalConstraints());
+      }
 
       // Initialize the rest of the members
       _GetNodes(fModel, fObservables);
@@ -762,9 +774,13 @@ namespace RooStats {
 
       } else {
    RooArgSet* obstmp = std::unique_ptr<RooArgSet>{modelPdf->getObservables(*observables)}.release();
-   // The channel name is model_CHANNEL
+   // The channel name is CHANNEL_model
    std::string ChannelName = modelPdf->GetName();
-   ChannelName = ChannelName.replace(0, 6, "");
+   const std::string suffix = "_model";
+   if (ChannelName.size() > suffix.size() &&
+       ChannelName.compare(ChannelName.size() - suffix.size(), suffix.size(), suffix) == 0) {
+      ChannelName.erase(ChannelName.size() - suffix.size());
+   }
    fChannelNameVec.push_back(ChannelName);
    fChannelPdfMap[ChannelName] = modelPdf;
    fChannelObservMap[ChannelName] = obstmp;
@@ -784,8 +800,6 @@ namespace RooStats {
 
    // Loop over the pdf's components and find
    // the (one) that is a RooRealSumPdf
-   // Based on the mode, we assume that node is
-   // the "unconstrained" pdf node for that channel
    std::unique_ptr<RooArgSet> comps{pdf->getComponents()};
     for (auto *arg : *comps) {
       std::string ClassName = arg->ClassName();
@@ -907,8 +921,9 @@ namespace RooStats {
    ConstraintTermName = parameter + "_constraint";
       }
 
-      // Now, get the constraint itself
-      RooAbsReal* term = dynamic_cast<RooAbsReal*>(findChild(ConstraintTermName, fModel));
+      // Now, get the constraint itself. The constraint terms are no part of
+      // the model pdf, they come from the ModelConfig.
+      RooAbsReal* term = dynamic_cast<RooAbsReal*>(fConstraintTerms.find(ConstraintTermName.c_str()));
 
       if( term==nullptr ) {
    std::cout << "Error: Couldn't Find constraint term for parameter: " << parameter

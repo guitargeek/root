@@ -24,6 +24,7 @@ class RooAbsPdf;
 
 namespace RooStats {
 
+   class ModelConfig;
    class SamplingDistribution;
    class TestStatistic;
 
@@ -56,8 +57,9 @@ used for coverage studies, the Neyman Construction, etc.
       /// Common Initialization
       virtual void Initialize(RooAbsArg& testStatistic, RooArgSet& paramsOfInterest, RooArgSet& nuisanceParameters) = 0;
 
-      /// Set the Pdf, add to the workspace if not already there
-      virtual void SetPdf(RooAbsPdf&) = 0;
+      /// Set the model to sample from: its pdf is the distribution of the
+      /// observables and its constraint terms the one of the global observables.
+      virtual void SetModel(const ModelConfig&) = 0;
 
       /// How to randomize the prior. Set to nullptr to deactivate randomization.
       virtual void SetPriorNuisance(RooAbsPdf*) = 0;
@@ -69,7 +71,7 @@ used for coverage studies, the Neyman Construction, etc.
       virtual void SetNuisanceParameters(const RooArgSet&) = 0;
       /// specify the observables in the dataset (needed to evaluate the test statistic)
       virtual void SetObservables(const RooArgSet& ) = 0;
-      /// specify the conditional observables
+      /// specify the global observables to sample together with the observables
       virtual void SetGlobalObservables(const RooArgSet& ) = 0;
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)

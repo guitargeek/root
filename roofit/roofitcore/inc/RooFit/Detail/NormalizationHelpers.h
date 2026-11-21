@@ -49,6 +49,12 @@ public:
    // This information is used for the binned likelihood optimization.
    void setLikelihoodMode(bool flag) { _likelihoodMode = flag; }
    bool likelihoodMode() const { return _likelihoodMode; }
+   /// Set the pdf whose values the likelihood is built from: the top-level
+   /// pdf, or the pdf of a channel of a RooSimultaneous.
+   void setLikelihoodPdf(RooAbsArg const *pdf) { _likelihoodPdf = pdf; }
+   /// Whether the likelihood is built from the values of this pdf, and not
+   /// from the ones of a pdf that it is only a component of.
+   bool isLikelihoodPdf(RooAbsArg const &pdf) const { return _likelihoodMode && _likelihoodPdf == &pdf; }
    void setBinnedLikelihoodMode(bool flag) { _binnedLikelihoodMode = flag; }
    bool binnedLikelihoodMode() const { return _binnedLikelihoodMode; }
    void setBinWidthFuncFlag(bool flag) { _binWidthFuncFlag = flag; }
@@ -65,6 +71,7 @@ private:
    std::unordered_map<RooAbsArg *, RooAbsArg *> _replacements;
 
    bool _likelihoodMode = false;
+   RooAbsArg const *_likelihoodPdf = nullptr;
    bool _binnedLikelihoodMode = false;
    bool _binWidthFuncFlag = false;
 };

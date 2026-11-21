@@ -288,7 +288,7 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
 
 
    // assign input paramPoint
-   std::unique_ptr<RooArgSet> allVars{fPdf->getVariables()};
+   std::unique_ptr<RooArgSet> allVars{GetAllVariables()};
    allVars->assign(paramPoint);
 
 
@@ -300,8 +300,9 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
    RooArgSet observables(*fObservables);
    if(fGlobalObservables  &&  !fGlobalObservables->empty()) {
       observables.remove(*fGlobalObservables);
-      // WHAT TODO FOR MANY nullptr DENSITIES?
-      GenerateGlobalObservables(*fNullDensities[0]);
+      // The global observables are generated from the constraint terms of the
+      // model, which are independent of the densities.
+      GenerateGlobalObservables();
    }
 
    // save values to restore later.
@@ -364,8 +365,9 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
 
       allVars->assign(*fNullSnapshots[i]);
       if( !fNullNLLs[i] ) {
-         std::unique_ptr<RooArgSet> allParams{fNullDensities[i]->getParameters(*data)};
-         fNullNLLs[i] = std::unique_ptr<RooAbsReal>{fNullDensities[i]->createNLL(*data, RooFit::CloneData(false), RooFit::Constrain(*allParams),
+         // The densities are pdfs of the observables and contain no constraint
+         // terms: these are the same for all densities and cancel in the weights.
+         fNullNLLs[i] = std::unique_ptr<RooAbsReal>{fNullDensities[i]->createNLL(*data, RooFit::CloneData(false),
                                                      RooFit::ConditionalObservables(fConditionalObs))};
       }else{
          fNullNLLs[i]->setData( *data, false );
@@ -391,8 +393,7 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
         allVars->assign(*fImportanceSnapshots[i]);
       }
       if( !fImpNLLs[i] ) {
-         std::unique_ptr<RooArgSet> allParams{fImportanceDensities[i]->getParameters(*data)};
-         fImpNLLs[i] = std::unique_ptr<RooAbsReal>{fImportanceDensities[i]->createNLL(*data, RooFit::CloneData(false), RooFit::Constrain(*allParams),
+         fImpNLLs[i] = std::unique_ptr<RooAbsReal>{fImportanceDensities[i]->createNLL(*data, RooFit::CloneData(false),
                                                           RooFit::ConditionalObservables(fConditionalObs))};
       }else{
          fImpNLLs[i]->setData( *data, false );

@@ -849,11 +849,15 @@ double RooAbsPdf::extendedTerm(RooAbsData const& data, bool weightSquared, bool 
  * myVariable.setRange("range_pi0", 135, 210);
  * myVariable.setRange("range_gamma", 50, 210);
  * ```
- * <tr><td> `Constrain(const RooArgSet&pars)`          <td> For p.d.f.s that contain internal parameter constraint terms (that is usually product PDFs, where one
- *     term of the product depends on parameters but not on the observable(s),), only apply constraints to the given subset of parameters.
- * <tr><td> `ExternalConstraints(const RooArgSet& )`   <td> Include given external constraints to likelihood by multiplying them with the original likelihood.
+ * <tr><td> `ExternalConstraints(const RooArgSet& )`   <td> Include given constraint terms to likelihood by multiplying them with the original likelihood.
+ *                                                        This is the only way to constrain parameters: a constraint term is no part of the pdf, because the pdf is the
+ *                                                        probability density of the observables for one event, while a constraint term multiplies the likelihood once.
+ *                                                        A factor of a RooProdPdf that doesn't depend on the observables cancels in the normalization, and
+ *                                                        creating the likelihood throws an exception if such a factor shares floating parameters with the other factors.
+ *                                                        The recommended way to keep a pdf together with its constraint terms and global observables
+ *                                                        is the RooFit::ModelConfig, which passes them on in ModelConfig::createNLL() and ModelConfig::fitTo().
  * <tr><td> `GlobalObservables(const RooArgSet&)`      <td> Define the set of normalization observables to be used for the constraint terms.
- *                                                        If none are specified the constrained parameters are used.
+ *                                                        If none are specified the parameters of the pdf are used.
  * <tr><td> `GlobalObservablesSource(const char* sourceName)` <td> Which source to prioritize for global observable values.
  *                                                                 Can be either:
  *                                                                 - `data`: to take the values from the dataset,
@@ -1758,14 +1762,6 @@ RooFit::OwningPtr<RooDataHist> RooAbsPdf::generateBinned(const RooArgSet &whatVa
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-/// Special generator interface for generation of 'global observables' -- for RooStats tools
-
-RooFit::OwningPtr<RooDataSet> RooAbsPdf::generateSimGlobal(const RooArgSet& whatVars, Int_t nEvents)
-{
-  return generate(whatVars,nEvents) ;
-}
-
 namespace {
 void removeRangeOverlap(std::vector<std::pair<double, double>>& ranges) {
   //Sort from left to right
@@ -2527,56 +2523,6 @@ RooFit::OwningPtr<RooAbsReal> RooAbsPdf::createScanCdf(const RooArgSet& iset, co
 }
 
 
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// This helper function finds and collects all constraints terms of all component p.d.f.s
-/// and returns a RooArgSet with all those terms.
-
-std::unique_ptr<RooArgSet>
-RooAbsPdf::getAllConstraints(const RooArgSet &observables, RooArgSet &constrainedParams, bool stripDisconnected) const
-{
-  RooArgSet constraints;
-  RooArgSet pdfParams;
-
-  std::unique_ptr<RooArgSet> comps(getComponents());
-  for (const auto arg : *comps) {
-    auto pdf = dynamic_cast<const RooAbsPdf*>(arg) ;
-    if (pdf && !constraints.find(pdf->GetName())) {
-      if (auto compRet = pdf->getConstraints(observables,constrainedParams, pdfParams)) {
-        constraints.add(*compRet,false) ;
-      }
-    }
-  }
-
-  RooArgSet conParams;
-
-  // Strip any constraints that are completely decoupled from the other product terms
-  auto finalConstraints = std::make_unique<RooArgSet>("AllConstraints");
-  for(auto * pdf : static_range_cast<RooAbsPdf*>(constraints)) {
-
-    RooArgSet tmp;
-    pdf->getParameters(nullptr, tmp);
-    conParams.add(tmp,true) ;
-
-    if (pdf->dependsOnValue(pdfParams) || !stripDisconnected) {
-      finalConstraints->add(*pdf) ;
-    } else {
-      coutI(Minimization) << "RooAbsPdf::getAllConstraints(" << GetName() << ") omitting term " << pdf->GetName()
-           << " as constraint term as it does not share any parameters with the other pdfs in product. "
-           << "To force inclusion in likelihood, add an explicit Constrain() argument for the target parameter" << std::endl ;
-    }
-  }
-
-  // Now remove from constrainedParams all parameters that occur exclusively in constraint term and not in regular pdf term
-
-  RooArgSet cexl;
-  conParams.selectCommon(constrainedParams, cexl);
-  cexl.remove(pdfParams,true,true) ;
-  constrainedParams.remove(cexl,true,true) ;
-
-  return finalConstraints ;
-}
 
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -44,6 +44,7 @@ from ._rooprodpdf import RooProdPdf
 from ._roorealvar import RooRealVar
 from ._roosimultaneous import RooSimultaneous
 from ._roosimwstool import RooSimWSTool
+from ._modelconfig import ModelConfig
 from ._roostats import SPlot
 from ._roovectordatastore import RooVectorDataStore
 from ._rooworkspace import RooWorkspace
@@ -76,6 +77,7 @@ python_classes = [
     RooWorkspace,
     RooVectorDataStore,
     SPlot,
+    ModelConfig,
 ]
 
 # list of python functions that are used to pythonize RooGlobalFunc function in RooFit

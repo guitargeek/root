@@ -342,7 +342,7 @@ void HybridStandardForm(int ntoys = 6000)
    // when the value of b is fixed in the likelihood.  This is implemented
    // by the SimpleLikelihoodRatioTestStat
 
-   SimpleLikelihoodRatioTestStat slrts(*b_model.GetPdf(), *sb_model.GetPdf());
+   SimpleLikelihoodRatioTestStat slrts(b_model, sb_model);
    slrts.SetNullParameters(*b_model.GetSnapshot());
    slrts.SetAltParameters(*sb_model.GetSnapshot());
 

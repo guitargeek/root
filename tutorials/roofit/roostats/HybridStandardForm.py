@@ -321,7 +321,7 @@ quit()  # keep the running time short by default
 # when the value of b is fixed in the likelihood.  This is implemented
 # by the SimpleLikelihoodRatioTestStat
 
-slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(b_model.GetPdf(), sb_model.GetPdf())
+slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(b_model, sb_model)
 slrts.SetNullParameters(b_model.GetSnapshot())
 slrts.SetAltParameters(sb_model.GetSnapshot())
 

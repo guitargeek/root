@@ -62,6 +62,7 @@ import ROOT
 # Silence info output for this tutorial
 ROOT.RooMsgService.instance().getStream(1).removeTopic(ROOT.RooFit.Minimization)
 ROOT.RooMsgService.instance().getStream(1).removeTopic(ROOT.RooFit.Fitting)
+ROOT.RooMsgService.instance().getStream(1).removeTopic(ROOT.RooFit.ObjectHandling)
 
 # Setting up the model and creating toy dataset
 # ---------------------------------------------
@@ -86,8 +87,23 @@ mu_obs.setConstant()
 # constraint pdf
 constraint = ROOT.RooGaussian("constraint", "constraint", mu_obs, mu, 0.1)
 
-# full pdf including constraint pdf
-model = ROOT.RooProdPdf("model", "model", [gauss, constraint])
+# The constraint pdf is no part of the pdf of the event observable: the pdf is
+# the probability density for one event, while the constraint multiplies the
+# likelihood only once. The full model, which is the pdf together with the
+# constraint pdf and the global observable, is kept in a ModelConfig, which
+# imports all objects into its workspace.
+ws = ROOT.RooWorkspace("ws")
+modelConfig = ROOT.RooFit.ModelConfig("ModelConfig", ws)
+modelConfig.SetPdf(gauss)
+modelConfig.SetExternalConstraints([constraint])
+modelConfig.SetObservables("x")
+modelConfig.SetGlobalObservables("mu_obs")
+modelConfig.SetParametersOfInterest("mu")
+
+# From now on, we use the objects in the workspace
+pdf = modelConfig.GetPdf()
+x = ws["x"]
+mu_obs = ws["mu_obs"]
 
 # Generating toy data with randomized global observables
 # ------------------------------------------------------
@@ -95,11 +111,11 @@ model = ROOT.RooProdPdf("model", "model", [gauss, constraint])
 # For most toy-based statistical procedures, it is necessary to also
 # randomize the global observable when generating toy datasets.
 #
-# To that end, let's generate a single event from the model and take the
-# global observable value (the same is done in the RooStats:ToyMCSampler
+# To that end, let's generate a single value of the global observable from the
+# constraint pdf of the model (the same is done in the RooStats:ToyMCSampler
 # class):
 
-dataGlob = model.generate(mu_obs, 1)
+dataGlob = modelConfig.generateGlobalObservables(1)
 
 # Next, we temporarily set the value of `mu_obs` to the randomized value for
 # generating our toy dataset:
@@ -110,7 +126,7 @@ ROOT.RooArgSet(mu_obs).assign(dataGlob.get(0))
 # Actually generate the toy dataset. We don't generate too many events,
 # otherwise, the constraint will not have much weight in the fit and the result
 # looks like it's unaffected by it.
-data = model.generate(x, 50)
+data = pdf.generate(x, 50)
 
 # When fitting the toy dataset, it is important to set the global
 # observables in the fit to the values that were used to generate the toy
@@ -127,35 +143,34 @@ mu_obs.setVal(mu_obs_orig_val)
 # ---------------------------------------
 
 # Create snapshot of original parameters to reset parameters after fitting
-modelParameters = model.getParameters(data.get())
+modelParameters = modelConfig.getParameters(data)
 origParameters = modelParameters.snapshot()
 
-# When you fit a model that includes global observables, you need to
-# specify them in the call to RooAbsPdf::fitTo with the
-# RooFit::GlobalObservables command argument. By default, the global
+# When you fit a model with ModelConfig.fitTo(), the ModelConfig passes the
+# constraint pdfs and the global observables to the fit. By default, the global
 # observable values attached to the dataset will be prioritized over the
 # values in the model, so the following fit correctly uses the randomized
 # global observable values from the toy dataset:
-print("1. model.fitTo(*data, GlobalObservables(mu_obs))")
-print("------------------------------------------------")
-model.fitTo(data, GlobalObservables=mu_obs, PrintLevel=-1, Save=True).Print()
+print("1. modelConfig.fitTo(data)")
+print("--------------------------")
+modelConfig.fitTo(data, PrintLevel=-1, Save=True).Print()
 modelParameters.assign(origParameters)
 
-# In our example, the set of global observables is attached to the toy
-# dataset. In this case, you can actually drop the GlobalObservables()
-# command argument, because the global observables are automatically
-# figured out from the data set (this fit result should be identical to the
-# previous one).
-print("2. model.fitTo(*data)")
-print("---------------------")
-model.fitTo(data, PrintLevel=-1, Save=True).Print()
+# The ModelConfig calls RooAbsPdf.fitTo() with the ExternalConstraints and
+# GlobalObservables command arguments, which you can also use directly. In our
+# example, the set of global observables is attached to the toy dataset. In
+# this case, you can actually drop the GlobalObservables() command argument,
+# because the global observables are automatically figured out from the data
+# set (this fit result should be identical to the previous one).
+print("2. pdf.fitTo(data, ExternalConstraints=constraints)")
+print("---------------------------------------------------")
+pdf.fitTo(data, ExternalConstraints=modelConfig.GetExternalConstraints(), PrintLevel=-1, Save=True).Print()
 modelParameters.assign(origParameters)
 
 # If you want to explicitly ignore the global observables in the dataset,
-# you can do that by specifying GlobalObservablesSource("model"). Keep in
-# mind that now it's also again your responsibility to define the set of
-# global observables.
-print('3. model.fitTo(*data, GlobalObservables(mu_obs), GlobalObservablesSource("model"))')
-print("------------------------------------------------")
-model.fitTo(data, GlobalObservables=mu_obs, GlobalObservablesSource="model", PrintLevel=-1, Save=True).Print()
+# you can do that by specifying GlobalObservablesSource("model"). Then, the
+# values of the global observables in the model are used.
+print('3. modelConfig.fitTo(data, GlobalObservablesSource="model")')
+print("----------------------------------------------------------")
+modelConfig.fitTo(data, GlobalObservablesSource="model", PrintLevel=-1, Save=True).Print()
 modelParameters.assign(origParameters)

@@ -214,7 +214,7 @@ def StandardHypoTestDemo(
         # sbModel->SetSnapshot( *sbModel->GetParametersOfInterest() );
 
     # part 1, hypothesis testing
-    slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(bModel.GetPdf(), sbModel.GetPdf())
+    slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(bModel, sbModel)
     # null parameters must include snapshot of poi plus the nuisance values
     nullParams = ROOT.RooArgSet(bModel.GetSnapshot())
     if bModel.GetNuisanceParameters():
@@ -226,9 +226,9 @@ def StandardHypoTestDemo(
         altParams.add(sbModel.GetNuisanceParameters())
     slrts.SetAltParameters(altParams)
 
-    profll = ROOT.RooStats.ProfileLikelihoodTestStat(bModel.GetPdf())
+    profll = ROOT.RooStats.ProfileLikelihoodTestStat(bModel)
 
-    ropl = ROOT.RooStats.RatioOfProfiledLikelihoodsTestStat(bModel.GetPdf(), sbModel.GetPdf(), sbModel.GetSnapshot())
+    ropl = ROOT.RooStats.RatioOfProfiledLikelihoodsTestStat(bModel, sbModel, sbModel.GetSnapshot())
     ropl.SetSubtractMLE(False)
 
     if testStatType == 3:

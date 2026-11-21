@@ -243,7 +243,8 @@ c1.cd(2)
 # Now we generate the expected bands and power-constraint
 
 # First: find parameter point for mu=0, with conditional MLEs for nuisance parameters
-nll = mc.GetPdf().createNLL(data)
+# ModelConfig.createNLL() includes the constraint terms of the model
+nll = mc.createNLL(data)
 profile = nll.createProfile(mc.GetParametersOfInterest())
 firstPOI.setVal(0.0)
 profile.getVal()  # this will do fit and set nuisance parameters to profiled values
@@ -285,10 +286,11 @@ for imc in range(nToyMC):
         # print("generating extended dataset")
         toyData = mc.GetPdf().generate(mc.GetObservables(), Extended=True)
 
-    # generate global observables
-    one = mc.GetPdf().generateSimGlobal(mc.GetGlobalObservables(), 1)
+    # generate global observables from the constraint terms of the model,
+    # which are no part of its pdf
+    one = mc.generateGlobalObservables(1)
     values = one.get()
-    allVars = mc.GetPdf().getVariables()
+    allVars = mc.getVariables()
     allVars.assign(values)
 
     # get test stat at observed UL in observed data

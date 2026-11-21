@@ -12,6 +12,7 @@
 #include <RooAbsPdf.h>
 #include <RooArgSet.h>
 #include <RooCategory.h>
+#include <RooFit/Constraints.h>
 #include <RooFit/ModelConfig.h>
 #include <RooHelpers.h>
 #include <RooMsgService.h>
@@ -28,6 +29,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -245,9 +247,11 @@ inline RooFit::ModelConfig &modelConfig(RooWorkspace &ws, std::string const &nam
    throw std::runtime_error("no ModelConfig '" + name + "' in the workspace");
 }
 
-/// Imports a ModelConfig for the pdf into the workspace. The roles are comma-separated lists of names.
+/// Imports a ModelConfig for the pdf into the workspace. The roles are comma-separated lists of names. The
+/// constraint terms are no part of the pdf: they are the external constraints of the ModelConfig.
 inline void addModelConfig(RooWorkspace &ws, const char *name, const char *pdf, const char *observables,
-                           const char *poi, const char *nuisance = nullptr, const char *globals = nullptr)
+                           const char *poi, const char *nuisance = nullptr, const char *globals = nullptr,
+                           const char *constraints = nullptr)
 {
    RooFit::ModelConfig mc{name, &ws};
    mc.SetPdf(pdf);
@@ -259,7 +263,37 @@ inline void addModelConfig(RooWorkspace &ws, const char *name, const char *pdf, 
    if (globals) {
       mc.SetGlobalObservables(globals);
    }
+   if (constraints) {
+      mc.SetExternalConstraints(ws.argSet(constraints));
+   }
    ws.import(mc);
+}
+
+/// The names of the pdfs in a collection of constraint terms, which can be absent.
+inline std::set<std::string> constraintNames(RooAbsCollection const *constraints)
+{
+   std::set<std::string> names;
+   if (constraints) {
+      for (RooAbsArg const *constraint : *constraints) {
+         names.insert(constraint->GetName());
+      }
+   }
+   return names;
+}
+
+/// The names of the constraint terms that the distributions of an imported document brought along, e.g. the ones that
+/// the modifiers of a histfactory_dist name. They are no part of the pdfs of the distributions: they are registered
+/// in the workspace, see RooFit::addConstraintTerms(), and the ModelConfigs of the analyses have them as external
+/// constraints.
+inline std::set<std::string> constraintTermNames(RooWorkspace &ws)
+{
+   return constraintNames(ws.set(RooFit::constraintTermsSetName));
+}
+
+/// The names of the external constraints of the ModelConfig `name`.
+inline std::set<std::string> externalConstraintNames(RooWorkspace &ws, std::string const &name)
+{
+   return constraintNames(modelConfig(ws, name).GetExternalConstraints());
 }
 
 // ---------------------------------------------------------------------------------------------------------------

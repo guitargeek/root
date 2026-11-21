@@ -31,7 +31,6 @@ public:
    std::unique_ptr<RooAbsL> build();
 
    NLLFactory &Extended(RooAbsL::Extended extended);
-   NLLFactory &ConstrainedParameters(const RooArgSet &constrainedParameters);
    NLLFactory &ExternalConstraints(const RooArgSet &externalconstraints);
    NLLFactory &GlobalObservables(const RooArgSet &globalObservables);
    NLLFactory &GlobalObservablesTag(const char *globalObservablesTag);
@@ -44,7 +43,6 @@ private:
    RooAbsData &_data;
 
    RooAbsL::Extended _extended = RooAbsL::Extended::Auto;
-   RooArgSet _constrainedParameters;
    RooArgSet _externalConstraints;
    RooArgSet _globalObservables;
    std::string _globalObservablesTag;

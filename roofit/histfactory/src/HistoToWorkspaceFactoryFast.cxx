@@ -26,6 +26,7 @@
 #include <RooConstVar.h>
 #include <RooDataHist.h>
 #include <RooDataSet.h>
+#include <RooFit/Constraints.h>
 #include <RooFit/ModelConfig.h>
 #include <RooFitResult.h>
 #include <RooFormulaVar.h>
@@ -230,7 +231,7 @@ HistoToWorkspaceFactoryFast::HistoToWorkspaceFactoryFast(RooStats::HistFactory::
 
     // Finally, configure that workspace based on
     // properties of the measurement
-    HistoToWorkspaceFactoryFast::ConfigureWorkspaceForMeasurement( "model_"+ch_name, ws_single.get(), measurement );
+    HistoToWorkspaceFactoryFast::ConfigureWorkspaceForMeasurement( ch_name+"_model", ws_single.get(), measurement );
 
     return RooFit::makeOwningPtr(std::move(ws_single));
 
@@ -1357,7 +1358,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       }
       likelihoodTerms.add( *proto_arg );
     }
-    proto.defineSet("constraintTerms",constraintTerms);
+    RooFit::addConstraintTerms(proto, constraintTerms);
     proto.defineSet("likelihoodTerms",likelihoodTerms);
 
     // list of observables
@@ -1382,19 +1383,24 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
         << "\timport model into workspace"
         << "\n-----------------------------------------\n" << std::endl;
 
-    auto model = std::make_unique<RooProdPdf>(
-       ("model_" + channel_name).c_str(), // MB : have changed this into conditional pdf. Much faster for toys!
-       "product of Poissons across bins for a single channel", constraintTerms,
-       RooFit::Conditional(likelihoodTerms, observables));
+    // The pdf of the channel is the distribution of its observables. The
+    // constraint terms are no part of it: they multiply the likelihood once
+    // and not for each event, so the ModelConfig keeps them as a separate set.
+    if (likelihoodTerms.size() != 1) {
+       cxcoutFHF << "Error: Expected exactly one likelihood term for channel " << channel_name << ", but got "
+                 << likelihoodTerms.size() << std::endl;
+       throw hf_exc();
+    }
+    RooAbsPdf *model = proto.pdf(likelihoodTerms.first()->GetName());
     // can give channel a title by setting title of corresponding data histogram
     if (channel.GetData().GetHisto() && strlen(channel.GetData().GetHisto()->GetTitle())>0) {
        model->SetTitle(channel.GetData().GetHisto()->GetTitle());
     }
-    proto.import(*model,RooFit::RecycleConflictNodes());
 
     proto_config->SetPdf(*model);
     proto_config->SetObservables(observables);
     proto_config->SetGlobalObservables(*proto.set("globalObservables"));
+    proto_config->SetExternalConstraints(constraintTerms);
     //    proto.writeToFile(("results/model_"+channel+".root").c_str());
     // fill out nuisance parameters in model config
     //    proto_config->GuessObsAndNuisance(*proto.data("asimovData"));
@@ -1563,6 +1569,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
     cxcoutI(HistFactory) <<"full list of observables:\n" << obsList << std::endl;
 
     RooArgSet globalObs;
+    RooArgSet constraintTerms;
     std::map<std::string, int> channelMap;
     for(unsigned int i = 0; i< ch_names.size(); ++i){
       string channel_name=ch_names[i];
@@ -1576,7 +1583,7 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       channelMap[channel_name] = i;
       RooWorkspace * ch=chs[i].get();
 
-      RooAbsPdf* model = ch->pdf("model_"+channel_name);
+      RooAbsPdf* model = ch->pdf(channel_name+"_model");
       if (!model) {
          cxcoutFHF << "failed to find model for channel\n";
          throw hf_exc();
@@ -1585,6 +1592,12 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
       auto &modelConfig = *static_cast<ModelConfig *>(chs[i]->obj("ModelConfig"));
       // silent because observables might exist in other channel:
       globalObs.add(*modelConfig.GetGlobalObservables(), /*silent=*/true);
+      // The constraint terms are no part of the channel pdfs. Constraints of
+      // parameters that are shared between channels exist in each channel
+      // workspace, and only the first one is kept.
+      if (modelConfig.GetExternalConstraints()) {
+         constraintTerms.add(*modelConfig.GetExternalConstraints(), /*silent=*/true);
+      }
 
       //      constrainedParams->add( * ch->set("constrainedParams") );
       pdfMap[channel_name]=model;
@@ -1647,6 +1660,11 @@ RooArgList HistoToWorkspaceFactoryFast::createObservables(const TH1 *hist, RooWo
             << "\tImporting combined model"
             << "\n-----------------------------------------\n" << std::endl;
     combined->import(*simPdf,RooFit::RecycleConflictNodes());
+
+    // The constraint terms are no part of the pdf, so they are imported
+    // separately and passed to the ModelConfig.
+    RooFit::addConstraintTerms(*combined, constraintTerms);
+    combined_config->SetExternalConstraints(constraintTerms);
 
     for(auto const& param_itr : fParamValues) {
       // make sure they are fixed

@@ -293,7 +293,7 @@ public:
    /// get RooArgSet for global observables  (return nullptr if not existing)
    const RooArgSet *GetGlobalObservables() const { return (GetWS()) ? GetWS()->set(fGlobalObsName) : nullptr; }
 
-   /// get RooArgSet for global observables  (return nullptr if not existing)
+   /// get RooArgSet with the constraint terms  (return nullptr if not existing)
    const RooArgSet *GetExternalConstraints() const { return (GetWS()) ? GetWS()->set(fExtConstraintsName) : nullptr; }
 
    /// get Proto data set (return nullptr if not existing)
@@ -320,6 +320,13 @@ public:
 
    /// overload the print method
    void Print(Option_t *option = "") const override;
+
+   std::unique_ptr<RooDataSet> generateGlobalObservables(int nEvents = 1) const;
+
+   std::unique_ptr<RooArgSet> getVariables() const;
+   std::unique_ptr<RooArgSet> getParameters(const RooArgSet &observables) const;
+   /// \copydoc getParameters(const RooArgSet &) const
+   std::unique_ptr<RooArgSet> getParameters(const RooAbsData &data) const { return getParameters(*data.get()); }
 
    template <typename... CmdArgs_t>
    std::unique_ptr<RooAbsReal> createNLL(RooAbsData &data, CmdArgs_t const &...cmdArgs) const

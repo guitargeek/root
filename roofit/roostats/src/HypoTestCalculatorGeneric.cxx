@@ -62,9 +62,7 @@ HypoTestCalculatorGeneric::HypoTestCalculatorGeneric(
    if(!sampler){
       std::unique_ptr<const RooArgSet> altSnapshot{altModel.GetSnapshot()};
       fDefaultTestStat
-         = new RatioOfProfiledLikelihoodsTestStat(*nullModel.GetPdf(),
-                                                  *altModel.GetPdf(),
-                                                  altSnapshot.get());
+         = new RatioOfProfiledLikelihoodsTestStat(nullModel, altModel, altSnapshot.get());
 
       auto toymcs = new ToyMCSampler(*fDefaultTestStat, 1000);
       const bool dataIsBinned = dynamic_cast<const RooDataHist*>(fData);
@@ -96,7 +94,7 @@ void HypoTestCalculatorGeneric::SetupSampler(const ModelConfig& model) const {
    // for this model
    model.LoadSnapshot();
    fTestStatSampler->SetSamplingDistName(model.GetName());
-   fTestStatSampler->SetPdf(*model.GetPdf());
+   fTestStatSampler->SetModel(model);
    fTestStatSampler->SetNuisanceParameters(*model.GetNuisanceParameters());
    // global observables or nuisance pdf will be set by the derived classes
    // (e.g. Frequentist or HybridCalculator)
@@ -141,10 +139,12 @@ HypoTestResult* HypoTestCalculatorGeneric::GetHypoTest() const {
       return nullptr;
    }
 
-   // get a big list of all variables for convenient switching
-   std::unique_ptr<RooArgSet> altParams{fAltModel->GetPdf()->getParameters(*fData)};
+   // get a big list of all variables for convenient switching. The parameters
+   // of the models include the ones of the constraint terms, in particular the
+   // global observables that are sampled for the toys.
+   std::unique_ptr<RooArgSet> altParams{fAltModel->getParameters(*fData)};
    // save all parameters so we can set them back to what they were
-   std::unique_ptr<RooArgSet> bothParams{fNullModel->GetPdf()->getParameters(*fData)};
+   std::unique_ptr<RooArgSet> bothParams{fNullModel->getParameters(*fData)};
    bothParams->add(*altParams,false);
    std::unique_ptr<RooArgSet> saveAll {(RooArgSet*) bothParams->snapshot()};
 

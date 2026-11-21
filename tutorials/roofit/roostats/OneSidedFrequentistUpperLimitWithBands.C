@@ -285,7 +285,8 @@ void OneSidedFrequentistUpperLimitWithBands(const char *infile = "", const char 
    // Now we generate the expected bands and power-constraint
 
    // First: find parameter point for mu=0, with conditional MLEs for nuisance parameters
-   std::unique_ptr<RooAbsReal> nll{mc->GetPdf()->createNLL(*data)};
+   // ModelConfig::createNLL() includes the constraint terms of the model
+   std::unique_ptr<RooAbsReal> nll{mc->createNLL(*data)};
    std::unique_ptr<RooAbsReal> profile{nll->createProfile(*mc->GetParametersOfInterest())};
    firstPOI->setVal(0.);
    profile->getVal(); // this will do fit and set nuisance parameters to profiled values
@@ -328,32 +329,12 @@ void OneSidedFrequentistUpperLimitWithBands(const char *infile = "", const char 
          toyData = std::unique_ptr<RooDataSet>{mc->GetPdf()->generate(*mc->GetObservables(), Extended())};
       }
 
-      // generate global observables
-      // need to be careful for simpdf
-      //    RooDataSet* globalData = mc->GetPdf()->generate(*mc->GetGlobalObservables(),1);
-
-      RooSimultaneous *simPdf = dynamic_cast<RooSimultaneous *>(mc->GetPdf());
-      if (!simPdf) {
-         std::unique_ptr<RooDataSet> one{mc->GetPdf()->generate(*mc->GetGlobalObservables(), 1)};
+      // generate global observables from the constraint terms of the model,
+      // which are no part of its pdf
+      if (std::unique_ptr<RooDataSet> one{mc->generateGlobalObservables(1)}) {
          const RooArgSet *values = one->get();
-         std::unique_ptr<RooArgSet> allVars{mc->GetPdf()->getVariables()};
+         std::unique_ptr<RooArgSet> allVars{mc->getVariables()};
          allVars->assign(*values);
-      } else {
-
-         // try fix for sim pdf
-         for (auto const& tt : simPdf->indexCat()) {
-            auto const& catName = tt.first;
-
-            // Get pdf associated with state from simpdf
-            RooAbsPdf *pdftmp = simPdf->getPdf(catName.c_str());
-
-            // Generate only global variables defined by the pdf associated with this state
-            std::unique_ptr<RooArgSet> globtmp{pdftmp->getObservables(*mc->GetGlobalObservables())};
-            std::unique_ptr<RooDataSet> tmp{pdftmp->generate(*globtmp, 1)};
-
-            // Transfer values to output placeholder
-            globtmp->assign(*tmp->get(0));
-         }
       }
 
       //    globalData->Print("v");

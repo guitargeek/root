@@ -110,8 +110,6 @@ public:
                const RooCmdArg& arg5={},const RooCmdArg& arg6={}) const;
   virtual RooFit::OwningPtr<RooDataHist> generateBinned(const RooArgSet &whatVars, double nEvents, bool expectedData=false, bool extended=false) const;
 
-  virtual RooFit::OwningPtr<RooDataSet> generateSimGlobal(const RooArgSet& whatVars, Int_t nEvents) ;
-
   ///Helper calling plotOn(RooPlot*, RooLinkedList&) const
   RooPlot* plotOn(RooPlot* frame,
            const RooCmdArg& arg1={}, const RooCmdArg& arg2={},
@@ -156,17 +154,6 @@ public:
   {
     return RooFit::makeOwningPtr(createNLLImpl(data, *RooFit::Detail::createCmdList(&cmdArgs...)));
   }
-
-  // Constraint management. Interface to retrieve constraint terms on this pdf. Default implementation returns null.
-  virtual std::unique_ptr<RooArgSet> getConstraints(const RooArgSet & /*observables*/,
-                                                    RooArgSet const & /*constrainedParams*/,
-                                                    RooArgSet & /*pdfParams*/) const
-  {
-     return nullptr;
-  }
-
-  std::unique_ptr<RooArgSet>
-  getAllConstraints(const RooArgSet &observables, RooArgSet &constrainedParams, bool stripDisconnected = true) const;
 
   // Project p.d.f into lower dimensional p.d.f
   virtual RooAbsPdf* createProjection(const RooArgSet& iset) ;

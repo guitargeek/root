@@ -106,7 +106,7 @@ def StandardFrequentistDiscovery(
     # ----------------------------------------------------
     # Configure a ProfileLikelihoodTestStat and a SimpleLikelihoodRatioTestStat
     # to use simultaneously with ToyMCSampler
-    plts = ROOT.RooStats.ProfileLikelihoodTestStat(mc.GetPdf())
+    plts = ROOT.RooStats.ProfileLikelihoodTestStat(mc)
     plts.SetOneSidedDiscovery(True)
     plts.SetVarName("q_0/2")
 

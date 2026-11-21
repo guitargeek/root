@@ -22,6 +22,7 @@
 
 #include "Math/MinimizerOptions.h"
 
+#include "RooStats/ModelConfig.h"
 #include "RooStats/RooStatsUtils.h"
 
 
@@ -32,8 +33,12 @@ namespace RooStats {
      enum LimitType {twoSided, oneSided, oneSidedDiscovery};
 
    public:
-      ProfileLikelihoodTestStat(RooAbsPdf &pdf)
-         : fPdf(&pdf),
+      /// The likelihood is created with ModelConfig::createNLL(), such that
+      /// it includes the constraint terms of the model and considers its
+      /// global and conditional observables. The model needs to outlive the
+      /// test statistic.
+      ProfileLikelihoodTestStat(const ModelConfig &model)
+         : fModel(&model),
            fStrategy(::ROOT::Math::MinimizerOptions::DefaultStrategy()),
            fTolerance(std::max(1., ::ROOT::Math::MinimizerOptions::DefaultTolerance())),
            fPrintLevel(::ROOT::Math::MinimizerOptions::DefaultPrintLevel()),
@@ -87,18 +92,11 @@ namespace RooStats {
       return fDetailedOutput.get();
      }
 
-     /// set the conditional observables which will be used when creating the NLL
-     /// so the pdf's will not be normalized on the conditional observables when computing the NLL
-     void SetConditionalObservables(const RooArgSet& set) override {fConditionalObs.removeAll(); fConditionalObs.add(set);}
-
-     /// set the global observables which will be used when creating the NLL
-     /// so the constraint pdf's will be normalized correctly on the global observables when computing the NLL
-     void SetGlobalObservables(const RooArgSet& set) override {fGlobalObs.removeAll(); fGlobalObs.add(set);}
-
      virtual void SetVarName(const char* name) { fVarName = name; }
      const TString GetVarName() const override {return fVarName;}
 
-     virtual RooAbsPdf * GetPdf() const { return fPdf; }
+     const ModelConfig &GetModel() const { return *fModel; }
+     virtual RooAbsPdf * GetPdf() const { return fModel->GetPdf(); }
 
   private:
 
@@ -106,7 +104,7 @@ namespace RooStats {
      bool minimizationNeeded(RooArgSet allParams) const;
      std::pair<double, int> minimizeNLL(std::string const &prefix);
 
-      RooAbsPdf* fPdf = nullptr;
+      const ModelConfig* fModel = nullptr;
       std::unique_ptr<RooAbsReal> fNll; ///<!
       const RooArgSet* fCachedBestFitParams = nullptr;
       RooAbsData* fLastData = nullptr;
@@ -118,8 +116,6 @@ namespace RooStats {
       bool fDetailedOutputEnabled = false;
       bool fDetailedOutputWithErrorsAndPulls = false;
       std::unique_ptr<RooArgSet> fDetailedOutput; ///<!
-      RooArgSet fConditionalObs;  ///< conditional observables
-      RooArgSet fGlobalObs;       ///< global observables
 
       TString fVarName = "Profile Likelihood Ratio";
 

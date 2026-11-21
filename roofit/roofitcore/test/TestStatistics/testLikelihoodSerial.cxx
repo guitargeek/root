@@ -225,20 +225,23 @@ TEST_F(LikelihoodSerialTest, BinnedConstrained)
    // Construct L_subs: Gaussian subsidiary measurement that constrains alpha_bkg
    w.factory("Gaussian:model_subs(alpha_bkg_obs[0],alpha_bkg,1)");
 
-   // Construct full pdf
-   w.factory("PROD::model(model_phys,model_subs)");
-
-   pdf = w.pdf("model");
+   // The constraint term is no part of the pdf: it is passed to the
+   // likelihood as external constraint.
+   pdf = w.pdf("model_phys");
    // Construct dataset from physics pdf
    data = std::unique_ptr<RooDataHist>{w.pdf("model_phys")->generateBinned(*w.var("x"))};
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data, RooFit::GlobalObservables(*w.var("alpha_bkg_obs")))};
+   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data, RooFit::ExternalConstraints(*w.pdf("model_subs")),
+                                                    RooFit::GlobalObservables(*w.var("alpha_bkg_obs")))};
 
    // --------
 
    auto nll0 = nll->getVal();
 
-   likelihood = RFTS::NLLFactory{*pdf, *data}.GlobalObservables(*w.var("alpha_bkg_obs")).build();
+   likelihood = RFTS::NLLFactory{*pdf, *data}
+                   .ExternalConstraints(*w.pdf("model_subs"))
+                   .GlobalObservables(*w.var("alpha_bkg_obs"))
+                   .build();
    // dummy offsets (normally they are shared with other objects):
    SharedOffset offset;
    auto nll_ts = RFTS::LikelihoodWrapper::create(RFTS::LikelihoodMode::serial, likelihood, clean_flags, offset);
@@ -347,12 +350,11 @@ protected:
       w.factory("Gaussian:model_subs_A(alpha_bkg_obs_A[0],alpha_bkg_A,1)");
       w.factory("Gaussian:model_subs_B(alpha_bkg_obs_B[0],alpha_bkg_B,1)");
 
-      // Construct full pdfs for each component (A,B)
-      w.factory("PROD::model_A(model_phys_A,model_subs_A)");
-      w.factory("PROD::model_B(model_phys_B,model_subs_B)");
+      // The constraint terms are no part of the pdfs: they are passed to the
+      // likelihood as external constraints.
 
       // Construct simultaneous pdf
-      w.factory("SIMUL::model(index[A,B],A=model_A,B=model_B)");
+      w.factory("SIMUL::model(index[A,B],A=model_phys_A,B=model_phys_B)");
 
       pdf = w.pdf("model");
       // Construct dataset from physics pdf
@@ -363,15 +365,18 @@ protected:
 TEST_F(LikelihoodSerialSimBinnedConstrainedTest, BasicParameters)
 {
    // original test:
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(
-      *data, RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B"))))};
+   nll = std::unique_ptr<RooAbsReal>{
+      pdf->createNLL(*data, RooFit::ExternalConstraints(RooArgSet{*w.pdf("model_subs_A"), *w.pdf("model_subs_B")}),
+                     RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B"))))};
 
    // --------
 
    auto nll0 = nll->getVal();
 
-   likelihood =
-      RFTS::NLLFactory{*pdf, *data}.GlobalObservables({*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")}).build();
+   likelihood = RFTS::NLLFactory{*pdf, *data}
+                   .ExternalConstraints(RooArgSet{*w.pdf("model_subs_A"), *w.pdf("model_subs_B")})
+                   .GlobalObservables({*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")})
+                   .build();
    // dummy offsets (normally they are shared with other objects):
    SharedOffset offset;
    auto nll_ts = RFTS::LikelihoodWrapper::create(RFTS::LikelihoodMode::serial, likelihood, clean_flags, offset);
@@ -386,9 +391,9 @@ TEST_F(LikelihoodSerialSimBinnedConstrainedTest, ConstrainedAndOffset)
 {
    using namespace RooFit;
 
-   // A variation to test some additional parameters (ConstrainedParameters and offsetting)
+   // A variation to test some additional parameters (a subset of the constraints and offsetting)
 
-   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data, Constrain(*w.var("alpha_bkg_A")),
+   nll = std::unique_ptr<RooAbsReal>{pdf->createNLL(*data, ExternalConstraints(*w.pdf("model_subs_A")),
                                                     GlobalObservables(*w.var("alpha_bkg_obs_B")), Offset("initial"))};
 
    // --------
@@ -396,7 +401,7 @@ TEST_F(LikelihoodSerialSimBinnedConstrainedTest, ConstrainedAndOffset)
    auto nll0 = nll->getVal();
 
    likelihood = RFTS::NLLFactory{*pdf, *data}
-                   .ConstrainedParameters(*w.var("alpha_bkg_A"))
+                   .ExternalConstraints(*w.pdf("model_subs_A"))
                    .GlobalObservables(*w.var("alpha_bkg_obs_B"))
                    .build();
    // dummy offsets (normally they are shared with other objects):

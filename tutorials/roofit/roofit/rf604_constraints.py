@@ -39,35 +39,46 @@ d = model.generate(x, 50)
 # resolution of 0.1
 fconstraint = ROOT.RooGaussian("fconstraint", "fconstraint", f, 0.8, 0.1)
 
-# Method 1 - add internal constraint to model
-# -------------------------------------------------------------------------------------
-
-# Multiply constraint term with regular pdf using ROOT.RooProdPdf Specify in
-# fitTo() that internal constraints on parameter f should be used
-
-# Multiply constraint with pdf
-modelc = ROOT.RooProdPdf("modelc", "model with constraint", [model, fconstraint])
+# A constraint term is no part of the pdf of the observable x: the pdf is the
+# probability density for one event, while the constraint term multiplies the
+# likelihood only once. Therefore, the constraint is not multiplied with the
+# pdf in a RooProdPdf, but it is passed to the likelihood separately.
 
 # Fit model (without use of constraint term)
 r1 = model.fitTo(d, Save=True, PrintLevel=-1)
 
-# Fit modelc with constraint term on parameter f
-r2 = modelc.fitTo(d, Constrain=[f], Save=True, PrintLevel=-1)
-
-# Method 2 - specify external constraint when fitting
+# Method 1 - specify constraint when fitting
 # ------------------------------------------------------------------------------------------
 
-# Construct another Gaussian constraint pdf on parameter f at 0.8 with
+# Fit model with constraint term on parameter f
+r2 = model.fitTo(d, ExternalConstraints=[fconstraint], Save=True, PrintLevel=-1)
+
+# Method 2 - keep model and constraint in a ModelConfig
+# ------------------------------------------------------------------------------------------
+
+# The recommended way to keep a pdf together with its constraint terms is a
+# ModelConfig in a RooWorkspace: you can't forget to pass the constraints to
+# the fit, and the RooStats tools use them to compute limits and intervals.
+
+# Construct another Gaussian constraint pdf on parameter f at 0.2 with
 # resolution of 0.1
 fconstext = ROOT.RooGaussian("fconstext", "fconstext", f, 0.2, 0.1)
 
-# Fit with external constraint
-r3 = model.fitTo(d, ExternalConstraints=[fconstext], Save=True, PrintLevel=-1)
+ws = ROOT.RooWorkspace("ws")
+modelConfig = ROOT.RooFit.ModelConfig("ModelConfig", ws)
+# The ModelConfig imports the objects into the workspace
+modelConfig.SetPdf(model)
+modelConfig.SetExternalConstraints([fconstext])
+modelConfig.SetObservables("x")
+modelConfig.SetParametersOfInterest("f")
+
+# ModelConfig.fitTo() passes the constraint terms to the fit
+r3 = modelConfig.fitTo(d, Save=True, PrintLevel=-1)
 
 # Print the fit results
 print("fit result without constraint (data generated at f=0.5)")
 r1.Print("v")
-print("fit result with internal constraint (data generated at f=0.5, is f=0.8+/-0.2)")
+print("fit result with constraint (data generated at f=0.5, is f=0.8+/-0.1)")
 r2.Print("v")
-print("fit result with (another) external constraint (data generated at f=0.5, is f=0.2+/-0.1)")
+print("fit result with (another) constraint in a ModelConfig (data generated at f=0.5, is f=0.2+/-0.1)")
 r3.Print("v")

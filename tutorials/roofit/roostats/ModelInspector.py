@@ -132,7 +132,7 @@ class ModelInspectorGUI(ROOT.TGMainFrame):
 
     # ______________________________________________________________________________
     def DoFit(self):
-        self.fFitRes = self.fMC.GetPdf().fitTo(self.fData, Save=True)
+        self.fFitRes = self.fMC.fitTo(self.fData, Save=True)
 
         for it in self.fSliderMap:
             param = self.fWS.var(it.second)

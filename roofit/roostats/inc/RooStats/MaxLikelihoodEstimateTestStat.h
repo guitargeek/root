@@ -43,8 +43,11 @@ public:
    {
    }
 
-   MaxLikelihoodEstimateTestStat(RooAbsPdf &pdf, RooRealVar &parameter)
-      : fPdf(&pdf),
+   /// The likelihood is created with ModelConfig::createNLL(), such that it
+   /// includes the constraint terms of the model. The model needs to outlive
+   /// the test statistic.
+   MaxLikelihoodEstimateTestStat(const ModelConfig &model, RooRealVar &parameter)
+      : fModel(&model),
         fParameter(&parameter),
         fStrategy(::ROOT::Math::MinimizerOptions::DefaultStrategy()),
         fPrintLevel(::ROOT::Math::MinimizerOptions::DefaultPrintLevel())
@@ -67,13 +70,7 @@ public:
     return ret;
     */
 
-    std::unique_ptr<RooArgSet> allParams{fPdf->getParameters(data)};
-    RooStats::RemoveConstantParameters(&*allParams);
-
-    // need to call constrain for RooSimultaneous until stripDisconnected problem fixed
-    std::unique_ptr<RooAbsReal> nll{fPdf->createNLL(data, RooFit::CloneData(false),RooFit::Constrain(*allParams),RooFit::ConditionalObservables(fConditionalObs))};
-
-    //RooAbsReal* nll = fPdf->createNLL(data, RooFit::CloneData(false));
+    std::unique_ptr<RooAbsReal> nll{fModel->createNLL(data, RooFit::CloneData(false))};
 
     // RooAbsReal* profile = nll->createProfile(RooArgSet());
     // profile->getVal();
@@ -124,15 +121,9 @@ public:
   virtual void PValueIsRightTail(bool isright) {  fUpperLimit = isright; }
   bool PValueIsRightTail(void) const override { return fUpperLimit; }
 
-   // set the conditional observables which will be used when creating the NLL
-   // so the pdf's will not be normalized on the conditional observables when computing the NLL
-   void SetConditionalObservables(const RooArgSet& set) override {fConditionalObs.removeAll(); fConditionalObs.add(set);}
-
-
    private:
-      RooAbsPdf *fPdf = nullptr;
+      const ModelConfig *fModel = nullptr;
       RooRealVar *fParameter = nullptr;
-      RooArgSet fConditionalObs;
       bool fUpperLimit = true;
       TString fMinimizer;
       Int_t fStrategy;
@@ -141,7 +132,7 @@ public:
 
 
    protected:
-   ClassDefOverride(MaxLikelihoodEstimateTestStat,2)
+   ClassDefOverride(MaxLikelihoodEstimateTestStat,3)
 };
 
 }

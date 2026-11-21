@@ -236,7 +236,7 @@ void StandardHypoTestDemo(const char *infile = "", const char *workspaceName = "
    }
 
    // part 1, hypothesis testing
-   SimpleLikelihoodRatioTestStat *slrts = new SimpleLikelihoodRatioTestStat(*bModel->GetPdf(), *sbModel->GetPdf());
+   SimpleLikelihoodRatioTestStat *slrts = new SimpleLikelihoodRatioTestStat(*bModel, *sbModel);
    // null parameters must include snapshot of poi plus the nuisance values
    RooArgSet nullParams(*bModel->GetSnapshot());
    if (bModel->GetNuisanceParameters())
@@ -248,10 +248,10 @@ void StandardHypoTestDemo(const char *infile = "", const char *workspaceName = "
       altParams.add(*sbModel->GetNuisanceParameters());
    slrts->SetAltParameters(altParams);
 
-   ProfileLikelihoodTestStat *profll = new ProfileLikelihoodTestStat(*bModel->GetPdf());
+   ProfileLikelihoodTestStat *profll = new ProfileLikelihoodTestStat(*bModel);
 
    RatioOfProfiledLikelihoodsTestStat *ropl =
-      new RatioOfProfiledLikelihoodsTestStat(*bModel->GetPdf(), *sbModel->GetPdf(), sbModel->GetSnapshot());
+      new RatioOfProfiledLikelihoodsTestStat(*bModel, *sbModel, sbModel->GetSnapshot());
    ropl->SetSubtractMLE(false);
 
    if (testStatType == 3)

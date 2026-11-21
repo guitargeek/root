@@ -79,9 +79,11 @@ public:
    //    NLLOptions: RooLinkedList
    //    FitOptions: ROOT::Fit::FitConfig
 
-   // fit result flags in its constPars list which are global observables with the "global" attribute
+   // fit result flags in its constPars list which are global observables with the "global" attribute.
+   // The global observables are generated from the constraint terms, which are no part of the pdf.
    static std::pair<std::shared_ptr<RooAbsData>, std::shared_ptr<const RooAbsCollection>>
-   generateFrom(RooAbsPdf &pdf, const RooFitResult &fr, bool expected = false, int seed = 0);
+   generateFrom(RooAbsPdf &pdf, const RooFitResult &fr, bool expected = false, int seed = 0,
+                const RooArgSet *constraints = nullptr);
    static std::shared_ptr<const RooFitResult>
    fitTo(RooAbsPdf &pdf, const std::pair<std::shared_ptr<RooAbsData>, std::shared_ptr<const RooAbsCollection>> &data,
          const RooLinkedList &nllOpts, const ROOT::Fit::FitConfig &fitConf);

@@ -105,7 +105,7 @@ def StandardBayesianMCMCDemo(infile="", workspaceName="combined", modelConfigNam
     """
    #
    # this one is based on the covariance matrix of fit
-   fit = mc.GetPdf().fitTo(data,Save())
+   fit = mc.fitTo(data,Save())
    ProposalHelper ph
    ph.SetVariables((RooArgSet&)fit.floatParsFinal())
    ph.SetCovMatrix(fit.covarianceMatrix())

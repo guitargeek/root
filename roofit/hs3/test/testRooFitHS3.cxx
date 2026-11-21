@@ -252,7 +252,8 @@ double twoChannelNLL(RooWorkspace &ws, std::map<std::string, double> const &poin
    for (auto const &[name, value] : point) {
       ws.var(name)->setVal(value);
    }
-   std::unique_ptr<RooAbsReal> nll{mc->GetPdf()->createNLL(*ws.data("an_data"))};
+   // With the constraint terms, which are no part of the pdf: the ModelConfig has them as external constraints.
+   std::unique_ptr<RooAbsReal> nll{mc->createNLL(*ws.data("an_data"))};
    return nll->getVal();
 }
 
@@ -2789,17 +2790,10 @@ TEST(RooFitHS3, HistFactoryConstraintsByName)
    };
 
    Imported ws{makeJSON(R"(, "constraints": ["gamma_0_constraint", null])")};
-   auto *model = object<RooProdPdf>(ws, "model_channel0");
-   RooArgSet constraintNames;
-   for (RooAbsArg *pdf : model->pdfList()) {
-      if (!dynamic_cast<RooRealSumPdf *>(pdf)) {
-         constraintNames.add(*pdf);
-      }
-   }
+   // The channel is the sum of its samples: the constraints are no part of it.
+   object<RooRealSumPdf>(ws, "model_channel0");
    // Exactly the two named constraints, and no constraints created by RooFit.
-   EXPECT_EQ(constraintNames.size(), 2u);
-   EXPECT_NE(constraintNames.find("alpha_a_constraint"), nullptr);
-   EXPECT_NE(constraintNames.find("gamma_0_constraint"), nullptr);
+   EXPECT_EQ(constraintTermNames(ws), (std::set<std::string>{"alpha_a_constraint", "gamma_0_constraint"}));
    EXPECT_NE(ws.var("mu"), nullptr);
 
    // The export collects the constraints into the array distribution of their type (both are Gaussians), the
@@ -2817,8 +2811,7 @@ TEST(RooFitHS3, HistFactoryConstraintsByName)
 
    // In HS3 >= 0.3, a staterror without any constraint information is unconstrained.
    Imported ws3{makeJSON("")};
-   auto *model3 = object<RooProdPdf>(ws3, "model_channel0");
-   EXPECT_EQ(model3->pdfList().size(), 2u); // the sum and alpha_a_constraint
+   EXPECT_EQ(constraintTermNames(ws3), std::set<std::string>{"alpha_a_constraint"});
 }
 
 // An array_dist is imported as one distribution per component, named after its observable, held together by a
@@ -3135,36 +3128,23 @@ TEST(RooFitHS3, HistFactoryArrayDistConstraints)
    Imported arrays{twoChannelHistFactoryJSON(true)};
    EXPECT_TRUE(arrays.warnings.empty()) << arrays.warnings;
 
-   // The channels hold the components, not the arrays.
-   auto constraintNames = [](RooWorkspace &ws, const char *channel) {
-      std::set<std::string> names;
-      auto *model = dynamic_cast<RooProdPdf *>(ws.pdf(channel));
-      if (model) {
-         for (RooAbsArg *pdf : model->pdfList()) {
-            if (!dynamic_cast<RooRealSumPdf *>(pdf)) {
-               names.insert(pdf->GetName());
-            }
-         }
-      }
-      return names;
+   // The constraint terms of the model are the components, not the arrays. The ones of a channel are those of its
+   // parameters.
+   auto constraintsOfChannel = [](RooWorkspace &ws, const char *channel) {
+      const RooArgSet constraints = RooFit::constraintsOf(ws, *object<RooRealSumPdf>(ws, channel));
+      return constraintNames(&constraints);
    };
-   EXPECT_EQ(constraintNames(arrays, "model_c1"),
+   EXPECT_EQ(constraintsOfChannel(arrays, "model_c1"),
              (std::set<std::string>{"alpha_a_constraint", "nom_gamma_c1_0_constraint", "nom_gamma_c1_1_constraint",
                                     "nom_gs_0_constraint", "nom_gs_1_constraint"}));
-   EXPECT_EQ(constraintNames(arrays, "model_c2"),
+   EXPECT_EQ(constraintsOfChannel(arrays, "model_c2"),
              (std::set<std::string>{"alpha_a_constraint", "nom_gamma_c2_0_constraint", "nom_gamma_c2_1_constraint"}));
-   EXPECT_EQ(constraintNames(individual, "model_c1").size(), 5u);
-   EXPECT_EQ(constraintNames(individual, "model_c2").size(), 3u);
+   EXPECT_EQ(constraintsOfChannel(individual, "model_c1").size(), 5u);
+   EXPECT_EQ(constraintsOfChannel(individual, "model_c2").size(), 3u);
    EXPECT_TRUE(arrays.pdf("pois_constraints")->getAttribute("hs3_array_dist"));
-   // The shared constraint is one object in both channels, so it is counted once.
-   auto countConstraints = [](RooWorkspace &ws) {
-      auto *mc = dynamic_cast<RooStats::ModelConfig *>(ws.obj("an"));
-      RooArgSet params;
-      mc->GetPdf()->getParameters(mc->GetObservables(), params);
-      return mc->GetPdf()->getAllConstraints(*mc->GetObservables(), params, true)->size();
-   };
-   EXPECT_EQ(countConstraints(arrays), 7u);
-   EXPECT_EQ(countConstraints(individual), 7u);
+   // The constraint shared by both channels is one term of the likelihood.
+   EXPECT_EQ(externalConstraintNames(arrays, "an").size(), 7u);
+   EXPECT_EQ(externalConstraintNames(individual, "an").size(), 7u);
 
    const double nllIndividual = twoChannelNLL(individual, twoChannelPoint);
    const double nllArrays = twoChannelNLL(arrays, twoChannelPoint);
@@ -3197,9 +3177,7 @@ TEST(RooFitHS3, HistFactoryArrayDistConstraintErrors)
    Imported ws{withArray(R"({"x": "nom_1", "mean": "alpha_a"}, {"x": "nom_2", "mean": "b"})")};
    EXPECT_THAT(ws.warnings,
                HasSubstr("the components 'nom_2_constraint' of the array distribution 'arr' are not used"));
-   auto *model = object<RooProdPdf>(ws, "model_channel0");
-   EXPECT_NE(model->pdfList().find("nom_1_constraint"), nullptr);
-   EXPECT_EQ(model->pdfList().find("nom_2_constraint"), nullptr);
+   EXPECT_EQ(constraintTermNames(ws), std::set<std::string>{"nom_1_constraint"});
 }
 
 // The HistFactory export collects the constraints of the modifiers into one array distribution per type and
@@ -3279,7 +3257,7 @@ TEST(RooFitHS3, TutorialRF515RoundTrip)
 // The constraint terms of the HistFactory channels are listed in the likelihood: in "aux_distributions" by default,
 // with the observed values of their observables as constant parameters, or (config().exportConstraintData) in
 // "distributions", each paired with a data set that holds the observed values. On import they enter the likelihood
-// once, through the channels, and the observed values are taken from the data sets.
+// once, as external constraints of the ModelConfig, and the observed values are taken from the data sets.
 TEST(RooFitHS3, HistFactoryConstraintTermsInLikelihood)
 {
    // With a combined data set for the RooSimultaneous of the ModelConfig, so that the likelihood has data: without
@@ -3302,9 +3280,9 @@ TEST(RooFitHS3, HistFactoryConstraintTermsInLikelihood)
       "aux_distributions": ["an_simPdf_poisson_continuous_constraints", "an_simPdf_gaussian_constraints"]})"));
    {
       Imported ws2{exported};
-      auto *mc = object<RooStats::ModelConfig>(ws2, "an");
-      // Not added again as external constraints: they are in the channels already.
-      EXPECT_TRUE(!mc->GetExternalConstraints() || mc->GetExternalConstraints()->empty());
+      // Each of them once: the components of the arrays, not the arrays on top of them.
+      EXPECT_EQ(externalConstraintNames(ws, "an").size(), 7u);
+      EXPECT_EQ(externalConstraintNames(ws2, "an").size(), 7u);
       EXPECT_DOUBLE_EQ(ws2.var("nom_gamma_c1_0")->getVal(), 120.0);
       EXPECT_TRUE(ws2.var("nom_gamma_c1_0")->isConstant());
    }
@@ -3343,7 +3321,7 @@ TEST(RooFitHS3, HistFactoryConstraintTermsInLikelihood)
       EXPECT_TRUE(ws3.var("nom_gamma_c1_0")->isConstant());
       ASSERT_NE(mc->GetGlobalObservables(), nullptr);
       EXPECT_NE(mc->GetGlobalObservables()->find("nom_gamma_c1_0"), nullptr);
-      EXPECT_TRUE(!mc->GetExternalConstraints() || mc->GetExternalConstraints()->empty());
+      EXPECT_EQ(externalConstraintNames(ws3, "an").size(), 7u);
    }
 
    // Without arrays, every constraint is paired with its own data set.
@@ -3528,7 +3506,7 @@ TEST(RooFitHS3, HistFactoryShapeFactorWithoutParameters)
 }
 
 // The gammas of a shapefactor or staterror whose constraint distribution has a type that the HistFactory export
-// doesn't recognize are written as free parameters. Their constraint is kept as a constraint term of the channel.
+// doesn't recognize are written as free parameters. Their constraint is kept as a constraint term.
 TEST(RooFitHS3, HistFactoryUnsupportedGammaConstraint)
 {
    for (std::string const type : {"shapefactor", "staterror"}) {
@@ -3544,8 +3522,8 @@ TEST(RooFitHS3, HistFactoryUnsupportedGammaConstraint)
       EXPECT_FALSE(exported.has("distributions/model_channel0/samples/0/modifiers/0/constraints"));
 
       Imported ws2{exported};
-      auto *constraint = object<RooAbsPdf>(ws2, "g0_constraint");
-      EXPECT_TRUE(ws2.pdf("model_channel0")->dependsOn(*constraint));
+      object<RooAbsPdf>(ws2, "g0_constraint");
+      EXPECT_EQ(constraintTermNames(ws2), std::set<std::string>{"g0_constraint"});
    }
 }
 
@@ -3685,38 +3663,6 @@ TEST(RooFitHS3, HistFactoryLegacyNamedConstraintWithImplicitNominal)
    auto *nominal = object<RooRealVar>(ws, "nom_alpha_syst");
    EXPECT_TRUE(nominal->isConstant());
    EXPECT_DOUBLE_EQ(nominal->getVal(), 0.0);
-}
-
-namespace {
-
-// The channels "model_A" and "model_B", whose sample "bkg" has a modifier with the given keys and the gammas g0 and
-// g1: with constraints in channel A, without in channel B.
-std::string gammasSharedBetweenChannels(std::string const &modifierKeys, std::string const &sampleData)
-{
-   auto sharedChannel = [&](std::string const &name, std::string const &constraints) {
-      const std::string modifier = "{" + modifierKeys + R"(, "parameters": ["g0", "g1"])" + constraints + "}";
-      return channel("model_" + name, {sample("bkg", sampleData, modifier)}, "",
-                     R"({"name": "x_)" + name + R"(", "min": 0.0, "max": 2.0, "nbins": 2})");
-   };
-   return document("0.3", {distributions({sharedChannel("A", R"(, "constraints": ["g0_constraint", "g1_constraint"])"),
-                                          sharedChannel("B", ""), gammaConstraint("g0"), gammaConstraint("g1")}),
-                           defaultDomain({axes({"g0", "g1"}, 0, 5)})});
-}
-
-} // namespace
-
-// The gammas of a shapefactor can be shared between channels. In each channel, only its own constraint terms constrain
-// them, so that every channel is written as it is.
-TEST(RooFitHS3, HistFactoryShapeFactorSharedBetweenChannels)
-{
-   Imported ws{
-      gammasSharedBetweenChannels(R"("type": "shapefactor", "name": "shape")", R"({"contents": [10.0, 20.0]})")};
-   EXPECT_NE(ws.function("A_shape_ShapeSys"), nullptr);
-   EXPECT_NE(ws.function("B_shape_shapeFactor"), nullptr);
-
-   Doc exported{ws};
-   EXPECT_TRUE(exported.has("distributions/model_A/samples/0/modifiers/0/constraints"));
-   EXPECT_FALSE(exported.has("distributions/model_B/samples/0/modifiers/0/constraints"));
 }
 
 // The constrained gammas of a shapefactor without "data.vals" get the relative uncertainty that their constraint
@@ -3862,10 +3808,7 @@ TEST(RooFitHS3, HistFactoryFunctionGammaWithLegacyConstraint)
    RooAbsArg *g0 = phf->paramList().find("g0");
    ASSERT_NE(g0, nullptr);
    EXPECT_EQ(dynamic_cast<RooRealVar *>(g0), nullptr);
-   for (const char *name : {"g0_constraint", "g1_constraint"}) {
-      auto *constraint = object<RooAbsPdf>(ws, name);
-      EXPECT_TRUE(ws.pdf("model_channel0")->dependsOn(*constraint)) << name;
-   }
+   EXPECT_EQ(constraintTermNames(ws), (std::set<std::string>{"g0_constraint", "g1_constraint"}));
    EXPECT_DOUBLE_EQ(ws.var("k0")->getMax(), 5.0);
    EXPECT_DOUBLE_EQ(ws.var("g1")->getMax(), 1.5);
 
@@ -3874,51 +3817,6 @@ TEST(RooFitHS3, HistFactoryFunctionGammaWithLegacyConstraint)
       functionGammaDoc(R"({"type": "staterror", "parameters": ["g0", "g1"], "constraint_type": "Const"})")};
    EXPECT_TRUE(wsConst.var("g1")->isConstant());
    EXPECT_FALSE(wsConst.var("k0")->isConstant());
-}
-
-// The staterror gammas can be shared between channels. In each channel, only its own constraint terms constrain them.
-TEST(RooFitHS3, HistFactoryStatErrorSharedBetweenChannels)
-{
-   Imported ws{
-      gammasSharedBetweenChannels(R"("type": "staterror")", R"({"contents": [10.0, 20.0], "errors": [1.0, 2.0]})")};
-   Doc exported{ws};
-   EXPECT_TRUE(exported.has("distributions/model_A/samples/0/modifiers/0/constraints"));
-   EXPECT_FALSE(exported.has("distributions/model_B/samples/0/modifiers/0/constraints"));
-}
-
-// The constraint terms of a channel can be grouped in a nested RooProdPdf: the constraints are found in it.
-TEST(RooFitHS3, HistFactoryNestedConstraintTerms)
-{
-   Imported ws{HistFactoryDoc{"0.3", R"({"type": "shapefactor", "name": "sf", "parameters": ["g0", "g1"],
-                                         "constraints": ["g0_constraint", "g1_constraint"]})"}
-                  .distributions(gammaConstraint("g0", "0.1"))
-                  .distributions(gammaConstraint("g1", "0.2"))
-                  .sections(defaultDomain({axes({"g0", "g1"}, 0, 5)}))};
-   auto *model = object<RooProdPdf>(ws, "model_channel0");
-   RooAbsPdf *sum = nullptr;
-   for (RooAbsArg *pdf : model->pdfList()) {
-      if (auto *sumPdf = dynamic_cast<RooRealSumPdf *>(pdf)) {
-         sum = sumPdf;
-      }
-   }
-   ASSERT_NE(sum, nullptr);
-   RooProdPdf constraints{"constraints_channel1", "", RooArgList{*ws.pdf("g0_constraint"), *ws.pdf("g1_constraint")}};
-   RooProdPdf nestedModel{"model_channel1", "", RooArgList{*sum, constraints}};
-   RooWorkspace wsNested;
-   wsNested.import(nestedModel, RooFit::Silence());
-
-   EXPECT_TRUE(matches(Doc{wsNested}, "distributions/model_channel1/samples/0/modifiers/0",
-                       R"({"constraints": ["g0_constraint", "g1_constraint"]})"));
-
-   // The likelihood lists the factors as constraint terms, like RooFit, which finds the nested product.
-   RooDataHist data{"obsData", "", *wsNested.var("x")};
-   wsNested.import(data, RooFit::Silence());
-   RooFit::ModelConfig mc{"ModelConfig", &wsNested};
-   mc.SetPdf("model_channel1");
-   mc.SetObservables("x");
-   wsNested.import(mc);
-   EXPECT_TRUE(matches(Doc{wsNested}, "likelihoods/ModelConfig_obsData_likelihood",
-                       R"({"aux_distributions": ["g0_constraint", "g1_constraint"]})"));
 }
 
 // Unnamed shapefactors are named after their channel, sample and position, so that the ones of different samples
@@ -4146,12 +4044,13 @@ void importFormulaNormSysChannel(RooWorkspace &ws)
    RooRealVar mu{"mu", "mu", 1.0, 0.0, 5.0};
    RooHistFunc hist{"hist_sig", "hist_sig", RooArgSet{x}, makeDataHist("hist_sig_data", x, {100.0, 200.0})};
    RooBinWidthFunction binWidth{"sig_binWidth", "sig_binWidth", hist, true};
-   RooProduct shapes{"model_ch_sig_shapes", "", RooArgList{hist, binWidth}};
+   RooProduct shapes{"ch_model_sig_shapes", "", RooArgList{hist, binWidth}};
    RooFormulaVar norm{"sig_norm", "(1+alpha_sys*0.1)*mu", RooArgList{alpha, mu}};
    RooRealSumPdf sum{"ch_model", "ch_model", RooArgList{shapes}, RooArgList{norm}, true};
    RooGaussian constraint{"alpha_sysConstraint", "", alpha, nominal, sigma};
-   RooProdPdf prod{"model_ch", "model_ch", RooArgSet{constraint}, RooFit::Conditional(sum, x)};
-   ws.import(prod, RooFit::Silence());
+   ws.import(sum, RooFit::Silence());
+   // The constraint is no part of the channel: it is registered in the workspace, like HistFactory does.
+   RooFit::addConstraintTerms(ws, RooArgSet{constraint});
 }
 
 // The round trip of a channel with a formula among the factors of its sample, see expectRoundTrip(). The yield of the
@@ -4199,13 +4098,14 @@ TEST(RooFitHS3, FormulaNormSysConstraint)
    RooWorkspace ws1;
    importFormulaNormSysChannel(ws1);
    Doc doc{ws1};
-   EXPECT_TRUE(matches(doc, "distributions/model_ch/samples/sig/modifiers/sys",
-                       R"({"parameters": ["alpha_sys"], "constraints": ["model_ch_gaussian_constraints"]})"));
+   EXPECT_TRUE(matches(doc, "distributions/ch_model/samples/sig/modifiers/sys",
+                       R"({"parameters": ["alpha_sys"], "constraints": ["ch_model_gaussian_constraints"]})"));
 
    Imported ws2{doc};
    // The constraint survives the round trip; its name depends on the grouping of the constraints.
    bool constrained = false;
-   for (RooAbsArg *pdf : ws2.allPdfs()) {
+   for (std::string const &name : constraintTermNames(ws2)) {
+      RooAbsPdf *pdf = ws2.pdf(name);
       constrained |= dynamic_cast<RooGaussian *>(pdf) && pdf->dependsOn(*ws2.var("alpha_sys"));
    }
    EXPECT_TRUE(constrained);
@@ -4724,20 +4624,18 @@ TEST_P(HFFixture, HS3ClosureLoop)
    RooAbsData *newdata = wsFromJson.data("obsData");
    EXPECT_TRUE(newdata != nullptr);
 
-   RooArgSet const &globs = *mc->GetGlobalObservables();
-   RooArgSet const &globsFromJson = *newmc->GetGlobalObservables();
-
    setInitialFitParameters(*ws, makeModelMode);
    setInitialFitParameters(wsFromJson, makeModelMode);
 
    using namespace RooFit;
    using Res = std::unique_ptr<RooFitResult>;
 
-   Res result{pdf->fitTo(*data, Strategy(1), Minos(*mc->GetParametersOfInterest()), GlobalObservables(globs),
-                         PrintLevel(-1), Save())};
+   // The constraint terms are no part of the pdfs: the ModelConfigs pass them to the fits, together with the global
+   // observables.
+   Res result{mc->fitTo(*data, Strategy(1), Minos(*mc->GetParametersOfInterest()), PrintLevel(-1), Save())};
 
-   Res resultFromJson{newpdf->fitTo(*newdata, Strategy(1), Minos(*newmc->GetParametersOfInterest()),
-                                    GlobalObservables(globsFromJson), PrintLevel(-1), Save())};
+   Res resultFromJson{
+      newmc->fitTo(*newdata, Strategy(1), Minos(*newmc->GetParametersOfInterest()), PrintLevel(-1), Save())};
 
    // Do also the reverse comparison to check that the set of constant parameters matches
    EXPECT_TRUE(result->isIdentical(*resultFromJson));
@@ -4796,7 +4694,7 @@ TEST(RooFitHS3, HistFactoryImportShapeFactorModifier)
 
    // The free ShapeFactor is written as "shapefactor", without constraints.
    EXPECT_EQ(
-      js.dump("distributions/model_channel1/samples/background/modifiers/bkgShape"),
+      js.dump("distributions/channel1_model/samples/background/modifiers/bkgShape"),
       R"({"name":"bkgShape","parameters":["gamma_bkgShape_bin_0","gamma_bkgShape_bin_1"],"type":"shapefactor"})");
    EXPECT_THAT(js.json(), Not(HasSubstr("shapesys")));
 
@@ -4919,10 +4817,25 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
    ASSERT_NE(mc, nullptr);
    ASSERT_NE(data, nullptr);
 
-   // A copy of the model that we can modify.
-   std::unique_ptr<RooAbsPdf> model{static_cast<RooAbsPdf *>(mc->GetPdf()->cloneTree())};
+   // A copy of the model that we can modify: the pdf and its constraint terms, which are no part of the pdf. The copies
+   // share their parameters, like the originals.
+   RooArgSet originals{*mc->GetPdf()};
+   originals.add(*mc->GetExternalConstraints());
+   std::unique_ptr<RooAbsCollection> copies{originals.snapshot(true)};
+   auto *model = static_cast<RooAbsPdf *>(copies->find(mc->GetPdf()->GetName()));
+   RooArgSet constraints;
+   for (RooAbsArg *constraint : *mc->GetExternalConstraints()) {
+      constraints.add(*copies->find(constraint->GetName()));
+   }
    RooArgSet nodes;
-   model->treeNodeServerList(&nodes);
+   auto collectNodes = [&] {
+      nodes.removeAll();
+      model->treeNodeServerList(&nodes);
+      for (RooAbsArg *constraint : constraints) {
+         constraint->treeNodeServerList(&nodes);
+      }
+   };
+   collectNodes();
    auto node = [&](std::string const &name) -> RooAbsArg & {
       RooAbsArg *arg = nodes.find(name.c_str());
       if (!arg) {
@@ -4939,18 +4852,14 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
       }
       throw std::runtime_error("no sample " + sample + " in channel " + channel);
    };
-   auto channelPdf = [&](std::string const &channel) -> RooProdPdf & {
-      return dynamic_cast<RooProdPdf &>(node("model_" + channel));
-   };
-
    // Add a custom modifier to the background of the CR.
    auto &k = *new RooRealVar("k", "k", 0., -1., 1.);
    auto &custom = *new RooFormulaVar("customScale", "1 + 0.2 * @0", RooArgList{k});
    sampleProduct("CR", "background").addTerm(&custom);
    model->addOwnedComponents(RooArgSet{custom, k});
 
-   // Remove the normsys of the signal of the SR, by replacing its FlexibleInterpVar with 1. Its constraint stays in
-   // the model, attached to no modifier.
+   // Remove the normsys of the signal of the SR, by replacing its FlexibleInterpVar with 1. Its constraint stays a
+   // constraint term of the model, attached to no modifier.
    RooAbsArg *sigSysFiv = nullptr;
    for (RooAbsArg *arg : nodes) {
       if (dynamic_cast<FlexibleInterpVar *>(arg) && arg->dependsOn(node("alpha_sigSys"))) {
@@ -4965,17 +4874,16 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
    for (RooAbsArg *client : fivClients) {
       client->redirectServers(RooArgSet{one}, false, true);
    }
-   // A constraint term without modifier is written, but not part of the likelihood after the import; with a constant
-   // parameter, it only adds a constant.
+   // With a constant parameter, a constraint term without modifier only adds a constant.
    static_cast<RooRealVar &>(node("alpha_sigSys")).setConstant(true);
 
    // Swap the constraint of the normsys of the CR background for a narrower Gaussian.
    auto &alphaBkgNorm = static_cast<RooRealVar &>(node("alpha_bkgNorm"));
    auto &nomBkgNorm = static_cast<RooRealVar &>(node("nom_alpha_bkgNorm"));
    auto &narrow = *new RooGaussian("narrowConstraint", "", alphaBkgNorm, nomBkgNorm, RooFit::RooConst(0.5));
-   narrow.setAttribute("ORIGNAME:alpha_bkgNormConstraint");
    model->addOwnedComponents(RooArgSet{narrow});
-   channelPdf("CR").redirectServers(RooArgSet{narrow}, false, true);
+   constraints.remove(node("alpha_bkgNormConstraint"));
+   constraints.add(narrow);
 
    // In the CR, the division by the bin width takes the form of HistFactory before ROOT 6.26: a constant inverse bin
    // width, with 7 significant digits as HistFactory wrote it.
@@ -5004,15 +4912,14 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
    auto &extraConstraint = *new RooGaussian("extraConstraint", "", extra, nomExtra, RooFit::RooConst(1.));
    auto &extraFiv = *new FlexibleInterpVar("extraFiv", "", RooArgList{extra}, 1., {0.9}, {1.15}, {4});
    sampleProduct("SR", "background").addTerm(&extraFiv);
-   channelPdf("SR").addPdfs(RooArgSet{extraConstraint});
+   constraints.add(extraConstraint);
    model->addOwnedComponents(RooArgSet{extraFiv, extraConstraint, extra, nomExtra});
 
    // Rename everything except the observables, the channel category and the weight variable. The new names are the
    // old ones reversed, so no prefix or suffix of the HistFactory naming scheme survives. The POI gets a name that
    // contains "binWidth".
    RooArgSet keep{*mc->GetObservables()};
-   nodes.removeAll();
-   model->treeNodeServerList(&nodes);
+   collectNodes();
    std::map<std::string, std::string> newNames;
    for (RooAbsArg *arg : nodes) {
       std::string name = arg->GetName();
@@ -5033,6 +4940,7 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
 
    RooWorkspace wsMod{"wsMod"};
    wsMod.import(*model, RooFit::Silence());
+   wsMod.import(constraints, RooFit::RecycleConflictNodes(), RooFit::Silence());
    wsMod.import(*data, RooFit::Silence());
    auto collect = [&](RooArgSet const &original, std::vector<std::string> const &added) {
       RooArgSet out;
@@ -5050,6 +4958,7 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
    mcMod.SetParametersOfInterest(collect(*mc->GetParametersOfInterest(), {}));
    mcMod.SetNuisanceParameters(collect(*mc->GetNuisanceParameters(), {"k", "extra"}));
    mcMod.SetGlobalObservables(collect(*mc->GetGlobalObservables(), {"nom_extra"}));
+   mcMod.SetExternalConstraints(constraints);
    wsMod.import(mcMod);
 
    std::string json;
@@ -5098,11 +5007,9 @@ TEST(RooFitHS3, HistFactoryExportDoesNotDependOnNames)
    const std::string json2 = toJSON(wsBack);
    EXPECT_EQ(reexport(json2), json2);
 
-   using RooFit::GlobalObservables;
-   std::unique_ptr<RooAbsReal> nll{
-      wsMod.pdf(model->GetName())->createNLL(*wsMod.data("obsData"), GlobalObservables(*mcMod.GetGlobalObservables()))};
-   std::unique_ptr<RooAbsReal> nllBack{
-      mcBack->GetPdf()->createNLL(*dataBack, GlobalObservables(*mcBack->GetGlobalObservables()))};
+   // With the constraint terms of the ModelConfigs.
+   std::unique_ptr<RooAbsReal> nll{mcMod.createNLL(*wsMod.data("obsData"))};
+   std::unique_ptr<RooAbsReal> nllBack{mcBack->createNLL(*dataBack)};
    RooArgSet params;
    nll->getParameters(nullptr, params);
    // Up to a constant: the constraint terms may be written in a different but equivalent form. The tolerance allows for
@@ -5149,11 +5056,11 @@ std::unique_ptr<RooWorkspace> makeLegacyHistFactoryWorkspace()
    RooProduct bkg{"background_channel1_overallSyst_x_Exp", "", RooArgList{bkgHist, epsilon}};
    RooRealVar binWidth0{"binWidth_obs_x_channel1_0", "", 2.0};
    RooRealVar binWidth1{"binWidth_obs_x_channel1_1", "", 2.0};
-   RooRealSumPdf sum{"channel1_model", "", RooArgList{sig, bkg}, RooArgList{binWidth0, binWidth1}, true};
-   RooProdPdf model{"model_channel1", "", RooArgList{constraint, sum}};
+   RooRealSumPdf model{"channel1_model", "", RooArgList{sig, bkg}, RooArgList{binWidth0, binWidth1}, true};
 
    auto ws = std::make_unique<RooWorkspace>("channel1");
    ws->import(model, RooFit::Silence());
+   ws->import(constraint, RooFit::Silence());
    ws->import(*makeDataHist("obsData", obs, {122.0, 112.0}), RooFit::Silence());
    RooStats::ModelConfig mc{"ModelConfig", ws.get()};
    mc.SetPdf(model.GetName());
@@ -5161,6 +5068,8 @@ std::unique_ptr<RooWorkspace> makeLegacyHistFactoryWorkspace()
    mc.SetParametersOfInterest(RooArgSet{mu});
    mc.SetNuisanceParameters(RooArgSet{alpha});
    mc.SetGlobalObservables(RooArgSet{nomAlpha});
+   // The constraint term is no part of the pdf of the channel.
+   mc.SetExternalConstraints(RooArgSet{*ws->pdf(constraint.GetName())});
    ws->import(mc);
    ws->saveSnapshot("NominalParamValues", ws->allVars());
    return ws;
@@ -5194,6 +5103,8 @@ TEST(RooFitHS3, HistFactoryLegacyBinWidthFactor)
    ASSERT_FALSE(renamedFactors.empty());
    auto makeWorkspace = [&](RooWorkspace &out) {
       out.import(*model, RooFit::Silence());
+      // The constraint term is no part of the pdf. It doesn't depend on the bin width factors.
+      out.import(*mc->GetExternalConstraints(), RooFit::RecycleConflictNodes(), RooFit::Silence());
       out.import(*ws->data("obsData"), RooFit::Silence());
       RooStats::ModelConfig mcOut{"ModelConfig", &out};
       mcOut.SetPdf(model->GetName());
@@ -5201,6 +5112,7 @@ TEST(RooFitHS3, HistFactoryLegacyBinWidthFactor)
       mcOut.SetParametersOfInterest(*mc->GetParametersOfInterest());
       mcOut.SetNuisanceParameters(*mc->GetNuisanceParameters());
       mcOut.SetGlobalObservables(*mc->GetGlobalObservables());
+      mcOut.SetExternalConstraints(*mc->GetExternalConstraints());
       out.import(mcOut);
    };
    auto normfactorsOf = [&](std::string const &json) {
@@ -5241,26 +5153,29 @@ TEST(RooFitHS3, HistFactoryLegacyBinWidthFactor)
       Imported wsBack{doc};
       auto *mcBack = static_cast<RooStats::ModelConfig *>(wsBack.obj("ModelConfig"));
       ASSERT_NE(mcBack, nullptr);
-      using RooFit::GlobalObservables;
-      std::unique_ptr<RooAbsReal> nll{
-         mc->GetPdf()->createNLL(*ws->data("obsData"), GlobalObservables(*mc->GetGlobalObservables()))};
-      std::unique_ptr<RooAbsReal> nllBack{
-         mcBack->GetPdf()->createNLL(*wsBack.data("obsData"), GlobalObservables(*mcBack->GetGlobalObservables()))};
+      EXPECT_EQ(externalConstraintNames(wsBack, "ModelConfig").size(), 1u);
+      std::unique_ptr<RooAbsReal> nll{mc->createNLL(*ws->data("obsData"))};
+      std::unique_ptr<RooAbsReal> nllBack{mcBack->createNLL(*wsBack.data("obsData"))};
       const double nll0 = nll->getVal();
       const double nllBack0 = nllBack->getVal();
       for (double mu : {0.5, 2.}) {
-         ws->var("SigXsecOverSM")->setVal(mu);
-         wsBack.var("SigXsecOverSM")->setVal(mu);
+         for (RooWorkspace *w : std::initializer_list<RooWorkspace *>{ws.get(), &wsBack}) {
+            w->var("SigXsecOverSM")->setVal(mu);
+            // The constrained parameter is moved as well, so that the constraint term contributes.
+            w->var("alpha_syst")->setVal(mu - 1.);
+         }
          EXPECT_NEAR(nllBack->getVal() - nllBack0, nll->getVal() - nll0, 1e-6) << "mu = " << mu;
       }
       ws->var("SigXsecOverSM")->setVal(1.);
+      ws->var("alpha_syst")->setVal(0.);
    }
 
    // Objects outside the workspace don't count: a likelihood created before the export (as for a fit) refers to the
    // factors from its computation graph.
    {
       const std::string before = toJSON(wsRenamed);
-      std::unique_ptr<RooAbsReal> nll{wsRenamed.pdf(model->GetName())->createNLL(*wsRenamed.data("obsData"))};
+      auto *mcRenamed = static_cast<RooStats::ModelConfig *>(wsRenamed.obj("ModelConfig"));
+      std::unique_ptr<RooAbsReal> nll{mcRenamed->createNLL(*wsRenamed.data("obsData"))};
       nll->getVal();
       EXPECT_EQ(toJSON(wsRenamed), before);
    }
@@ -6478,53 +6393,6 @@ TEST(RooFitHS3, SharedVariatesInLikelihood)
    expectImportThrowsWithError(exported, message);
 }
 
-namespace {
-
-void buildConstraintInModelAndExternal(RooWorkspace &ws)
-{
-   ws.factory("Gaussian::shape(x[0, -5, 5], theta[0, -5, 5], 1.0)");
-   ws.factory("Gaussian::constraint(theta_obs[0, -5, 5], theta, 1.0)");
-   ws.factory("PROD::model(shape, constraint)");
-   ws.var("theta_obs")->setConstant(true);
-   RooDataSet data{"data", "data", *ws.var("x")};
-   ws.var("x")->setVal(0.7);
-   data.add(*ws.var("x"));
-   ws.import(data, RooFit::Silence());
-   RooFit::ModelConfig mc{"ModelConfig", &ws};
-   mc.SetPdf("model");
-   mc.SetParametersOfInterest("theta");
-   mc.SetObservables("x");
-   mc.SetGlobalObservables("theta_obs");
-   mc.SetExternalConstraints(RooArgSet{*ws.pdf("constraint")});
-   ws.import(mc);
-}
-
-} // namespace
-
-// The document reads back with the same NLL, and is stable.
-INSTANTIATE_TEST_SUITE_P(ConstraintInModelAndExternal, RoundTrip,
-                         testing::Values(RoundTripModel{"Model", buildConstraintInModelAndExternal}
-                                            .with(constraintStyles())
-                                            .likelihoodOf("ModelConfig", "data")
-                                            .within(1e-10)),
-                         roundTripName);
-
-// A constraint that is both a factor of the model and an external constraint of the ModelConfig is one term of the
-// likelihood in RooFit. It is written once, as a term of the likelihood: the product keeps its other factors. The
-// document has distinct variates.
-TEST(RooFitHS3, ConstraintInModelAndExternal)
-{
-   RooWorkspace ws;
-   buildConstraintInModelAndExternal(ws);
-
-   Doc exported{ws};
-   EXPECT_TRUE(matches(exported, "distributions/model", R"({"factors": ["shape"]})"));
-   EXPECT_TRUE(
-      matches(exported, "likelihoods/ModelConfig_data_likelihood", R"({"aux_distributions": ["constraint"]})"));
-
-   EXPECT_THAT(Imported{exported}.warnings, Not(HasSubstr("is shared by the")));
-}
-
 // The parameters that only an external constraint of the ModelConfig depends on keep their roles through a round
 // trip: its observable stays a global observable, and its parameter a nuisance parameter.
 TEST(RooFitHS3, ExternalConstraintKeepsRoles)
@@ -6556,86 +6424,6 @@ TEST(RooFitHS3, ExternalConstraintKeepsRoles)
    EXPECT_NE(mc2->GetNuisanceParameters()->find("theta"), nullptr) << exported;
    ASSERT_NE(mc2->GetExternalConstraints(), nullptr);
    EXPECT_NE(mc2->GetExternalConstraints()->find("constraint"), nullptr);
-}
-
-namespace {
-
-// Two channels with constraints as factors: one shared by the channels, one of the first channel only.
-void buildConstraintFactorsOfChannels(RooWorkspace &ws)
-{
-   ws.factory("Gaussian::a(xa[0, -5, 5], mu[0, -2, 2], 1.0)");
-   ws.factory("Gaussian::b(xb[0, -5, 5], expr::mu_theta('mu + theta', mu, theta[0, -5, 5]), 1.0)");
-   ws.factory("Gaussian::shared(gobs[0, -5, 5], theta, 1.0)");
-   ws.factory("Gaussian::own(gobs_eta[0, -5, 5], eta[0, -5, 5], 1.0)");
-   ws.factory("Gaussian::a_shape(xa, eta, 2.0)");
-   ws.var("gobs")->setConstant(true);
-   ws.var("gobs_eta")->setConstant(true);
-   ws.factory("PROD::channel_a(SUM::a_sum(f[0.5, 0, 1] * a, a_shape), shared, own)");
-   ws.factory("PROD::channel_b(b, shared)");
-   ws.factory("SIMUL::model(channel[A=0, B=1], A=channel_a, B=channel_b)");
-   RooArgSet observables{*ws.var("xa"), *ws.var("xb"), *ws.cat("channel")};
-   RooDataSet data{"data", "data", observables};
-   for (int index : {0, 1}) {
-      ws.cat("channel")->setIndex(index);
-      ws.var("xa")->setVal(0.3);
-      ws.var("xb")->setVal(-0.6);
-      data.add(observables);
-   }
-   ws.import(data, RooFit::Silence());
-   RooFit::ModelConfig mc{"ModelConfig", &ws};
-   mc.SetPdf("model");
-   mc.SetParametersOfInterest("mu");
-   mc.SetNuisanceParameters("theta,eta,f");
-   mc.SetObservables(observables);
-   mc.SetGlobalObservables("gobs,gobs_eta");
-   ws.import(mc);
-}
-
-} // namespace
-
-// The document reads back with the same NLL. The import makes a constraint a factor of the channels that depend on
-// its parameter: "shared" is no factor of "channel_a" any more, so the second export lists the terms in another
-// order. From then on, the document is stable.
-INSTANTIATE_TEST_SUITE_P(ConstraintFactorsOfChannels, RoundTrip,
-                         testing::Values(RoundTripModel{"Model", buildConstraintFactorsOfChannels}
-                                            .with(constraintStyles())
-                                            .over({"xa", "xb"})
-                                            .likelihoodOf("ModelConfig", "data")
-                                            .within(1e-10)
-                                            .stableFromSecondExport()),
-                         roundTripName);
-
-// Constraints that RooFit finds in the channels of a model (RooAbsPdf::getAllConstraints()) are written as terms of
-// the likelihood, not as factors of the products, also if only one channel has them. A constraint shared by two
-// channels is one term of the likelihood in RooFit, and it is written once. A product that another pdf uses keeps its
-// constraints.
-TEST(RooFitHS3, ConstraintFactorsOfChannelsAreLikelihoodTerms)
-{
-   RooWorkspace ws;
-   buildConstraintFactorsOfChannels(ws);
-
-   Doc exported{ws};
-   EXPECT_TRUE(matches(exported, "distributions/channel_a", R"({"factors": ["a_sum"]})"));
-   EXPECT_TRUE(matches(exported, "distributions/channel_b", R"({"factors": ["b"]})"));
-   EXPECT_THAT(exported.strings("likelihoods/ModelConfig_data_likelihood/aux_distributions"),
-               testing::UnorderedElementsAre("shared", "own"));
-
-   EXPECT_THAT(Imported{exported}.warnings, Not(HasSubstr("is shared by the")));
-
-   // A product that another pdf uses keeps its constraint.
-   RooWorkspace wsUsed;
-   wsUsed.factory("Gaussian::shape(x[0, -5, 5], theta[0, -5, 5], 1.0)");
-   wsUsed.factory("Gaussian::constraint(gobs[0, -5, 5], theta, 1.0)");
-   wsUsed.var("gobs")->setConstant(true);
-   wsUsed.factory("PROD::model(shape, constraint)");
-   wsUsed.factory("SUM::other(f[0.5, 0, 1] * model, Uniform::flat(x))");
-   RooDataSet dataUsed{"data", "data", *wsUsed.var("x")};
-   dataUsed.add(*wsUsed.var("x"));
-   wsUsed.import(dataUsed, RooFit::Silence());
-   addModelConfig(wsUsed, "ModelConfig", "model", "x", "theta", /*nuisance=*/nullptr, /*globals=*/"gobs");
-   Doc exportedUsed{wsUsed};
-   EXPECT_TRUE(matches(exportedUsed, "distributions/model", R"({"factors": ["shape", "constraint"]})"));
-   EXPECT_THAT(exportedUsed.json(), Not(HasSubstr("aux_distributions")));
 }
 
 namespace {
@@ -6699,14 +6487,15 @@ TEST(RooFitHS3, ObservablesWithoutData)
    ws.factory("SUM::phys(f[0.5, 0, 1] * shape, shift)");
    ws.factory("Gaussian::constraint(gobs[0, -5, 5], theta, 1.0)");
    ws.var("gobs")->setConstant(true);
-   ws.factory("PROD::model(phys, constraint)");
-   addModelConfig(ws, "ModelConfig", "model", "x", "mu", /*nuisance=*/"theta,f", /*globals=*/"gobs");
+   addModelConfig(ws, "ModelConfig", "phys", "x", "mu", /*nuisance=*/"theta,f", /*globals=*/"gobs",
+                  /*constraints=*/"constraint");
 
    Doc exported{ws};
    EXPECT_EQ(exported.dump("misc/ROOT_internal/ModelConfigs/ModelConfig/observables"), R"(["x"])");
    Imported ws2{exported};
    EXPECT_EQ(observableNames(ws2, "ModelConfig"), std::vector<std::string>{"x"});
-   // The constraint is a factor of the model again, so the document is stable.
+   // The constraint is an external constraint of the ModelConfig again, so the document is stable.
+   EXPECT_EQ(externalConstraintNames(ws2, "ModelConfig"), std::set<std::string>{"constraint"});
    EXPECT_EQ(toJSON(ws2), exported.json());
 
    // Without the list: inferred, with a message.
@@ -6777,7 +6566,7 @@ std::string constrainedChannelJSON(std::vector<std::string> const &sections = {}
 }
 
 // A workspace with the HistFactory channel of constrainedChannelJSON() as the component `A` of the RooSimultaneous
-// `model`, with a data set and a ModelConfig.
+// `model`, with a data set and a ModelConfig, which has the constraint of the channel as external constraint.
 void makeRenamedHistFactoryWorkspace(RooWorkspace &ws)
 {
    importInto(ws, constrainedChannelJSON());
@@ -6792,7 +6581,8 @@ void makeRenamedHistFactoryWorkspace(RooWorkspace &ws)
    index.setLabel("A");
    data.add({x, index}, 10.0);
    ws.import(data, RooFit::Silence());
-   addModelConfig(ws, "mc", "model", "x,channel", "mu", /*nuisance=*/"theta", /*globals=*/"gobs");
+   addModelConfig(ws, "mc", "model", "x,channel", "mu", /*nuisance=*/"theta", /*globals=*/"gobs",
+                  /*constraints=*/"constraint");
 }
 
 // The styles with renamed observables of the combined data sets.
@@ -6856,8 +6646,10 @@ TEST(RooFitHS3, LegacyBinWidthFactorOfRenamedChannel)
    std::unique_ptr<RooWorkspace> legacy = makeLegacyHistFactoryWorkspace();
    RooWorkspace ws;
    RooCategory channelCat{"channelCat", "channelCat", {{"channel1", 0}}};
-   RooSimultaneous simPdf{"simPdf", "simPdf", {{"channel1", legacy->pdf("model_channel1")}}, channelCat};
+   RooSimultaneous simPdf{"simPdf", "simPdf", {{"channel1", legacy->pdf("channel1_model")}}, channelCat};
    ws.import(simPdf, RooFit::Silence());
+   // The constraint term is no part of the pdf.
+   ws.import(*legacy->pdf("alpha_systConstraint"), RooFit::RecycleConflictNodes(), RooFit::Silence());
    RooRealVar &obs = *ws.var("obs_x_channel1");
    RooCategory &index = *ws.cat("channelCat");
    RooRealVar weight{"weight", "weight", 1.0};
@@ -6874,6 +6666,7 @@ TEST(RooFitHS3, LegacyBinWidthFactorOfRenamedChannel)
    mc.SetParametersOfInterest("SigXsecOverSM");
    mc.SetNuisanceParameters("alpha_syst");
    mc.SetGlobalObservables("nom_alpha_syst");
+   mc.SetExternalConstraints(RooArgSet{*ws.pdf("alpha_systConstraint")});
    ws.import(mc);
 
    const std::string json = toJSON(ws, {renameCombinedObservables(true)});
@@ -6889,11 +6682,9 @@ TEST(RooFitHS3, LegacyBinWidthFactorOfRenamedChannel)
    auto *mc2 = static_cast<RooStats::ModelConfig *>(ws2.obj("ModelConfig"));
    ASSERT_NE(mc2, nullptr);
    ASSERT_NE(ws2.data("obsData"), nullptr);
-   using RooFit::GlobalObservables;
-   std::unique_ptr<RooAbsReal> nll{
-      ws.pdf("simPdf")->createNLL(*ws.data("obsData"), GlobalObservables(*mc.GetGlobalObservables()))};
-   std::unique_ptr<RooAbsReal> nll2{
-      mc2->GetPdf()->createNLL(*ws2.data("obsData"), GlobalObservables(*mc2->GetGlobalObservables()))};
+   EXPECT_EQ(externalConstraintNames(ws2, "ModelConfig").size(), 1u);
+   std::unique_ptr<RooAbsReal> nll{mc.createNLL(*ws.data("obsData"))};
+   std::unique_ptr<RooAbsReal> nll2{mc2->createNLL(*ws2.data("obsData"))};
    // Up to a constant.
    const double ref = nll->getVal();
    const double ref2 = nll2->getVal();
@@ -6906,140 +6697,10 @@ TEST(RooFitHS3, LegacyBinWidthFactorOfRenamedChannel)
    }
 }
 
-namespace {
-
-// A HistFactory channel and an ordinary product sharing the constraint of the HistFactory parameter `theta`. The
-// HistFactory parameter `eta` has a constraint of its own. The channels are named `hfName` and `otherName`, to
-// control the order in which the export visits them. The constraint enters the likelihood twice, through the
-// modifier and as factor of the product, so the document is not valid HS3 0.3: its variate `theta_obs` is shared by
-// two terms. As a document of version 0.2 it is read with a warning, like a RooFit model with the constraint in
-// both channels.
-std::string
-sharedConstraintJSON(std::string const &hfName, std::string const &otherName, std::string const &version = "0.3")
+// A component of a tagged array product that another product also uses cannot be written: the export fails instead
+// of leaving a dangling reference, whichever of the two is visited first.
+TEST(RooFitHS3, ArrayComponentUsedByOtherProduct)
 {
-   const std::string xHF = R"({"name": "x_hf", "min": 0.0, "max": 1.0, "nbins": 1})";
-   const std::string modifiers = R"({"name": "mu", "type": "normfactor", "parameters": ["mu"]},
-      {"name": "shared", "type": "normsys", "parameters": ["theta"], "data": {"lo": 0.9, "hi": 1.1},
-       "constraints": ["shared_constraint"]},
-      {"name": "own", "type": "normsys", "parameters": ["eta"], "data": {"lo": 0.8, "hi": 1.2},
-       "constraints": ["own_constraint"]})";
-   return document(
-      version,
-      {distributions(
-          {channel(hfName, {sample("signal", R"({"contents": [10.0]})", modifiers)}, polyExpInterpolation, xHF),
-           R"({"name": "shape", "type": "gaussian_dist", "x": "x_other", "mean": "theta", "sigma": 1.0})",
-           R"({"name": ")" + otherName + R"(", "type": "product_dist", "factors": ["shape", "shared_constraint"]})",
-           R"({"name": "shared_constraint", "type": "gaussian_dist", "x": "theta_obs", "mean": "theta", "sigma": 1.0})",
-           R"({"name": "own_constraint", "type": "gaussian_dist", "x": "eta_obs", "mean": "eta", "sigma": 1.0})"}),
-       defaultDomain({xHF, axes({"x_other", "theta", "eta"}, -5, 5), axes({"mu"}, 0, 5)}),
-       defaultValues({values({{"theta", 0.0}}), constValues({{"theta_obs", 0.0}}), values({{"eta", 0.0}}),
-                      constValues({{"eta_obs", 0.0}}), values({{"mu", 1.0}})}),
-       section("data", {R"({"name": "data_hf", "type": "binned", "axes": [)" + xHF + R"(], "contents": [10.0]})",
-                        R"({"name": "data_other", "type": "unbinned", "axes": [)" + axes({"x_other"}, -5, 5) +
-                           R"(], "entries": [[0.2]]})"}),
-       R"("likelihoods": [{"name": "lh", "distributions": [")" + hfName + R"(", ")" + otherName +
-          R"("], "data": ["data_hf", "data_other"]}])",
-       R"("analyses": [{"name": "analysis", "likelihood": "lh", "domains": ["default_domain"],
-                        "parameters_of_interest": ["mu"]}])"});
-}
-
-// The NLL of the model of sharedConstraintJSON() at a parameter point that moves both constrained parameters.
-double sharedConstraintNLL(RooWorkspace &ws, std::string const &hfName, std::string const &otherName)
-{
-   auto *mc = dynamic_cast<RooStats::ModelConfig *>(ws.obj("analysis"));
-   auto *simPdf = mc ? dynamic_cast<RooSimultaneous *>(mc->GetPdf()) : nullptr;
-   if (!simPdf) {
-      return std::numeric_limits<double>::quiet_NaN();
-   }
-   ws.var("mu")->setVal(1.2);
-   ws.var("theta")->setVal(0.4);
-   ws.var("eta")->setVal(-0.3);
-   RooRealVar &xHF = *ws.var("x_hf");
-   RooRealVar &xOther = *ws.var("x_other");
-   RooRealVar weight{"weight", "weight", 1.0};
-   auto &indexCat = dynamic_cast<RooCategory &>(const_cast<RooAbsCategoryLValue &>(simPdf->indexCat()));
-   RooDataSet combined{"combined", "combined", {xHF, xOther, indexCat, weight}, RooFit::WeightVar(weight)};
-   xOther.setVal(0.0);
-   xHF.setVal(0.5);
-   indexCat.setLabel(hfName.c_str());
-   combined.add({xHF, xOther, indexCat}, 10.0);
-   xOther.setVal(0.2);
-   indexCat.setLabel(otherName.c_str());
-   combined.add({xHF, xOther, indexCat}, 1.0);
-   std::unique_ptr<RooAbsReal> nll{simPdf->createNLL(combined)};
-   return nll->getVal();
-}
-
-// The model of sharedConstraintJSON() as RooFit reads it from a document of version 0.2.
-RoundTripModel sharedConstraintModel(std::string const &name, std::string const &hfName, std::string const &otherName)
-{
-   return RoundTripModel::fromDocument(name, sharedConstraintJSON(hfName, otherName, "0.2"))
-      .with({{"Arrays", {}}, {"NoArrays", {exportArrayDist(false)}}})
-      .over({"x_hf", "x_other"})
-      .comparing([=](RooWorkspace &ws) { return std::vector<double>{sharedConstraintNLL(ws, hfName, otherName)}; })
-      .within(1e-10)
-      .withOtherComponents()
-      .stableFromSecondExport();
-}
-
-} // namespace
-
-// The document reads back with the same likelihood, and is stable from the second export on: see the test.
-INSTANTIATE_TEST_SUITE_P(HistFactoryConstraintSharedWithOtherPdf, RoundTrip,
-                         testing::Values(sharedConstraintModel("HistFactoryFirst", "model_hf", "model_other"),
-                                         sharedConstraintModel("HistFactoryLast", "z_model_hf", "a_model_other")),
-                         roundTripName);
-
-// A constraint shared between a HistFactory channel and another pdf is written once, as a term of the likelihood,
-// whatever the order in which the export visits them, also when the constraints of the HistFactory channels are
-// collected into arrays.
-TEST(RooFitHS3, HistFactoryConstraintSharedWithOtherPdf)
-{
-   // Not valid HS3 0.3.
-   expectImportThrowsWithError(sharedConstraintJSON("model_hf", "model_other"),
-                               "the variate 'theta_obs' is shared by the terms 'model_other' and 'shared_constraint'");
-
-   // The HistFactory channel is visited first, and last.
-   for (auto const &names : std::vector<std::pair<std::string, std::string>>{{"model_hf", "model_other"},
-                                                                             {"z_model_hf", "a_model_other"}}) {
-      const auto &hfName = names.first;
-      const auto &otherName = names.second;
-      Imported ws{sharedConstraintJSON(hfName, otherName, "0.2")};
-      EXPECT_THAT(ws.warnings, HasSubstr("the variate 'theta_obs' is shared by the terms '" + otherName +
-                                         "' and 'shared_constraint'"));
-      const double nll = sharedConstraintNLL(ws, hfName, otherName);
-      ASSERT_FALSE(std::isnan(nll));
-      for (bool arrays : {true, false}) {
-         SCOPED_TRACE(hfName + (arrays ? ", arrays" : ", no arrays"));
-         Doc exported{ws, {exportArrayDist(arrays)}};
-         const std::string modifiers = "distributions/" + hfName + "/samples/signal/modifiers/";
-         EXPECT_TRUE(matches(exported, "distributions/shared_constraint", R"({"type": "gaussian_dist"})"));
-         EXPECT_TRUE(matches(exported, modifiers + "theta", R"({"constraints": ["shared_constraint"]})"));
-         // The product only keeps the factor that is not a term of the likelihood.
-         EXPECT_TRUE(matches(exported, "distributions/" + otherName, R"({"factors": ["shape"]})"));
-         // The constraint that only the HistFactory channel uses is still collected.
-         const std::string array = "analysis_simPdf_gaussian_constraints";
-         EXPECT_EQ(exported.has("distributions/own_constraint"), !arrays);
-         EXPECT_EQ(exported.has("distributions/" + array), arrays);
-         if (arrays) {
-            EXPECT_TRUE(matches(exported, "distributions/" + array, R"({"components": [{"x": "eta_obs"}]})"));
-            EXPECT_TRUE(matches(exported, modifiers + "eta", R"({"constraints": [")" + array + R"("]})"));
-         }
-
-         // Valid HS3 0.3: read back without warnings.
-         Imported ws2{exported};
-         EXPECT_THAT(ws2.warnings, Not(HasSubstr("is shared by the terms")));
-         // The re-imported model has the constraint only in the HistFactory channel, so with arrays it is collected
-         // now. The model that is read from this second document still has the likelihood of the original one.
-         const std::string exported2 = toJSON(ws2, {exportArrayDist(arrays)});
-         EXPECT_EQ(exported2.find(R"("constraints":["shared_constraint"])") == std::string::npos, arrays) << exported2;
-         Imported ws3{exported2};
-         EXPECT_NEAR(sharedConstraintNLL(ws3, hfName, otherName), nll, 1e-10 * std::abs(nll));
-      }
-   }
-
-   // A component of a tagged array product that another product also uses cannot be written: the export fails
-   // instead of leaving a dangling reference, whichever of the two is visited first.
    RooRealVar nomA{"nom_a", "nom_a", 0.0, -5.0, 5.0};
    RooRealVar a{"a", "a", 0.0, -5.0, 5.0};
    RooRealVar x{"x", "x", 1.0, 0.0, 10.0};
@@ -7084,87 +6745,37 @@ TEST(RooFitHS3, ArrayDistVariatesInLikelihood)
 
 namespace {
 
-// The HistFactory channel of constrainedChannelJSON() with data, whose constraint is a term of the likelihood. With
-// `external`, the constraint is also an external constraint of the ModelConfig, which is redundant: it is part of the
-// pdf already.
-void importConstrainedChannel(RooWorkspace &ws, bool external)
-{
-   importInto(ws, constrainedChannelJSON({R"(
-      "data": [{"name": "data", "type": "binned", "contents": [10.0],
-                "axes": [{"name": "x", "min": 0.0, "max": 1.0, "nbins": 1}]}],
-      "likelihoods": [{"name": "lh", "distributions": ["HF"], "data": ["data"], "aux_distributions": ["constraint"]}],
-      "analyses": [{"name": "mc", "likelihood": "lh", "parameters_of_interest": ["mu"],
-                    "domains": ["default_domain"]}])"}));
-   if (external) {
-      modelConfig(ws, "mc").SetExternalConstraints(RooArgSet{*ws.pdf("constraint")});
-   }
-}
-
-} // namespace
-
-// A constraint of a HistFactory modifier that is also an external constraint of the ModelConfig is referred to by
-// its own name, so it is not collected into an array: the export must not leave the likelihood with a reference to
-// a distribution that is not written.
-TEST(RooFitHS3, HistFactoryConstraintAlsoExternal)
-{
-   RooWorkspace ws;
-   importConstrainedChannel(ws, /*external=*/true);
-   // RooFit counts the constraint once.
-   RooWorkspace withoutExternal;
-   importConstrainedChannel(withoutExternal, /*external=*/false);
-   ASSERT_TRUE(sameNumbers(likelihoodScan(ws, "mc", "data"), likelihoodScan(withoutExternal, "mc", "data"), 1e-10));
-
-   Doc exported{ws};
-   EXPECT_TRUE(matches(exported, "distributions/constraint", R"({"type": "gaussian_dist"})"));
-   EXPECT_TRUE(
-      matches(exported, "distributions/HF/samples/signal/modifiers/theta", R"({"constraints": ["constraint"]})"));
-   EXPECT_TRUE(matches(exported, "likelihoods/0", R"({"aux_distributions": ["constraint"]})"));
-}
-
-// The document reads back with the same likelihood. The constraint is no external constraint then, so the following
-// documents differ from the first one: with arrays, it is collected.
-INSTANTIATE_TEST_SUITE_P(HistFactoryConstraintAlsoExternal, RoundTrip,
-                         testing::Values(RoundTripModel{"Model",
-                                                        [](RooWorkspace &ws) { importConstrainedChannel(ws, true); }}
-                                            .with(constraintStyles())
-                                            .likelihoodOf("mc", "data")
-                                            .within(1e-10)
-                                            .stableFromSecondExport()),
-                         roundTripName);
-
-namespace {
-
-// A product of a model for the observable `x` and a constraint, with a data set and a ModelConfig.
-void buildProductWithConstraint(RooWorkspace &ws)
+// A model for the observable `x` with a constraint, a data set and a ModelConfig. The constraint is no part of the
+// pdf: it is an external constraint of the ModelConfig.
+void buildModelWithConstraint(RooWorkspace &ws)
 {
    ws.factory("Gaussian::shape(x[0, -5, 5], mu[0, -2, 2], 1.0)");
    ws.factory("Gaussian::shift(x, theta[0, -5, 5], 2.0)");
-   ws.factory("SUM::phys(f[0.5, 0, 1] * shape, shift)");
+   ws.factory("SUM::model(f[0.5, 0, 1] * shape, shift)");
    ws.factory("Gaussian::constraint(gobs[0.3, -5, 5], theta, 1.0)");
    ws.var("gobs")->setConstant(true);
-   ws.factory("PROD::model(phys, constraint)");
    RooDataSet data{"data", "data", *ws.var("x")};
    ws.var("x")->setVal(0.3);
    data.add(*ws.var("x"));
    ws.import(data, RooFit::Silence());
-   addModelConfig(ws, "ModelConfig", "model", "x", "mu", /*nuisance=*/"theta,f", /*globals=*/"gobs");
+   addModelConfig(ws, "ModelConfig", "model", "x", "mu", /*nuisance=*/"theta,f", /*globals=*/"gobs",
+                  /*constraints=*/"constraint");
 }
 
 } // namespace
 
-// With config().exportConstraintData, a constraint of an ordinary product is written as a term of the likelihood
-// paired with a data set of one entry, like the constraints of HistFactory channels. On import, it is a factor of
-// the model again, the data set sets the observed value of its global observable, and it is not imported as a data
-// set. The likelihood is the same with and without the option, see the round trips below.
-TEST(RooFitHS3, ConstraintDataOfProductConstraints)
+// With config().exportConstraintData, an external constraint of an ordinary model is written as a term of the
+// likelihood paired with a data set of one entry, like the constraints of HistFactory channels. On import, it is an
+// external constraint of the ModelConfig again, the data set sets the observed value of its global observable, and it
+// is not imported as a data set. The likelihood is the same with and without the option, see the round trips below.
+TEST(RooFitHS3, ConstraintDataOfExternalConstraints)
 {
    RooWorkspace ws;
-   buildProductWithConstraint(ws);
+   buildModelWithConstraint(ws);
 
    for (bool constraintData : {false, true}) {
       SCOPED_TRACE(constraintData ? "with constraint data" : "without constraint data");
       Doc exported{ws, {exportConstraintData(constraintData)}};
-      EXPECT_TRUE(matches(exported, "distributions/model", R"({"factors": ["phys"]})"));
       if (constraintData) {
          EXPECT_TRUE(matches(exported, "likelihoods/0",
                              R"({"distributions": ["model", "constraint"], "data": ["data", "constraint_data"]})"));
@@ -7176,10 +6787,9 @@ TEST(RooFitHS3, ConstraintDataOfProductConstraints)
       Imported ws2{exported};
       auto *mc2 = object<RooFit::ModelConfig>(ws2, "ModelConfig");
       EXPECT_STREQ(mc2->GetPdf()->GetName(), "model");
-      // The constraint is a factor of the model again, as in the original, so that the model is the sampling
-      // distribution of the auxiliary measurement as well. It is not an external constraint.
-      EXPECT_TRUE(!mc2->GetExternalConstraints() || mc2->GetExternalConstraints()->empty()) << exported.json();
-      EXPECT_TRUE(mc2->GetPdf()->dependsOn(*ws2.var("gobs"))) << exported.json();
+      // The constraint is no part of the pdf: it is the external constraint of the ModelConfig, as in the original.
+      EXPECT_EQ(externalConstraintNames(ws2, "ModelConfig"), std::set<std::string>{"constraint"}) << exported.json();
+      EXPECT_FALSE(mc2->GetPdf()->dependsOn(*ws2.var("gobs"))) << exported.json();
       ASSERT_NE(mc2->GetGlobalObservables(), nullptr) << exported.json();
       EXPECT_NE(mc2->GetGlobalObservables()->find("gobs"), nullptr) << exported.json();
       EXPECT_EQ(ws2.data("constraint_data"), nullptr);
@@ -7189,8 +6799,8 @@ TEST(RooFitHS3, ConstraintDataOfProductConstraints)
 }
 
 // The document is stable, and reads back with the same likelihood.
-INSTANTIATE_TEST_SUITE_P(ConstraintDataOfProductConstraints, RoundTrip,
-                         testing::Values(RoundTripModel{"Model", buildProductWithConstraint}
+INSTANTIATE_TEST_SUITE_P(ConstraintDataOfExternalConstraints, RoundTrip,
+                         testing::Values(RoundTripModel{"Model", buildModelWithConstraint}
                                             .with(constraintStyles())
                                             .likelihoodOf("ModelConfig", "data")
                                             .within(1e-10)),
@@ -7645,76 +7255,6 @@ TEST(RooFitHS3, AuxiliaryMeasurementAsRegionOfTheModel)
             } catch (std::exception const &e) {
                ADD_FAILURE() << e.what() << "\n" << previous;
             }
-         }
-      }
-   }
-}
-
-// The pdf of a model stays the sampling distribution of its auxiliary measurements over a round trip, also if its
-// channels are no products: such a channel is wrapped in a product with its constraint terms, from which RooFit
-// takes them when it builds a likelihood (reported on ROOT PR #24201).
-TEST(RooFitHS3, ConstraintsStayInTheSamplingDistribution)
-{
-   RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::ERROR);
-
-   RooWorkspace ws{"original"};
-   for (const char *definition :
-        {"sum::mean(mu[1,0,3],theta[0,-3,3],eta[0,-3,3])", "Gaussian::physics(x[0,-5,5],mean,1)",
-         "Gaussian::c1(g1[0.2,-8,8],theta,1)", "Gaussian::c2(g2[-0.3,-8,8],eta,1)", "PROD::aux(c1,c2)",
-         "SIMUL::model(channel[physics,auxiliary],physics=physics,auxiliary=aux)"}) {
-      ASSERT_NE(ws.factory(definition), nullptr) << definition;
-   }
-   ws.var("g1")->setConstant(true);
-   ws.var("g2")->setConstant(true);
-   RooArgSet columns{*ws.var("x"), *ws.cat("channel")};
-   RooDataSet data{"data", "data", columns};
-   ws.cat("channel")->setLabel("physics");
-   for (double value : {-0.4, 0.2, 0.7}) {
-      ws.var("x")->setVal(value);
-      data.add(columns);
-   }
-   ws.import(data, RooFit::Silence());
-   RooStats::ModelConfig mc{"ModelConfig", &ws};
-   mc.SetPdf(*ws.pdf("model"));
-   mc.SetObservables(columns);
-   mc.SetParametersOfInterest(RooArgSet{*ws.var("mu")});
-   mc.SetNuisanceParameters(RooArgSet{*ws.var("theta"), *ws.var("eta")});
-   mc.SetGlobalObservables(RooArgSet{*ws.var("g1"), *ws.var("g2")});
-   ws.import(mc);
-
-   // The likelihood as RooFit builds it from the pdf and the global observables alone, relative to the first point.
-   auto scan = [](RooWorkspace &w) {
-      auto *config = dynamic_cast<RooStats::ModelConfig *>(w.obj("ModelConfig"));
-      std::unique_ptr<RooAbsReal> nll{config->GetPdf()->createNLL(
-         *w.data("data"), RooFit::GlobalObservables(*config->GetGlobalObservables()), RooFit::Offset(false))};
-      return auxScan(w, *nll);
-   };
-   // The same from the definition of the model, with the constraints.
-   const std::vector<double> expected = auxExpectedScan();
-
-   for (bool constraintData : {false, true}) {
-      SCOPED_TRACE(constraintData ? "with constraint data" : "without constraint data");
-      ScopedConfig config{{exportConstraintData(constraintData)}};
-      std::string previous;
-      std::string exported = toJSON(ws);
-      for (int generation = 1; generation <= 3; ++generation) {
-         Imported imported{exported};
-         auto *mc2 = object<RooStats::ModelConfig>(imported, "ModelConfig");
-         // The global observables are observables of the pdf, and nothing is left outside of it.
-         ASSERT_NE(mc2->GetGlobalObservables(), nullptr);
-         EXPECT_EQ(mc2->GetGlobalObservables()->size(), 2u);
-         EXPECT_TRUE(mc2->GetPdf()->dependsOn(*imported.var("g1"))) << exported;
-         EXPECT_TRUE(mc2->GetPdf()->dependsOn(*imported.var("g2"))) << exported;
-         EXPECT_TRUE(!mc2->GetExternalConstraints() || mc2->GetExternalConstraints()->empty()) << exported;
-         // RooFit finds the constraints in the pdf.
-         const std::vector<double> values = scan(imported);
-         for (std::size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(values[i], expected[i], 1e-9) << "generation " << generation << ", point " << i;
-         }
-         previous = exported;
-         exported = toJSON(imported);
-         if (generation > 1) {
-            EXPECT_EQ(exported, previous) << "the document changes after the second export";
          }
       }
    }
@@ -8541,10 +8081,10 @@ TEST(RooFitHS3, HistFactoryGammaAndLogNormSyst)
       meas.AddLogNormSyst("ownB", 0.05);
    });
    Doc doc{*ws};
-   EXPECT_TRUE(matches(doc, "distributions/model_A/samples/background_A/modifiers",
+   EXPECT_TRUE(matches(doc, "distributions/A_model/samples/background_A/modifiers",
                        R"([{}, {"type": "normsys", "parameters": ["alpha_ownA"]},
                            {"type": "custom", "name": "background_A_A_epsilon_alphaOfBeta_shared"}, {}])"));
-   EXPECT_TRUE(matches(doc, "distributions/model_B/samples/background_B/modifiers",
+   EXPECT_TRUE(matches(doc, "distributions/B_model/samples/background_B/modifiers",
                        R"([{}, {"type": "custom", "name": "background_B_B_epsilon"}, {}])"));
    EXPECT_TRUE(matches(doc, "distributions/beta_sharedConstraint", R"({"type": "gamma_dist", "x": "beta_shared"})"));
    Imported imported{doc};

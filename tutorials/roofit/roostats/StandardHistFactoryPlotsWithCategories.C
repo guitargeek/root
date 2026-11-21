@@ -130,7 +130,7 @@ void StandardHistFactoryPlotsWithCategories(const char *infile = "", const char 
    firstPOI->setVal(muVal);
    //  firstPOI->setConstant();
    if (doFit) {
-      mc->GetPdf()->fitTo(*data);
+      mc->fitTo(*data);
    }
 
    // -------------------------------------------------------

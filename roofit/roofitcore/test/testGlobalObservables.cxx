@@ -69,8 +69,8 @@ public:
       gm.setConstant(true);
       gs.setConstant(true);
 
-      // the model multiplied with the constraint term
-      _ws.factory("ProdPdf::modelc({model, mconstraint, sconstraint})");
+      // The constraint terms are no part of the model pdf: they are passed to
+      // the fit with the ExternalConstraints() command argument.
 
       // generate small dataset for use in fitting below, also cloned versions
       // with one or two global observables attached
@@ -102,7 +102,7 @@ public:
    RooDataSet &dataWithMeanSigmaGlobs() { return *_dataWithMeanSigmaGlobs; }
    RooDataSet &dataWithMeanGlob() { return *_dataWithMeanGlob; }
    RooAbsPdf &model() { return *ws().pdf("model"); }
-   RooAbsPdf &modelc() { return *ws().pdf("modelc"); }
+   RooArgSet constraints() { return {*ws().pdf("mconstraint"), *ws().pdf("sconstraint")}; }
 
    std::unique_ptr<RooFitResult> doFit(RooAbsPdf &model, RooAbsData &data, RooCmdArg const &arg1 = {},
                                        RooCmdArg const &arg2 = {}, RooCmdArg const &arg3 = {},
@@ -158,36 +158,6 @@ TEST_P(GlobsTest, NoConstraints)
    }
 }
 
-TEST_P(GlobsTest, InternalConstraints)
-{
-   using namespace RooFit;
-
-   auto &gm = *ws().var("gm");
-   auto &gs = *ws().var("gs");
-
-   // constrained fit with RooProdPdf
-   resetParameters();
-   auto res1 = doFit(modelc(), data(), GlobalObservables(gm, gs));
-   resetParameters();
-   // vary global observable to verify true value is picked up from the dataset
-   gm.setVal(gm.getVal() + 0.5);
-   gs.setVal(gs.getVal() + 2.5);
-   double gmVaryVal = gm.getVal();
-   double gsVaryVal = gs.getVal();
-   auto res2 = doFit(modelc(), dataWithMeanSigmaGlobs());
-   EXPECT_TRUE(res1->isIdentical(*res2)) << "fitting an model with internal "
-                                            "constraints in a RooPrdPdf gave a different result when global "
-                                            "observables were stored in the dataset";
-
-   // verify that taking the global observable values from data has not changed
-   // the values in the model
-   {
-      const auto message = "taking the global observable values from data has changed the values in the model";
-      EXPECT_EQ(gmVaryVal, gm.getVal()) << message;
-      EXPECT_EQ(gsVaryVal, gs.getVal()) << message;
-   }
-}
-
 TEST_P(GlobsTest, ExternalConstraints)
 {
    using namespace RooFit;
@@ -230,7 +200,7 @@ TEST_P(GlobsTest, SubsetOfConstraintsFromData)
 
    // check if only a subset of constraints it taken from data
    resetParameters();
-   auto res1 = doFit(modelc(), data(), GlobalObservables(gm, gs));
+   auto res1 = doFit(model(), data(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
    resetParameters();
    // Vary global observable to verify true value is picked up from the dataset.
    // This time we only get gm from the dataset, so we don't vary gs for now.
@@ -238,7 +208,7 @@ TEST_P(GlobsTest, SubsetOfConstraintsFromData)
    double gmVaryVal = gm.getVal();
    double gsVaryVal = gs.getVal();
    // if we take the global observables from the model, they have to be constant:
-   auto res2 = doFit(modelc(), dataWithMeanGlob(), GlobalObservables(gm, gs));
+   auto res2 = doFit(model(), dataWithMeanGlob(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
    EXPECT_TRUE(res1->isIdentical(*res2)) << "fitting a constrained model "
                                             "to a dataset that only stores a subset of the defined global observables "
                                             "gave the wrong result";
@@ -257,7 +227,7 @@ TEST_P(GlobsTest, SubsetOfConstraintsFromData)
    gs.setVal(gs.getVal() + 2.5);
    gmVaryVal = gm.getVal();
    gsVaryVal = gs.getVal();
-   auto res3 = doFit(modelc(), dataWithMeanGlob(), GlobalObservables(gm, gs));
+   auto res3 = doFit(model(), dataWithMeanGlob(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
    EXPECT_TRUE(isNotIdentical(*res1, *res3))
       << "fitting a constrained model "
          "to a dataset that only stores a subset of the defined global observables "
@@ -301,11 +271,11 @@ TEST_P(GlobsTest, ResetDataToWrongData)
 
    auto &gm = *ws().var("gm");
    auto &gs = *ws().var("gs");
-   auto &model = modelc();
+   auto &model = this->model();
 
-   // constrained fit with RooProdPdf
+   // constrained fit
    resetParameters();
-   auto res1 = doFit(model, data(), GlobalObservables(gm, gs));
+   auto res1 = doFit(model, data(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
 
    resetParameters();
    // vary global observable to deliberately store "wrong" values in a cloned dataset
@@ -315,10 +285,11 @@ TEST_P(GlobsTest, ResetDataToWrongData)
    wrongData->setGlobalObservables({gm, gs});
 
    // check that the fit works when using the dataset with the correct values
-   std::unique_ptr<RooAbsReal> nll{model.createNLL(dataWithMeanSigmaGlobs(), EvalBackend(evalBackend()))};
+   std::unique_ptr<RooAbsReal> nll{
+      model.createNLL(dataWithMeanSigmaGlobs(), ExternalConstraints(constraints()), EvalBackend(evalBackend()))};
    auto res2 = minimize(model, *nll, dataWithMeanSigmaGlobs(), minimizerCfg());
-   EXPECT_TRUE(res1->isIdentical(*res2)) << "fitting an model with internal "
-                                            "constraints in a RooPrdPdf gave a different result when global "
+   EXPECT_TRUE(res1->isIdentical(*res2)) << "fitting an model with "
+                                            "constraints gave a different result when global "
                                             "observables were stored in the dataset";
 
    nll->setData(*wrongData);
@@ -339,11 +310,11 @@ TEST_P(GlobsTest, ResetDataToCorrectData)
 
    auto &gm = *ws().var("gm");
    auto &gs = *ws().var("gs");
-   auto &model = modelc();
+   auto &model = this->model();
 
-   // constrained fit with RooProdPdf
+   // constrained fit
    resetParameters();
-   auto res1 = doFit(model, data(), GlobalObservables(gm, gs));
+   auto res1 = doFit(model, data(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
 
    resetParameters();
    // vary global observable to deliberately store "wrong" values in a cloned dataset
@@ -354,10 +325,11 @@ TEST_P(GlobsTest, ResetDataToCorrectData)
    resetParameters();
 
    // check that the fit doesn't work when using the dataset with the wrong values
-   std::unique_ptr<RooAbsReal> nll{model.createNLL(*wrongData, EvalBackend(evalBackend()))};
+   std::unique_ptr<RooAbsReal> nll{
+      model.createNLL(*wrongData, ExternalConstraints(constraints()), EvalBackend(evalBackend()))};
    auto res2 = minimize(model, *nll, *wrongData, minimizerCfg());
-   EXPECT_TRUE(isNotIdentical(*res1, *res2)) << "fitting an model with internal "
-                                                "constraints in a RooPrdPdf ignored the global "
+   EXPECT_TRUE(isNotIdentical(*res1, *res2)) << "fitting an model with "
+                                                "constraints ignored the global "
                                                 "observables stored in the dataset";
 
    nll->setData(dataWithMeanSigmaGlobs());
@@ -375,9 +347,9 @@ TEST_P(GlobsTest, GlobalObservablesSourceFromModel)
    auto &gm = *ws().var("gm");
    auto &gs = *ws().var("gs");
 
-   // constrained fit with RooProdPdf
+   // constrained fit
    resetParameters();
-   auto res1 = doFit(modelc(), data(), GlobalObservables(gm, gs));
+   auto res1 = doFit(model(), data(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
    resetParameters();
    // vary global observable to verify true value is picked up from the dataset
    gm.setVal(gm.getVal() + 0.5);
@@ -385,10 +357,11 @@ TEST_P(GlobsTest, GlobalObservablesSourceFromModel)
 
    // verify that fit results are identical when global observable values are
    // taken from data
-   auto res2 = doFit(modelc(), dataWithMeanSigmaGlobs());
+   auto res2 = doFit(model(), dataWithMeanSigmaGlobs(), ExternalConstraints(constraints()));
    EXPECT_TRUE(res1->isIdentical(*res2));
 
-   auto res3 = doFit(modelc(), dataWithMeanSigmaGlobs(), GlobalObservablesSource("model"), GlobalObservables(gm, gs));
+   auto res3 = doFit(model(), dataWithMeanSigmaGlobs(), ExternalConstraints(constraints()),
+                     GlobalObservablesSource("model"), GlobalObservables(gm, gs));
 
    // If the global observable values are indeed taken from the model and not
    // from data, the comparison will fail now because we have changed the
@@ -402,11 +375,11 @@ TEST_P(GlobsTest, ResetDataButSourceFromModel)
 
    auto &gm = *ws().var("gm");
    auto &gs = *ws().var("gs");
-   auto &model = modelc();
+   auto &model = this->model();
 
-   // constrained fit with RooProdPdf
+   // constrained fit
    resetParameters();
-   auto res1 = doFit(model, data(), GlobalObservables(gm, gs));
+   auto res1 = doFit(model, data(), ExternalConstraints(constraints()), GlobalObservables(gm, gs));
 
    resetParameters();
    // vary global observable to deliberately store "wrong" values in a cloned dataset
@@ -418,8 +391,9 @@ TEST_P(GlobsTest, ResetDataButSourceFromModel)
    resetParameters();
 
    // check that the fit works when using the dataset with the correct values
-   std::unique_ptr<RooAbsReal> nll{model.createNLL(dataWithMeanSigmaGlobs(), GlobalObservablesSource("model"),
-                                                   GlobalObservables(gm, gs), EvalBackend(evalBackend()))};
+   std::unique_ptr<RooAbsReal> nll{model.createNLL(dataWithMeanSigmaGlobs(), ExternalConstraints(constraints()),
+                                                   GlobalObservablesSource("model"), GlobalObservables(gm, gs),
+                                                   EvalBackend(evalBackend()))};
    auto res2 = minimize(model, *nll, dataWithMeanSigmaGlobs(), minimizerCfg());
    EXPECT_TRUE(res1->isIdentical(*res2));
 

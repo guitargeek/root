@@ -2505,28 +2505,22 @@ public:
       // Construct Gaussian constraint p.d.f on parameter f at 0.8 with resolution of 0.1
       RooGaussian fconstraint("fconstraint", "fconstraint", f, 0.8, 0.1);
 
-      // M E T H O D   1   -   A d d   i n t e r n a l   c o n s t r a i n t   t o   m o d e l
-      // -------------------------------------------------------------------------------------
+      // S p e c i f y   c o n s t r a i n t   w h e n   f i t t i n g
+      // -------------------------------------------------------------
 
-      // Multiply constraint term with regular p.d.f using RooProdPdf
-      // Specify in fitTo() that internal constraints on parameter f should be used
+      // A constraint term is no part of the p.d.f: it multiplies the likelihood
+      // once, and is passed to the fit separately.
 
-      // Multiply constraint with p.d.f
-      RooProdPdf modelc("modelc", "model with constraint", RooArgSet(model, fconstraint));
+      // Fit model with constraint term on parameter f
+      std::unique_ptr<RooFitResult> r1{model.fitTo(*d, ExternalConstraints(fconstraint), Save())};
 
-      // Fit modelc without use of constraint term
-      std::unique_ptr<RooFitResult> r1{modelc.fitTo(*d, Save())};
-
-      // Fit modelc with constraint term on parameter f
-      std::unique_ptr<RooFitResult> r2{modelc.fitTo(*d, Constrain(f), Save())};
-
-      // M E T H O D   2   -     S p e c i f y   e x t e r n a l   c o n s t r a i n t   w h e n   f i t t i n g
-      // -------------------------------------------------------------------------------------------------------
+      // Fit model again with the constraint term on parameter f
+      std::unique_ptr<RooFitResult> r2{model.fitTo(*d, ExternalConstraints(fconstraint), Save())};
 
       // Construct another Gaussian constraint p.d.f on parameter f at 0.8 with resolution of 0.1
       RooGaussian fconstext("fconstext", "fconstext", f, 0.2, 0.1);
 
-      // Fit with external constraint
+      // Fit with the other constraint
       std::unique_ptr<RooFitResult> r3{model.fitTo(*d, ExternalConstraints(fconstext), Save())};
 
       regResult(std::move(r1), "rf604_r1");
@@ -3274,15 +3268,15 @@ public:
       // Construct constraint on parameter f
       RooGaussian fconstraint("fconstraint", "fconstraint", f, 0.7, 0.1);
 
-      // Multiply constraint with p.d.f
-      RooProdPdf sumc("sumc", "sum with constraint", RooArgSet(sum, fconstraint));
-
       // S e t u p   t o y   s t u d y   w i t h   m o d e l
       // ---------------------------------------------------
 
-      // Perform toy study with internal constraint on f
-      // RooMCStudy mcs(sumc,x,Constrain(f),Silence(),Binned(),FitOptions(PrintLevel(-1))) ;
-      RooMCStudy mcs(sumc, x, Constrain(f), Binned());
+      // Perform toy study with constraint on f. The constraint term is no part
+      // of the p.d.f, so it is passed separately. The p.d.f. is wrapped in a
+      // RooProdPdf only to generate the same toy datasets as the ones in the
+      // reference file.
+      RooProdPdf sumc("sumc", "sum", RooArgSet(sum));
+      RooMCStudy mcs(sumc, x, ExternalConstraints(fconstraint), Binned());
 
       // Run 50 toys of 2000 events.
       // Before each toy is generated, a value for the f is sampled from the constraint pdf and

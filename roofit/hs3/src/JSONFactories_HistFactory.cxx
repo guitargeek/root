@@ -32,6 +32,7 @@
 #include <RooProduct.h>
 #include <RooWorkspace.h>
 #include <RooFitImplHelpers.h>
+#include <RooFit/Constraints.h>
 #include <RooFit/ModelConfig.h>
 
 #include <algorithm>
@@ -870,20 +871,6 @@ std::vector<std::string> splitTopLevelProduct(const std::string &expr)
    return parts;
 }
 
-// Expand the nested products of the constraint terms of a channel into their factors, which are the constraint terms
-// that the modifier parameters are looked up in, see findConstraint().
-void collectConstraintTerms(RooAbsPdf *pdf, std::vector<RooAbsPdf *> &terms)
-{
-   if (auto prod = dynamic_cast<RooProdPdf *>(pdf)) {
-      for (auto *factor : static_range_cast<RooAbsPdf *>(prod->pdfList())) {
-         collectConstraintTerms(factor, terms);
-      }
-   } else {
-      terms.push_back(pdf);
-   }
-}
-
-// A normsys that is written as the formula "1 +- a * b", where one of a and b is a constrained parameter.
 struct FormulaNormSys {
    RooAbsReal *param;
    RooAbsPdf *constraint;
@@ -1056,8 +1043,8 @@ ExportedChannel readChannel(RooJSONFactoryWSTool *tool, const std::string &pdfna
    sumpdf->treeNodeServerList(&channelNodes);
    const std::vector<double> volumes = binVolumes(channelNodes);
 
-   // The modifiers name only the constraint terms of the channel. A pdf of a parameter that is not, like an external
-   // constraint or a prior, stays where it is.
+   // The modifiers name only the constraint terms of the channel, see constraintsOfChannel(). A pdf of a parameter
+   // that is not, like a prior, stays where it is.
    auto constraintTerm = [&](RooAbsPdf const *pdf) -> std::optional<HS3::DistributionRef> {
       if (std::find(channelConstraints.begin(), channelConstraints.end(), pdf) == channelConstraints.end()) {
          return std::nullopt;
@@ -1389,50 +1376,33 @@ void configureStatError(ExportedChannel &channel)
    }
 }
 
-// The RooRealSumPdf of a product of exactly one RooRealSumPdf and other pdfs, or null for anything else. Such a product
-// has the form that the HistFactory exporter writes as a histfactory_dist with its constraint terms.
-RooRealSumPdf const *channelSum(RooAbsArg const &pdf)
+// The constraint terms of the channel `sumpdf`. In RooFit, they are no part of the pdf of the channel: they are
+// external constraints of the ModelConfigs of the models with the channel, or, for a channel that is part of no
+// model, registered in the workspace, where HistFactory and the import from HS3 list them. The ones of the channel
+// are those that depend on one of its parameters.
+std::vector<RooAbsPdf *> constraintsOfChannel(RooJSONFactoryWSTool &tool, RooRealSumPdf const &sumpdf)
 {
-   auto const *prod = dynamic_cast<RooProdPdf const *>(&pdf);
-   if (!prod) {
-      return nullptr;
-   }
-   RooRealSumPdf const *sum = nullptr;
-   for (RooAbsArg const *factor : prod->pdfList()) {
-      if (auto const *factorSum = dynamic_cast<RooRealSumPdf const *>(factor)) {
-         if (sum) {
-            return nullptr;
-         }
-         sum = factorSum;
+   std::vector<RooAbsPdf *> out;
+   for (auto *constraint : dynamic_range_cast<RooAbsPdf *>(RooFit::constraintsOf(*tool.workspace(), sumpdf))) {
+      if (constraint) {
+         out.push_back(constraint);
       }
    }
-   return sum;
+   return out;
 }
 
-// Whether the constraint `constraint` can be written as an array component: every object of the workspace that uses
-// it is a HistFactory channel, which refers to it through its modifiers, or an array distribution. Any other user,
-// e.g. an ordinary product or a ModelConfig that has it as an external constraint, refers to the constraint by its
-// own name, which an array component doesn't have. The decision only depends on the workspace, not on the order in
-// which the export visits the objects.
+// Whether the constraint `constraint` can be written as an array component: every pdf of the workspace that uses
+// it is an array distribution. Any other user, e.g. an ordinary product, refers to the constraint by its own name,
+// which an array component doesn't have. The ModelConfigs that have it as an external constraint are no such users:
+// their likelihoods list the array. The decision only depends on the workspace, not on the order in which the export
+// visits the objects.
 bool usedOnlyByHistFactoryChannels(RooJSONFactoryWSTool &tool, RooAbsPdf const &constraint)
 {
-   // A component of an array distribution stays in it (see exportConstraint()); a ModelConfig refers to it through
-   // the array.
-   const bool inArray = std::any_of(constraint.clients().begin(), constraint.clients().end(),
-                                    [](RooAbsArg const *client) { return client->getAttribute(arrayDistTag); });
-   if (!inArray) {
-      for (TObject const *obj : tool.workspace()->allGenericObjects()) {
-         auto const *mc = dynamic_cast<RooFit::ModelConfig const *>(obj);
-         if (mc && mc->GetExternalConstraints() && mc->GetExternalConstraints()->find(constraint.GetName())) {
-            return false;
-         }
-      }
-   }
    for (RooAbsArg const *client : constraint.clients()) {
       if (tool.workspace()->arg(client->GetName()) != client || isSkippedHelper(*client, *tool.workspace())) {
          continue; // not part of what is exported
       }
-      if (!client->getAttribute(arrayDistTag) && !channelSum(*client)) {
+      if (!client->getAttribute(arrayDistTag)) {
          return false;
       }
    }
@@ -1600,7 +1570,7 @@ bool tryExportHistFactory(RooJSONFactoryWSTool *tool, const std::string &pdfname
    return true;
 }
 
-// Writes a RooRealSumPdf, or the product of one with its constraint terms, as a histfactory_dist.
+// Writes a RooRealSumPdf as a histfactory_dist.
 class HistFactoryStreamer : public RooFit::JSONIO::Exporter {
 public:
    bool autoExportDependants() const override { return false; }
@@ -1612,17 +1582,10 @@ public:
    bool exportObject(RooJSONFactoryWSTool *tool, const RooAbsArg *p, JSONNode &) const override
    {
       auto const *sumpdf = dynamic_cast<RooRealSumPdf const *>(p);
-      std::vector<RooAbsPdf *> constraints;
-      if (auto const *prodpdf = dynamic_cast<RooProdPdf const *>(p)) {
-         sumpdf = channelSum(*prodpdf);
-         for (auto *pdf : static_range_cast<RooAbsPdf *>(prodpdf->pdfList())) {
-            if (pdf != sumpdf) {
-               // The constraint terms can also be grouped in nested products.
-               collectConstraintTerms(pdf, constraints);
-            }
-         }
+      if (!sumpdf) {
+         return false;
       }
-      return tryExportHistFactory(tool, p->GetName(), sumpdf, constraints);
+      return tryExportHistFactory(tool, p->GetName(), sumpdf, constraintsOfChannel(*tool, *sumpdf));
    }
 };
 
@@ -1631,7 +1594,6 @@ const bool registered = []() {
    registerType("interpolation", importPiecewiseInterpolation, exportPiecewiseInterpolation);
    registerType("interpolation0d", importFlexibleInterpVar, exportFlexibleInterpVar);
    RooFit::JSONIO::registerImporter<HistFactoryImporter>("histfactory_dist", true);
-   RooFit::JSONIO::registerExporter<HistFactoryStreamer>(RooProdPdf::Class(), true);
    RooFit::JSONIO::registerExporter<HistFactoryStreamer>(RooRealSumPdf::Class(), true);
    return true;
 }();
@@ -1668,8 +1630,11 @@ void RooFit::HS3::buildHistFactoryDist(RooJSONFactoryWSTool &tool, std::string c
       }
    }
 
+   // The name of the channel, as the export derives it from the name of the distribution: HistFactory names the pdf of
+   // a channel "<channel>_model".
    std::string channelName = name;
    erasePrefix(channelName, "model_");
+   eraseSuffix(channelName, "_model");
 
    RooAbsArg *mcStatObject = nullptr;
    RooArgSet constraints;
@@ -1707,7 +1672,7 @@ void RooFit::HS3::buildHistFactoryDist(RooJSONFactoryWSTool &tool, std::string c
    }
 
    // A constraint that is a measurement of its own, as a component of a combined distribution with data, contributes
-   // there, and is not multiplied into the channel.
+   // there, and is no constraint term of the channel.
    {
       RooArgSet ownMeasurements;
       for (auto *constraint : static_range_cast<RooAbsPdf *>(constraints)) {
@@ -1718,17 +1683,16 @@ void RooFit::HS3::buildHistFactoryDist(RooJSONFactoryWSTool &tool, std::string c
       constraints.remove(ownMeasurements);
    }
 
-   // With constraints, the channel is the product of the sum of the samples and the constraints.
-   auto &sum = tool.wsEmplace<RooRealSumPdf>(constraints.empty() ? name : channelName + "_model", funcs, coefs, true);
+   // The channel is the sum of the samples. The constraint terms are no part of it: they multiply the likelihood
+   // once and not for each event, so they become external constraints of the ModelConfig.
+   auto &sum = tool.wsEmplace<RooRealSumPdf>(name, funcs, coefs, true);
    sum.SetTitle(name.c_str());
    // A histfactory_dist is a product of Poisson distributions of the bin counts. RooFit's binned likelihood
    // computes exactly that (it differs from the event-wise likelihood only by a constant), and binned generation
    // generates bin counts, so both are enabled, as HistFactory does by default.
    sum.setAttribute("BinnedLikelihood");
    sum.setAttribute("GenerateBinned");
-   if (!constraints.empty()) {
-      tool.wsEmplace<RooProdPdf>(name, constraints, RooFit::Conditional(sum, observables));
-   }
+   tool.recordImportedConstraints(name, constraints);
 }
 
 bool RooFit::HS3::isBuiltinHistFactoryImporter(RooFit::JSONIO::Importer const &importer)

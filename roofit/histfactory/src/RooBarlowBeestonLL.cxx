@@ -113,20 +113,14 @@ void RooStats::HistFactory::RooBarlowBeestonLL::initializeBarlowCache() {
   std::map< std::string, std::vector<double> > ChannelBinDataMap;
   getDataValuesForObservables( ChannelBinDataMap, _data, _pdf );
 
-  // Get a list of constraint terms
-  RooArgList obsTerms;
-  RooArgList constraints;
   RooArgSet* obsSet = std::unique_ptr<RooArgSet>{_pdf->getObservables(*_data)}.release();
-  FactorizeHistFactoryPdf(*obsSet, *_pdf, obsTerms, constraints);
 
-  if( obsTerms.empty() ) {
-    std::cout << "Error: Found no observable terms with pdf: " << _pdf->GetName()
-         << " using dataset: " << _data->GetName() << std::endl;
-    return;
-  }
+  // The constraint terms are no part of the pdf: they are set with setConstraints()
+  RooArgList& constraints = _constraints;
+
   if( constraints.empty() ) {
-    std::cout << "Error: Found no constraint terms with pdf: " << _pdf->GetName()
-         << " using dataset: " << _data->GetName() << std::endl;
+    std::cout << "Error: No constraint terms set for pdf: " << _pdf->GetName()
+         << ". Set them with RooBarlowBeestonLL::setConstraints()." << std::endl;
     return;
   }
 
@@ -354,32 +348,6 @@ RooAbsReal* RooStats::HistFactory::RooBarlowBeestonLL::createProfile(const RooAr
 */
 
 
-/*
-void RooStats::HistFactory::RooBarlowBeestonLL::FactorizePdf(const RooArgSet &observables, RooAbsPdf &pdf, RooArgList &obsTerms, RooArgList &constraints) const {
-  // utility function to factorize constraint terms from a pdf
-  // (from G. Petrucciani)
-  const std::type_info & id = typeid(pdf);
-  if (id == typeid(RooProdPdf)) {
-    RooProdPdf *prod = dynamic_cast<RooProdPdf *>(&pdf);
-    RooArgList list(prod->pdfList());
-    for (int i = 0, n = list.size(); i < n; ++i) {
-      RooAbsPdf *pdfi = (RooAbsPdf *) list.at(i);
-      FactorizePdf(observables, *pdfi, obsTerms, constraints);
-    }
-  } else if (id == typeid(RooSimultaneous) ) {    //|| id == typeid(RooSimultaneousOpt)) {
-    RooSimultaneous *sim  = dynamic_cast<RooSimultaneous *>(&pdf);
-    std::unique_ptr<RooAbsCategoryLValue> cat{(RooAbsCategoryLValue *) sim->indexCat().Clone()};
-    for (int ic = 0, nc = cat->numBins((const char *)0); ic < nc; ++ic) {
-      cat->setBin(ic);
-      FactorizePdf(observables, *sim->getPdf(cat->getLabel()), obsTerms, constraints);
-    }
-  } else if (pdf.dependsOn(observables)) {
-    if (!obsTerms.contains(pdf)) obsTerms.add(pdf);
-  } else {
-    if (!constraints.contains(pdf)) constraints.add(pdf);
-  }
-}
-*/
 
 
 

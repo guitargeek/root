@@ -283,7 +283,7 @@ void ModelInspectorGUI::DoText(const char * /*text*/)
 //______________________________________________________________________________
 void ModelInspectorGUI::DoFit()
 {
-   fFitRes = fMC->GetPdf()->fitTo(*fData, Save());
+   fFitRes = fMC->fitTo(*fData, Save()).release();
    map<TGTripleHSlider *, const char *>::iterator it;
    ;
    it = fSliderMap.begin();

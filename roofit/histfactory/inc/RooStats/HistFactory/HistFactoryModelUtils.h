@@ -17,8 +17,6 @@ namespace HistFactory {
   std::string channelNameFromPdf( RooAbsPdf* channelPdf );
 
   ///\ingroup HistFactory
-  void FactorizeHistFactoryPdf(const RooArgSet&, RooAbsPdf&, RooArgList&, RooArgList&);
-  ///\ingroup HistFactory
   bool getStatUncertaintyFromChannel( RooAbsPdf* channel, ParamHistFunc*& paramfunc,
                   RooArgList* gammaList );
 

@@ -372,12 +372,11 @@ std::unique_ptr<RooWorkspace> makeSimBinnedConstrainedWorkspace()
    w.factory("Gaussian:model_subs_A(alpha_bkg_obs_A[0],alpha_bkg_A,1)");
    w.factory("Gaussian:model_subs_B(alpha_bkg_obs_B[0],alpha_bkg_B,1)");
 
-   // Construct full pdfs for each component (A,B)
-   w.factory("PROD::model_A(model_phys_A,model_subs_A)");
-   w.factory("PROD::model_B(model_phys_B,model_subs_B)");
+   // The constraint terms are no part of the pdfs: they are passed to the
+   // likelihood as external constraints.
 
    // Construct simultaneous pdf
-   w.factory("SIMUL::model(index[A,B],A=model_A,B=model_B)");
+   w.factory("SIMUL::model(index[A,B],A=model_phys_A,B=model_phys_B)");
 
    // Construct dataset from physics pdf
    std::unique_ptr<RooAbsData> data{w.pdf("model")->generate({*w.var("x"), *w.cat("index")}, RooFit::AllBinned())};
@@ -397,7 +396,8 @@ TEST(SimBinnedConstrainedTestBasic, BasicParameters)
 
    // original test:
    std::unique_ptr<RooAbsReal> nll{
-      pdf->createNLL(*data, RooFit::GlobalObservables(*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")))};
+      pdf->createNLL(*data, RooFit::ExternalConstraints(RooArgSet{*w.pdf("model_subs_A"), *w.pdf("model_subs_B")}),
+                     RooFit::GlobalObservables(*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")))};
 
    // --------
 
@@ -405,10 +405,13 @@ TEST(SimBinnedConstrainedTestBasic, BasicParameters)
 
    // dummy offsets (normally they are shared with other objects):
    SharedOffset shared_offset;
-   auto nll_ts = RFTS::LikelihoodWrapper::create(
-      RFTS::LikelihoodMode::serial,
-      RFTS::NLLFactory{*pdf, *data}.GlobalObservables({*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")}).build(),
-      std::make_unique<RFTS::WrapperCalculationCleanFlags>(), shared_offset);
+   auto nll_ts =
+      RFTS::LikelihoodWrapper::create(RFTS::LikelihoodMode::serial,
+                                      RFTS::NLLFactory{*pdf, *data}
+                                         .ExternalConstraints(RooArgSet{*w.pdf("model_subs_A"), *w.pdf("model_subs_B")})
+                                         .GlobalObservables({*w.var("alpha_bkg_obs_A"), *w.var("alpha_bkg_obs_B")})
+                                         .build(),
+                                      std::make_unique<RFTS::WrapperCalculationCleanFlags>(), shared_offset);
 
    nll_ts->evaluate();
    auto nll1 = nll_ts->getResult();
@@ -437,7 +440,7 @@ TEST_P(SimBinnedConstrainedTest, ConstrainedAndOffset)
    RooAbsData *data = w.data("data");
 
    // do a minimization, but now using GradMinimizer and its MP version
-   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data, Constrain(*w.var("alpha_bkg_A")),
+   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data, ExternalConstraints(*w.pdf("model_subs_A")),
                                                   GlobalObservables(*w.var("alpha_bkg_obs_B")), Offset("initial"))};
 
    // parameters
@@ -467,8 +470,9 @@ TEST_P(SimBinnedConstrainedTest, ConstrainedAndOffset)
 
    values->assign(savedValues);
 
-   std::unique_ptr<RooAbsReal> likelihoodAbsReal{pdf->createNLL(
-      *data, Constrain(*w.var("alpha_bkg_A")), GlobalObservables(*w.var("alpha_bkg_obs_B")), ModularL(true))};
+   std::unique_ptr<RooAbsReal> likelihoodAbsReal{pdf->createNLL(*data, ExternalConstraints(*w.pdf("model_subs_A")),
+                                                                GlobalObservables(*w.var("alpha_bkg_obs_B")),
+                                                                ModularL(true))};
 
    RooMinimizer::Config cfg1;
    cfg1.parallelize = NWorkers;
@@ -928,16 +932,15 @@ TEST(MinuitFcnGrad, DISABLED_CompareToRooMinimizerFcn)
    RooAbsData *data = w->data(dataset_name);
    auto mc = dynamic_cast<RooFit::ModelConfig *>(w->genobj("ModelConfig"));
    auto global_observables = mc->GetGlobalObservables();
-   auto nuisance_parameters = mc->GetNuisanceParameters();
    auto pdf = w->pdf(mc->GetPdf()->GetName());
 
-   std::unique_ptr<RooAbsReal> nll_modularL{pdf->createNLL(*data, RooFit::Constrain(*nuisance_parameters),
-                                                           RooFit::GlobalObservables(*global_observables),
-                                                           RooFit::ModularL(true))};
+   std::unique_ptr<RooAbsReal> nll_modularL{
+      pdf->createNLL(*data, RooFit::ExternalConstraints(*mc->GetExternalConstraints()),
+                     RooFit::GlobalObservables(*global_observables), RooFit::ModularL(true))};
 
-   std::unique_ptr<RooAbsReal> nll_vanilla{pdf->createNLL(*data, RooFit::Constrain(*nuisance_parameters),
-                                                          RooFit::GlobalObservables(*global_observables)
-                                                          /*, RooFit::Offset(true)*/)};
+   std::unique_ptr<RooAbsReal> nll_vanilla{pdf->createNLL(
+      *data, RooFit::ExternalConstraints(*mc->GetExternalConstraints()), RooFit::GlobalObservables(*global_observables)
+      /*, RooFit::Offset(true)*/)};
 
    double vanilla_val = nll_vanilla->getVal();
    double modular_val = nll_modularL->getVal();

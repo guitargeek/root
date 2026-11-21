@@ -84,19 +84,16 @@ void hf001_example()
 
    RooStats::ModelConfig *modelConfig = static_cast<RooStats::ModelConfig *>(ws->obj("ModelConfig"));
 
-   // Get probability density function and parameters list from model
-   RooAbsPdf *pdf = modelConfig->GetPdf();
-   RooArgSet globalObservables{*modelConfig->GetGlobalObservables()};
-
-   // Perform the fit using Minos to get the correct asymmetric uncertainties
+   // Perform the fit using Minos to get the correct asymmetric uncertainties.
+   // The constraint terms of the model are no part of its pdf: the ModelConfig
+   // passes them to the fit, together with the global observables.
    using namespace RooFit;
-   std::unique_ptr<RooFitResult> result{
-      pdf->fitTo(*ws->data("obsData"), Save(), PrintLevel(-1), GlobalObservables(globalObservables), Minos(true))};
+   std::unique_ptr<RooFitResult> result{modelConfig->fitTo(*ws->data("obsData"), Save(), PrintLevel(-1), Minos(true))};
 
    // Getting list of Parameters of Interest and getting first from them
    RooRealVar *poi = static_cast<RooRealVar *>(modelConfig->GetParametersOfInterest()->first());
 
-   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*ws->data("obsData"))};
+   std::unique_ptr<RooAbsReal> nll{modelConfig->createNLL(*ws->data("obsData"))};
    std::unique_ptr<RooAbsReal> profile{nll->createProfile(*poi)};
 
    // frame for future plot

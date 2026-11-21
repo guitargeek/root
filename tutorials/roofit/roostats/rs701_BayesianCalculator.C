@@ -28,8 +28,10 @@ void rs701_BayesianCalculator(bool useBkg = true, double confLevel = 0.90)
    RooWorkspace *w = new RooWorkspace("w");
    w->factory("SUM::pdf(s[0.001,15]*Uniform(x[0,1]),b[1,0,2]*Uniform(x))");
    w->factory("Gaussian::prior_b(b,1,1)");
-   w->factory("PROD::model(pdf,prior_b)");
-   RooAbsPdf *model = w->pdf("model"); // pdf*priorNuisance
+   RooAbsPdf *model = w->pdf("pdf");
+   // The prior of the nuisance parameter is no part of the pdf: it multiplies
+   // the likelihood only once, and is passed to the calculator as a constraint.
+   RooArgSet nuisancePriors(*w->pdf("prior_b"));
    RooArgSet nuisanceParameters(*(w->var("b")));
 
    RooAbsRealLValue *POI = w->var("s");
@@ -52,6 +54,7 @@ void rs701_BayesianCalculator(bool useBkg = true, double confLevel = 0.90)
    double size = 1. - confLevel;
    std::cout << "\nBayesian Result using a Flat prior " << std::endl;
    BayesianCalculator bcalc(data, *model, RooArgSet(*POI), *priorPOI, nuisPar);
+   bcalc.SetExternalConstraints(nuisancePriors);
    bcalc.SetTestSize(size);
    SimpleInterval *interval = bcalc.GetInterval();
    double cl = bcalc.ConfidenceLevel();
@@ -66,6 +69,7 @@ void rs701_BayesianCalculator(bool useBkg = true, double confLevel = 0.90)
 
    std::cout << "\nBayesian Result using a 1/sqrt(s) prior  " << std::endl;
    BayesianCalculator bcalc2(data, *model, RooArgSet(*POI), *priorPOI2, nuisPar);
+   bcalc2.SetExternalConstraints(nuisancePriors);
    bcalc2.SetTestSize(size);
    SimpleInterval *interval2 = bcalc2.GetInterval();
    cl = bcalc2.ConfidenceLevel();

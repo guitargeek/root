@@ -37,14 +37,14 @@ sum = ROOT.RooAddPdf("sum", "sum", [g, p], [f])
 # Construct constraint on parameter f
 fconstraint = ROOT.RooGaussian("fconstraint", "fconstraint", f, 0.7, 0.1)
 
-# Multiply constraint with p.d.f
-sumc = ROOT.RooProdPdf("sumc", "sum with constraint", [sum, fconstraint])
-
 # Setup toy study with model
 # ---------------------------------------------------
 
-# Perform toy study with internal constraint on f
-mcs = ROOT.RooMCStudy(sumc, x, Constrain=[f], Silence=True, Binned=True, FitOptions={"PrintLevel": -1})
+# Perform toy study with constraint on f. The constraint term is no part of
+# the pdf, so it is passed separately.
+mcs = ROOT.RooMCStudy(
+    sum, x, ExternalConstraints=[fconstraint], Silence=True, Binned=True, FitOptions={"PrintLevel": -1}
+)
 
 # Run 500 toys of 2000 events.
 # Before each toy is generated, value for the f is sampled from the constraint pdf and

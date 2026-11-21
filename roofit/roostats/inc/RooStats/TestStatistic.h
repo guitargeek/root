@@ -47,13 +47,6 @@ public:
    /// return detailed output: for fits this can be pulls, processing time, ... The returned pointer will not loose validity until another call to Evaluate.
    virtual const RooArgSet* GetDetailedOutput() const { return nullptr; }
 
-   /// interface to set conditional observables. If a test statistics needs them it will re-implement this function
-   virtual void SetConditionalObservables(const RooArgSet& ) {}
-
-   /// interface to set global observables. If a test statistics needs them it will re-implement this function
-   virtual void SetGlobalObservables(const RooArgSet& ) {}
-
-
 protected:
    ClassDef(TestStatistic,1) // Interface for a TestStatistic
 };

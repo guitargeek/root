@@ -665,20 +665,17 @@ HypoTestInverterResult *RooStats::HypoTestInvTool::RunInverter(RooWorkspace *w, 
       // This is relevant when using LEP test statistics
 
       Info("StandardHypoTestInvDemo", " Doing a first fit to the observed data ");
-      RooArgSet constrainParams;
-      if (sbModel->GetNuisanceParameters())
-         constrainParams.add(*sbModel->GetNuisanceParameters());
-      RooStats::RemoveConstantParameters(&constrainParams);
+      // ModelConfig::fitTo() passes the constraint terms and the global observables of the model to the fit
       tw.Start();
-      std::unique_ptr<RooFitResult> fitres{sbModel->GetPdf()->fitTo(
+      std::unique_ptr<RooFitResult> fitres{sbModel->fitTo(
          *data, InitialHesse(false), Hesse(false), Minimizer(mMinimizerType.c_str(), "Migrad"), Strategy(0),
-         PrintLevel(mPrintLevel), Constrain(constrainParams), Save(true), Offset(RooStats::NLLOffsetMode()))};
+         PrintLevel(mPrintLevel), Save(true), Offset(RooStats::NLLOffsetMode()))};
       if (fitres->status() != 0) {
          Warning("StandardHypoTestInvDemo",
                  "Fit to the model failed - try with strategy 1 and perform first an Hesse computation");
-         fitres = std::unique_ptr<RooFitResult>{sbModel->GetPdf()->fitTo(
+         fitres = std::unique_ptr<RooFitResult>{sbModel->fitTo(
             *data, InitialHesse(true), Hesse(false), Minimizer(mMinimizerType.c_str(), "Migrad"), Strategy(1),
-            PrintLevel(mPrintLevel + 1), Constrain(constrainParams), Save(true), Offset(RooStats::NLLOffsetMode()))};
+            PrintLevel(mPrintLevel + 1), Save(true), Offset(RooStats::NLLOffsetMode()))};
       }
       if (fitres->status() != 0)
          Warning("StandardHypoTestInvDemo", " Fit still failed - continue anyway.....");
@@ -707,7 +704,7 @@ HypoTestInverterResult *RooStats::HypoTestInvTool::RunInverter(RooWorkspace *w, 
 
    // build test statistics and hypotest calculators for running the inverter
 
-   SimpleLikelihoodRatioTestStat slrts(*sbModel->GetPdf(), *bModel->GetPdf());
+   SimpleLikelihoodRatioTestStat slrts(*sbModel, *bModel);
 
    // null parameters must includes snapshot of poi plus the nuisance values
    RooArgSet nullParams(*sbModel->GetSnapshot());
@@ -724,7 +721,7 @@ HypoTestInverterResult *RooStats::HypoTestInvTool::RunInverter(RooWorkspace *w, 
       slrts.EnableDetailedOutput();
 
    // ratio of profile likelihood - need to pass snapshot for the alt
-   RatioOfProfiledLikelihoodsTestStat ropl(*sbModel->GetPdf(), *bModel->GetPdf(), bModel->GetSnapshot());
+   RatioOfProfiledLikelihoodsTestStat ropl(*sbModel, *bModel, bModel->GetSnapshot());
    ropl.SetSubtractMLE(false);
    if (testStatType == 11)
       ropl.SetSubtractMLE(true);
@@ -733,7 +730,7 @@ HypoTestInverterResult *RooStats::HypoTestInvTool::RunInverter(RooWorkspace *w, 
    if (mEnableDetOutput)
       ropl.EnableDetailedOutput();
 
-   ProfileLikelihoodTestStat profll(*sbModel->GetPdf());
+   ProfileLikelihoodTestStat profll(*sbModel);
    if (testStatType == 3)
       profll.SetOneSided(true);
    if (testStatType == 4)
@@ -756,7 +753,7 @@ HypoTestInverterResult *RooStats::HypoTestInvTool::RunInverter(RooWorkspace *w, 
    if (mMaxPoi > 0)
       poi->setMax(mMaxPoi); // increase limit
 
-   MaxLikelihoodEstimateTestStat maxll(*sbModel->GetPdf(), *poi);
+   MaxLikelihoodEstimateTestStat maxll(*sbModel, *poi);
    NumEventsTestStat nevtts;
 
    AsymptoticCalculator::SetPrintLevel(mPrintLevel);
@@ -977,9 +974,8 @@ HypoTestInverterResult *RooStats::HypoTestInvTool::RunInverter(RooWorkspace *w, 
 
             RooStats::SetAllConstant(*poiModel, true);
 
-            sbModel->GetPdf()->fitTo(*data, InitialHesse(false), Hesse(false),
-                                     Minimizer(mMinimizerType.c_str(), "Migrad"), Strategy(0), PrintLevel(mPrintLevel),
-                                     Constrain(constrainParams), Offset(RooStats::NLLOffsetMode()));
+            sbModel->fitTo(*data, InitialHesse(false), Hesse(false), Minimizer(mMinimizerType.c_str(), "Migrad"),
+                           Strategy(0), PrintLevel(mPrintLevel), Offset(RooStats::NLLOffsetMode()));
 
             std::cout << "rebuild using fitted parameter value for B-model snapshot" << std::endl;
             constrainParams.Print("v");

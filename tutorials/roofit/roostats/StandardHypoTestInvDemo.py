@@ -547,19 +547,15 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
             # This is relevant when using LEP test statistics
 
             ROOT.Info("StandardHypoTestInvDemo", " Doing a first fit to the observed data ")
-            constrainParams = RooArgSet()
-            if sbModel.GetNuisanceParameters():
-                constrainParams.add(sbModel.GetNuisanceParameters())
-            RooStats.RemoveConstantParameters(constrainParams)
+            # ModelConfig.fitTo() passes the constraint terms and the global observables of the model to the fit
             tw.Start()
-            fitres = sbModel.GetPdf().fitTo(
+            fitres = sbModel.fitTo(
                 data,
                 InitialHesse(False),
                 Hesse(False),
                 Minimizer(str(self.mMinimizerType), "Migrad"),
                 Strategy(0),
                 PrintLevel(self.mPrintLevel),
-                Constrain(constrainParams),
                 Save(True),
                 Offset(RooStats.NLLOffsetMode()),
             )
@@ -569,14 +565,13 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
                     "StandardHypoTestInvDemo",
                     "Fit to the model failed - try with strategy 1 and perform first an Hesse computation",
                 )
-                fitres = sbModel.GetPdf().fitTo(
+                fitres = sbModel.fitTo(
                     data,
                     InitialHesse(True),
                     Hesse(False),
                     Minimizer(self.mMinimizerType, "Migrad"),
                     Strategy(1),
                     PrintLevel(self.mPrintLevel + 1),
-                    Constrain(constrainParams),
                     Save(True),
                     Offset(RooStats.NLLOffsetMode()),
                 )
@@ -609,7 +604,7 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
 
         # build test statistics and hypotest calculators for running the inverter
 
-        slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(sbModel.GetPdf(), bModel.GetPdf())
+        slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(sbModel, bModel)
 
         # null parameters must includes snapshot of poi plus the nuisance values
         nullParams = ROOT.RooArgSet(sbModel.GetSnapshot())
@@ -626,7 +621,7 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
             slrts.EnableDetailedOutput()
 
         # ratio of profile likelihood - need to pass snapshot for the alt
-        ropl = ROOT.RooStats.RatioOfProfiledLikelihoodsTestStat(sbModel.GetPdf(), bModel.GetPdf(), bModel.GetSnapshot())
+        ropl = ROOT.RooStats.RatioOfProfiledLikelihoodsTestStat(sbModel, bModel, bModel.GetSnapshot())
         ropl.SetSubtractMLE(False)
         if testStatType == 11:
             ropl.SetSubtractMLE(True)
@@ -635,7 +630,7 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
         if self.mEnableDetOutput:
             ropl.EnableDetailedOutput()
 
-        profll = ROOT.RooStats.ProfileLikelihoodTestStat(sbModel.GetPdf())
+        profll = ROOT.RooStats.ProfileLikelihoodTestStat(sbModel)
         if testStatType == 3:
             profll.SetOneSided(True)
         if testStatType == 4:
@@ -657,7 +652,7 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
         if self.mMaxPoi > 0:
             poi.setMax(self.mMaxPoi)  # increase limit
 
-        maxll = ROOT.RooStats.MaxLikelihoodEstimateTestStat(sbModel.GetPdf(), poi)
+        maxll = ROOT.RooStats.MaxLikelihoodEstimateTestStat(sbModel, poi)
         nevtts = ROOT.RooStats.NumEventsTestStat()
 
         ROOT.RooStats.AsymptoticCalculator.SetPrintLevel(self.mPrintLevel)
@@ -903,14 +898,13 @@ class HypoTestInvTool_plus(ROOT.RooStats.HypoTestInvTool):
 
                     RooStats.SetAllConstant(poiModel, True)
 
-                    sbModel.GetPdf().fitTo(
+                    sbModel.fitTo(
                         data,
                         InitialHesse(False),
                         Hesse(False),
                         Minimizer(self.mMinimizerType, "Migrad"),
                         Strategy(0),
                         PrintLevel(self.mPrintLevel),
-                        Constrain(constrainParams),
                         Offset(RooStats.IsNLLOffset()),
                     )
 

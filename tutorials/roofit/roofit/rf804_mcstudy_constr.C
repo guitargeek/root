@@ -15,7 +15,6 @@
 #include "RooGaussian.h"
 #include "RooPolynomial.h"
 #include "RooAddPdf.h"
-#include "RooProdPdf.h"
 #include "RooMCStudy.h"
 #include "RooPlot.h"
 #include "TCanvas.h"
@@ -46,14 +45,12 @@ void rf804_mcstudy_constr()
    // Construct constraint on parameter f
    RooGaussian fconstraint("fconstraint", "fconstraint", f, 0.7, 0.1);
 
-   // Multiply constraint with pdf
-   RooProdPdf sumc("sumc", "sum with constraint", RooArgSet(sum, fconstraint));
-
    // S e t u p   t o y   s t u d y   w i t h   m o d e l
    // ---------------------------------------------------
 
-   // Perform toy study with internal constraint on f
-   RooMCStudy mcs(sumc, x, Constrain(f), Silence(), Binned(), FitOptions(PrintLevel(-1)));
+   // Perform toy study with constraint on f. The constraint term is no part of
+   // the pdf, so it is passed separately.
+   RooMCStudy mcs(sum, x, ExternalConstraints(fconstraint), Silence(), Binned(), FitOptions(PrintLevel(-1)));
 
    // Run 500 toys of 2000 events.
    // Before each toy is generated, a value for the f is sampled from the constraint pdf and

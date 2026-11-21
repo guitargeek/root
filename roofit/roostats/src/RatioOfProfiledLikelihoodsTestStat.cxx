@@ -59,30 +59,6 @@ bool RooStats::RatioOfProfiledLikelihoodsTestStat::fgAlwaysReuseNll = true ;
 void RooStats::RatioOfProfiledLikelihoodsTestStat::SetAlwaysReuseNLL(bool flag) { fgAlwaysReuseNll = flag ; }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// returns -logL(poi, conditional MLE of nuisance params)
-/// subtract off the global MLE or not depending on the option
-/// It is the numerator or the denominator of the ratio (depending on the pdf)
-///
-/// L.M. : not sure why this method is needed now
-
-double RooStats::RatioOfProfiledLikelihoodsTestStat::ProfiledLikelihood(RooAbsData& data, RooArgSet& poi, RooAbsPdf& pdf) {
-   int type = (fSubtractMLE) ? 0 : 2;
-
-   // null
-   if (&pdf == fNullProfile.GetPdf()) {
-      return fNullProfile.EvaluateProfileLikelihood(type, data, poi);
-   } else if (&pdf == fAltProfile.GetPdf()) {
-      return fAltProfile.EvaluateProfileLikelihood(type, data, poi);
-   }
-
-   oocoutE(nullptr,InputArguments) << "RatioOfProfiledLikelihoods::ProfileLikelihood - invalid pdf used for computing the profiled likelihood - return NaN"
-                         << std::endl;
-
-   return TMath::QuietNaN();
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// evaluate the ratio of profile likelihood
 
 double  RooStats::RatioOfProfiledLikelihoodsTestStat::Evaluate(RooAbsData& data, RooArgSet& nullParamsOfInterest) {

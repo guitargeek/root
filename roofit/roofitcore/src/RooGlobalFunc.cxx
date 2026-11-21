@@ -680,20 +680,6 @@ RooCmdArg SumCoefRange(const char *rangeName)
 {
    return RooCmdArg("SumCoefRange", 0, 0, 0, 0, rangeName, nullptr, nullptr, nullptr);
 }
-RooCmdArg Constrain(const RooArgSet &params)
-{
-   for (RooAbsArg *param : params) {
-      if (!dynamic_cast<RooRealVar *>(param)) {
-         std::stringstream errorMsg;
-         errorMsg << "RooFit::Constrain(): you passed the argument \"" << param->GetName()
-                  << "\", but it's not a RooRealVar!"
-                  << " You can only constrain parameters, which must be RooRealVars.";
-         oocoutE(nullptr, InputArguments) << errorMsg.str() << std::endl;
-         throw std::invalid_argument(errorMsg.str().c_str());
-      }
-   }
-   return RooCmdArg("Constrain", 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &params);
-}
 RooCmdArg GlobalObservablesSource(const char *sourceName)
 {
    return {"GlobalObservablesSource", 0, 0, 0, 0, sourceName, nullptr, nullptr, nullptr};

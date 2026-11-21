@@ -19,7 +19,7 @@
 subsidiary or constraint functions.
 
 This class is used to gather all subsidiary PDF terms from the component PDFs of RooSumL likelihoods and calculate the
-composite -log(L). Such subsidiary terms can be marked using RooFit::Constrain arguments to RooAbsPdf::fitTo() or
+composite -log(L). Such subsidiary terms are passed with RooFit::ExternalConstraints arguments to RooAbsPdf::fitTo() or
 RooAbsPdf::createNLL().
 
 Subsidiary terms are summed separately for increased numerical stability, since these terms are often small and cause

@@ -338,7 +338,7 @@ p1.Draw()
 # when the value of b is fixed in the likelihood.  This is implemented
 # by the SimpleLikelihoodRatioTestStat
 
-slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(b_model.GetPdf(), sb_model.GetPdf())
+slrts = ROOT.RooStats.SimpleLikelihoodRatioTestStat(b_model, sb_model)
 slrts.SetNullParameters(b_model.GetSnapshot())
 slrts.SetAltParameters(sb_model.GetSnapshot())
 
@@ -430,17 +430,17 @@ sb_modelXY.SetSnapshot(w.set("poi"))
 # Tevatron-style Ratio of profiled likelihoods
 # $Q_Tev = -log L(s=0,\hat\hat{b})/L(s=50,\hat\hat{b})$
 ropl = ROOT.RooStats.RatioOfProfiledLikelihoodsTestStat(
-    b_modelXY.GetPdf(), sb_modelXY.GetPdf(), sb_modelXY.GetSnapshot()
+    b_modelXY, sb_modelXY, sb_modelXY.GetSnapshot()
 )
 ropl.SetSubtractMLE(False)
 
 # profile likelihood where alternate is best fit value of signal yield
 # $\lambda(0) = -log L(s=0,\hat\hat{b})/L(\hat{s},\hat{b})$
-profll = ROOT.RooStats.ProfileLikelihoodTestStat(b_modelXY.GetPdf())
+profll = ROOT.RooStats.ProfileLikelihoodTestStat(b_modelXY)
 
 # just use the maximum likelihood estimate of signal yield
 # $MLE = \hat{s}$
-mlets = ROOT.RooStats.MaxLikelihoodEstimateTestStat(sb_modelXY.GetPdf(), w.var("s"))
+mlets = ROOT.RooStats.MaxLikelihoodEstimateTestStat(sb_modelXY, w.var("s"))
 
 # However, it is less clear how to justify the prior used in randomizing
 # the nuisance parameters (since that is a property of the ensemble,

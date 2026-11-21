@@ -118,13 +118,6 @@ std::unique_ptr<T> cloneTreeWithSameParameters(T const &arg, RooArgSet const *ob
 
 std::string getRangeNameForSimComponent(std::string const &rangeName, bool splitRange, std::string const &catName);
 
-struct BinnedLOutput {
-   RooAbsPdf *binnedPdf = nullptr;
-   bool isBinnedL = false;
-};
-
-BinnedLOutput getBinnedL(RooAbsPdf const &pdf);
-
 void getSortedComputationGraph(RooAbsArg const &func, RooArgSet &out);
 
 /// Check that `function` is constant (flat) inside each bin defined by the

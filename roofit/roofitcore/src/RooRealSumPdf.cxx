@@ -716,7 +716,10 @@ RooRealSumPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::Compi
    }
    std::unique_ptr<RooAbsPdf> pdfClone(static_cast<RooAbsPdf *>(this->Clone()));
 
-   if (ctx.likelihoodMode() && pdfClone->getAttribute("BinnedLikelihood")) {
+   // The binned likelihood is only valid if the likelihood is built from the
+   // values of this pdf. As a component of another pdf, e.g. as a factor of a
+   // RooProdPdf, this is a pdf like any other.
+   if (ctx.isLikelihoodPdf(*this) && pdfClone->getAttribute("BinnedLikelihood")) {
 
       // This has to be done before compiling the servers, such that the
       // RooBinWidthFunctions know to disable themselves.

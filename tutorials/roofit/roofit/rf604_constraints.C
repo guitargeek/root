@@ -14,8 +14,9 @@
 #include "RooGaussian.h"
 #include "RooPolynomial.h"
 #include "RooAddPdf.h"
-#include "RooProdPdf.h"
 #include "RooFitResult.h"
+#include "RooWorkspace.h"
+#include "RooFit/ModelConfig.h"
 #include "RooPlot.h"
 #include "TCanvas.h"
 #include "TAxis.h"
@@ -51,35 +52,47 @@ void rf604_constraints()
    // Construct Gaussian constraint pdf on parameter f at 0.8 with resolution of 0.1
    RooGaussian fconstraint("fconstraint", "fconstraint", f, 0.8, 0.2);
 
-   // M E T H O D   1   -   A d d   i n t e r n a l   c o n s t r a i n t   t o   m o d e l
-   // -------------------------------------------------------------------------------------
-
-   // Multiply constraint term with regular pdf using RooProdPdf
-   // Specify in fitTo() that internal constraints on parameter f should be used
-
-   // Multiply constraint with pdf
-   RooProdPdf modelc("modelc", "model with constraint", RooArgSet(model, fconstraint));
+   // A constraint term is no part of the pdf of the observable x: the pdf is the
+   // probability density for one event, while the constraint term multiplies the
+   // likelihood only once. Therefore, the constraint is not multiplied with the
+   // pdf in a RooProdPdf, but it is passed to the likelihood separately.
 
    // Fit model (without use of constraint term)
    std::unique_ptr<RooFitResult> r1{model.fitTo(*d, Save(), PrintLevel(-1))};
 
-   // Fit modelc with constraint term on parameter f
-   std::unique_ptr<RooFitResult> r2{modelc.fitTo(*d, Constrain(f), Save(), PrintLevel(-1))};
+   // M E T H O D   1   -   S p e c i f y   c o n s t r a i n t   w h e n   f i t t i n g
+   // -----------------------------------------------------------------------------------
 
-   // M E T H O D   2   -     S p e c i f y   e x t e r n a l   c o n s t r a i n t   w h e n   f i t t i n g
-   // -------------------------------------------------------------------------------------------------------
+   // Fit model with constraint term on parameter f
+   std::unique_ptr<RooFitResult> r2{model.fitTo(*d, ExternalConstraints(fconstraint), Save(), PrintLevel(-1))};
+
+   // M E T H O D   2   -   K e e p   m o d e l   a n d   c o n s t r a i n t   i n   a   M o d e l C o n f i g
+   // -----------------------------------------------------------------------------------------------------------
+
+   // The recommended way to keep a pdf together with its constraint terms is a
+   // ModelConfig in a RooWorkspace: you can't forget to pass the constraints to
+   // the fit, and the RooStats tools use them to compute limits and intervals.
 
    // Construct another Gaussian constraint pdf on parameter f at 0.2 with resolution of 0.1
    RooGaussian fconstext("fconstext", "fconstext", f, 0.2, 0.1);
 
-   // Fit with external constraint
-   std::unique_ptr<RooFitResult> r3{model.fitTo(*d, ExternalConstraints(fconstext), Save(), PrintLevel(-1))};
+   RooWorkspace ws("ws");
+   RooFit::ModelConfig modelConfig("ModelConfig", &ws);
+   // The ModelConfig imports the objects into the workspace
+   modelConfig.SetPdf(model);
+   modelConfig.SetExternalConstraints(fconstext);
+   modelConfig.SetObservables("x");
+   modelConfig.SetParametersOfInterest("f");
+
+   // ModelConfig::fitTo() passes the constraint terms to the fit
+   std::unique_ptr<RooFitResult> r3{modelConfig.fitTo(*d, Save(), PrintLevel(-1))};
 
    // Print the fit results
    cout << "fit result without constraint (data generated at f=0.5)" << endl;
    r1->Print("v");
-   cout << "fit result with internal constraint (data generated at f=0.5, constraint is f=0.8+/-0.2)" << endl;
+   cout << "fit result with constraint (data generated at f=0.5, constraint is f=0.8+/-0.2)" << endl;
    r2->Print("v");
-   cout << "fit result with (another) external constraint (data generated at f=0.5, constraint is f=0.2+/-0.1)" << endl;
+   cout << "fit result with (another) constraint in a ModelConfig (data generated at f=0.5, constraint is f=0.2+/-0.1)"
+        << endl;
    r3->Print("v");
 }

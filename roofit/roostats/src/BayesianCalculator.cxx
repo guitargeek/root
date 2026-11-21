@@ -766,10 +766,13 @@ void BayesianCalculator::SetModel(const ModelConfig & model) {
    fNuisanceParameters.removeAll();
    fConditionalObs.removeAll();
    fGlobalObs.removeAll();
+   fExternalConstraints.removeAll();
    if (model.GetParametersOfInterest()) fPOI.add( *(model.GetParametersOfInterest()) );
    if (model.GetNuisanceParameters())  fNuisanceParameters.add( *(model.GetNuisanceParameters() ) );
    if (model.GetConditionalObservables())  fConditionalObs.add( *(model.GetConditionalObservables() ) );
    if (model.GetGlobalObservables())  fGlobalObs.add( *(model.GetGlobalObservables() ) );
+   // the constraint terms are no part of the pdf
+   if (model.GetExternalConstraints())  fExternalConstraints.add( *(model.GetExternalConstraints() ) );
    // remove constant nuisance parameters
    RemoveConstantParameters(&fNuisanceParameters);
 
@@ -809,14 +812,8 @@ RooAbsReal* BayesianCalculator::GetPosteriorFunction() const
    }
 
 
-   std::unique_ptr<RooArgSet> constrainedParams{fPdf->getParameters(*fData)};
-   // remove the constant parameters
-   RemoveConstantParameters(&*constrainedParams);
-
-   //constrainedParams->Print("V");
-
-   // use RooFit::Constrain() to be sure constraints terms are taken into account
-   fLogLike = std::unique_ptr<RooAbsReal>{fPdf->createNLL(*fData, RooFit::Constrain(*constrainedParams), RooFit::ConditionalObservables(fConditionalObs), RooFit::GlobalObservables(fGlobalObs) )};
+   // the constraint terms are no part of the pdf and are passed separately
+   fLogLike = std::unique_ptr<RooAbsReal>{fPdf->createNLL(*fData, RooFit::ExternalConstraints(fExternalConstraints), RooFit::ConditionalObservables(fConditionalObs), RooFit::GlobalObservables(fGlobalObs) )};
 
 
 
@@ -833,7 +830,10 @@ RooAbsReal* BayesianCalculator::GetPosteriorFunction() const
       coutE(Eval) <<  "BayesianCalculator::GetPosteriorFunction : "
                   << " Negative log likelihood evaluates to infinity " << std::endl
                   << " Non-const Parameter values : ";
-      RooArgList p(*constrainedParams);
+      std::unique_ptr<RooArgSet> nllParams{fLogLike->getParameters(*fData)};
+      // remove the constant parameters
+      RemoveConstantParameters(&*nllParams);
+      RooArgList p(*nllParams);
       for (auto *v : dynamic_range_cast<RooRealVar *>(p)) {
          if (v!=nullptr) ccoutE(Eval) << v->GetName() << " = " << v->getVal() << "   ";
       }
@@ -888,29 +888,20 @@ RooAbsReal* BayesianCalculator::GetPosteriorFunction() const
       formula << "std::exp(-@0+" << fNllMin << "+log(@1))";
       fLikelihood = new RooFormulaVar(likeName.c_str(), formula, RooArgList(*fLogLike, *fPriorPdf));
 #else
-      // here use RooProdPdf (not very nice) but working
+      // The prior multiplies the likelihood like a constraint term, so it is
+      // passed to the likelihood together with the constraint terms.
 
       if (fLogLike) fLogLike.reset();
-      if (fProductPdf) {
-         delete fProductPdf;
-         fProductPdf = nullptr;
-      }
 
-      // // create a unique name for the product pdf
-      RooAbsPdf *  pdfAndPrior = fPdf;
+      RooArgSet constraintsAndPrior{fExternalConstraints};
+      std::string likeName = std::string{"likelihood_times_prior_"} + fPdf->GetName();
       if (fPriorPdf) {
-         std::string prodName = std::string{"product_"} + fPdf->GetName() + "_" + fPriorPdf->GetName();
-         // save this as data member since it needs to be deleted afterwards
-         fProductPdf = new RooProdPdf(prodName.c_str(), "", RooArgList(*fPdf, *fPriorPdf));
-         pdfAndPrior = fProductPdf;
+         constraintsAndPrior.add(*fPriorPdf);
+         likeName += std::string{"_"} + fPriorPdf->GetName();
       }
 
-      std::unique_ptr<RooArgSet> constrParams{fPdf->getParameters(*fData)};
-      // remove the constant parameters
-      RemoveConstantParameters(&*constrParams);
-      fLogLike = std::unique_ptr<RooAbsReal>{pdfAndPrior->createNLL(*fData, RooFit::Constrain(*constrParams),RooFit::ConditionalObservables(fConditionalObs),RooFit::GlobalObservables(fGlobalObs) )};
+      fLogLike = std::unique_ptr<RooAbsReal>{fPdf->createNLL(*fData, RooFit::ExternalConstraints(constraintsAndPrior),RooFit::ConditionalObservables(fConditionalObs),RooFit::GlobalObservables(fGlobalObs) )};
 
-      std::string likeName = std::string{"likelihood_times_prior_"} + pdfAndPrior->GetName();
       std::stringstream formula;
       formula << "exp(-@0+" << fNLLMin << ")";
       fLikelihood = new RooFormulaVar(likeName.c_str(), formula.str().c_str(), RooArgList(*fLogLike));
@@ -939,10 +930,19 @@ RooAbsReal* BayesianCalculator::GetPosteriorFunction() const
       // if type is 1-TOYMC or TOYMC-1
       if ( fIntegrationType.Contains("1") || fIntegrationType.Contains("ONE")  ) doToysEveryIteration = false;
 
-      RooAbsPdf * samplingPdf = (fNuisancePdf) ? fNuisancePdf : fPdf;
-      if (!fNuisancePdf) {
-         ccoutI(Eval) << "BayesianCalculator::GetPosteriorFunction : no nuisance pdf is provided, try using global pdf (this will be slower)"
+      RooAbsPdf * samplingPdf = fNuisancePdf;
+      if (!samplingPdf && !fExternalConstraints.empty()) {
+         ccoutI(Eval) << "BayesianCalculator::GetPosteriorFunction : no nuisance pdf is provided, use the product of the constraint terms"
                       << std::endl;
+         if (fProductPdf) delete fProductPdf;
+         // save this as data member since it needs to be deleted afterwards
+         fProductPdf = new RooProdPdf("BayesianCalculator_NuisancePdf", "", fExternalConstraints);
+         samplingPdf = fProductPdf;
+      }
+      if (!samplingPdf) {
+         ccoutI(Eval) << "BayesianCalculator::GetPosteriorFunction : no nuisance pdf and no constraint terms are provided, try using the pdf (this will be slower)"
+                      << std::endl;
+         samplingPdf = fPdf;
       }
       fPosteriorFunction = new PosteriorFunctionFromToyMC(*fLogLike, *samplingPdf, *poi, nuisParams, fPriorPdf, fNLLMin,
                                                           fNumIterations, doToysEveryIteration );

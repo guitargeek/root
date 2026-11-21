@@ -34,14 +34,11 @@
 #include "RooAbsPdf.h"
 #include "TUUID.h"
 #include "RooProdPdf.h"
-#include "RooGamma.h"
-#include "RooPoisson.h"
-#include "RooGaussian.h"
-#include "RooBifurGauss.h"
-#include "RooLognormal.h"
 #include "RooBinning.h"
 #include "RooUniformBinning.h"
 
+#include "RooFit/AsimovGlobalObservables.h"
+#include "RooFit/Constraints.h"
 #include "RooStats/AsymptoticCalculator.h"
 #include "Math/GenAlgoOptions.h"
 #include "Math/Minimizer.h"
@@ -151,7 +148,7 @@ std::shared_ptr<const RooFitResult> xRooFit::fitTo(RooAbsPdf &pdf,
 }
 
 std::pair<std::shared_ptr<RooAbsData>, std::shared_ptr<const RooAbsCollection>>
-xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, int seed)
+xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, int seed, const RooArgSet *constraints)
 {
 
    std::pair<std::shared_ptr<RooAbsData>, std::shared_ptr<const RooAbsCollection>> out;
@@ -160,7 +157,14 @@ xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, in
    if (!fr)
       return out;
 
+   // The constraint terms are no part of the pdf, so their variables (in particular the global observables) are
+   // no variables of the pdf
    auto _allVars = std::unique_ptr<RooAbsCollection>(pdf.getVariables());
+   if (constraints) {
+      for (auto con : *constraints) {
+         _allVars->add(*std::unique_ptr<RooArgSet>(con->getVariables()), true);
+      }
+   }
    auto _snap = std::unique_ptr<RooAbsCollection>(_allVars->snapshot());
    *_allVars = fr->constPars();
    *_allVars = fr->floatParsFinal();
@@ -187,135 +191,6 @@ xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, in
       _obs->remove(fr->constPars(), true, true);
       _obs->remove(fr->floatParsFinal(), true, true); // use this instead
 
-      if (!_globs->empty()) {
-         RooArgSet *toy_gobs = new RooArgSet(uuid + "_globs");
-         // ensure we use the gobs from the model ...
-         RooArgSet t;
-         t.add(*_globs);
-         std::unique_ptr<RooArgSet> globs(_pdf->getObservables(t));
-         globs->snapshot(*toy_gobs);
-         if (!toy_gobs->empty() &&
-             !dynamic_cast<RooSimultaneous *>(
-                _pdf)) { // if was simPdf will call genSubPdf on each subpdf so no need to generate here
-            if (!expected) {
-               *toy_gobs = *std::unique_ptr<RooDataSet>(_pdf->generate(*globs, 1))->get();
-            } else {
-               // loop over pdfs in top-level prod-pdf,
-               auto pp = dynamic_cast<RooProdPdf *>(_pdf);
-               if (pp) {
-                  for (auto thePdf : pp->pdfList()) {
-                     auto gob = std::unique_ptr<RooArgSet>(thePdf->getObservables(*globs));
-                     if (gob->empty())
-                        continue;
-                     if (gob->size() > 1) {
-                        Warning("generate", "%s contains multiple global obs: %s", thePdf->GetName(),
-                                gob->contentsString().c_str());
-                        continue;
-                     }
-                     RooRealVar &rrv = dynamic_cast<RooRealVar &>(*gob->first());
-                     std::unique_ptr<RooArgSet> cpars(thePdf->getParameters(*globs));
-
-                     bool foundServer = false;
-                     // note : this will work only for this type of constraints
-                     // expressed as RooPoisson, RooGaussian, RooLognormal, RooGamma
-                     // SimpleGaussianConstraint is CMS's own version of a RooGaussian, which also works.
-                     TClass *cClass = thePdf->IsA();
-                     if (cClass != RooGaussian::Class() && cClass != RooPoisson::Class() &&
-                         cClass != RooGamma::Class() && cClass != RooLognormal::Class() &&
-                         cClass != RooBifurGauss::Class() &&
-                         !(cClass && strcmp(cClass->GetName(), "SimpleGaussianConstraint") == 0)) {
-                        TString className = (cClass) ? cClass->GetName() : "undefined";
-                        oocoutW((TObject *)nullptr, Generation)
-                           << "xRooFit::generateFrom : constraint term " << thePdf->GetName() << " of type "
-                           << className << " is a non-supported type - result might be not correct " << std::endl;
-                     }
-
-                     // in case of a Poisson constraint make sure the rounding is not set
-                     if (cClass == RooPoisson::Class()) {
-                        RooPoisson *pois = dynamic_cast<RooPoisson *>(thePdf);
-                        assert(pois);
-                        pois->setNoRounding(true);
-                     }
-
-                     // look at server of the constraint term and check if the global observable is part of the server
-                     RooAbsArg *arg = thePdf->findServer(rrv);
-                     if (!arg) {
-                        // special case is for the Gamma where one might define the global observable n and you have a
-                        // Gamma(b, n+1, ...._ in this case n+1 is the server and we don;t have a direct dependency, but
-                        // we want to set n to the b value so in case of the Gamma ignore this test
-                        if (cClass != RooGamma::Class()) {
-                           oocoutE((TObject *)nullptr, Generation)
-                              << "xRooFit::generateFrom : constraint term " << thePdf->GetName()
-                              << " has no direct dependence on global observable- cannot generate it " << std::endl;
-                           continue;
-                        }
-                     }
-
-                     // loop on the server of the constraint term
-                     // need to treat the Gamma as a special case
-                     // the mode of the Gamma is (k-1)*theta where theta is the inverse of the rate parameter.
-                     // we assume that the global observable is defined as ngobs = k-1 and the theta parameter has the
-                     // name theta otherwise we use other procedure which might be wrong
-                     RooAbsReal *thetaGamma = nullptr;
-                     if (cClass == RooGamma::Class()) {
-                        for (RooAbsArg *a2 : thePdf->servers()) {
-                           if (TString(a2->GetName()).Contains("theta")) {
-                              thetaGamma = dynamic_cast<RooAbsReal *>(a2);
-                              break;
-                           }
-                        }
-                        if (thetaGamma == nullptr) {
-                           oocoutI((TObject *)nullptr, Generation)
-                              << "xRooFit::generateFrom : constraint term " << thePdf->GetName()
-                              << " is a Gamma distribution and no server named theta is found. Assume that the Gamma "
-                                 "scale is  1 "
-                              << std::endl;
-                        }
-                     }
-                     for (RooAbsArg *a2 : thePdf->servers()) {
-                        RooAbsReal *rrv2 = dynamic_cast<RooAbsReal *>(a2);
-                        if (rrv2 && !rrv2->dependsOn(*gob) &&
-                            (!rrv2->isConstant() || !rrv2->InheritsFrom("RooConstVar"))) {
-
-                           // found server not depending on the gob
-                           if (foundServer) {
-                              oocoutE((TObject *)nullptr, Generation)
-                                 << "xRooFit::generateFrom : constraint term " << thePdf->GetName()
-                                 << " constraint term has more server depending on nuisance- cannot generate it "
-                                 << std::endl;
-                              foundServer = false;
-                              break;
-                           }
-                           if (thetaGamma && thetaGamma->getVal() > 0) {
-                              rrv.setVal(rrv2->getVal() / thetaGamma->getVal());
-                           } else {
-                              rrv.setVal(rrv2->getVal());
-                           }
-                           foundServer = true;
-                        }
-                     }
-
-                     if (!foundServer) {
-                        oocoutE((TObject *)nullptr, Generation)
-                           << "xRooFit::generateFrom : can't find nuisance for constraint term - global "
-                              "observables will not be set to Asimov value "
-                           << thePdf->GetName() << " glob = " << rrv.GetName() << std::endl;
-                        std::cerr << "Parameters: " << std::endl;
-                        cpars->Print("V");
-                        std::cerr << "Observables: " << std::endl;
-                        gob->Print("V");
-                     }
-                  }
-               } else {
-                  Error("generate", "Cannot generate global observables, pdf is: %s::%s", _pdf->ClassName(),
-                        _pdf->GetName());
-               }
-               *toy_gobs = *globs;
-            }
-         }
-         _out.second.reset(toy_gobs);
-      } // end of globs generation
-
       RooRealVar w("weightVar", "weightVar", 1);
       if (auto s = dynamic_cast<RooSimultaneous *>(_pdf)) {
          // do subpdf's individually
@@ -334,8 +209,6 @@ xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, in
             if (!p)
                continue;
             auto toy = genSubPdf(p);
-            if (toy.second && _out.second)
-               *const_cast<RooArgSet *>(_out.second.get()) = *toy.second;
             _obs->setCatLabel(s->indexCat().GetName(), cLabel.c_str());
             for (int i = 0; i < toy.first->numEntries(); i++) {
                *_obs = *toy.first->get(i);
@@ -417,7 +290,30 @@ xRooFit::generateFrom(RooAbsPdf &pdf, const RooFitResult &_fr, bool expected, in
       return _out;
    };
 
-   out = genSubPdf(&pdf);
+   // The global observables are generated from the constraint terms of the model. The constraint terms are no part
+   // of the pdf: they are passed separately.
+   if (!_globs->empty() && constraints && !constraints->empty()) {
+      // ensure we use the gobs from the model ...
+      RooArgSet globs;
+      for (auto c : *constraints) {
+         RooArgSet cGlobs;
+         c->getObservables(_globs.get(), cGlobs);
+         globs.add(cGlobs, true);
+      }
+      RooArgSet *toy_gobs = new RooArgSet(uuid + "_globs");
+      globs.snapshot(*toy_gobs);
+      if (!toy_gobs->empty()) {
+         if (!expected) {
+            *toy_gobs = *RooFit::generateGlobalObservables(*constraints, globs, 1)->get();
+         } else {
+            RooFit::setGlobalObservablesToAsimov(*constraints, globs);
+            *toy_gobs = globs;
+         }
+      }
+      out.second.reset(toy_gobs);
+   }
+
+   out.first = genSubPdf(&pdf).first;
    out.first->SetName(expected ? (TString(fr->GetName()) + "_asimov") : uuid);
 
    // from now on we store the globs in the dataset

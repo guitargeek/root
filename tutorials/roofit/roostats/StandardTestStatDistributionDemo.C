@@ -132,7 +132,7 @@ void StandardTestStatDistributionDemo(const char *infile = "", const char *works
 
    // -------------------------------------------------------
    // create the test stat sampler
-   ProfileLikelihoodTestStat ts(*mc->GetPdf());
+   ProfileLikelihoodTestStat ts(*mc);
 
    // to avoid effects from boundary and simplify asymptotic comparison, set min=-max
    if (allowNegativeMu)
@@ -144,7 +144,7 @@ void StandardTestStatDistributionDemo(const char *infile = "", const char *works
 
    // create and configure the ToyMCSampler
    ToyMCSampler sampler(ts, nToyMC);
-   sampler.SetPdf(*mc->GetPdf());
+   sampler.SetModel(*mc);
    sampler.SetObservables(*mc->GetObservables());
    sampler.SetGlobalObservables(*mc->GetGlobalObservables());
    if (!mc->GetPdf()->canBeExtended() && (data->numEntries() == 1)) {

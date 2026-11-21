@@ -23,7 +23,6 @@
 #include "RooProduct.h"
 #include "RooConstVar.h"
 #include "RooPoisson.h"
-#include "RooProdPdf.h"
 #include "RooFitResult.h"
 #include "RooPlot.h"
 #include "RooMsgService.h"
@@ -138,7 +137,7 @@ void rf709_BarlowBeeston()
    RooRealVar Abkg1("Abkg", "Abkg", 1, 0.01, 5000);
 
    // Construct the sum of these
-   RooRealSumPdf model1_tmp("sp_ph", "sp_ph", {p_p_sig1, p_p_bkg1}, {Asig1, Abkg1}, true);
+   RooRealSumPdf model1("model1", "model1", {p_p_sig1, p_p_bkg1}, {Asig1, Abkg1}, true);
 
    // Construct the subsidiary poisson measurements constraining the histogram parameters
    // These ensure that the bin contents of the histograms are only allowed to vary within
@@ -147,8 +146,9 @@ void rf709_BarlowBeeston()
    RooArgSet constraints_sig1{createConstraints(gammas_sig1, p_h_sig, globs1)};
    RooArgSet constraints_bkg1{createConstraints(gammas_bkg1, p_h_bkg, globs1)};
 
-   // Construct the joint model with template PDFs and constraints
-   RooProdPdf model1("model1", "model1", {model1_tmp, constraints_sig1, constraints_bkg1});
+   // The constraints are no part of the model with the template PDFs: they are
+   // passed to the fit as external constraints.
+   RooArgSet constraints1{constraints_sig1, constraints_bkg1};
 
    // ***** Case 2 - 'Barlow Beeston' light (one parameter per bin for all samples) *****
 
@@ -167,20 +167,19 @@ void rf709_BarlowBeeston()
    RooRealVar Abkg2("Abkg", "Abkg", 1, 0.01, 5000);
 
    // As before, construct the sum of signal2 and background2
-   RooRealSumPdf model2_tmp("sp_ph", "sp_ph", {p_p_sig2, p_p_bkg2}, {Asig2, Abkg2}, true);
+   RooRealSumPdf model2("model2", "model2", {p_p_sig2, p_p_bkg2}, {Asig2, Abkg2}, true);
 
    // Construct the subsidiary poisson measurements constraining the statistical fluctuations
    RooArgSet globs2;
    RooArgSet constraints2{createConstraints(gammas2, {p_h_sig, p_h_bkg}, globs2)};
 
-   // Construct the joint model
-   RooProdPdf model2("model2", "model2", {model2_tmp, constraints2});
-
    // ************ Fit all models to data and plot *********************
 
    std::unique_ptr<RooFitResult> result0{model0.fitTo(sumData, PrintLevel(0), Save())};
-   std::unique_ptr<RooFitResult> result1{model1.fitTo(sumData, PrintLevel(0), Save(), GlobalObservables(globs1))};
-   std::unique_ptr<RooFitResult> result2{model2.fitTo(sumData, PrintLevel(0), Save(), GlobalObservables(globs2))};
+   std::unique_ptr<RooFitResult> result1{
+      model1.fitTo(sumData, PrintLevel(0), Save(), ExternalConstraints(constraints1), GlobalObservables(globs1))};
+   std::unique_ptr<RooFitResult> result2{
+      model2.fitTo(sumData, PrintLevel(0), Save(), ExternalConstraints(constraints2), GlobalObservables(globs2))};
 
    TCanvas *can = new TCanvas("can", "", 1500, 600);
    can->Divide(3, 1);

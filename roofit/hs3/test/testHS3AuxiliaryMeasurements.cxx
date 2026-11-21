@@ -13,6 +13,7 @@
 
 #include <RooStats/HistFactory/Measurement.h>
 #include <RooStats/HistFactory/HistoToWorkspaceFactoryFast.h>
+#include <RooFit/Constraints.h>
 #include <RooFit/ModelConfig.h>
 
 #include <RooAbsData.h>
@@ -194,12 +195,8 @@ std::unique_ptr<RooWorkspace> makeHistFactoryWorkspace()
 
 RooStats::ModelConfig *modelConfig(RooWorkspace &ws)
 {
-   for (TObject *obj : ws.allGenericObjects()) {
-      if (auto *mc = dynamic_cast<RooStats::ModelConfig *>(obj)) {
-         return mc;
-      }
-   }
-   return nullptr;
+   const std::vector<RooStats::ModelConfig *> all = RooFit::modelConfigs(ws);
+   return all.empty() ? nullptr : all.front();
 }
 
 std::string section(std::string const &json, const char *key)
@@ -227,15 +224,14 @@ const char *toString(ModelKind kind)
    return "";
 }
 
-// The Base model with a RooLognormal constraint on the free normfactor "k_bkg1" added as a factor of the channel CR1,
-// in a fresh workspace. This is not what HistFactory builds, but the only way to get all three constraint types into
-// channel products that the exporter recognizes: Measurement::AddLogNormSyst() keeps a Gaussian constraint and makes
-// the input of the normsys a function of the parameter.
-std::unique_ptr<RooWorkspace> addLogNormalConstraint(RooWorkspace &base, bool standard)
+// The Base model with a RooLognormal constraint on the free normfactor "k_bkg1" of the channel CR1, added to the
+// constraint terms of the ModelConfig. This is not what HistFactory builds, but the only way to get all three
+// constraint types among the constraints that the exporter recognizes as the ones of modifiers:
+// Measurement::AddLogNormSyst() keeps a Gaussian constraint and makes the input of the normsys a function of the
+// parameter.
+std::unique_ptr<RooWorkspace> addLogNormalConstraint(std::unique_ptr<RooWorkspace> ws, bool standard)
 {
-   auto *mc = modelConfig(base);
-   auto &sim = dynamic_cast<RooSimultaneous &>(*mc->GetPdf());
-   auto &cat = dynamic_cast<RooCategory &>(const_cast<RooAbsCategoryLValue &>(sim.indexCat()));
+   auto *mc = modelConfig(*ws);
 
    RooRealVar nom{"nom_k_bkg1", "nom_k_bkg1", 1.0, 0.0, 10.0};
    nom.setConstant(true);
@@ -243,41 +239,18 @@ std::unique_ptr<RooWorkspace> addLogNormalConstraint(RooWorkspace &base, bool st
    RooLognormal constraint{"k_bkg1Constraint",
                            "k_bkg1Constraint",
                            nom,
-                           *base.var("k_bkg1"),
+                           *ws->var("k_bkg1"),
                            RooFit::RooConst(standard ? 0.2 : 1.2),
                            standard};
+   ws->import(constraint, RooFit::RecycleConflictNodes(), RooFit::Silence());
 
-   RooSimultaneous newSim{"simPdf", "simPdf", cat};
-   std::vector<std::unique_ptr<RooProdPdf>> owned;
-   for (auto const &state : cat) {
-      RooAbsPdf *channel = sim.getPdf(state.first.c_str());
-      if (state.first == "CR1") {
-         RooArgList factors{static_cast<RooProdPdf *>(channel)->pdfList()};
-         factors.add(constraint);
-         owned.push_back(std::make_unique<RooProdPdf>(channel->GetName(), channel->GetTitle(), factors));
-         channel = owned.back().get();
-      }
-      newSim.addPdf(*channel, state.first.c_str());
-   }
-
-   auto ws = std::make_unique<RooWorkspace>("combined");
-   ws->import(newSim, RooFit::Silence());
-   ws->import(*base.data("obsData"), RooFit::Silence());
-   ws->import(*base.data("asimovData"), RooFit::Silence());
-   RooStats::ModelConfig newMc{"ModelConfig", ws.get()};
-   newMc.SetPdf(*ws->pdf("simPdf"));
-   auto names = [](RooArgSet const *set, std::string extra = "") {
-      std::string out = extra;
-      for (RooAbsArg *arg : *set) {
-         out += (out.empty() ? "" : ",") + std::string(arg->GetName());
-      }
-      return out;
-   };
-   newMc.SetParametersOfInterest(ws->argSet(names(mc->GetParametersOfInterest())));
-   newMc.SetNuisanceParameters(ws->argSet(names(mc->GetNuisanceParameters())));
-   newMc.SetObservables(ws->argSet(names(mc->GetObservables())));
-   newMc.SetGlobalObservables(ws->argSet(names(mc->GetGlobalObservables(), "nom_k_bkg1")));
-   ws->import(newMc);
+   // The constraint terms are no part of the pdf: the ModelConfig has them as external constraints.
+   RooArgSet constraints{*mc->GetExternalConstraints()};
+   constraints.add(*ws->pdf("k_bkg1Constraint"));
+   mc->SetExternalConstraints(constraints);
+   RooArgSet globals{*mc->GetGlobalObservables()};
+   globals.add(*ws->var("nom_k_bkg1"));
+   mc->SetGlobalObservables(globals);
    return ws;
 }
 
@@ -285,7 +258,7 @@ std::unique_ptr<RooWorkspace> makeWorkspace(ModelKind kind)
 {
    auto base = makeHistFactoryWorkspace();
    return kind == ModelKind::Base ? std::move(base)
-                                  : addLogNormalConstraint(*base, kind == ModelKind::LogNormalStandard);
+                                  : addLogNormalConstraint(std::move(base), kind == ModelKind::LogNormalStandard);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -302,10 +275,8 @@ RooStats::ModelConfig *findModelConfig(RooWorkspace &ws, std::string const &name
 std::vector<std::string> modelConfigNames(RooWorkspace &ws)
 {
    std::vector<std::string> out;
-   for (TObject *obj : ws.allGenericObjects()) {
-      if (dynamic_cast<RooStats::ModelConfig *>(obj)) {
-         out.push_back(obj->GetName());
-      }
+   for (RooStats::ModelConfig const *mc : RooFit::modelConfigs(ws)) {
+      out.push_back(mc->GetName());
    }
    std::sort(out.begin(), out.end());
    return out;
@@ -437,14 +408,13 @@ std::map<std::string, std::string> constraintSignatures(RooWorkspace &ws)
    return out;
 }
 
-// The constraint terms that are factors of each channel of the model, as text, by channel. A channel must have the
-// constraints of its own parameters, and no others: RooFit counts a constraint that several channels share once, so
-// the likelihood would not show a constraint in a channel that doesn't use it.
+// The constraint terms of each channel of the model, as text, by channel. They are no part of the pdfs of the
+// channels: the ModelConfig has them as external constraints, and the ones of a channel are those of its parameters.
 std::map<std::string, std::set<std::string>> constraintsByChannel(RooWorkspace &ws, RooStats::ModelConfig &mc)
 {
    std::map<std::string, std::set<std::string>> out;
    auto *sim = dynamic_cast<RooSimultaneous *>(mc.GetPdf());
-   if (!sim) {
+   if (!sim || !mc.GetExternalConstraints()) {
       return out;
    }
    const std::map<std::string, std::string> descriptions = describeConstraints(ws);
@@ -454,12 +424,10 @@ std::map<std::string, std::set<std::string>> constraintsByChannel(RooWorkspace &
          continue;
       }
       auto &constraints = out[state.first];
-      if (auto *product = dynamic_cast<RooProdPdf *>(channel)) {
-         for (RooAbsArg *factor : product->pdfList()) {
-            auto found = descriptions.find(factor->GetName());
-            if (found != descriptions.end()) {
-               constraints.insert(found->second);
-            }
+      for (RooAbsArg *constraint : RooFit::constraintsOf(*channel, *mc.GetExternalConstraints(), mc.GetObservables())) {
+         auto found = descriptions.find(constraint->GetName());
+         if (found != descriptions.end()) {
+            constraints.insert(found->second);
          }
       }
    }
@@ -498,8 +466,8 @@ Scan likelihoodScan(RooWorkspace &ws, RooStats::ModelConfig &mc, RooAbsData &dat
    Scan out;
    RooRealVar &mu = *ws.var("mu");
    const bool wasConstant = mu.isConstant();
-   std::unique_ptr<RooAbsReal> nll{
-      mc.GetPdf()->createNLL(data, RooFit::GlobalObservables(*mc.GetGlobalObservables()), RooFit::Offset(false))};
+   // With the constraint terms and the global observables of the ModelConfig.
+   std::unique_ptr<RooAbsReal> nll{mc.createNLL(data, RooFit::Offset(false))};
    // The constness of the parameters as the workspace has it: the scan must not depend on fixing things by hand.
    for (double value : muValues) {
       mu.setVal(value);
@@ -608,8 +576,7 @@ Toys generateToys(RooWorkspace &ws, RooStats::ModelConfig &mc, int seed)
       }
    }
    RooRandom::randomGenerator()->SetSeed(seed + 1);
-   auto &sim = dynamic_cast<RooSimultaneous &>(pdf);
-   std::unique_ptr<RooAbsData> globals{sim.generateSimGlobal(*mc.GetGlobalObservables(), 1)};
+   std::unique_ptr<RooAbsData> globals{mc.generateGlobalObservables()};
    out.globals = describeData(*globals);
    return out;
 }
@@ -627,7 +594,7 @@ Toy sampleToy(RooWorkspace &ws, RooStats::ModelConfig &mc)
    setPoint(ws, mc, false);
    auto &sim = dynamic_cast<RooSimultaneous &>(*mc.GetPdf());
    out.data = std::unique_ptr<RooAbsData>{sim.generate(*mc.GetObservables(), RooFit::Extended())};
-   std::unique_ptr<RooAbsData> globals{sim.generateSimGlobal(*mc.GetGlobalObservables(), 1)};
+   std::unique_ptr<RooAbsData> globals{mc.generateGlobalObservables()};
    for (RooAbsArg *arg : *globals->get(0)) {
       out.globals[arg->GetName()] = static_cast<RooAbsReal *>(arg)->getVal();
    }
@@ -643,8 +610,7 @@ std::vector<double> evaluateToy(RooWorkspace &ws, RooStats::ModelConfig &mc, Toy
       saved[name] = ws.var(name)->getVal();
       ws.var(name)->setVal(value);
    }
-   std::unique_ptr<RooAbsReal> nll{
-      mc.GetPdf()->createNLL(*toy.data, RooFit::GlobalObservables(*mc.GetGlobalObservables()), RooFit::Offset(false))};
+   std::unique_ptr<RooAbsReal> nll{mc.createNLL(*toy.data, RooFit::Offset(false))};
    std::vector<double> out;
    for (double mu : {1.0, 1.7}) {
       ws.var("mu")->setVal(mu);
@@ -677,23 +643,9 @@ Moments sampleMoments(RooWorkspace &ws, RooStats::ModelConfig &mc, int nGlobals,
    setPoint(ws, mc, false);
    auto &sim = dynamic_cast<RooSimultaneous &>(*mc.GetPdf());
    RooRandom::randomGenerator()->SetSeed(seed);
-   // Sampled per channel, each global observable in the first channel that has it: generateSimGlobal() would set up
-   // a generator for every toy and channel, which is slow.
-   std::set<std::string> sampled;
-   for (auto const &state : sim.indexCat()) {
-      RooAbsPdf &channel = *sim.getPdf(state.first);
-      RooArgSet channelGlobals;
-      channel.getObservables(mc.GetGlobalObservables(), channelGlobals);
-      RooArgSet globals;
-      for (RooAbsArg *arg : channelGlobals) {
-         if (sampled.insert(arg->GetName()).second) {
-            globals.add(*arg);
-         }
-      }
-      if (globals.empty()) {
-         continue;
-      }
-      std::unique_ptr<RooAbsData> data{channel.generate(globals, nGlobals)};
+   // The global observables are sampled from the constraint terms.
+   {
+      std::unique_ptr<RooAbsData> data{mc.generateGlobalObservables(nGlobals)};
       for (int i = 0; i < data->numEntries(); ++i) {
          for (RooAbsArg *arg : *data->get(i)) {
             const double value = static_cast<RooAbsReal *>(arg)->getVal();
@@ -1026,7 +978,9 @@ TEST_P(AuxMeasurements, RoundTripWorkspace)
    EXPECT_EQ(join(namesOf(mc->GetNuisanceParameters())), join(namesOf(mcOrig->GetNuisanceParameters())));
    EXPECT_EQ(join(namesOf(mc->GetGlobalObservables())), join(namesOf(mcOrig->GetGlobalObservables())));
    EXPECT_EQ(join(namesOf(mc->GetObservables())), join(namesOf(mcOrig->GetObservables())));
-   EXPECT_TRUE(!mc->GetExternalConstraints() || mc->GetExternalConstraints()->empty())
+   // The constraint terms are the external constraints of the ModelConfig, each of them once. Their names need not
+   // survive, see below.
+   EXPECT_EQ(namesOf(mc->GetExternalConstraints()).size(), namesOf(mcOrig->GetExternalConstraints()).size())
       << join(namesOf(mc->GetExternalConstraints()));
 
    // The data sets.
@@ -1194,7 +1148,8 @@ TEST_P(AuxMeasurementsOfModel, ConstraintsAsChannels)
    RooAbsData *data = imported->data("obsData");
    ASSERT_NE(data, nullptr);
 
-   // Every array is a channel with one entry in the combined data set, and no constraint is in a physics channel.
+   // Every array is a channel with one entry in the combined data set, and its components are no constraint terms
+   // of the ModelConfig on top of that.
    auto tree = RooFit::Detail::JSONTree::create(json);
    std::size_t nArrays = 0;
    std::size_t nConstraints = 0;
@@ -1213,10 +1168,12 @@ TEST_P(AuxMeasurementsOfModel, ConstraintsAsChannels)
    }
    ASSERT_GT(nArrays, 0u);
    for (auto const &state : sim->indexCat()) {
-      RooAbsPdf *channel = sim->getPdf(state.first);
-      if (channel && !channel->getAttribute("hs3_array_dist")) {
-         EXPECT_EQ(dynamic_cast<RooProdPdf *>(channel), nullptr)
-            << "the channel '" << state.first << "' still has constraint terms";
+      auto *array = dynamic_cast<RooProdPdf *>(sim->getPdf(state.first));
+      if (array && array->getAttribute("hs3_array_dist") && mc->GetExternalConstraints()) {
+         EXPECT_FALSE(mc->GetExternalConstraints()->overlaps(array->pdfList()))
+            << "the components of the channel '" << state.first << "' are still constraint terms";
+         EXPECT_FALSE(mc->GetExternalConstraints()->containsInstance(*array))
+            << "the channel '" << state.first << "' is still a constraint term";
       }
    }
    // The observed values are observables of the data now, not global observables.
@@ -1224,12 +1181,8 @@ TEST_P(AuxMeasurementsOfModel, ConstraintsAsChannels)
    EXPECT_EQ(nGlobs + nConstraints, mcOrig->GetGlobalObservables()->size());
 
    // The likelihood is the same function of the parameters.
-   std::unique_ptr<RooAbsReal> nllOrig{mcOrig->GetPdf()->createNLL(
-      *original->data("obsData"), RooFit::GlobalObservables(*mcOrig->GetGlobalObservables()), RooFit::Offset(false))};
-   RooArgSet noGlobals;
-   std::unique_ptr<RooAbsReal> nll{sim->createNLL(
-      *data, RooFit::GlobalObservables(mc->GetGlobalObservables() ? *mc->GetGlobalObservables() : noGlobals),
-      RooFit::Offset(false))};
+   std::unique_ptr<RooAbsReal> nllOrig{mcOrig->createNLL(*original->data("obsData"), RooFit::Offset(false))};
+   std::unique_ptr<RooAbsReal> nll{mc->createNLL(*data, RooFit::Offset(false))};
    std::vector<double> expected;
    std::vector<double> actual;
    for (double value : muValues) {

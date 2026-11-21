@@ -138,10 +138,9 @@ def StandardBayesianNumericalDemo(
     # do without systematics
     # mc->SetNuisanceParameters(RooArgSet() );
     if nSigmaNuisance > 0:
-        pdf = mc.GetPdf()
-        assert pdf
+        assert mc.GetPdf()
         res(
-            pdf.fitTo(
+            mc.fitTo(
                 data,
                 Save=True,
                 Minimizer=MinimizerOptions.DefaultMinimizerType(),

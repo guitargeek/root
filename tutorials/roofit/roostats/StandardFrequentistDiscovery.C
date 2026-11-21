@@ -133,7 +133,7 @@ double StandardFrequentistDiscovery(const char *infile = "", const char *workspa
    // ----------------------------------------------------
    // Configure a ProfileLikelihoodTestStat and a SimpleLikelihoodRatioTestStat
    // to use simultaneously with ToyMCSampler
-   ProfileLikelihoodTestStat *plts = new ProfileLikelihoodTestStat(*mc->GetPdf());
+   ProfileLikelihoodTestStat *plts = new ProfileLikelihoodTestStat(*mc);
    plts->SetOneSidedDiscovery(true);
    plts->SetVarName("q_{0}/2");
 

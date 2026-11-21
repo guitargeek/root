@@ -107,7 +107,7 @@ def StandardTestStatDistributionDemo(
 
     # -------------------------------------------------------
     # create the test stat sampler
-    ts = ROOT.RooStats.ProfileLikelihoodTestStat(mc.GetPdf())
+    ts = ROOT.RooStats.ProfileLikelihoodTestStat(mc)
 
     # to avoid effects from boundary and simplify asymptotic comparison, set min=-max
     if allowNegativeMu:
@@ -119,7 +119,7 @@ def StandardTestStatDistributionDemo(
 
     # create and configure the ToyMCSampler
     sampler = ROOT.RooStats.ToyMCSampler(ts, nToyMC)
-    sampler.SetPdf(mc.GetPdf())
+    sampler.SetModel(mc)
     sampler.SetObservables(mc.GetObservables())
     sampler.SetGlobalObservables(mc.GetGlobalObservables())
     if not mc.GetPdf().canBeExtended() and (data.numEntries() == 1):

@@ -269,7 +269,8 @@ def OneSidedFrequentistUpperLimitWithBands(
     # Now we generate the expected bands and power-constraint
 
     # First: find parameter point for mu=0, with conditional MLEs for nuisance parameters
-    nll = mc.GetPdf().createNLL(data)
+    # ModelConfig.createNLL() includes the constraint terms of the model
+    nll = mc.createNLL(data)
     profile = nll.createProfile(mc.GetParametersOfInterest())
     firstPOI.setVal(0.0)
     profile.getVal()  # this will do fit and set nuisance parameters to profiled values
@@ -315,35 +316,12 @@ def OneSidedFrequentistUpperLimitWithBands(
             # print("generating extended dataset")
             toyData = mc.GetPdf().generate(mc.GetObservables(), Extended=True)
 
-        # generate global observables
-        # need to be careful for simpdf
-        #    RooDataSet* globalData = mc->GetPdf()->generate(*mc->GetGlobalObservables(),1);
-
-        simPdf = mc.GetPdf()
-        if not simPdf:
-            one = mc.GetPdf().generate(mc.GetGlobalObservables(), 1)
-            values = one.get()
-            allVars = mc.GetPdf().getVariables()
-            allVars.assign(values)
-            # del values
-            # del one
-        else:
-
-            # try fix for sim pdf
-            for tt in simPdf.indexCat():
-                catName = tt.first
-                # global gcatName
-                # gcatName = catName
-                # return
-                # Get pdf associated with state from simpdf
-                pdftmp = simPdf.getPdf(str(catName))
-
-                # Generate only global variables defined by the pdf associated with this state
-                globtmp = pdftmp.getObservables(mc.GetGlobalObservables())
-                tmp = pdftmp.generate(globtmp, 1)
-
-                # Transfer values to output placeholder
-                globtmp.assign(tmp.get(0))
+        # generate global observables from the constraint terms of the model,
+        # which are no part of its pdf
+        one = mc.generateGlobalObservables(1)
+        if one:
+            allVars = mc.getVariables()
+            allVars.assign(one.get())
 
         #    globalData->Print("v");
         #    unconditionalObs = *globalData->get();

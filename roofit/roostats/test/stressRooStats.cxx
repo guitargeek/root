@@ -116,7 +116,7 @@ std::unique_ptr<TestStatistic>
 buildTestStatistic(const ETestStatType testStatType, const ModelConfig &nullModel, const ModelConfig &altModel)
 {
    if (testStatType == kSimpleLR) {
-      auto slrts = std::make_unique<SimpleLikelihoodRatioTestStat>(*nullModel.GetPdf(), *altModel.GetPdf());
+      auto slrts = std::make_unique<SimpleLikelihoodRatioTestStat>(nullModel, altModel);
       if (nullModel.GetSnapshot()) {
          RooArgSet nullParams(*nullModel.GetSnapshot());
          if (nullModel.GetNuisanceParameters())
@@ -132,14 +132,13 @@ buildTestStatistic(const ETestStatType testStatType, const ModelConfig &nullMode
       slrts->SetAlwaysReuseNLL(true);
       return slrts;
    } else if (testStatType == kRatioLR) {
-      auto roplts = std::make_unique<RatioOfProfiledLikelihoodsTestStat>(*nullModel.GetPdf(), *altModel.GetPdf(),
-                                                                         altModel.GetSnapshot());
+      auto roplts = std::make_unique<RatioOfProfiledLikelihoodsTestStat>(nullModel, altModel, altModel.GetSnapshot());
       roplts->SetSubtractMLE(false);
       roplts->SetAlwaysReuseNLL(true);
       return roplts;
    }
    // kProfileLR, kProfileLROneSided and kProfileLROneSidedDiscovery
-   auto plts = std::make_unique<ProfileLikelihoodTestStat>(*nullModel.GetPdf());
+   auto plts = std::make_unique<ProfileLikelihoodTestStat>(nullModel);
    if (testStatType == kProfileLROneSided) {
       plts->SetOneSided(true);
    } else if (testStatType == kProfileLROneSidedDiscovery) {
@@ -1032,9 +1031,9 @@ INSTANTIATE_TEST_SUITE_P(
       ::testing::Values(HypoTestCalculatorParams{"Asymptotic_ProfileLROneSidedDiscovery", kAsymptotic,
                                                  kProfileLROneSidedDiscovery, 2.2499193885237001},
                         HypoTestCalculatorParams{"Frequentist_SimpleLR", kFrequentist, kSimpleLR, 2.3263478740408408},
-                        HypoTestCalculatorParams{"Frequentist_RatioLR", kFrequentist, kRatioLR, 2.4089155458154612},
+                        HypoTestCalculatorParams{"Frequentist_RatioLR", kFrequentist, kRatioLR, 2.878161739095483},
                         HypoTestCalculatorParams{"Frequentist_ProfileLROneSidedDiscovery", kFrequentist,
-                                                 kProfileLROneSidedDiscovery, 2.5121443279304616},
+                                                 kProfileLROneSidedDiscovery, 2.878161739095483},
                         HypoTestCalculatorParams{"Hybrid_ProfileLROneSidedDiscovery", kHybrid,
                                                  kProfileLROneSidedDiscovery, 2.2571292444862254})),
    backendParamName<HypoTestCalculatorParams>);
@@ -1121,6 +1120,8 @@ TEST_P(HypoTestInverterInterval, RegressionInterval)
    EXPECT_NEAR(interval->UpperLimit(), param().refUpperLimit, tol);
 }
 
+// The reference values of the toy-based calculators are the mean of the values
+// for the Minuit and the Minuit2 minimizer, which differ by up to 0.15.
 INSTANTIATE_TEST_SUITE_P(
    RooStats, HypoTestInverterInterval,
    ::testing::Combine(::testing::Values(ROOFIT_EVAL_BACKENDS),
@@ -1134,16 +1135,13 @@ INSTANTIATE_TEST_SUITE_P(
                                                                kProfileLR, 15, 20, 5.750533033549976,
                                                                10.948013504988015},
                                         HypoTestInverterParams{"Frequentist_ProfileLR_Obs10_30", kFrequentist,
-                                                               kProfileLR, 10, 30, 7.2115486004250906,
-                                                               12.341346144450787},
+                                                               kProfileLR, 10, 30, 7.107665, 12.289588},
                                         HypoTestInverterParams{"Frequentist_ProfileLR_Obs20_25", kFrequentist,
-                                                               kProfileLR, 20, 25, 8.6294497270104724,
-                                                               15.078331964885663},
+                                                               kProfileLR, 20, 25, 8.332553, 14.854568},
                                         HypoTestInverterParams{"Frequentist_ProfileLR_Obs15_20", kFrequentist,
-                                                               kProfileLR, 15, 20, 5.6610441994727472,
-                                                               10.87954812525739},
+                                                               kProfileLR, 15, 20, 5.359380, 10.967509},
                                         HypoTestInverterParams{"Hybrid_ProfileLR_Obs10_30", kHybrid, kProfileLR, 10,
-                                                               30, 7.1079825543826782, 12.553916197221213})),
+                                                               30, 6.911673, 12.436982})),
    backendParamName<HypoTestInverterParams>);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1253,12 +1251,12 @@ INSTANTIATE_TEST_SUITE_P(
                                                                          kFrequentist, kRatioLR, 10, 0.95,
                                                                          27.777734839933814, 13.425920689335342,
                                                                          5.2777802875157622, 6.4814835475786641,
-                                                                         20.000008863407345, 30.555555555555557},
+                                                                         20.000008863407345, 30.321981542815227},
                                         HypoTestInverterUpperLimitParams{"Frequentist_ProfileLROneSided_Obs10_CL0p95",
                                                                          kFrequentist, kProfileLROneSided, 10, 0.95,
                                                                          23.611111111111089, 14.444453307851788,
                                                                          5.2777802875157622, 6.4814835475786641,
-                                                                         20.251355120121389, 29.629641114958538},
+                                                                         20.251355120121389, 29.1624735658731},
                                         HypoTestInverterUpperLimitParams{"Hybrid_SimpleLR_Obs10_CL0p95", kHybrid,
                                                                          kSimpleLR, 10, 0.95, 25.0,
                                                                          11.111095211258252, 5.2777802875157622,

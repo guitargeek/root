@@ -117,6 +117,7 @@ set(ROOFITCORE_HEADERS
   RooFit.h
   RooFit/CodegenContext.h
   RooFit/Config.h
+  RooFit/Constraints.h
   RooFit/Detail/MathFuncs.h
   RooFit/Detail/NormalizationHelpers.h
   RooFit/Detail/RooNLLVarNew.h
@@ -242,6 +243,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   SOURCES
     src/BatchModeDataHelpers.cxx
     src/ConstraintHelpers.cxx
+    src/Constraints.cxx
     src/FitHelpers.cxx
     src/Initialisation.cxx
     src/ModelConfig.cxx

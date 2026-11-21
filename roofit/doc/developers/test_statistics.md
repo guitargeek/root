@@ -49,12 +49,11 @@ std::shared_ptr<RooFit::TestStatistics::RooAbsL> likelihood = RooFit::TestStatis
 
 ### Usage example: Create a likelihood of a simultaneous PDF with constraint terms and global observables (and other optional arguments)
 The `RooAbsPdf::fitTo` or `RooAbsPdf::createNLL` interfaces could take in a set of optional parameters as `RooCmdArg` objects.
-In `TestStatistics::NLLFactory`, we have implemented 6 of these options as methods on the factory class, allowing to pass them to a factory object using method chaining.
+In `TestStatistics::NLLFactory`, we have implemented 5 of these options as methods on the factory class, allowing to pass them to a factory object using method chaining.
 These option-methods are:
 - `NLLFactory::Extended(RooAbsL::Extended extended)`: pass in an enum class used to set extended term calculation `on`, `off` or use `Extended::Auto` to determine automatically based on the pdf whether to activate or not.
-- `NLLFactory::ConstrainedParameters(const RooArgSet &constrainedParameters)`: Initialized with a `RooArgSet` of parameters that are constrained. Pdf components dependent on these alone are added to a subsidiary likelihood term.
-- `NLLFactory::ExternalConstraints(const RooArgSet &externalconstraints)`: Initialized with a `RooArgSet` of external constraint pdfs, i.e. constraints not necessarily in the pdf itself. These are always added to the subsidiary likelihood.
-- `NLLFactory::GlobalObservables(const RooArgSet &globalObservables)`: Initialized with a `RooArgSet` of observables that have a constant value, independent of the dataset events. Pdf components dependent on these alone are added to the subsidiary likelihood. \note This overrides all other likelihood parameters (like those passed as `ConstrainedParameters`) if present.
+- `NLLFactory::ExternalConstraints(const RooArgSet &externalconstraints)`: Initialized with a `RooArgSet` of constraint pdfs. Constraint terms are no part of the pdf, so this is the only way to add them to the subsidiary likelihood.
+- `NLLFactory::GlobalObservables(const RooArgSet &globalObservables)`: Initialized with a `RooArgSet` of observables that have a constant value, independent of the dataset events. They are the normalization set of the constraint terms.
 - `NLLFactory::GlobalObservablesTag(const char *globalObservablesTag)`: a string argument can be given, which should be set as attribute in any pdf component to indicate that it is a global observable. Can be used instead of or in addition to a `GlobalObservables` argument.
 - `NLLFactory::EvalBackend(RooFit::EvalBackend evalBackend)`: pass in the enum class that determines which back-end to use for RooFit pdf calculation, like the CPU vectorization enabled back-end or the GPU back-end. \note This is a different set of back-ends than those mentioned below under [Calculators](#calculators) which are independent of the `TestStatistics`/`MultiProcess` framework described in this document.
 
@@ -62,7 +61,7 @@ Using these parameters, creating a likelihood of a simultaneous pdf (i.e. a `Roo
 
 ``` {.cpp}
 auto factory = RooFit::TestStatistics::NLLFactory(simultaneous_pdf, data);
-factory.ConstrainedParameters(RooArgSet(/*YOUR CONSTRAINED PARAMETERS*/));
+factory.ExternalConstraints(RooArgSet(/*YOUR CONSTRAINT PDFS*/));
 factory.GlobalObservables(RooArgSet(/*YOUR GLOBAL OBSERVABLES*/));
 auto likelihood = factory.build();
 ```
@@ -71,12 +70,12 @@ or in a single statement, chaining all methods and discarding the factory object
 
 ``` {.cpp}
 auto likelihood = RooFit::TestStatistics::NLLFactory(simultaneous_pdf, data)
-       .ConstrainedParameters(RooArgSet(/*YOUR CONSTRAINED PARAMETERS*/))
+       .ExternalConstraints(RooArgSet(/*YOUR CONSTRAINT PDFS*/))
        .GlobalObservables(RooArgSet(/*YOUR GLOBAL OBSERVABLES*/))
        .build();
 ```
 
-The resulting likelihood object will be a `RooSumL` containing a `RooSubsidiaryL` with the constrained parameters and `RooBinnedL` or `RooUnbinnedL` components for each simultaneous pdf component (depending on whether they are binned or unbinned pdfs).
+The resulting likelihood object will be a `RooSumL` containing a `RooSubsidiaryL` with the constraint terms and `RooBinnedL` or `RooUnbinnedL` components for each simultaneous pdf component (depending on whether they are binned or unbinned pdfs).
 Note that, just like with `fitTo`, the order of setting options does not matter for the created likelihood.
 
 As a side-note: one optional parameter of `RooNLLVar` that is not included in the `RooAbsL` tree is offsetting.

@@ -20,8 +20,10 @@ inline void buildSimultaneousModel(RooWorkspace *w)
    w->factory("Gaussian::constr1(gbkg1[50,0,100], bkg1[50,0,100], 3)");
    w->factory("Gaussian::constr2(gbkg2[50,0,100], bkg2[50,0,100], 2)");
 
-   w->factory("ExtendPdf::ext_pdf1(PROD::p1(u1,constr1), expr::n1('sig+bkg1', sig, bkg1))");
-   w->factory("ExtendPdf::ext_pdf2(PROD::p2(u2,constr2), expr::n2('sig+bkg2', sig, bkg2))");
+   // The constraint terms are no part of the pdf: the ModelConfig keeps them
+   // as external constraints.
+   w->factory("ExtendPdf::ext_pdf1(u1, expr::n1('sig+bkg1', sig, bkg1))");
+   w->factory("ExtendPdf::ext_pdf2(u2, expr::n2('sig+bkg2', sig, bkg2))");
    w->factory("SIMUL::sim_pdf(index[cat1,cat2],cat1=ext_pdf1,cat2=ext_pdf2)");
 
    // create combined signal + background model configuration
@@ -31,6 +33,7 @@ inline void buildSimultaneousModel(RooWorkspace *w)
    sbModel.SetGlobalObservables("gbkg1,gbkg2");
    sbModel.SetNuisanceParameters("bkg1,bkg2");
    sbModel.SetPdf("sim_pdf");
+   sbModel.SetExternalConstraints("constr1,constr2");
    w->import(sbModel);
 
    // create combined background model configuration
@@ -56,7 +59,9 @@ inline void buildPoissonProductModel(RooWorkspace *w)
    w->factory("Poisson::constr1(gbkg1[5,0,10], bkg1)");
    w->factory("Poisson::constr2(gbkg2[5,0,10], bkg2)");
    w->factory("Gaussian::constr3(beta0[0,-3,3], beta, 1)");
-   w->factory("PROD::pdf(poiss1, poiss2, constr1, constr2, constr3)");
+   // The constraint terms are no part of the pdf: the ModelConfig keeps them
+   // as external constraints.
+   w->factory("PROD::pdf(poiss1, poiss2)");
 
    // POI prior Pdf (for BayesianCalculator and other Bayesian methods)
    w->factory("Uniform::prior(sig)");
@@ -70,6 +75,7 @@ inline void buildPoissonProductModel(RooWorkspace *w)
    sbModel->SetParametersOfInterest("sig");
    sbModel->SetNuisanceParameters("beta,bkg1,bkg2");
    sbModel->SetPdf("pdf");
+   sbModel->SetExternalConstraints("constr1,constr2,constr3");
    w->import(*sbModel);
 
    // create background model configuration
@@ -128,8 +134,9 @@ inline void buildPoissonEfficiencyModel(RooWorkspace &ws)
    ws.factory("expr::bkg('5 * pow(1.3, b1)', b1)");   // background
    ws.factory("expr::eff('0.5 * pow(1.2, e1)', e1)"); // efficiency
    ws.factory("expr::esb('eff * sig + bkg', eff, bkg, sig[0,50])");
-   ws.factory("Poisson::poiss(x[0,50], esb)");
-   ws.factory("PROD::pdf(poiss, constrb, constre)");
+   // The constraint terms constrb and constre are no part of the pdf: the
+   // ModelConfig keeps them as external constraints.
+   ws.factory("Poisson::pdf(x[0,50], esb)");
 
    // create model configuration
    ModelConfig sbModel{"S+B", &ws};
@@ -138,6 +145,7 @@ inline void buildPoissonEfficiencyModel(RooWorkspace &ws)
    sbModel.SetNuisanceParameters("b1,e1");
    sbModel.SetGlobalObservables("b0,e0");
    sbModel.SetPdf("pdf");
+   sbModel.SetExternalConstraints("constrb,constre");
    ws.import(sbModel);
 
    ModelConfig bModel{sbModel};

@@ -1693,125 +1693,6 @@ void RooProdPdf::removePdfs(RooAbsCollection const& pdfs)
 }
 
 
-namespace {
-
-std::vector<TNamed const*> sortedNamePtrs(RooAbsCollection const& col)
-{
-   std::vector<TNamed const*> ptrs;
-   ptrs.reserve(col.size());
-   for(RooAbsArg* arg : col) {
-     ptrs.push_back(arg->namePtr());
-   }
-   std::sort(ptrs.begin(), ptrs.end());
-   return ptrs;
-}
-
-bool sortedNamePtrsOverlap(std::vector<TNamed const*> const& ptrsA, std::vector<TNamed const*> const& ptrsB)
-{
-   auto pA = ptrsA.begin();
-   auto pB = ptrsB.begin();
-   while (pA != ptrsA.end() && pB != ptrsB.end()) {
-      if (*pA < *pB) {
-          ++pA;
-      } else if (*pB < *pA) {
-          ++pB;
-      } else {
-          return true;
-      }
-   }
-   return false;
-}
-
-} // namespace
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Return all parameter constraint p.d.f.s on parameters listed in constrainedParams.
-/// The observables set is required to distinguish unambiguously p.d.f in terms
-/// of observables and parameters, which are not constraints, and p.d.fs in terms
-/// of parameters only, which can serve as constraints p.d.f.s
-/// The pdfParams output parameter communicates to the caller which parameter
-/// are used in the pdfs that are not constraints.
-
-std::unique_ptr<RooArgSet>
-RooProdPdf::getConstraints(const RooArgSet &observables, RooArgSet const &constrainedParams, RooArgSet &pdfParams) const
-{
-  auto constraints = std::make_unique<RooArgSet>("constraints");
-
-  // For the optimized implementation of checking if two collections overlap by name.
-  auto observablesNamePtrs = sortedNamePtrs(observables);
-  auto constrainedParamsNamePtrs = sortedNamePtrs(constrainedParams);
-
-  // Loop over PDF components
-  for (std::size_t iPdf = 0; iPdf < _pdfList.size(); ++iPdf) {
-    auto * pdf = static_cast<RooAbsPdf*>(&_pdfList[iPdf]);
-
-    RooArgSet tmp;
-    pdf->getParameters(nullptr, tmp);
-
-    // A constraint term is a p.d.f that doesn't contribute to the
-    // expectedEvents() and does not depend on any of the listed observables
-    // but does depends on any of the parameters that should be constrained
-    bool isConstraint = false;
-
-    if(static_cast<int>(iPdf) != _extendedIndex) {
-      auto tmpNamePtrs = sortedNamePtrs(tmp);
-      // Before, there were calls to `pdf->dependsOn()` here, but they were very
-      // expensive for large computation graphs! Given that we have to traverse
-      // the computation graph with a call to `pdf->getParameters()` anyway, we
-      // can just check if the set of all variables operlaps with the observables
-      // or constraind parameters.
-      //
-      // We are using an optimized implementation of overlap checking. Because
-      // the overlap is checked by name, we can check overlap of the
-      // corresponding name pointers. The optimization can't be in
-      // RooAbsCollection itself, because it is crucial that the memory for the
-      // non-tmp name pointers is not reallocated for each pdf.
-      isConstraint = !sortedNamePtrsOverlap(tmpNamePtrs, observablesNamePtrs) &&
-                     sortedNamePtrsOverlap(tmpNamePtrs, constrainedParamsNamePtrs);
-    }
-    if (isConstraint) {
-      constraints->add(*pdf) ;
-    } else {
-      // We only want to add parameter, not observables. Since a call like
-      // `pdf->getParameters(&observables)` would be expensive, we take the set
-      // of all variables and remove the ovservables, which is much cheaper. In
-      // a call to `pdf->getParameters(&observables)`, the observables are
-      // matched by name, so we have to pass the `matchByNameOnly` here.
-      tmp.remove(observables, /*silent=*/false, /*matchByNameOnly=*/true);
-      pdfParams.add(tmp,true) ;
-    }
-  }
-
-  return constraints;
-}
-
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Return all parameter constraint p.d.f.s on parameters listed in constrainedParams.
-/// The observables set is required to distinguish unambiguously p.d.f in terms
-/// of observables and parameters, which are not constraints, and p.d.fs in terms
-/// of parameters only, which can serve as constraints p.d.f.s
-
-RooArgSet* RooProdPdf::getConnectedParameters(const RooArgSet& observables) const
-{
-  RooArgSet* connectedPars  = new RooArgSet("connectedPars") ;
-  for (std::size_t iPdf = 0; iPdf < _pdfList.size(); ++iPdf) {
-    auto * pdf = static_cast<RooAbsPdf*>(&_pdfList[iPdf]);
-    // Check if term is relevant, either because it provides a propablity
-    // density in the observables or because it is used for the expected
-    // events.
-    if (static_cast<int>(iPdf) == _extendedIndex || pdf->dependsOn(observables)) {
-      RooArgSet tmp;
-      pdf->getParameters(&observables, tmp);
-      connectedPars->add(tmp) ;
-    }
-  }
-  return connectedPars ;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Interface function used by test statistics to freeze choice of range
 /// for interpretation of conditional product terms
@@ -2020,35 +1901,21 @@ std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const &nor
 std::unique_ptr<RooAbsArg>
 RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileContext &ctx) const
 {
-   if (ctx.likelihoodMode()) {
-      auto binnedInfo = RooHelpers::getBinnedL(*this);
-      if (binnedInfo.binnedPdf && binnedInfo.binnedPdf != this) {
-         return binnedInfo.binnedPdf->compileForNormSet(normSet, ctx);
-      }
-   }
-
-   std::unique_ptr<RooProdPdf> prodPdfClone{static_cast<RooProdPdf *>(this->Clone())};
-   ctx.markAsCompiled(*prodPdfClone);
-
    // If this RooProdPdf has a normalization range (e.g. the fit range in a
    // ranged fit), propagate it to the component pdfs while they are compiled,
    // so that a nested RooAddPdf reinterprets its coefficients with respect to
    // the full range exactly like a top-level RooAddPdf would. Otherwise, a
-   // RooProdPdf wrapping an extended RooAddPdf (the common way to attach
-   // constraint terms) gives a different yield than the bare RooAddPdf in a
-   // ranged fit (GitHub issue #16673).
+   // RooProdPdf wrapping an extended RooAddPdf gives a different yield than
+   // the bare RooAddPdf in a ranged fit (GitHub issue #16673).
    //
-   // This must not change how constraint terms are normalized, so the range is
-   // only set on components whose normalization observables define it.
-   // Constraint pdfs are normalized over the nuisance parameters, which don't
-   // define the fit range, so they are skipped. Forcing the range on them would
-   // be wrong, and for a multi-range fit it even throws, because each undefined
-   // sub-range falls back to the parameter's full range and the sub-ranges then
-   // overlap.
+   // The range is only set on components whose normalization observables
+   // define it. Forcing the range on the others would be wrong, and for a
+   // multi-range fit it even throws, because each undefined sub-range falls
+   // back to the variable's full range and the sub-ranges then overlap.
    std::vector<std::pair<RooAbsPdf *, std::string>> restoreNormRanges;
    if (const char *prodNormRange = normRange()) {
       std::vector<std::string> rangeTokens = ROOT::Split(prodNormRange, ",", /*skipEmpty=*/true);
-      for (auto *pdf : static_range_cast<RooAbsPdf *>(prodPdfClone->_pdfList)) {
+      for (auto *pdf : static_range_cast<RooAbsPdf *>(_pdfList)) {
          RooArgSet pdfObs;
          pdf->getObservables(&normSet, pdfObs);
          bool rangeDefined = !pdfObs.empty();
@@ -2066,6 +1933,26 @@ RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileC
          }
       }
    }
+   auto restoreRanges = [&]() {
+      for (auto const &[pdf, oldRange] : restoreNormRanges) {
+         pdf->setNormRange(oldRange.empty() ? nullptr : oldRange.c_str());
+      }
+   };
+
+   // A product of a single pdf is that pdf. If the likelihood is built from
+   // the values of such a product, it is built from the values of that pdf.
+   // Like this, the binned likelihood of a RooRealSumPdf is also used if the
+   // RooRealSumPdf is wrapped in a RooProdPdf.
+   if (ctx.isLikelihoodPdf(*this) && _pdfList.size() == 1 && _pdfNSetList[0]->empty()) {
+      auto &pdf = static_cast<RooAbsPdf &>(_pdfList[0]);
+      ctx.setLikelihoodPdf(&pdf);
+      std::unique_ptr<RooAbsArg> out = pdf.compileForNormSet(normSet, ctx);
+      restoreRanges();
+      return out;
+   }
+
+   std::unique_ptr<RooProdPdf> prodPdfClone{static_cast<RooProdPdf *>(this->Clone())};
+   ctx.markAsCompiled(*prodPdfClone);
 
    // Pdfs with overlapping normalization observables end up in the same term,
    // which a RooGenProdProj normalizes as a whole. Like in the scalar
@@ -2097,9 +1984,7 @@ RooProdPdf::compileForNormSet(RooArgSet const &normSet, RooFit::Detail::CompileC
       ctx.compileServer(*server, *prodPdfClone, depList);
    }
 
-   for (auto const &[pdf, oldRange] : restoreNormRanges) {
-      pdf->setNormRange(oldRange.empty() ? nullptr : oldRange.c_str());
-   }
+   restoreRanges();
 
    // The computation graph is created from a shallow clone with the jointly
    // normalized pdfs unwrapped. The RooFixedProdPdf forwards analytical

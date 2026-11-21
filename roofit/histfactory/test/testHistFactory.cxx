@@ -529,8 +529,9 @@ TEST_P(HFFixtureFit, Fit)
    }
 
    using namespace RooFit;
-   std::unique_ptr<RooFitResult> fitResult{simPdf->fitTo(
-      *data, evalBackend, GlobalObservables(*mc->GetGlobalObservables()), Save(), PrintLevel(verbose ? 1 : -1))};
+   // The constraint terms are no part of the pdf: the ModelConfig passes them
+   // to the fit together with the global observables.
+   std::unique_ptr<RooFitResult> fitResult{mc->fitTo(*data, evalBackend, Save(), PrintLevel(verbose ? 1 : -1))};
    ASSERT_NE(fitResult, nullptr);
    if (verbose)
       fitResult->Print("v");

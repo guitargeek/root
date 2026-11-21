@@ -30,10 +30,11 @@ wspace.factory(
 )  # counting model
 wspace.factory("Gaussian::sigConstraint(gSigEff[1,0,3],ratioSigEff,0.05)")  # 5% signal efficiency uncertainty
 wspace.factory("Gaussian::bkgConstraint(gSigBkg[1,0,3],ratioBkgEff,0.2)")  # 10% background efficiency uncertainty
-wspace.factory("PROD::modelWithConstraints(countingModel,sigConstraint,bkgConstraint)")  # product of terms
+# The constraint terms are not multiplied with the counting model: they are no part of the pdf of the
+# observable, but kept as external constraints in the ModelConfig below.
 wspace.Print()
 
-modelWithConstraints = wspace["modelWithConstraints"]  # get the model
+countingModel = wspace["countingModel"]  # get the model
 obs = wspace["obs"]  # get the observable
 s = wspace["s"]  # get the signal we care about
 b = wspace["b"]  # get the background and set it to a constant.  Uncertainty included in ratioBkgEff
@@ -41,7 +42,7 @@ b.setConstant()
 
 ratioSigEff = wspace["ratioSigEff"]  # get uncertain parameter to constrain
 ratioBkgEff = wspace["ratioBkgEff"]  # get uncertain parameter to constrain
-constrainedParams = [ratioSigEff, ratioBkgEff]  # need to constrain these in the fit (should change default behavior)
+constrainedParams = [ratioSigEff, ratioBkgEff]  # the parameters that are constrained
 
 gSigEff = wspace["gSigEff"]  # global observables for signal efficiency
 gSigBkg = wspace["gSigBkg"]  # global obs for background efficiency
@@ -53,17 +54,18 @@ obs.setVal(160.0)
 dataOrig = ROOT.RooDataSet("exampleData", "exampleData", [obs])
 dataOrig.add(obs)
 
-# not necessary
-modelWithConstraints.fitTo(dataOrig, Constrain=constrainedParams, PrintLevel=-1)
-
 # Now let's make some confidence intervals for s, our parameter of interest
 modelConfig = ROOT.RooStats.ModelConfig(wspace)
-modelConfig.SetPdf(modelWithConstraints)
+modelConfig.SetPdf(countingModel)
+modelConfig.SetExternalConstraints("sigConstraint,bkgConstraint")
 modelConfig.SetParametersOfInterest(s)
 modelConfig.SetNuisanceParameters(constrainedParams)
 modelConfig.SetObservables(obs)
 modelConfig.SetGlobalObservables([gSigEff, gSigBkg])
 modelConfig.SetName("ModelConfig")
+
+# not necessary. ModelConfig.fitTo() passes the constraint terms to the fit.
+modelConfig.fitTo(dataOrig, PrintLevel=-1)
 wspace.Import(modelConfig)
 wspace.Import(dataOrig)
 wspace.SetName("w")
@@ -95,7 +97,7 @@ fc.SetTestSize(0.05)
 # fc.SaveBeltToFile(True) # optional
 fcint = fc.GetInterval()
 
-fit = modelWithConstraints.fitTo(data, Save=True, PrintLevel=-1)
+fit = modelConfig.fitTo(data, Save=True, PrintLevel=-1)
 
 # Third, use a Calculator based on Markov Chain monte carlo
 # Before configuring the calculator, let's make a ProposalFunction

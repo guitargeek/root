@@ -109,7 +109,7 @@ def StandardHistFactoryPlotsWithCategories(
     firstPOI.setVal(muVal)
     #  firstPOI.setConstant()
     if doFit:
-        mc.GetPdf().fitTo(data)
+        mc.fitTo(data)
 
     # -------------------------------------------------------
 

@@ -66,10 +66,11 @@ void rs101_limitexample()
    //  wspace.factory("Gaussian::bkgConstraint(ratioBkgEff,1,0.1)"); // 10% background efficiency uncertainty
    wspace.factory("Gaussian::sigConstraint(gSigEff[1,0,3],ratioSigEff,0.05)"); // 5% signal efficiency uncertainty
    wspace.factory("Gaussian::bkgConstraint(gSigBkg[1,0,3],ratioBkgEff,0.2)");  // 10% background efficiency uncertainty
-   wspace.factory("PROD::modelWithConstraints(countingModel,sigConstraint,bkgConstraint)"); // product of terms
+   // The constraint terms are not multiplied with the counting model: they are no part of the pdf of the
+   // observable, but kept as external constraints in the ModelConfig below.
    wspace.Print();
 
-   RooAbsPdf *modelWithConstraints = wspace.pdf("modelWithConstraints"); // get the model
+   RooAbsPdf *countingModel = wspace.pdf("countingModel"); // get the model
    RooRealVar *obs = wspace.var("obs");                                  // get the observable
    RooRealVar *s = wspace.var("s");                                      // get the signal we care about
    RooRealVar *b =
@@ -78,8 +79,7 @@ void rs101_limitexample()
 
    RooRealVar *ratioSigEff = wspace.var("ratioSigEff"); // get uncertain parameter to constrain
    RooRealVar *ratioBkgEff = wspace.var("ratioBkgEff"); // get uncertain parameter to constrain
-   RooArgSet constrainedParams(*ratioSigEff,
-                               *ratioBkgEff); // need to constrain these in the fit (should change default behavior)
+   RooArgSet constrainedParams(*ratioSigEff, *ratioBkgEff); // the parameters that are constrained
 
    RooRealVar *gSigEff = wspace.var("gSigEff"); // global observables for signal efficiency
    RooRealVar *gSigBkg = wspace.var("gSigBkg"); // global obs for background efficiency
@@ -93,19 +93,21 @@ void rs101_limitexample()
 
    RooArgSet all(*s, *ratioBkgEff, *ratioSigEff);
 
-   // not necessary
-   modelWithConstraints->fitTo(dataOrig, Constrain({*ratioSigEff, *ratioBkgEff}), PrintLevel(-1));
-
    // Now let's make some confidence intervals for s, our parameter of interest
    RooArgSet paramOfInterest(*s);
 
+   // The ModelConfig keeps the model together with its constraint terms and global observables
    ModelConfig modelConfig(&wspace);
-   modelConfig.SetPdf(*modelWithConstraints);
+   modelConfig.SetPdf(*countingModel);
+   modelConfig.SetExternalConstraints("sigConstraint,bkgConstraint");
    modelConfig.SetParametersOfInterest(paramOfInterest);
    modelConfig.SetNuisanceParameters(constrainedParams);
    modelConfig.SetObservables(*obs);
    modelConfig.SetGlobalObservables(RooArgSet(*gSigEff, *gSigBkg));
    modelConfig.SetName("ModelConfig");
+
+   // not necessary. ModelConfig::fitTo() passes the constraint terms to the fit.
+   modelConfig.fitTo(dataOrig, PrintLevel(-1));
    wspace.import(modelConfig);
    wspace.import(dataOrig);
    wspace.SetName("w");
@@ -115,7 +117,6 @@ void rs101_limitexample()
    RooDataSet &data = static_cast<RooDataSet &>(*wspace.data(dataOrig.GetName()));
 
    // First, let's use a Calculator based on the Profile Likelihood Ratio
-   // ProfileLikelihoodCalculator plc(data, *modelWithConstraints, paramOfInterest);
    ProfileLikelihoodCalculator plc(data, modelConfig);
    plc.SetTestSize(.05);
    std::unique_ptr<LikelihoodInterval> lrinterval{static_cast<LikelihoodInterval*>(plc.GetInterval())};
@@ -138,7 +139,7 @@ void rs101_limitexample()
    //  fc.SaveBeltToFile(true); // optional
    std::unique_ptr<PointSetInterval> fcint{static_cast<PointSetInterval*>(fc.GetInterval())};
 
-   std::unique_ptr<RooFitResult> fit{modelWithConstraints->fitTo(data, Save(true), PrintLevel(-1))};
+   std::unique_ptr<RooFitResult> fit{modelConfig.fitTo(data, Save(true), PrintLevel(-1))};
 
    // Third, use a Calculator based on Markov Chain monte carlo
    // Before configuring the calculator, let's make a ProposalFunction

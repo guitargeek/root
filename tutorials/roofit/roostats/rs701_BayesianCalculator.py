@@ -18,7 +18,10 @@ confLevel = 0.90
 w = ROOT.RooWorkspace("w")
 w.factory("SUM::pdf(s[0.001,15]*Uniform(x[0,1]),b[1,0,2]*Uniform(x))")
 w.factory("Gaussian::prior_b(b,1,1)")
-model = w.factory("PROD::model(pdf,prior_b)")  # pdf*priorNuisance
+model = w["pdf"]
+# The prior of the nuisance parameter is no part of the pdf: it multiplies the
+# likelihood only once, and is passed to the calculator as a constraint.
+nuisancePriors = ROOT.RooArgSet(w["prior_b"])
 nuisanceParameters = ROOT.RooArgSet(w["b"])
 
 POI = w["s"]
@@ -42,6 +45,7 @@ else:
 size = 1.0 - confLevel
 print("\nBayesian Result using a Flat prior ")
 bcalc = ROOT.RooStats.BayesianCalculator(data, model, [POI], priorPOI, nuisPar)
+bcalc.SetExternalConstraints(nuisancePriors)
 bcalc.SetTestSize(size)
 interval = bcalc.GetInterval()
 cl = bcalc.ConfidenceLevel()
@@ -59,6 +63,7 @@ c1.Update()
 
 print("\nBayesian Result using a 1/sqrt(s) prior  ")
 bcalc2 = ROOT.RooStats.BayesianCalculator(data, model, [POI], priorPOI2, nuisPar)
+bcalc2.SetExternalConstraints(nuisancePriors)
 bcalc2.SetTestSize(size)
 interval2 = bcalc2.GetInterval()
 cl = bcalc2.ConfidenceLevel()

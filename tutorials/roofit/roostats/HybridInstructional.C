@@ -345,7 +345,7 @@ void HybridInstructional(int ntoys = 6000)
    // when the value of b is fixed in the likelihood.  This is implemented
    // by the SimpleLikelihoodRatioTestStat
 
-   SimpleLikelihoodRatioTestStat slrts(*b_model.GetPdf(), *sb_model.GetPdf());
+   SimpleLikelihoodRatioTestStat slrts(b_model, sb_model);
    slrts.SetNullParameters(*b_model.GetSnapshot());
    slrts.SetAltParameters(*sb_model.GetSnapshot());
 
@@ -431,16 +431,16 @@ void HybridInstructional(int ntoys = 6000)
 
    // Tevatron-style Ratio of profiled likelihoods
    // $Q_Tev = -log L(s=0,\hat\hat{b})/L(s=50,\hat\hat{b})$
-   RatioOfProfiledLikelihoodsTestStat ropl(*b_modelXY.GetPdf(), *sb_modelXY.GetPdf(), sb_modelXY.GetSnapshot());
+   RatioOfProfiledLikelihoodsTestStat ropl(b_modelXY, sb_modelXY, sb_modelXY.GetSnapshot());
    ropl.SetSubtractMLE(false);
 
    // profile likelihood where alternate is best fit value of signal yield
    // $\lambda(0) = -log L(s=0,\hat\hat{b})/L(\hat{s},\hat{b})$
-   ProfileLikelihoodTestStat profll(*b_modelXY.GetPdf());
+   ProfileLikelihoodTestStat profll(b_modelXY);
 
    // just use the maximum likelihood estimate of signal yield
    // $MLE = \hat{s}$
-   MaxLikelihoodEstimateTestStat mlets(*sb_modelXY.GetPdf(), *w->var("s"));
+   MaxLikelihoodEstimateTestStat mlets(sb_modelXY, *w->var("s"));
 
    // However, it is less clear how to justify the prior used in randomizing
    // the nuisance parameters (since that is a property of the ensemble,

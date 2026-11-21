@@ -151,11 +151,10 @@ void StandardBayesianNumericalDemo(const char *infile = "", const char *workspac
    // do without systematics
    // mc->SetNuisanceParameters(RooArgSet() );
    if (nSigmaNuisance > 0) {
-      RooAbsPdf *pdf = mc->GetPdf();
-      assert(pdf);
+      assert(mc->GetPdf());
       std::unique_ptr<RooFitResult> res{
-         pdf->fitTo(*data, Save(true), Minimizer(ROOT::Math::MinimizerOptions::DefaultMinimizerType().c_str()),
-                    Hesse(true), PrintLevel(ROOT::Math::MinimizerOptions::DefaultPrintLevel() - 1))};
+         mc->fitTo(*data, Save(true), Minimizer(ROOT::Math::MinimizerOptions::DefaultMinimizerType().c_str()),
+                   Hesse(true), PrintLevel(ROOT::Math::MinimizerOptions::DefaultPrintLevel() - 1))};
 
       res->Print();
       RooArgList nuisPar(*mc->GetNuisanceParameters());

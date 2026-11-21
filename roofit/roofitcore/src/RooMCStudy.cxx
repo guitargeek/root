@@ -98,8 +98,7 @@ fitting the PDF to data and accumulating the fit statistics.
                                                 `Save()` is especially interesting to be able to retrieve fit results of each run using fitResult().
 <tr><td> Verbose(bool flag)              <td> Activate informational messages in event generation phase
 <tr><td> Extended(bool flag)             <td> Determine number of events for each sample anew from a Poisson distribution
-<tr><td> Constrain(const RooArgSet& pars)  <td> Apply internal constraints on given parameters in fit and sample constrained parameter values from constraint p.d.f for each toy.
-<tr><td> ExternalConstraints(const RooArgSet& cpdfs) <td> Apply given external constraint p.d.f.s in fit and sample values of the parameters they constrain from them for each toy.
+<tr><td> ExternalConstraints(const RooArgSet& cpdfs) <td> Apply given constraint p.d.f.s in fit and sample values of the parameters they constrain from them for each toy.
                                                 To apply the constraints in the fit only, without the per-toy sampling, pass them inside FitOptions() instead.
 <tr><td> ProtoData(const RooDataSet&, bool randOrder)
          <td> Prototype data for the event generation. If the randOrder flag is set, the order of the dataset will be re-randomized for each generation
@@ -126,7 +125,6 @@ RooMCStudy::RooMCStudy(const RooAbsPdf& model, const RooArgSet& observables,
   pc.defineObject("fitModel","FitModel",0,nullptr) ;
   pc.defineSet("condObs","ProjectedObservables",0,nullptr) ;
   pc.defineObject("protoData","PrototypeData",0,nullptr) ;
-  pc.defineSet("cPars","Constrain",0,nullptr) ;
   pc.defineSet("extCons","ExternalConstraints",0,nullptr) ;
   pc.defineInt("silence","Silence",0,0) ;
   pc.defineInt("randProtoData","PrototypeData",0,0) ;
@@ -159,18 +157,9 @@ RooMCStudy::RooMCStudy(const RooAbsPdf& model, const RooArgSet& observables,
   _randProto = pc.getInt("randProtoData") ;
 
   // Process constraints specifications
-  const RooArgSet* cParsTmp = pc.getSet("cPars") ;
   const RooArgSet* extCons = pc.getSet("extCons") ;
 
-  auto cPars = std::make_unique<RooArgSet>();
-  if (cParsTmp) {
-    cPars->add(*cParsTmp) ;
-  }
-
   // If constraints are specified, add to fit options
-  if (cPars) {
-    _fitOptList.Add(RooFit::Constrain(*cPars).Clone()) ;
-  }
   if (extCons) {
     _fitOptList.Add(RooFit::ExternalConstraints(*extCons).Clone()) ;
   }
@@ -178,15 +167,9 @@ RooMCStudy::RooMCStudy(const RooAbsPdf& model, const RooArgSet& observables,
   // Make list of all constraints and of the parameters they constrain
   RooArgSet allConstraints ;
   RooArgSet consPars ;
-  if (cPars) {
-    if (std::unique_ptr<RooArgSet> constraints{model.getAllConstraints(observables,*cPars,true)}) {
-      allConstraints.add(*constraints) ;
-    }
-    consPars.add(*cPars) ;
-  }
   if (extCons) {
-    // External constraint p.d.f.s are not part of the model, so the parameters
-    // they constrain are found among their observables instead
+    // Constraint p.d.f.s are not part of the model, so the parameters they
+    // constrain are found among their observables instead
     allConstraints.add(*extCons) ;
     RooArgSet params;
     model.getParameters(&observables, params);

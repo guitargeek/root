@@ -81,18 +81,15 @@ ws = ROOT.RooStats.HistFactory.MakeModelAndMeasurementFast(meas)
 # Retrieve the ModelConfig
 modelConfig = ws["ModelConfig"]
 
-# Extract the PDF and global observables
-pdf = modelConfig.GetPdf()
-
-# Perform the fit using Minos to get the correct asymmetric uncertainties
-result = pdf.fitTo(
-    ws["obsData"], Save=True, PrintLevel=-1, GlobalObservables=modelConfig.GetGlobalObservables(), Minos=True
-)
+# Perform the fit using Minos to get the correct asymmetric uncertainties.
+# The constraint terms of the model are no part of its pdf: the ModelConfig
+# passes them to the fit, together with the global observables.
+result = modelConfig.fitTo(ws["obsData"], Save=True, PrintLevel=-1, Minos=True)
 
 # Getting list of Parameters of Interest and getting first from them
 poi = modelConfig.GetParametersOfInterest().first()
 
-nll = pdf.createNLL(ws["obsData"])
+nll = modelConfig.createNLL(ws["obsData"])
 profile = nll.createProfile(poi)
 
 # frame for future plot

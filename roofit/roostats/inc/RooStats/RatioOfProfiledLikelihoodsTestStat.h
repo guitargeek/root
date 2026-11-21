@@ -25,10 +25,10 @@ namespace RooStats {
 
    public:
 
-      RatioOfProfiledLikelihoodsTestStat(RooAbsPdf& nullPdf, RooAbsPdf& altPdf,
+      RatioOfProfiledLikelihoodsTestStat(const ModelConfig& nullModel, const ModelConfig& altModel,
                                          const RooArgSet* altPOI=nullptr) :
-         fNullProfile(nullPdf),
-         fAltProfile(altPdf),
+         fNullProfile(nullModel),
+         fAltProfile(altModel),
          fSubtractMLE(true),
          fDetailedOutputEnabled(false),
          fDetailedOutput(nullptr)
@@ -48,12 +48,6 @@ namespace RooStats {
          if(fDetailedOutput) delete fDetailedOutput;
       }
 
-
-      /// returns -logL(poi, conditional MLE of nuisance params)
-      /// it does not subtract off the global MLE
-      /// because  nuisance parameters of null and alternate may not
-      /// be the same.
-      double ProfiledLikelihood(RooAbsData& data, RooArgSet& poi, RooAbsPdf& pdf);
 
       /// evaluate the ratio of profile likelihood
       double Evaluate(RooAbsData& data, RooArgSet& nullParamsOfInterest) override;
@@ -86,20 +80,6 @@ namespace RooStats {
       void SetPrintLevel(Int_t printLevel){
          fNullProfile.SetPrintLevel(printLevel);
          fAltProfile.SetPrintLevel(printLevel);
-      }
-
-      /// set the conditional observables which will be used when creating the NLL
-      /// so the pdf's will not be normalized on the conditional observables when computing the NLL
-      void SetConditionalObservables(const RooArgSet& set) override {
-         fNullProfile.SetConditionalObservables(set);
-         fAltProfile.SetConditionalObservables(set);
-      }
-
-      /// set the global observables which will be used when creating the NLL
-      /// so the constraint pdf's will be normalized correctly on the global observables when computing the NLL
-      void SetGlobalObservables(const RooArgSet& set) override {
-         fNullProfile.SetGlobalObservables(set);
-         fAltProfile.SetGlobalObservables(set);
       }
 
       /// Returns detailed output. The value returned by this function is updated after each call to Evaluate().

@@ -180,30 +180,30 @@ TEST_P(TestStatisticTest, RooSimultaneousSingleChannelCrossCheck)
    ws.factory("Gaussian::gauss1(x[0, 10], mean[1., 0., 10.], width[1, 0.1, 10])");
    ws.factory("AddPdf::model({gauss1}, {nsig[500, 100, 1000]})");
    ws.factory("Gaussian::fconstraint(2.0, mean, 0.2)");
-   ws.factory("ProdPdf::modelConstrained({model, fconstraint})");
 
    RooRealVar &x = *ws.var("x");
    RooAbsPdf &model = *ws.pdf("model");
-   RooAbsPdf &modelConstrained = *ws.pdf("modelConstrained");
+   // The constraint term is no part of the pdf: it is passed to the likelihood
+   RooAbsPdf &fconstraint = *ws.pdf("fconstraint");
 
    RooCategory cat("cat", "cat");
    cat.defineType("physics");
 
-   RooSimultaneous modelSim("modelSim", "modelSim", RooArgList{modelConstrained}, cat);
+   RooSimultaneous modelSim("modelSim", "modelSim", RooArgList{model}, cat);
 
    std::unique_ptr<RooDataSet> data{model.generate(x)};
 
    RooArgSet params;
    RooArgSet initialParams;
-   modelConstrained.getParameters(data->get(), params);
+   model.getParameters(data->get(), params);
    params.snapshot(initialParams);
 
    RooDataSet combData("combData", "combData", x, Index(cat), Import("physics", *data));
 
    using AbsRealPtr = std::unique_ptr<RooAbsReal>;
 
-   AbsRealPtr nllDirect{modelConstrained.createNLL(combData, _evalBackend)};
-   AbsRealPtr nllSimWrapped{modelSim.createNLL(combData, _evalBackend)};
+   AbsRealPtr nllDirect{model.createNLL(combData, ExternalConstraints(fconstraint), _evalBackend)};
+   AbsRealPtr nllSimWrapped{modelSim.createNLL(combData, ExternalConstraints(fconstraint), _evalBackend)};
    RooAddition nllAdditionWrapped{"nll_wrapped_cpu", "nll_wrapped_cpu", {*nllSimWrapped}};
 
    auto minimize = [&](RooAbsReal &nll) {

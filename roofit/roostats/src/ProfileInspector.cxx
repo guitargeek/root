@@ -93,7 +93,7 @@ TList* ProfileInspector::GetListOfProfilePlots( RooAbsData& data, RooStats::Mode
     return nullptr;
   }
 
-  std::unique_ptr<RooAbsReal> nll{pdf->createNLL(data)};
+  std::unique_ptr<RooAbsReal> nll{config->createNLL(data)};
   std::unique_ptr<RooAbsReal> profile{nll->createProfile(*poi)};
 
   TList * list = new TList;

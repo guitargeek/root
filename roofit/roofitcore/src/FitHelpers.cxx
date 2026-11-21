@@ -519,6 +519,7 @@ std::unique_ptr<RooAbsPdf> compilePdfForFit(RooAbsPdf &pdf, RooArgSet const &nor
 
    RooFit::Detail::CompileContext ctx{normSet};
    ctx.setLikelihoodMode(likelihoodMode);
+   ctx.setLikelihoodPdf(&pdf);
    std::unique_ptr<RooAbsArg> head = pdf.compileForNormSet(normSet, ctx);
    std::unique_ptr<RooAbsPdf> pdfClone{&dynamic_cast<RooAbsPdf &>(*head.release())};
 
@@ -771,6 +772,7 @@ minimize(RooAbsReal &model, RooAbsReal &nll, RooAbsData const &data, RooCmdConfi
 std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const RooLinkedList &cmdList)
 {
    checkNestedSimultaneous(pdf, *data.get());
+   checkForConstraintsInProducts(pdf, data);
 
    auto timingScope = std::make_unique<ROOT::Math::Util::TimingScope>(
       [&pdf](std::string const &msg) { oocoutI(&pdf, Fitting) << msg << std::endl; }, "Creation of NLL object took");
@@ -793,7 +795,6 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
    pc.defineInt("verbose", "Verbose", 0, 0);
    pc.defineInt("cloneData", "CloneData", 0, 0);
    pc.defineSet("projDepSet", "ProjectedObservables", 0, nullptr);
-   pc.defineSet("cPars", "Constrain", 0, nullptr);
    pc.defineSet("glObs", "GlobalObservables", 0, nullptr);
    pc.defineInt("doOffset", "OffsetLikelihood", 0, 0);
    pc.defineSet("extCons", "ExternalConstraints", 0, nullptr);
@@ -821,12 +822,8 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       RooFit::TestStatistics::RooAbsL::Extended ext{
          static_cast<RooFit::TestStatistics::RooAbsL::Extended>(lut[pc.getInt("ext")])};
 
-      RooArgSet cParsSet;
       RooArgSet extConsSet;
       RooArgSet glObsSet;
-
-      if (auto tmp = pc.getSet("cPars"))
-         cParsSet.add(*tmp);
 
       if (auto tmp = pc.getSet("extCons"))
          extConsSet.add(*tmp);
@@ -838,7 +835,6 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
 
       RooFit::TestStatistics::NLLFactory builder{pdf, data};
       builder.Extended(ext)
-         .ConstrainedParameters(cParsSet)
          .ExternalConstraints(extConsSet)
          .GlobalObservables(glObsSet)
          .GlobalObservablesTag(rangeName.c_str())
@@ -888,14 +884,11 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
    }
    const bool takeGlobalObservablesFromData = globalObservablesSource == "data";
 
-   // Lambda function to create the correct constraint term for a PDF. In old
-   // RooFit, we use this PDF itself as the argument, for the new BatchMode
-   // we're passing a clone.
+   // Lambda function to create the constraint term for a PDF.
    auto createConstr = [&]() -> std::unique_ptr<RooAbsReal> {
       return createConstraintTerm(baseName + "_constr",                    // name
                                   pdf,                                     // pdf
                                   data,                                    // data
-                                  pc.getSet("cPars"),                      // Constrain RooCmdArg
                                   pc.getSet("extCons"),                    // ExternalConstraints RooCmdArg
                                   pc.getSet("glObs"),                      // GlobalObservables RooCmdArg
                                   pc.getString("globstag", nullptr, true), // GlobalObservablesTag RooCmdArg
@@ -1135,7 +1128,7 @@ std::unique_ptr<RooFitResult> fitTo(RooAbsReal &real, RooAbsData &data, const Ro
 
    if (!chi2) {
       nllCmdListString = "ProjectedObservables,Extended,Range,"
-                         "RangeWithName,SumCoefRange,NumCPU,SplitRange,Constrained,Constrain,ExternalConstraints,"
+                         "RangeWithName,SumCoefRange,NumCPU,SplitRange,ExternalConstraints,"
                          "CloneData,GlobalObservables,GlobalObservablesSource,GlobalObservablesTag,"
                          "EvalBackend,IntegrateBins,ModularL";
 

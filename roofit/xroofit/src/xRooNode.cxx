@@ -78,6 +78,7 @@ exploring the content are:
 #else
 
 #include "RooAbsArg.h"
+#include "RooFit/Constraints.h"
 #include "RooWorkspace.h"
 #include "RooFitResult.h"
 #include "RooConstVar.h"
@@ -216,6 +217,60 @@ auto GETLISTTREE(TGFileBrowser *b)
 #endif
 
 BEGIN_XROOFIT_NAMESPACE
+
+namespace {
+
+// Constraint terms are no part of the pdfs: they multiply the likelihood once, and not for each event. A ModelConfig
+// has the constraint terms of its model as external constraints, and the ones of pdfs that are part of no ModelConfig
+// are registered in the workspace, see RooFit/Constraints.h.
+
+// All constraint terms known to the workspace.
+RooArgSet allConstraintTerms(RooWorkspace *w)
+{
+   return w ? RooFit::constraintTerms(*w) : RooArgSet();
+}
+
+// The constraint terms of `arg`: the ones known to the workspace that depend on a parameter of `arg`. A constraint
+// term has no constraint terms itself.
+RooArgSet constraintTermsOf(RooWorkspace *w, const RooAbsArg &arg)
+{
+   if (!w || RooFit::constraintTerms(*w).containsInstance(arg))
+      return RooArgSet();
+   return RooFit::constraintsOf(*w, arg);
+}
+
+// Add the constraint term `constr` of the parameter `par` to the constraint terms of the workspace: to the registered
+// ones, and to the external constraints of the ModelConfigs with a pdf that depends on the parameter.
+void addConstraintTerm(RooWorkspace &w, RooAbsPdf &constr, const RooAbsArg &par)
+{
+   RooFit::addConstraintTerms(w, RooArgSet(constr));
+   for (auto mc : RooFit::modelConfigs(w, &par)) {
+      RooArgSet _constraints;
+      if (mc->GetExternalConstraints())
+         _constraints.add(*mc->GetExternalConstraints());
+      _constraints.add(constr, true);
+      mc->SetExternalConstraints(_constraints);
+   }
+}
+
+// Remove the constraint term `constr` from the constraint terms of the workspace: from the registered ones, and from
+// the external constraints of the ModelConfigs. Returns if it was one.
+bool removeConstraintTerm(RooWorkspace *w, const RooAbsArg &constr)
+{
+   bool removed = false;
+   if (!w)
+      return removed;
+   for (auto &[k, v] : GETWSSETS(w)) {
+      if ((k == RooFit::constraintTermsSetName || TString(k).EndsWith("_ExternalConstraints")) &&
+          v.containsInstance(constr)) {
+         const_cast<RooArgSet &>(v).remove(constr);
+         removed = true;
+      }
+   }
+   return removed;
+}
+
+} // namespace
 
 xRooNode::InteractiveObject *xRooNode::gIntObj = nullptr;
 std::map<std::string, std::tuple<std::function<double(double, double, double)>, bool>> xRooNode::auxFunctions;
@@ -1505,8 +1560,17 @@ xRooNode xRooNode::Remove(const xRooNode &child)
          toRemove.get<RooAbsArg>()->setAttribute("poi", false);
          return toRemove;
       }
-   } else if (strcmp(GetName(), ".factors") == 0 || strcmp(GetName(), ".constraints") == 0 ||
-              strcmp(GetName(), ".components") == 0) {
+   } else if (strcmp(GetName(), ".constraints") == 0) {
+      // the constraint terms are no part of the pdfs: they are kept in the workspace, and removed from there
+      auto toRemove =
+         (child.get<RooAbsArg>() || !find(child.GetName())) ? child : xRooNode(find(child.GetName())->fComp);
+      auto constr = toRemove.get<RooAbsArg>();
+      if (!constr || !removeConstraintTerm(ws(), *constr)) {
+         throw std::runtime_error(TString::Format("Cannot find %s in %s", child.GetName(), fParent->GetName()));
+      }
+      sterilize();
+      return toRemove;
+   } else if (strcmp(GetName(), ".factors") == 0 || strcmp(GetName(), ".components") == 0) {
       auto toRemove =
          (child.get<RooAbsArg>() || !find(child.GetName())) ? child : xRooNode(find(child.GetName())->fComp);
       if (auto p = fParent->get<RooProdPdf>(); p) {
@@ -1553,20 +1617,6 @@ xRooNode xRooNode::Remove(const xRooNode &child)
          p2->removeServer(*arg, true);
          sterilize();
          return xRooNode(*arg);
-      } else if (fParent->get<RooSimultaneous>()) {
-         // remove from all channels
-         bool removed = false;
-         for (auto &c : fParent->bins()) {
-            try {
-               c->constraints().Remove(toRemove);
-               removed = true;
-            } catch (std::runtime_error &) { /* wasn't a constraint in channel */
-            }
-         }
-         sterilize();
-         if (!removed)
-            throw std::runtime_error(TString::Format("Cannot find %s in %s", child.GetName(), fParent->GetName()));
-         return toRemove;
       } else if (auto p4 = fParent->get<RooRealSumPdf>(); p4) {
          auto arg = toRemove.get<RooAbsArg>();
          if (!arg)
@@ -3038,15 +3088,23 @@ xRooNode xRooNode::Constrain(const xRooNode &child)
          throw std::runtime_error("Constraint does not depend on constrainee");
       }
 
-      // find a parent that can swallow this pdf ... either a RooProdPdf or a RooWorkspace
+      // The constraint is no part of a pdf: it multiplies the likelihood once, and not for each event. Therefore, it is
+      // not multiplied with the pdfs that depend on the parameter, but kept in the workspace as one of the constraint
+      // terms, which are passed to the likelihood separately.
+      auto _ws = ws();
+      if (!_ws) {
+         throw std::runtime_error("Nowhere to put constraint: the constraint terms are kept in the workspace");
+      }
+
+      // find the model that the parameter belongs to: a pdf or the workspace
       auto x = fParent;
-      while (x && !x->get<RooProdPdf>() && !x->get<RooSimultaneous>() && !x->get<RooWorkspace>()) {
+      while (x && !x->get<RooAbsPdf>() && !x->get<RooWorkspace>()) {
          x = x->fParent;
       }
       if (!x) {
          throw std::runtime_error("Nowhere to put constraint");
       }
-      // get datasets of the swallower, and add glob to any globs lists
+      // get datasets of the model, and add glob to any globs lists
       auto childGlobs = child.globs();
       if (!childGlobs.empty()) {
          for (auto d : x->datasets()) {
@@ -3057,27 +3115,20 @@ xRooNode xRooNode::Constrain(const xRooNode &child)
             }
          }
          // also add to the workspaces globalObservables lists
-         if (x->ws()) {
-            for (auto &[k, v] : GETWSSETS(x->ws())) {
-               if (k == "globalObservables" || TString(k).EndsWith("_GlobalObservables")) {
-                  const_cast<RooArgSet &>(v).add(*childGlobs.get<RooArgList>());
-               }
+         for (auto &[k, v] : GETWSSETS(_ws)) {
+            if (k == "globalObservables" || TString(k).EndsWith("_GlobalObservables")) {
+               const_cast<RooArgSet &>(v).add(*childGlobs.get<RooArgList>());
             }
          }
       }
-      if (auto s = x->get<RooSimultaneous>(); s) {
-         // put into every channel that features parameter
-         x->browse();
-         for (auto &c : *x) {
-            if (auto a = c->get<RooAbsArg>(); a->dependsOn(*_me))
-               c->Multiply(child);
-         }
-         return child;
-      } else if (x->get<RooProdPdf>()) {
-         return x->Multiply(child);
-      } else {
-         return x->Add(child, "+");
+
+      auto constr = std::dynamic_pointer_cast<RooAbsPdf>(acquire(child.fComp));
+      if (!constr) {
+         throw std::runtime_error(TString::Format("Cannot add constraint %s to workspace", child.GetName()));
       }
+      addConstraintTerm(*_ws, *constr, *_me);
+      sterilize();
+      return xRooNode(constr, *this);
    }
 
    throw std::runtime_error(TString::Format("Cannot constrain %s", GetName()));
@@ -5058,49 +5109,19 @@ xRooNode xRooNode::constraints() const
 
    xRooNode out(".constraints", nullptr, *this);
 
-   std::function<RooAbsPdf *(const xRooNode &n, RooAbsArg &par, std::set<RooAbsPdf *> ignore)> getConstraint;
-   getConstraint = [&](const xRooNode &n, RooAbsArg &par, std::set<RooAbsPdf *> ignore) {
-      if (auto _pdf = n.get<RooAbsPdf>()) {
-         if (ignore.count(_pdf))
-            return (RooAbsPdf *)nullptr;
-         ignore.insert(_pdf);
-      }
-      auto o = n.get<RooProdPdf>();
-      if (!o) {
-         if (n.get<RooSimultaneous>()) {
-            // check all channels for a constraint if is simultaneous
-            for (auto &c : n.bins()) {
-               if (auto oo = getConstraint(*c, par, ignore); oo) {
-                  return oo;
-               }
-            }
-            return (RooAbsPdf *)nullptr;
-         } else if (n.get<RooAbsPdf>() && n.fParent && n.fParent->get<RooWorkspace>()) {
-            // reached top-level pdf, which wasn't a simultaneous, so stop here
-            return (RooAbsPdf *)nullptr;
-         } else if (auto _ws = n.get<RooWorkspace>(); _ws) {
-            // reached a workspace, check for any pdf depending on parameter that isnt the ignore
-            for (auto p : _ws->allPdfs()) {
-               if (ignore.count(static_cast<RooAbsPdf *>(p)))
-                  continue;
-               if (p->dependsOn(par)) {
-                  out.emplace_back(std::make_shared<xRooNode>(par.GetName(), *p, *this));
-               }
-            }
-         }
-         if (!n.fParent)
-            return (RooAbsPdf *)nullptr;
-         return getConstraint(*n.fParent, par, ignore);
-      }
-      for (auto p : o->pdfList()) {
-         if (ignore.count(static_cast<RooAbsPdf *>(p)))
-            continue;
-         if (p->dependsOn(par)) {
-            out.emplace_back(std::make_shared<xRooNode>(par.GetName(), *p, *this));
-         }
-      }
-      return (RooAbsPdf *)nullptr;
-   };
+   if (auto mc = get<RooStats::ModelConfig>()) {
+      // the constraint terms of the model are the ones of the parameters of its pdf
+      if (mc->GetPdf())
+         return xRooNode(*mc->GetPdf(), fParent).constraints();
+      return out;
+   }
+
+   // The constraint terms are no part of the pdfs: they are kept in the workspace. The constraint terms of this node
+   // are the ones that depend on its parameters. A constraint term has no constraint terms itself.
+   RooArgSet allConstraints = allConstraintTerms(ws());
+   auto self = get<RooAbsArg>();
+   if (self && allConstraints.containsInstance(*self))
+      return out;
 
    for (auto &p : vars()) {
       auto v = dynamic_cast<RooAbsReal *>(p->get());
@@ -5110,10 +5131,11 @@ xRooNode xRooNode::constraints() const
          continue; // skip constants unless we are getting the constraints of a parameter itself
       if (v->getAttribute("obs"))
          continue; // skip observables ... constraints constrain pars not obs
-      getConstraint(*this, *v, {get<RooAbsPdf>()});
-      /*if (auto c = ; c) {
-          out.emplace_back(std::make_shared<Node2>(p->GetName(), *c, *this));
-      }*/
+      for (auto c : allConstraints) {
+         if (c != self && c->dependsOn(*v)) {
+            out.emplace_back(std::make_shared<xRooNode>(v->GetName(), *c, *this));
+         }
+      }
    }
 
    // finish by removing any constraint that contains another constraint for the same par
@@ -6126,6 +6148,21 @@ xRooNode xRooNode::globs() const
          out.emplace_back(o);
       }
    }
+   if (auto p = get<RooAbsPdf>()) {
+      // The global observables of a pdf are variables of the constraint terms of its parameters. The constraint terms
+      // are no part of the pdf, so the global observables are no variables of the pdf itself.
+      for (auto c : constraintTermsOf(ws(), *p)) {
+         RooArgSet leaves;
+         c->leafNodeServerList(&leaves);
+         for (auto leaf : leaves) {
+            if (leaf->getAttribute("global") && !out.get<RooArgList>()->find(*leaf)) {
+               out.get<RooArgList>()->add(*leaf);
+               out.emplace_back(std::make_shared<xRooNode>(*leaf, *this));
+               out.back()->fFolder = "!globs";
+            }
+         }
+      }
+   }
    return out;
 }
 
@@ -6404,6 +6441,8 @@ xRooNode xRooNode::components() const
          out.emplace_back(std::make_shared<xRooNode>(*a, *this));
       }
    } else if (auto p5 = get<RooWorkspace>(); p5) {
+      // the constraint terms are no part of the pdfs, so they are top-level nodes, too
+      RooArgSet _constraintTerms = allConstraintTerms(p5);
       for (auto &o : p5->components()) {
          // only top-level nodes (only clients are integrals or things that aren't part of the workspace)
          // if (o->hasClients()) continue;
@@ -6417,7 +6456,9 @@ xRooNode xRooNode::components() const
          if (hasClients)
             continue;
          out.emplace_back(std::make_shared<xRooNode>(*o, *this));
-         if (o->InheritsFrom("RooAbsPdf")) {
+         if (_constraintTerms.containsInstance(*o)) {
+            out.back()->fFolder = "!constraints";
+         } else if (o->InheritsFrom("RooAbsPdf")) {
             out.back()->fFolder = "!pdfs";
          } else {
             out.back()->fFolder = "!scratch";
@@ -7612,7 +7653,7 @@ xRooNode xRooNode::generate(const xRooNode &fr, bool expected, int seed)
       if (get<RooWorkspace>()) {
          std::shared_ptr<xRooNode> mainModel;
          for (auto &c : const_cast<xRooNode *>(this)->browse()) {
-            if (c->get<RooAbsPdf>()) {
+            if (c->get<RooAbsPdf>() && c->fFolder != "!constraints") {
                if (!mainModel) {
                   mainModel = c;
                } else {
@@ -7731,7 +7772,9 @@ xRooNode xRooNode::generate(const xRooNode &fr, bool expected, int seed)
       _fr = newFr.get();
    }
 
-   return xRooNode(xRooFit::generateFrom(*get<RooAbsPdf>(), *_fr, expected, seed).first, *this);
+   // the global observables are generated from the constraint terms, which are no part of the pdf
+   RooArgSet _constraints = constraintTermsOf(ws(), *get<RooAbsPdf>());
+   return xRooNode(xRooFit::generateFrom(*get<RooAbsPdf>(), *_fr, expected, seed, &_constraints).first, *this);
 
    // should add coords to the dataset too?
    // e.g. in the case of generating a dataset for a single channel, include the channelCat
@@ -7759,7 +7802,7 @@ xRooNLLVar xRooNode::nll(const xRooNode &_data, const RooLinkedList &opts) const
       if (get<RooWorkspace>()) {
          std::shared_ptr<xRooNode> mainPdf, mainModel, otherPdf;
          for (auto &c : const_cast<xRooNode *>(this)->browse()) {
-            if (c->get<RooAbsPdf>()) {
+            if (c->get<RooAbsPdf>() && c->fFolder != "!constraints") {
                if (!mainPdf) {
                   mainPdf = c;
                } else {
@@ -7813,7 +7856,9 @@ xRooNLLVar xRooNode::nll(const xRooNode &_data, const RooLinkedList &opts) const
       auto _d = strlen(_data.GetName()) ? datasets().find(_data.GetName()) : nullptr;
       if (strlen(_data.GetName()) == 0) {
          // create the EXPECTED (asimov) dataset with the observables
-         auto asi = xRooFit::generateFrom(*get<RooAbsPdf>(), *(fitResult().get<RooFitResult>()), true);
+         RooArgSet _constraints = constraintTermsOf(ws(), *get<RooAbsPdf>());
+         auto asi =
+            xRooFit::generateFrom(*get<RooAbsPdf>(), *(fitResult().get<RooFitResult>()), true, 0, &_constraints);
          _d = std::make_shared<xRooNode>(asi.first, *this);
          if (asi.second) {
             _d->emplace_back(
@@ -7844,15 +7889,26 @@ xRooNLLVar xRooNode::nll(const xRooNode &_data, const RooLinkedList &opts) const
       _opts->Add(RooFit::Range(GetRange()).Clone());
 
    // copy over opts ... need to clone each so can safely delete when _opts destroyed
+   bool hasConstraints = false;
    for (int i = 0; i < opts.GetSize(); i++) {
       if (strlen(opts.At(i)->GetName()) == 0)
          continue; // skipping "none" cmds
       if (strcmp(opts.At(i)->GetName(), "GlobalObservables") == 0) {
          // maybe warn here?
       } else {
+         if (strcmp(opts.At(i)->GetName(), "ExternalConstraints") == 0)
+            hasConstraints = true;
          _opts->Add(opts.At(i)->Clone(nullptr)); // nullptr needed because accessing Clone via TObject base class puts
                                                  // "" instead, so doesnt copy names
       }
+   }
+
+   // The constraint terms of the parameters are no part of the pdf: they are passed to the likelihood separately,
+   // unless the caller has already specified the constraint terms (e.g. the ones of a ModelConfig)
+   if (!hasConstraints) {
+      RooArgSet _constraints = constraintTermsOf(ws(), *get<RooAbsPdf>());
+      if (!_constraints.empty())
+         _opts->Add(RooFit::ExternalConstraints(_constraints).Clone());
    }
 
    // use shared_ptr method so NLLVar will take ownership of datasets etc if created above
@@ -12421,8 +12477,14 @@ void xRooNode::SaveAs(const char *filename, Option_t *option) const
       for (auto ds : datasets()) {
          ws.Add(*ds);
       }
+      // the constraint terms of the parameters are no part of the pdf: they are added to the workspace separately,
+      // and become the external constraints of the ModelConfig
+      RooArgSet _constraints = constraintTermsOf(this->ws(), *pdf);
+      RooFit::addConstraintTerms(w, _constraints);
       RooStats::ModelConfig mc("ModelConfig", GetTitle(), &w);
       mc.SetPdf(addedPdf->GetName());
+      if (!_constraints.empty())
+         mc.SetExternalConstraints(_constraints);
       mc.SetObservables(*addedPdf.robs().get<RooArgList>());
       mc.SetGlobalObservables(*addedPdf.globs().get<RooArgList>());
       mc.SetNuisanceParameters(*addedPdf.np().get<RooArgList>());

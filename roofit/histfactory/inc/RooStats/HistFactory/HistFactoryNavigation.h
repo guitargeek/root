@@ -164,6 +164,9 @@ namespace RooStats {
       /// The observables
       RooArgSet* fObservables;
 
+      /// The constraint terms of the model, which are no part of the pdf
+      RooArgSet fConstraintTerms;
+
       int _minBinToPrint;
       int _maxBinToPrint;
 
@@ -176,7 +179,7 @@ namespace RooStats {
       /// Map of channel names to their full pdf's
       std::map< std::string, RooAbsPdf* > fChannelPdfMap;
 
-      /// Map of channel names to pdf without constraint
+      /// Map of channel names to their RooRealSumPdf
       std::map< std::string, RooAbsPdf* > fChannelSumNodeMap;
 
       /// Map of channel names to their set of ovservables
@@ -195,7 +198,7 @@ namespace RooStats {
 
 
     protected:
-      ClassDef(RooStats::HistFactory::HistFactoryNavigation,2)
+      ClassDef(RooStats::HistFactory::HistFactoryNavigation,3)
 
     };
 

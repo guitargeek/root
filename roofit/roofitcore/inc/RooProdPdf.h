@@ -77,10 +77,6 @@ public:
   void generateEvent(Int_t code) override;
   bool isDirectGenSafe(const RooAbsArg& arg) const override ;
 
-  // Constraint management
-  std::unique_ptr<RooArgSet> getConstraints(const RooArgSet &observables, RooArgSet const &constrainedParams,
-                                            RooArgSet &pdfParams) const override;
-
   std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
   std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
   bool isBinnedDistribution(const RooArgSet& obs) const override  ;
@@ -95,8 +91,6 @@ public:
 
 
   bool redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/, bool /*nameChange*/, bool /*isRecursive*/) override ;
-
-  RooArgSet* getConnectedParameters(const RooArgSet& observables) const ;
 
   RooArgSet* findPdfNSet(RooAbsPdf const& pdf) const ;
 

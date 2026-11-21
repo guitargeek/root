@@ -171,7 +171,7 @@ bool ToyMCSampler::CheckConfig(void) {
    if(fTestStatistics.empty() || fTestStatistics[0] == nullptr) { ooccoutE(nullptr,InputArguments) << "Test statistic not set." << std::endl; goodConfig = false; }
    if(!fObservables) { ooccoutE(nullptr,InputArguments) << "Observables not set." << std::endl; goodConfig = false; }
    if(!fParametersForTestStat) { ooccoutE(nullptr,InputArguments) << "Parameter values used to evaluate the test statistic are not set." << std::endl; goodConfig = false; }
-   if(!fPdf) { ooccoutE(nullptr,InputArguments) << "Pdf not set." << std::endl; goodConfig = false; }
+   if(!fPdf) { ooccoutE(nullptr,InputArguments) << "Model not set." << std::endl; goodConfig = false; }
 
    return goodConfig;
 }
@@ -195,7 +195,7 @@ const RooArgList* ToyMCSampler::EvaluateAllTestStatistics(RooAbsData& data, cons
    std::unique_ptr<RooArgSet> allVars;
    std::unique_ptr<RooArgSet> saveAll;
    if(fPdf) {
-      allVars = std::unique_ptr<RooArgSet>{fPdf->getVariables()};
+      allVars = GetAllVariables();
    }
    if(allVars) {
       saveAll = std::make_unique<RooArgSet>();
@@ -270,7 +270,7 @@ RooDataSet* ToyMCSampler::GetSamplingDistributionsSingleWorker(RooArgSet& paramP
    // important to cache the paramPoint b/c test statistic might
    // modify it from event to event
    std::unique_ptr<RooArgSet> paramPoint{paramPointIn.snapshot()};
-   std::unique_ptr<RooArgSet> allVars{fPdf->getVariables()};
+   std::unique_ptr<RooArgSet> allVars{GetAllVariables()};
    std::unique_ptr<RooArgSet> saveAll{allVars->snapshot()};
 
 
@@ -343,72 +343,80 @@ RooDataSet* ToyMCSampler::GetSamplingDistributionsSingleWorker(RooArgSet& paramP
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Generate the global observables from the constraint terms of the model.
+///
+/// The constraint terms are no part of the pdf of the model: the ModelConfig
+/// keeps them in a separate set (see ModelConfig::GetExternalConstraints()).
+/// Their product is the pdf of the global observables.
 
-void ToyMCSampler::GenerateGlobalObservables(RooAbsPdf& pdf) const {
-
+void ToyMCSampler::GenerateGlobalObservables() const {
 
    if(!fGlobalObservables  ||  fGlobalObservables->empty()) {
       ooccoutE(nullptr,InputArguments) << "Global Observables not set." << std::endl;
       return;
    }
 
-
-   if (fUseMultiGen || fgAlwaysUseMultiGen) {
-
-      // generate one set of global observables and assign it
-      // has problem for sim pdfs
-      RooSimultaneous* simPdf = dynamic_cast<RooSimultaneous*>(&pdf );
-      if (!simPdf) {
-         std::unique_ptr<RooDataSet> one{pdf.generate(*fGlobalObservables, 1)};
-
-         const RooArgSet *values = one->get(0);
-         if (!_allVars) {
-            _allVars = std::unique_ptr<RooArgSet>{pdf.getVariables()};
-         }
-         _allVars->assign(*values);
-
-      } else {
-
-         if (_pdfList.empty()) {
-            auto& channelCat = const_cast<RooCategory&>(static_cast<RooCategory const&>(simPdf->indexCat()));
-            int nCat = channelCat.numTypes();
-            for (int i=0; i < nCat; ++i){
-               channelCat.setIndex(i);
-               RooAbsPdf* pdftmp = simPdf->getPdf(channelCat.getCurrentLabel());
-               assert(pdftmp);
-               std::unique_ptr<RooArgSet> globtmp{pdftmp->getObservables(*fGlobalObservables)};
-               RooAbsPdf::GenSpec* gs = pdftmp->prepareMultiGen(*globtmp, NumEvents(1));
-               _pdfList.push_back(pdftmp);
-               _obsList.emplace_back(std::move(globtmp));
-               _gsList.emplace_back(gs);
-            }
-         }
-
-         // Assign generated values to the observables in _obsList
-         for (unsigned int i = 0; i < _pdfList.size(); ++i) {
-           std::unique_ptr<RooDataSet> tmp( _pdfList[i]->generate(*_gsList[i]) );
-           _obsList[i]->assign(*tmp->get(0));
-         }
+   if (!_globalObsPdf) {
+      if (!fModel) {
+         ooccoutE(nullptr,InputArguments) << "ToyMCSampler: Model not set, so there are no constraint terms to generate the global observables from." << std::endl;
+         return;
       }
-
-
-   } else {
-
-      // not using multigen for global observables
-      std::unique_ptr<RooDataSet> one{pdf.generateSimGlobal( *fGlobalObservables, 1 )};
-      const RooArgSet *values = one->get(0);
-      std::unique_ptr<RooArgSet> allVars{pdf.getVariables()};
-      allVars->assign(*values);
-
+      _globalObsPdf.reset(RooStats::MakeNuisancePdf(*fModel, "ToyMCSampler_GlobalObsPdf"));
+      if (!_globalObsPdf) {
+         ooccoutE(nullptr,InputArguments) << "ToyMCSampler: The model has global observables, but no constraint terms to generate them from. "
+                                          << "Set them with ModelConfig::SetExternalConstraints()." << std::endl;
+         return;
+      }
+      // Only the global observables that the constraint terms depend on can be generated
+      _globalObsToGenerate = std::unique_ptr<RooArgSet>{_globalObsPdf->getObservables(*fGlobalObservables)};
+      if (_globalObsToGenerate->size() != fGlobalObservables->size()) {
+         RooArgSet notGenerated{*fGlobalObservables};
+         notGenerated.remove(*_globalObsToGenerate, true, true);
+         ooccoutW(nullptr,InputArguments) << "ToyMCSampler: No constraint term of the model depends on the global observables "
+                                          << notGenerated << ", so they are not generated." << std::endl;
+      }
    }
+
+   if (_globalObsToGenerate->empty()) {
+      return;
+   }
+
+   std::unique_ptr<RooDataSet> one;
+   if (fUseMultiGen || fgAlwaysUseMultiGen) {
+      if (!_gsGlobalObs) {
+         _gsGlobalObs.reset(_globalObsPdf->prepareMultiGen(*_globalObsToGenerate, NumEvents(1)));
+      }
+      one = std::unique_ptr<RooDataSet>{_globalObsPdf->generate(*_gsGlobalObs)};
+   } else {
+      one = std::unique_ptr<RooDataSet>{_globalObsPdf->generate(*_globalObsToGenerate, 1)};
+   }
+
+   // The generated values remain in the global observables of the model.
+   _globalObsToGenerate->assign(*one->get(0));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Get all variables of the model: the ones of the pdf and the ones of its
+/// constraint terms. The global observables are variables of the constraint
+/// terms and no variables of the pdf.
+
+std::unique_ptr<RooArgSet> ToyMCSampler::GetAllVariables() const {
+   if (fModel && fModel->GetPdf() == fPdf) {
+      return fModel->getVariables();
+   }
+   std::unique_ptr<RooArgSet> allVars{fPdf->getVariables()};
+   if (fModel) {
+      allVars->add(*fModel->getVariables(), /*silent=*/true);
+   }
+   return allVars;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// This method generates a toy data set for the given parameter point taking
 /// global observables into account.
-/// The values of the generated global observables remain in the pdf's variables.
-/// They have to have those values for the subsequent evaluation of the
-/// test statistics.
+/// The values of the generated global observables remain in the global
+/// observables of the model. They have to have those values for the
+/// subsequent evaluation of the test statistics.
 
 RooAbsData* ToyMCSampler::GenerateToyData(RooArgSet& paramPoint, double& weight, RooAbsPdf& pdf) const {
 
@@ -418,7 +426,7 @@ RooAbsData* ToyMCSampler::GenerateToyData(RooArgSet& paramPoint, double& weight,
    }
 
    // assign input paramPoint
-   std::unique_ptr<RooArgSet> allVars{fPdf->getVariables()};
+   std::unique_ptr<RooArgSet> allVars{GetAllVariables()};
    allVars->assign(paramPoint);
 
 
@@ -433,7 +441,7 @@ RooAbsData* ToyMCSampler::GenerateToyData(RooArgSet& paramPoint, double& weight,
    RooArgSet observables(*fObservables);
    if(fGlobalObservables  &&  !fGlobalObservables->empty()) {
       observables.remove(*fGlobalObservables);
-      GenerateGlobalObservables(pdf);
+      GenerateGlobalObservables();
    }
 
    // save values to restore later.
@@ -576,14 +584,9 @@ void ToyMCSampler::ClearCache() {
   _gs2 = nullptr;
   _gs3 = nullptr;
   _gs4 = nullptr;
-  _allVars = nullptr;
-
-  // no need to delete the _pdfList since it is managed by the RooSimultaneous object
-  if (!_pdfList.empty()) {
-    _pdfList.clear();
-    _obsList.clear();
-    _gsList.clear();
-  }
+  _gsGlobalObs = nullptr;
+  _globalObsToGenerate = nullptr;
+  _globalObsPdf = nullptr;
 }
 
 } // end namespace RooStats

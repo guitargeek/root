@@ -494,14 +494,15 @@ TEST(RooProdPdf, JointlyNormalizedCompositeFactors)
 }
 
 // Make sure that the pdf that provides the expected number of events in a
-// RooProdPdf is not considered as a constraint. Covers JIRA issue ROOT-7604.
+// RooProdPdf contributes to the likelihood together with a constraint term.
+// Covers JIRA issue ROOT-7604.
 TEST(RooProdPdf, RooProdPdfWithExtendedTerm)
 {
    RooHelpers::LocalChangeMsgLevel changeMsgLvl(RooFit::WARNING);
 
    RooWorkspace ws;
    ws.factory("Gaussian::L_constraint(L_nom[10],L[10,0,20],0.2)");
-   ws.factory("PROD::full_model( RooExtendedTerm::model( L ) , L_constraint )");
+   ws.factory("PROD::full_model( RooExtendedTerm::model( L ) )");
 
    ws.factory("weightVar[10,0,100]");
    ws.factory("dummy_obs[1,0,1]");
@@ -509,7 +510,9 @@ TEST(RooProdPdf, RooProdPdfWithExtendedTerm)
    RooDataSet data("data", "data", *ws.set("obs"), RooFit::WeightVar("weightVar"));
    data.add(*ws.set("obs"), 5);
 
-   std::unique_ptr<RooAbsReal> nll1{ws.pdf("full_model")->createNLL(data)};
+   // The constraint term is no part of the pdf
+   std::unique_ptr<RooAbsReal> nll1{
+      ws.pdf("full_model")->createNLL(data, RooFit::ExternalConstraints(*ws.pdf("L_constraint")))};
    double refVal = -std::log(ROOT::Math::gaussian_pdf(10, 0.2, 10)) + (10. - 5 * std::log(10.));
    double nll1Val = nll1->getVal();
    EXPECT_FLOAT_EQ(nll1Val, refVal);

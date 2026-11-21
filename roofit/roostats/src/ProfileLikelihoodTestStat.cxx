@@ -108,12 +108,9 @@ double RooStats::ProfileLikelihoodTestStat::EvaluateProfileLikelihood(int type, 
 
        bool created(false) ;
        if (!reuse || fNll==nullptr) {
-          std::unique_ptr<RooArgSet> allParams{fPdf->getParameters(data)};
-          RooStats::RemoveConstantParameters(&*allParams);
-
-          // need to call constrain for RooSimultaneous until stripDisconnected problem fixed
-          fNll = std::unique_ptr<RooAbsReal>{fPdf->createNLL(data, RooFit::CloneData(false),RooFit::Constrain(*allParams),
-                                 RooFit::GlobalObservables(fGlobalObs), RooFit::ConditionalObservables(fConditionalObs), RooFit::Offset(fLOffset))};
+          // The ModelConfig passes the constraint terms and the global and
+          // conditional observables of the model to the likelihood.
+          fNll = fModel->createNLL(data, RooFit::CloneData(false), RooFit::Offset(fLOffset));
 
           if (fPrintLevel > 0) {
              oocoutI(nullptr,Eval) << "ProfileLikelihoodTestStat::Evaluate - Use Offset mode \""

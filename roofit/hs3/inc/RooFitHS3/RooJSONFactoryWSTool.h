@@ -263,6 +263,11 @@ public:
    /// `dist`, besides those that its modifiers name, or nullptr if there are none.
    std::vector<RooFit::HS3::DistributionRef> const *channelConstraints(std::string const &dist) const;
 
+   /// Record the constraint terms that come with the distribution `dist` that is currently being imported, e.g. the
+   /// ones of the modifiers of a HistFactory channel. In RooFit, constraint terms are no part of a distribution: they
+   /// become external constraints of the ModelConfig of every model that has the distribution.
+   void recordImportedConstraints(std::string const &dist, RooArgSet const &constraints);
+
    /// Whether the constraint term `pdf` contributes to the likelihoods of the document that is currently being
    /// imported as a component of a combined distribution with data, by itself or as a component of an array
    /// distribution. It is then a measurement of its own, and must not be multiplied into the distributions that

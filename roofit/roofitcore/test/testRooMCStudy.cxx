@@ -136,31 +136,6 @@ TEST(RooMCStudy, GenParDataSetExternalConstraints)
    EXPECT_NEAR(ssum / nToys, 7.0, 1.0);
 }
 
-/// The internal-constraints behavior that worked before GitHub issue #9490
-/// must be unchanged: per-toy sampled parameters in genParDataSet, and
-/// "<name>_gen" columns merged into fitParDataSet.
-TEST(RooMCStudy, GenParDataSetInternalConstraints)
-{
-   RooRandom::randomGenerator()->SetSeed(4357);
-   RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING};
-
-   RooWorkspace ws;
-   fillModel(ws);
-   ws.factory("Gaussian::constraint(s, cm[7], cs[0.5])");
-   ws.factory("PROD::prodpdf({pdf,constraint})");
-
-   const int nToys = 3;
-   RooMCStudy mcstudy{*ws.pdf("prodpdf"), *ws.var("x"), RooFit::Constrain(*ws.var("s")), RooFit::Silence(),
-                      RooFit::FitOptions(RooFit::PrintLevel(-1))};
-   mcstudy.generateAndFit(nToys, 200);
-
-   RooDataSet const *genParData = mcstudy.genParDataSet();
-   ASSERT_NE(genParData, nullptr);
-   EXPECT_EQ(genParData->numEntries(), nToys);
-   EXPECT_NE(genParData->get()->find("s"), nullptr);
-   EXPECT_NE(mcstudy.fitParDataSet().get()->find("s_gen"), nullptr);
-}
-
 /// Covers GitHub issue #12387: the FitGauss() command argument should work
 /// not only for plotPull(), but also for the functions that plot the fitted
 /// values, their errors and the NLL distribution, because users need Gaussian

@@ -85,6 +85,7 @@ void MCMCCalculator::SetModel(const ModelConfig & model) {
    fNuisParams.removeAll();
    fConditionalObs.removeAll();
    fGlobalObs.removeAll();
+   fExternalConstraints.removeAll();
    if (model.GetParametersOfInterest())
       fPOI.add(*model.GetParametersOfInterest());
    if (model.GetNuisanceParameters())
@@ -93,6 +94,9 @@ void MCMCCalculator::SetModel(const ModelConfig & model) {
       fConditionalObs.add( *(model.GetConditionalObservables() ) );
    if (model.GetGlobalObservables())
       fGlobalObs.add( *(model.GetGlobalObservables() ) );
+   // the constraint terms are no part of the pdf
+   if (model.GetExternalConstraints())
+      fExternalConstraints.add( *(model.GetExternalConstraints() ) );
 
 }
 
@@ -152,15 +156,14 @@ MCMCInterval* MCMCCalculator::GetInterval() const
    bool usePriorPdf = (fPriorPdf != nullptr);
    if (useDefaultPropFunc) fPropFunc = new UniformProposal();
 
-   // if prior is given create product
-   RooAbsPdf * prodPdf = fPdf;
+   // The constraint terms are no part of the pdf and are passed separately.
+   // The prior multiplies the likelihood like a constraint term.
+   RooArgSet constraintsAndPrior{fExternalConstraints};
    if (usePriorPdf) {
-      TString prodName = TString("product_") + TString(fPdf->GetName()) + TString("_") + TString(fPriorPdf->GetName() );
-      prodPdf = new RooProdPdf(prodName,prodName,RooArgList(*fPdf,*fPriorPdf) );
+      constraintsAndPrior.add(*fPriorPdf);
    }
 
-   std::unique_ptr<RooArgSet> constrainedParams{prodPdf->getParameters(*fData)};
-   std::unique_ptr<RooAbsReal> nll{prodPdf->createNLL(*fData, Constrain(*constrainedParams),ConditionalObservables(fConditionalObs),GlobalObservables(fGlobalObs))};
+   std::unique_ptr<RooAbsReal> nll{fPdf->createNLL(*fData, ExternalConstraints(constraintsAndPrior),ConditionalObservables(fConditionalObs),GlobalObservables(fGlobalObs))};
 
    std::unique_ptr<RooArgSet> params{nll->getParameters(*fData)};
    RemoveConstantParameters(&*params);
@@ -203,7 +206,6 @@ MCMCInterval* MCMCCalculator::GetInterval() const
    interval->SetConfidenceLevel(1.0 - fSize);
 
    if (useDefaultPropFunc) delete fPropFunc;
-   if (usePriorPdf) delete prodPdf;
 
    return interval;
 }

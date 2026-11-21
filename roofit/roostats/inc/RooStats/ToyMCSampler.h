@@ -86,7 +86,7 @@ class ToyMCSampler: public TestStatSampler {
       );
 
 
-      /// The pdf can be nullptr in which case the density from SetPdf()
+      /// The pdf can be nullptr in which case the density from SetModel()
       /// is used. The snapshot and TestStatistic is also optional.
       virtual void AddTestStatistic(TestStatistic* t = nullptr) {
          if( t == nullptr ) {
@@ -111,7 +111,7 @@ class ToyMCSampler: public TestStatSampler {
       virtual RooAbsData* GenerateToyData(RooArgSet& paramPoint, double& weight) const { return GenerateToyData(paramPoint,weight,*fPdf); }
 
       /// generate global observables
-      virtual void GenerateGlobalObservables(RooAbsPdf& pdf) const;
+      virtual void GenerateGlobalObservables() const;
 
 
       /// Main interface to evaluate the test statistic on a dataset
@@ -156,7 +156,12 @@ class ToyMCSampler: public TestStatSampler {
          fParametersForTestStat = std::move(params);
       }
 
-      void SetPdf(RooAbsPdf& pdf) override { fPdf = &pdf; ClearCache(); }
+      /// Set the model to generate the toys from. The observables are
+      /// generated from its pdf. If global observables are set with
+      /// SetGlobalObservables(), they are generated from the constraint terms
+      /// of the model (see ModelConfig::GetExternalConstraints()), which are
+      /// no part of the pdf. The model needs to outlive the sampler.
+      void SetModel(const ModelConfig& model) override { fModel = &model; fPdf = model.GetPdf(); ClearCache(); }
 
       /// How to randomize the prior. Set to nullptr to deactivate randomization.
       void SetPriorNuisance(RooAbsPdf* pdf) override {
@@ -170,7 +175,9 @@ class ToyMCSampler: public TestStatSampler {
       void SetNuisanceParameters(const RooArgSet& np) override { fNuisancePars = &np; }
       /// specify the observables in the dataset (needed to evaluate the test statistic)
       void SetObservables(const RooArgSet& o) override { fObservables = &o; }
-      /// specify the conditional observables
+      /// Specify the global observables to generate for each toy from the
+      /// constraint terms of the model. If they are not set, the global
+      /// observables keep their values (conditional ensemble).
       void SetGlobalObservables(const RooArgSet& o) override { fGlobalObservables = &o; }
 
 
@@ -241,9 +248,14 @@ class ToyMCSampler: public TestStatSampler {
       /// helper method for clearing  the cache
       virtual void ClearCache();
 
+      /// All variables of the model: the ones of the pdf and the ones of its
+      /// constraint terms, which includes the global observables.
+      std::unique_ptr<RooArgSet> GetAllVariables() const;
+
 
       /// densities, snapshots, and test statistics to reweight to
-      RooAbsPdf *fPdf = nullptr; ///< model (can be alt or null)
+      const ModelConfig *fModel = nullptr; ///< model (can be alt or null)
+      RooAbsPdf *fPdf = nullptr; ///< pdf of the model
       std::unique_ptr<const RooArgSet> fParametersForTestStat;
       std::vector<TestStatistic*> fTestStatistics;
 
@@ -277,10 +289,9 @@ class ToyMCSampler: public TestStatSampler {
       mutable NuisanceParametersSampler *fNuisanceParametersSampler = nullptr; ///<!
 
       // objects below cache information and are mutable and non-persistent
-      mutable std::unique_ptr<RooArgSet> _allVars; ///<!
-      mutable std::vector<RooAbsPdf*> _pdfList;    ///<! We don't own those objects
-      mutable std::vector<std::unique_ptr<RooArgSet>> _obsList;         ///<!
-      mutable std::vector<std::unique_ptr<RooAbsPdf::GenSpec>> _gsList; ///<!
+      mutable std::unique_ptr<RooAbsPdf> _globalObsPdf;            ///<! Product of the constraint terms
+      mutable std::unique_ptr<RooArgSet> _globalObsToGenerate;     ///<! Global observables the constraint terms depend on
+      mutable std::unique_ptr<RooAbsPdf::GenSpec> _gsGlobalObs;    ///<! GenSpec for the global observables
       mutable std::unique_ptr<RooAbsPdf::GenSpec> _gs1; ///<! GenSpec #1
       mutable std::unique_ptr<RooAbsPdf::GenSpec> _gs2; ///<! GenSpec #2
       mutable std::unique_ptr<RooAbsPdf::GenSpec> _gs3; ///<! GenSpec #3
