@@ -17,6 +17,7 @@
 #include <RooAbsCategoryLValue.h>
 #include <RooExtendPdf.h>
 #include <RooGlobalFunc.h>
+#include <RooMsgService.h>
 #include <RooProdPdf.h>
 #include <RooSimultaneous.h>
 #include <RooWorkspace.h>
@@ -25,6 +26,8 @@
 
 #include <algorithm>
 #include <map>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -40,12 +43,16 @@ RooArgSet const *registeredConstraintTerms(RooWorkspace const &ws)
 // Removes the constraint terms from a pdf, for RooFit::splitOffConstraints().
 class ConstraintStripper {
 public:
-   ConstraintStripper(RooArgSet const &observables, RooArgSet &constraints) : _constraints{constraints}
+   // The stripper removes the given constraint factors, see findConstraintFactors(), from their products.
+   ConstraintStripper(std::vector<ConstraintFactor> const &factors, RooArgSet &constraints) : _constraints{constraints}
    {
-      for (RooAbsArg const *observable : observables) {
-         _observables.insert(observable->namePtr());
+      for (ConstraintFactor const &factor : factors) {
+         _factorsOfProduct[factor.product].insert(factor.pdf);
       }
    }
+
+   // The original factors that were removed from their products.
+   std::unordered_set<RooAbsArg const *> const &removedFactors() const { return _removedFactors; }
 
    // The pdf without its constraint terms: the pdf itself if it has none, another node of its tree if only that one
    // is left of a product, or a new node, which is kept in newNodes().
@@ -116,9 +123,15 @@ private:
    RooAbsPdf *strip(RooProdPdf &prod)
    {
       RooArgSet removed;
-      for (ConstraintFactor const &factor : findConstraintFactors(prod, _observables)) {
-         addConstraint(*factor.pdf);
-         removed.add(*factor.pdf);
+      auto found = _factorsOfProduct.find(&prod);
+      if (found != _factorsOfProduct.end()) {
+         for (auto *factor : static_range_cast<RooAbsPdf *>(prod.pdfList())) {
+            if (found->second.count(factor)) {
+               addConstraint(*factor);
+               removed.add(*factor);
+               _removedFactors.insert(factor);
+            }
+         }
       }
       // The other factors can have constraint terms of their own.
       std::unordered_map<RooAbsArg *, RooAbsArg *> replacements;
@@ -167,7 +180,8 @@ private:
          std::make_unique<RooExtendPdf>(newName(extended).c_str(), extended.GetTitle(), *stripped, n, rangeName));
    }
 
-   std::unordered_set<TNamed const *> _observables;
+   std::unordered_map<RooAbsArg const *, std::unordered_set<RooAbsArg const *>> _factorsOfProduct;
+   std::unordered_set<RooAbsArg const *> _removedFactors;
    RooArgSet &_constraints;
    std::vector<std::unique_ptr<RooAbsPdf>> _newNodes;
    std::unordered_map<RooAbsPdf *, RooAbsPdf *> _stripped;
@@ -339,10 +353,16 @@ RooFit::generateGlobalObservables(RooAbsCollection const &constraints, RooArgSet
 ///
 /// A constraint term is a factor of a RooProdPdf that depends on none of the
 /// observables, can't be extended, and depends on at least one parameter of
-/// the other factors of the product. They are looked for in the pdf itself,
-/// in the channels of a RooSimultaneous, in the factors of a RooProdPdf, and
-/// in the pdf of a RooExtendPdf. A RooProdPdf that groups constraint terms is
-/// replaced by its factors.
+/// the rest of the model: not only of the other factors of the product, but
+/// also e.g. of another channel of a RooSimultaneous, or of another constraint
+/// term. This is the rule with which RooAbsPdf::createNLL() refuses such a
+/// pdf, except that constant parameters count here as well. A RooProdPdf that
+/// groups constraint terms is replaced by its factors.
+///
+/// The pdf is rebuilt through RooSimultaneous, RooProdPdf and RooExtendPdf. If
+/// a constraint term is a factor of a product that can't be reached in this
+/// way, e.g. a product that is a component of a RooAddPdf, an exception is
+/// thrown.
 ///
 /// The original pdf is not changed. The new pdf shares all nodes with it that
 /// have no constraint terms, and owns the ones that had to be created, which
@@ -357,10 +377,33 @@ RooFit::generateGlobalObservables(RooAbsCollection const &constraints, RooArgSet
 
 RooFit::SplitPdf RooFit::splitOffConstraints(RooAbsPdf const &pdf, RooArgSet const &observables)
 {
+   std::unordered_set<TNamed const *> observableNames;
+   for (RooAbsArg const *observable : observables) {
+      observableNames.insert(observable->namePtr());
+   }
+   const std::vector<ConstraintFactor> factors = findConstraintFactors(pdf, observableNames);
+
    SplitPdf out;
-   ConstraintStripper stripper{observables, out.constraints};
+   ConstraintStripper stripper{factors, out.constraints};
    auto &original = const_cast<RooAbsPdf &>(pdf);
    RooAbsPdf *stripped = stripper.strip(original);
+
+   // A constraint factor that was not removed is in a part of the pdf that can't be rebuilt. It would be left in the
+   // pdf, where it cancels, and its parameters would be unconstrained. The factors of a product that groups
+   // constraint terms are taken with the group.
+   for (ConstraintFactor const &factor : factors) {
+      if (!stripper.removedFactors().count(factor.pdf) && !out.constraints.containsInstance(*factor.pdf)) {
+         std::stringstream ss;
+         ss << "RooFit::splitOffConstraints(): the constraint term \"" << factor.pdf->GetName()
+            << "\" is a factor of the RooProdPdf \"" << factor.product->GetName()
+            << "\", which can't be rebuilt without it: only RooSimultaneous, RooProdPdf and RooExtendPdf are "
+               "rebuilt, so the product must be reachable through them from the pdf \""
+            << pdf.GetName() << "\".";
+         oocoutE(&pdf, InputArguments) << ss.str() << std::endl;
+         throw std::runtime_error(ss.str());
+      }
+   }
+
    if (stripped == &original) {
       return out;
    }

@@ -59,6 +59,8 @@ used for coverage studies, the Neyman Construction, etc.
 
       /// Set the model to sample from: its pdf is the distribution of the
       /// observables and its constraint terms the one of the global observables.
+      /// The observables, nuisance parameters and global observables are the
+      /// ones of the model.
       virtual void SetModel(const ModelConfig&) = 0;
 
       /// How to randomize the prior. Set to nullptr to deactivate randomization.
@@ -66,13 +68,6 @@ used for coverage studies, the Neyman Construction, etc.
 
       /// specify the values of parameters used when evaluating test statistic
       virtual void SetParametersForTestStat(const RooArgSet& /*nullpoi*/) = 0;
-
-      /// specify the nuisance parameters (eg. the rest of the parameters)
-      virtual void SetNuisanceParameters(const RooArgSet&) = 0;
-      /// specify the observables in the dataset (needed to evaluate the test statistic)
-      virtual void SetObservables(const RooArgSet& ) = 0;
-      /// specify the global observables to sample together with the observables
-      virtual void SetGlobalObservables(const RooArgSet& ) = 0;
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
       virtual void SetTestSize(double size) = 0;

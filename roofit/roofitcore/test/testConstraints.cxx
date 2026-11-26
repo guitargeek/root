@@ -9,6 +9,7 @@
 #include <RooCategory.h>
 #include <RooDataSet.h>
 #include <RooExtendPdf.h>
+#include <RooFitResult.h>
 #include <RooHelpers.h>
 #include <RooProdPdf.h>
 #include <RooRealVar.h>
@@ -22,6 +23,9 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 namespace {
 
@@ -465,4 +469,156 @@ TEST_F(Constraints, SplitOffKeepsConditionalFactors)
    RooArgSet *nset = prod->findPdfNSet(pdf("sigA"));
    ASSERT_NE(nset, nullptr);
    EXPECT_EQ(names(*nset), Names{"x"});
+}
+
+// A constraint term can be a factor of a channel that doesn't depend on its parameter, as in models built for
+// statistics tools that collected the constraint terms from all channels. It cancels there too, so the likelihood
+// refuses the pdf, and splitOffConstraints() separates the term.
+TEST_F(Constraints, ConstraintOfOtherChannelInProduct)
+{
+   ws.factory("PROD::chA(sigA, cBeta)");
+   ws.factory("SIMUL::combined(channel, A=chA, B=sigB)");
+   std::unique_ptr<RooDataSet> data = makeData();
+   EXPECT_THROW(std::unique_ptr<RooAbsReal>{pdf("combined").createNLL(*data)}, std::runtime_error);
+
+   RooFit::SplitPdf split = RooFit::splitOffConstraints(pdf("combined"), {*ws.var("x"), *ws.cat("channel")});
+   EXPECT_EQ(names(split.constraints), Names{"cBeta"});
+   auto *sim = dynamic_cast<RooSimultaneous *>(split.pdf.get());
+   ASSERT_NE(sim, nullptr);
+   EXPECT_EQ(sim->getPdf("A"), &pdf("sigA"));
+   EXPECT_EQ(sim->getPdf("B"), &pdf("sigB"));
+}
+
+// A constraint term of a parameter of another constraint term, e.g. of its width, is a constraint term as well.
+TEST_F(Constraints, ConstraintOfConstraintParameter)
+{
+   ws.factory("Gaussian::cAlphaWide(gAlpha, alpha, width[1.0, 0.1, 10.0])");
+   ws.factory("Gaussian::cWidth(gWidth[1.0, 0.1, 10.0], width, 0.1)");
+   ws.var("gWidth")->setConstant(true);
+   ws.factory("PROD::withWidth(sigA, cAlphaWide, cWidth)");
+   RooFit::SplitPdf split = RooFit::splitOffConstraints(pdf("withWidth"), {*ws.var("x")});
+   EXPECT_EQ(names(split.constraints), (Names{"cAlphaWide", "cWidth"}));
+   ASSERT_NE(split.pdf, nullptr);
+   EXPECT_STREQ(split.pdf->GetName(), "sigA");
+}
+
+// splitOffConstraints() can't rebuild every pdf. If it can't remove a constraint term, it throws instead of leaving
+// the term in the pdf.
+TEST_F(Constraints, SplitOffThrowsIfItCantRemoveATerm)
+{
+   ws.factory("Uniform::flat(x)");
+   ws.factory("SUM::mixture(f[0.5, 0, 1] * PROD::sigAConstrained(sigA, cAlpha), flat)");
+   RooHelpers::HijackMessageStream hijack{RooFit::ERROR, RooFit::InputArguments};
+   try {
+      RooFit::splitOffConstraints(pdf("mixture"), {*ws.var("x")});
+      FAIL() << "expected an exception";
+   } catch (std::runtime_error const &e) {
+      EXPECT_NE(std::string(e.what()).find("\"cAlpha\" is a factor of the RooProdPdf \"sigAConstrained\""),
+                std::string::npos)
+         << e.what();
+   }
+}
+
+// A likelihood of a pdf for whose parameters the workspace has constraint terms must get these constraint terms, or
+// say with an empty set that it has none. Otherwise, the parameters would be silently unconstrained.
+TEST_F(Constraints, ForgottenConstraintTerms)
+{
+   RooHelpers::HijackMessageStream hijack{RooFit::ERROR, RooFit::InputArguments};
+   std::unique_ptr<RooDataSet> data = makeData();
+   auto createNLL = [&](RooAbsPdf &p, auto const &...args) {
+      return std::unique_ptr<RooAbsReal>{p.createNLL(*data, args...)};
+   };
+
+   // The workspace knows no constraint terms.
+   EXPECT_NO_THROW(createNLL(pdf("model")));
+
+   const RooArgSet constraints{pdf("cAlpha"), pdf("cBeta")};
+   addModelConfig("mc", "model", &constraints);
+   auto &mc = static_cast<RooFit::ModelConfig &>(*ws.obj("mc"));
+
+   EXPECT_THROW(createNLL(pdf("model")), std::runtime_error);
+   // Also for a component of the model with constrained parameters.
+   EXPECT_THROW(createNLL(pdf("sigA")), std::runtime_error);
+   try {
+      createNLL(pdf("model"));
+   } catch (std::runtime_error const &e) {
+      EXPECT_NE(std::string(e.what()).find("ModelConfig::createNLL()"), std::string::npos) << e.what();
+   }
+   // The constraint terms are passed, or explicitly none.
+   EXPECT_NO_THROW(createNLL(pdf("model"), RooFit::ExternalConstraints(constraints)));
+   EXPECT_NO_THROW(createNLL(pdf("model"), RooFit::ExternalConstraints(RooArgSet{})));
+   EXPECT_NO_THROW(mc.createNLL(*data));
+   EXPECT_NO_THROW(mc.fitTo(*data, RooFit::PrintLevel(-1)));
+
+   // A ModelConfig without constraint terms says that its likelihood has none, also if another ModelConfig of the
+   // same pdf has some.
+   addModelConfig("mcWithoutConstraints", "model");
+   EXPECT_NO_THROW(static_cast<RooFit::ModelConfig &>(*ws.obj("mcWithoutConstraints")).createNLL(*data));
+
+   // A pdf in no ModelConfig gets the constraint terms that the workspace knows.
+   ws.factory("Gaussian::sigAlpha(y, alpha, 1.0)");
+   RooDataSet dataY{"dataY", "dataY", *ws.var("y")};
+   dataY.add(*ws.var("y"));
+   EXPECT_THROW(std::unique_ptr<RooAbsReal>{pdf("sigAlpha").createNLL(dataY)}, std::runtime_error);
+}
+
+// The ModelConfig is the only link between the pdf and its constraint terms. validate() reports the constraint terms
+// that don't fit the model, and createNLL() and fitTo() check the same.
+TEST_F(Constraints, ValidateModelConfig)
+{
+   // gamma is no parameter of the model.
+   const RooArgSet constraints{pdf("cAlpha"), pdf("cGamma")};
+   addModelConfig("mc", "model", &constraints);
+   auto &mc = static_cast<RooFit::ModelConfig &>(*ws.obj("mc"));
+   std::unique_ptr<RooDataSet> data = makeData();
+   const std::string orphan = "\"cGamma\" depends on none of the parameters";
+   auto count = [](std::string const &text, std::string const &what) {
+      std::size_t n = 0;
+      for (auto pos = text.find(what); pos != std::string::npos; pos = text.find(what, pos + 1)) {
+         ++n;
+      }
+      return n;
+   };
+   {
+      RooHelpers::HijackMessageStream hijack{RooFit::WARNING, RooFit::InputArguments};
+      EXPECT_FALSE(mc.validate());
+      EXPECT_EQ(count(hijack.str(), orphan), 1u) << hijack.str();
+   }
+   // The likelihood reports it once.
+   {
+      RooHelpers::HijackMessageStream hijack{RooFit::WARNING, RooFit::InputArguments};
+      std::unique_ptr<RooAbsReal> nll1{mc.createNLL(*data)};
+      std::unique_ptr<RooAbsReal> nll2{mc.createNLL(*data)};
+      EXPECT_EQ(count(hijack.str(), orphan), 1u) << hijack.str();
+   }
+
+   // A constraint term that depends on an observable is an error.
+   ws.factory("Gaussian::cX(x, alpha, 1.0)");
+   mc.SetExternalConstraints(RooArgSet{pdf("cAlpha"), pdf("cX")});
+   {
+      RooHelpers::HijackMessageStream hijack{RooFit::ERROR, RooFit::InputArguments};
+      EXPECT_FALSE(mc.validate());
+      EXPECT_THROW(mc.createNLL(*data), std::runtime_error);
+   }
+
+   mc.SetExternalConstraints(RooArgSet{pdf("cAlpha"), pdf("cBeta"), pdf("cMu")});
+   EXPECT_TRUE(mc.validate());
+}
+
+// Constraint terms that are passed to ModelConfig::createNLL() are added to the ones of the ModelConfig, e.g. a prior.
+TEST_F(Constraints, ModelConfigLikelihoodWithAdditionalConstraint)
+{
+   const RooArgSet constraints{pdf("cAlpha"), pdf("cBeta")};
+   addModelConfig("mc", "model", &constraints);
+   auto &mc = static_cast<RooFit::ModelConfig &>(*ws.obj("mc"));
+   mc.SetGlobalObservables("gAlpha,gBeta,gMu");
+   std::unique_ptr<RooDataSet> data = makeData();
+
+   ws.var("alpha")->setVal(0.4);
+   ws.var("mu")->setVal(-0.7);
+   std::unique_ptr<RooAbsReal> nll{mc.createNLL(*data)};
+   std::unique_ptr<RooAbsReal> nllWithPrior{mc.createNLL(*data, RooFit::ExternalConstraints(pdf("cMu")))};
+   RooArgSet gMu{*ws.var("gMu")};
+   const double expected = nll->getVal() - std::log(pdf("cMu").getVal(gMu));
+   EXPECT_NEAR(nllWithPrior->getVal(), expected, 1e-10 * std::abs(expected));
 }

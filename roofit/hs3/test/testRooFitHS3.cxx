@@ -21,6 +21,7 @@
 #include <RooDataSet.h>
 #include <RooExtendPdf.h>
 #include <RooExponential.h>
+#include <RooFit/Constraints.h>
 #include <RooFit/ModelConfig.h>
 #include <RooFitResult.h>
 #include <RooFormulaVar.h>
@@ -3334,6 +3335,31 @@ TEST(RooFitHS3, HistFactoryConstraintTermsInLikelihood)
       "aux_distributions": ["alpha_a_constraint"]})"));
    // The six constraint data sets, and the merged data of both channels with its two sub-data sets.
    EXPECT_EQ(plainWithData["data"].num_children(), 9u);
+   // Without the "misc" section, which says how RooFit wrote the model, the terms paired with data are recognized as
+   // constraint terms of the channels whose modifiers name them: they are no channels, and the observed values of
+   // their observables are global observables. The likelihood is the same.
+   {
+      auto tree = RooFit::Detail::JSONTree::create(plainWithData.json());
+      tree->rootnode().erase("misc");
+      std::stringstream withoutMisc;
+      tree->rootnode().writeJSON(withoutMisc);
+      Imported ws4{withoutMisc.str()};
+      const std::vector<RooFit::ModelConfig *> mcs = RooFit::modelConfigs(ws4);
+      ASSERT_EQ(mcs.size(), 1u);
+      RooFit::ModelConfig &mc = *mcs.front();
+      auto *simPdf = dynamic_cast<RooSimultaneous *>(mc.GetPdf());
+      ASSERT_NE(simPdf, nullptr);
+      EXPECT_EQ(simPdf->indexCat().size(), 2);
+      EXPECT_EQ(externalConstraintNames(ws4, mc.GetName()).size(), 7u);
+      ASSERT_NE(mc.GetGlobalObservables(), nullptr);
+      EXPECT_NE(mc.GetGlobalObservables()->find("nom_gamma_c1_0"), nullptr);
+      EXPECT_EQ(mc.GetObservables()->find("nom_gamma_c1_0"), nullptr);
+      EXPECT_DOUBLE_EQ(ws4.var("nom_gamma_c1_0")->getVal(), 120.0);
+      EXPECT_TRUE(
+         sameNumbers(likelihoodScan(ws4, mc.GetName(), "an_data"), likelihoodScan(ws, "an", "an_data"), 1e-10));
+   }
+
+   // Last, because twoChannelNLL() moves the parameters of `ws` away from the values of the export.
    {
       Imported ws4{plainWithData};
       const double nll = twoChannelNLL(ws, twoChannelPoint);

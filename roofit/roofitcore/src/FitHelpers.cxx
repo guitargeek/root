@@ -817,6 +817,11 @@ std::unique_ptr<RooAbsReal> createNLL(RooAbsPdf &pdf, RooAbsData &data, const Ro
       return nullptr;
    }
 
+   // An ExternalConstraints() argument says which constraint terms the likelihood has, also if it is empty.
+   if (!pc.hasProcessed("ExternalConstraints")) {
+      checkForForgottenConstraints(pdf);
+   }
+
    if (pc.getInt("ModularL")) {
       int lut[3] = {2, 1, 0};
       RooFit::TestStatistics::RooAbsL::Extended ext{

@@ -947,6 +947,24 @@ class RooWorkspace_test(unittest.TestCase):
         self.assertEqual(poi.size(), 1)
         self.assertIn("SigXsecOverSM", poi)
 
+        # The constraint terms are no part of the pdf: the model config has
+        # them as external constraints, so that its likelihood has them.
+        constraints = model_config.GetExternalConstraints()
+        self.assertTrue(constraints)
+        self.assertEqual(
+            sorted(c.GetName() for c in constraints),
+            [
+                "alpha_syst1Constraint",
+                "alpha_syst2Constraint",
+                "alpha_syst3Constraint",
+                "gamma_stat_channel1_bin_0_constraint",
+                "gamma_stat_channel1_bin_1_constraint",
+                "lumiConstraint",
+            ],
+        )
+        nll = model_config.createNLL(obs_data)
+        self.assertTrue(nll.getComponents().find("nll_model_channel1_obsData_channel1_constr"))
+
 
 if __name__ == "__main__":
     unittest.main()

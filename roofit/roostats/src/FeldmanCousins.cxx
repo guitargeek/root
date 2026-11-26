@@ -113,8 +113,6 @@ void FeldmanCousins::CreateTestStatSampler() const{
   // create the ToyMC test statistic sampler
   fTestStatSampler = new ToyMCSampler(*testStatistic,int(fAdditionalNToysFactor*50./fSize)) ;
   fTestStatSampler->SetParametersForTestStat(*fModel.GetParametersOfInterest() );
-  if(fModel.GetObservables())
-    fTestStatSampler->SetObservables(*fModel.GetObservables());
   fTestStatSampler->SetModel(fModel);
 
   if(!fAdaptiveSampling){
@@ -222,8 +220,6 @@ PointSetInterval* FeldmanCousins::GetInterval() const {
   // create the test statistic sampler (private data member fTestStatSampler)
   if(!fTestStatSampler)
     this->CreateTestStatSampler();
-
-  fTestStatSampler->SetObservables(*fModel.GetObservables());
 
   if(!fFluctuateData)
     fTestStatSampler->SetNEventsPerToy(fData.numEntries());

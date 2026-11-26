@@ -33,13 +33,16 @@ void checkForConstraintsInProducts(RooAbsPdf const &pdf, RooAbsData const &data)
 
 /// A factor of a RooProdPdf that is a constraint term, see findConstraintFactors().
 struct ConstraintFactor {
-   RooAbsPdf *pdf = nullptr;
-   RooArgSet parameters; ///< The parameters that it shares with the factors that are no constraint terms.
+   RooProdPdf const *product = nullptr; ///< The product that has the factor.
+   RooAbsPdf *pdf = nullptr;            ///< The factor.
+   RooArgSet parameters;                ///< The parameters that it shares with the rest of the model.
 };
 
-std::vector<ConstraintFactor> findConstraintFactors(RooProdPdf const &prod,
+std::vector<ConstraintFactor> findConstraintFactors(RooAbsPdf const &pdf,
                                                     std::unordered_set<TNamed const *> const &observables,
                                                     std::unordered_set<TNamed const *> const *parameters = nullptr);
+
+void checkForForgottenConstraints(RooAbsPdf const &pdf);
 
 #endif
 

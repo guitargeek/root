@@ -169,7 +169,7 @@ bool ToyMCSampler::CheckConfig(void) {
    bool goodConfig = true;
 
    if(fTestStatistics.empty() || fTestStatistics[0] == nullptr) { ooccoutE(nullptr,InputArguments) << "Test statistic not set." << std::endl; goodConfig = false; }
-   if(!fObservables) { ooccoutE(nullptr,InputArguments) << "Observables not set." << std::endl; goodConfig = false; }
+   if(!Observables()) { ooccoutE(nullptr,InputArguments) << "Observables not set." << std::endl; goodConfig = false; }
    if(!fParametersForTestStat) { ooccoutE(nullptr,InputArguments) << "Parameter values used to evaluate the test statistic are not set." << std::endl; goodConfig = false; }
    if(!fPdf) { ooccoutE(nullptr,InputArguments) << "Model not set." << std::endl; goodConfig = false; }
 
@@ -317,7 +317,7 @@ RooDataSet* ToyMCSampler::GetSamplingDistributionsSingleWorker(RooArgSet& paramP
 
       const RooArgList* allTS = EvaluateAllTestStatistics(*toydata, *fParametersForTestStat, detOutAgg);
       if (allTS->size() > fTestStatistics.size())
-        detOutAgg.AppendArgSet( fGlobalObservables, "globObs_" );
+        detOutAgg.AppendArgSet( GlobalObservablesToGenerate(), "globObs_" );
       if (RooRealVar* firstTS = dynamic_cast<RooRealVar*>(allTS->first()))
          valueFirst = firstTS->getVal();
 
@@ -351,7 +351,8 @@ RooDataSet* ToyMCSampler::GetSamplingDistributionsSingleWorker(RooArgSet& paramP
 
 void ToyMCSampler::GenerateGlobalObservables() const {
 
-   if(!fGlobalObservables  ||  fGlobalObservables->empty()) {
+   RooArgSet const *globalObservables = GlobalObservablesToGenerate();
+   if(!globalObservables  ||  globalObservables->empty()) {
       ooccoutE(nullptr,InputArguments) << "Global Observables not set." << std::endl;
       return;
    }
@@ -368,9 +369,9 @@ void ToyMCSampler::GenerateGlobalObservables() const {
          return;
       }
       // Only the global observables that the constraint terms depend on can be generated
-      _globalObsToGenerate = std::unique_ptr<RooArgSet>{_globalObsPdf->getObservables(*fGlobalObservables)};
-      if (_globalObsToGenerate->size() != fGlobalObservables->size()) {
-         RooArgSet notGenerated{*fGlobalObservables};
+      _globalObsToGenerate = std::unique_ptr<RooArgSet>{_globalObsPdf->getObservables(*globalObservables)};
+      if (_globalObsToGenerate->size() != globalObservables->size()) {
+         RooArgSet notGenerated{*globalObservables};
          notGenerated.remove(*_globalObsToGenerate, true, true);
          ooccoutW(nullptr,InputArguments) << "ToyMCSampler: No constraint term of the model depends on the global observables "
                                           << notGenerated << ", so they are not generated." << std::endl;
@@ -420,7 +421,7 @@ std::unique_ptr<RooArgSet> ToyMCSampler::GetAllVariables() const {
 
 RooAbsData* ToyMCSampler::GenerateToyData(RooArgSet& paramPoint, double& weight, RooAbsPdf& pdf) const {
 
-   if(!fObservables) {
+   if(!Observables()) {
       ooccoutE(nullptr,InputArguments) << "Observables not set." << std::endl;
       return nullptr;
    }
@@ -431,16 +432,19 @@ RooAbsData* ToyMCSampler::GenerateToyData(RooArgSet& paramPoint, double& weight,
 
 
    // create nuisance parameter points
-   if(!fNuisanceParametersSampler && fPriorNuisance && fNuisancePars) {
-      fNuisanceParametersSampler = new NuisanceParametersSampler(fPriorNuisance, fNuisancePars, fNToys, fExpectedNuisancePar);
+   if(!fNuisanceParametersSampler && fPriorNuisance && NuisanceParameters()) {
+      fNuisanceParametersSampler = new NuisanceParametersSampler(fPriorNuisance, NuisanceParameters(), fNToys, fExpectedNuisancePar);
       if ((fUseMultiGen || fgAlwaysUseMultiGen) &&  fNuisanceParametersSampler )
          oocoutI(nullptr,InputArguments) << "Cannot use multigen when nuisance parameters vary for every toy" << std::endl;
    }
 
    // generate global observables
-   RooArgSet observables(*fObservables);
-   if(fGlobalObservables  &&  !fGlobalObservables->empty()) {
-      observables.remove(*fGlobalObservables);
+   RooArgSet observables(*Observables());
+   if (RooArgSet const *globalObservables = fModel->GetGlobalObservables()) {
+      observables.remove(*globalObservables);
+   }
+   RooArgSet const *globalObservablesToGenerate = GlobalObservablesToGenerate();
+   if (globalObservablesToGenerate && !globalObservablesToGenerate->empty()) {
       GenerateGlobalObservables();
    }
 

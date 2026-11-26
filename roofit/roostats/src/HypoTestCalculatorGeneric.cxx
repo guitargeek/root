@@ -88,15 +88,13 @@ HypoTestCalculatorGeneric::HypoTestCalculatorGeneric(
 
 void HypoTestCalculatorGeneric::SetupSampler(const ModelConfig& model) const {
    fNullModel->LoadSnapshot();
-   fTestStatSampler->SetObservables(*fNullModel->GetObservables());
    fTestStatSampler->SetParametersForTestStat(*fNullModel->GetParametersOfInterest());
 
-   // for this model
+   // for this model, which also gives the observables, nuisance parameters and global observables
    model.LoadSnapshot();
    fTestStatSampler->SetSamplingDistName(model.GetName());
    fTestStatSampler->SetModel(model);
-   fTestStatSampler->SetNuisanceParameters(*model.GetNuisanceParameters());
-   // global observables or nuisance pdf will be set by the derived classes
+   // whether to generate the global observables or a nuisance pdf will be set by the derived classes
    // (e.g. Frequentist or HybridCalculator)
 }
 

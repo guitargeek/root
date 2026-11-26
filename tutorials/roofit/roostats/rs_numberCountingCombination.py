@@ -112,9 +112,12 @@ def rs_numberCountingCombination_expected():
 
     # Step 5, Create a calculator for doing the hypothesis test.
     # because this is a
-    plc = ROOT.RooStats.ProfileLikelihoodCalculator(
-        wspace["ExpectedNumberCountingData"], wspace["TopLevelPdf"], poi, 0.05, nullParams
-    )
+    # The calculator takes the model from a ModelConfig: here, the pdf and the parameter of interest.
+    modelConfig = ROOT.RooStats.ModelConfig("modelConfig", wspace)
+    modelConfig.SetPdf("TopLevelPdf")
+    modelConfig.SetParametersOfInterest(poi)
+    plc = ROOT.RooStats.ProfileLikelihoodCalculator(wspace["ExpectedNumberCountingData"], modelConfig)
+    plc.SetNullParameters(nullParams)
 
     # Step 6, Use the Calculator to get a HypoTestResult
     htr = plc.GetHypoTest()
@@ -134,9 +137,8 @@ def rs_numberCountingCombination_expected():
     # #Confidence Interval Stage
 
     # Step 8, Here we re-use the ProfileLikelihoodCalculator to return a confidence interval.
-    # We need to specify what are our parameters of interest
+    # The parameters of interest are the ones of the model
     paramsOfInterest = nullParams  # they are the same as before in this case
-    plc.SetParameters(paramsOfInterest)
     lrint = plc.GetInterval()
     lrint.SetConfidenceLevel(0.95)
 
@@ -281,9 +283,12 @@ def rs_numberCountingCombination_observed():
 
     # Step 5, Create a calculator for doing the hypothesis test.
     # because this is a
-    plc = ROOT.RooStats.ProfileLikelihoodCalculator(
-        wspace.data("ObservedNumberCountingData"), wspace.pdf("TopLevelPdf"), poi, 0.05, nullParams
-    )
+    # The calculator takes the model from a ModelConfig: here, the pdf and the parameter of interest.
+    modelConfig = ROOT.RooStats.ModelConfig("modelConfig", wspace)
+    modelConfig.SetPdf("TopLevelPdf")
+    modelConfig.SetParametersOfInterest(poi)
+    plc = ROOT.RooStats.ProfileLikelihoodCalculator(wspace.data("ObservedNumberCountingData"), modelConfig)
+    plc.SetNullParameters(nullParams)
 
     wspace.var("tau_0").Print()
     wspace.var("tau_1").Print()
@@ -307,9 +312,8 @@ def rs_numberCountingCombination_observed():
     # Confidence Interval Stage
 
     # Step 8, Here we re-use the ProfileLikelihoodCalculator to return a confidence interval.
-    # We need to specify what are our parameters of interest
+    # The parameters of interest are the ones of the model
     paramsOfInterest = nullParams  # they are the same as before in this case
-    plc.SetParameters(paramsOfInterest)
     lrint = plc.GetInterval()
     lrint.SetConfidenceLevel(0.95)
 
@@ -379,9 +383,12 @@ def rs_numberCountingCombination_observedWithTau():
 
     # Step 5, Create a calculator for doing the hypothesis test.
     # because this is a
-    plc = ROOT.RooStats.ProfileLikelihoodCalculator(
-        wspace.data("ObservedNumberCountingDataWithSideband"), wspace.pdf("TopLevelPdf"), poi, 0.05, nullParams
-    )
+    # The calculator takes the model from a ModelConfig: here, the pdf and the parameter of interest.
+    modelConfig = ROOT.RooStats.ModelConfig("modelConfig", wspace)
+    modelConfig.SetPdf("TopLevelPdf")
+    modelConfig.SetParametersOfInterest(poi)
+    plc = ROOT.RooStats.ProfileLikelihoodCalculator(wspace.data("ObservedNumberCountingDataWithSideband"), modelConfig)
+    plc.SetNullParameters(nullParams)
 
     # Step 7, Use the Calculator to get a HypoTestResult
     htr = plc.GetHypoTest()
@@ -402,9 +409,8 @@ def rs_numberCountingCombination_observedWithTau():
     # Confidence Interval Stage
 
     # Step 8, Here we re-use the ProfileLikelihoodCalculator to return a confidence interval.
-    # We need to specify what are our parameters of interest
+    # The parameters of interest are the ones of the model
     paramsOfInterest = nullParams  # they are the same as before in this case
-    plc.SetParameters(paramsOfInterest)
     lrint = plc.GetInterval()
     lrint.SetConfidenceLevel(0.95)
 

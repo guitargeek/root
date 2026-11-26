@@ -318,7 +318,11 @@ TEST_P(PlcGaussianInterval, CompareWithAnalyticInterval)
       normal_quantile_c((1.0 - confidenceLevel) / 2.0, ws.var("sigma")->getValV() / std::sqrt((double)N));
 
    // Calculate likelihood interval using the ProfileLikelihoodCalculator
-   ProfileLikelihoodCalculator plc{*data, *ws.pdf("gauss"), *ws.var("mean")};
+   ModelConfig mc{"mc", &ws};
+   mc.SetPdf("gauss");
+   mc.SetObservables("x");
+   mc.SetParametersOfInterest("mean");
+   ProfileLikelihoodCalculator plc{*data, mc};
    plc.SetConfidenceLevel(confidenceLevel);
    std::unique_ptr<LikelihoodInterval> interval{plc.GetInterval()};
 
@@ -375,7 +379,11 @@ TEST_P(PlcPoissonInterval, CompareWithAnalyticInterval)
    data.add(*ws.var("x"));
 
    // Calculate likelihood interval using the ProfileLikelihoodCalculator
-   ProfileLikelihoodCalculator plc{data, *ws.pdf("poiss"), *ws.var("mean")};
+   ModelConfig mc{"mc", &ws};
+   mc.SetPdf("poiss");
+   mc.SetObservables("x");
+   mc.SetParametersOfInterest("mean");
+   ProfileLikelihoodCalculator plc{data, mc};
    plc.SetConfidenceLevel(confidenceLevel);
    std::unique_ptr<LikelihoodInterval> interval{plc.GetInterval()};
 
@@ -614,7 +622,12 @@ TEST_P(BcCentralInterval, CompareWithAnalyticInterval)
    // compare with the analytically computed reference limits: the posterior
    // for a Poisson model with the priors used here is a gamma distribution.
    auto testPrior = [&](const char *priorName, double refLowerLimit, double refUpperLimit) {
-      BayesianCalculator bc{data, *ws.pdf("poiss"), *ws.set("poi"), *ws.pdf(priorName), nullptr};
+      ModelConfig mc{(std::string{"mc_"} + priorName).c_str(), &ws};
+      mc.SetPdf("poiss");
+      mc.SetPriorPdf(priorName);
+      mc.SetObservables(*ws.set("obs"));
+      mc.SetParametersOfInterest(*ws.set("poi"));
+      BayesianCalculator bc{data, mc};
       bc.SetConfidenceLevel(confidenceLevel);
       bc.SetScanOfPosterior(numberScans);
       std::unique_ptr<SimpleInterval> interval{bc.GetInterval()};
@@ -688,7 +701,12 @@ TEST_P(BcShortestInterval, CompareWithPaperValues)
    data.add(*ws.set("obs"));
 
    auto testPrior = [&](const char *priorName, double refLowerLimit, double refUpperLimit) {
-      BayesianCalculator bc{data, *ws.pdf("poiss"), *ws.set("poi"), *ws.pdf(priorName), nullptr};
+      ModelConfig mc{(std::string{"mc_"} + priorName).c_str(), &ws};
+      mc.SetPdf("poiss");
+      mc.SetPriorPdf(priorName);
+      mc.SetObservables(*ws.set("obs"));
+      mc.SetParametersOfInterest(*ws.set("poi"));
+      BayesianCalculator bc{data, mc};
       bc.SetConfidenceLevel(confidenceLevel);
       bc.SetShortestInterval();
       bc.SetScanOfPosterior(numberScans);

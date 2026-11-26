@@ -221,6 +221,7 @@ public:
 
       if (GetWS()->pdf(name)) {
          fPdfName = name;
+         fConstraintWarningsShown = false;
       } else {
          std::stringstream ss;
          ss << "pdf " << name << " does not exist in workspace";
@@ -324,6 +325,7 @@ public:
    std::unique_ptr<RooDataSet> generateGlobalObservables(int nEvents = 1) const;
 
    std::unique_ptr<RooArgSet> getVariables() const;
+   bool validate() const;
    std::unique_ptr<RooArgSet> getParameters(const RooArgSet &observables) const;
    /// \copydoc getParameters(const RooArgSet &) const
    std::unique_ptr<RooArgSet> getParameters(const RooAbsData &data) const { return getParameters(*data.get()); }
@@ -377,6 +379,10 @@ protected:
 private:
    std::unique_ptr<RooAbsReal> createNLLImpl(RooAbsData &data, const RooLinkedList &cmdList) const;
    std::unique_ptr<RooFitResult> fitToImpl(RooAbsData &data, const RooLinkedList &cmdList) const;
+   void checkConstraintTerms() const;
+
+   /// Whether the warnings about the constraint terms were shown, see checkConstraintTerms().
+   mutable bool fConstraintWarningsShown = false; ///<!
 
    ClassDefOverride(ModelConfig, 7);
 };

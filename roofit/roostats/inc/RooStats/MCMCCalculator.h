@@ -35,10 +35,13 @@ namespace RooStats {
       MCMCCalculator();
 
       /// Constructor for automatic configuration with basic settings and a
-      /// ModelConfig.  Uses a UniformProposal, 10,000 iterations, 40 burn in
-      /// steps, 50 bins for each RooRealVar, determines interval by histogram,
-      /// and finds a 95% confidence interval.  Any of these basic settings can
-      /// be overridden by calling one of the Set...() methods.
+      /// ModelConfig, which must outlive the calculator.  Uses a UniformProposal,
+      /// 10,000 iterations, 40 burn in steps, 50 bins for each RooRealVar,
+      /// determines interval by histogram, and finds a 95% confidence interval.
+      /// Any of these basic settings can be overridden by calling one of the
+      /// Set...() methods. The pdf, the prior pdf, the parameters of interest,
+      /// the constraint terms and the global observables are the ones of the
+      /// ModelConfig.
       MCMCCalculator(RooAbsData& data, const ModelConfig& model);
 
       /// Main interface to get a ConfInterval
@@ -49,39 +52,15 @@ namespace RooStats {
       /// Get the Confidence level for the test
       double ConfidenceLevel() const override {return 1.-fSize;}
 
-      void SetModel(const ModelConfig & model) override;
+      /// Set the model, which must outlive the calculator.
+      void SetModel(const ModelConfig & model) override { fModel = &model; }
 
       /// Set the DataSet if not already there
       void SetData(RooAbsData& data) override { fData = &data; }
 
-      /// Set the Pdf if not already there
-      virtual void SetPdf(RooAbsPdf& pdf) { fPdf = &pdf; }
-
-      /// Set the Prior Pdf if not already there
-      virtual void SetPriorPdf(RooAbsPdf& pdf) { fPriorPdf = &pdf; }
-
-      /// specify the parameters of interest in the interval
-      virtual void SetParameters(const RooArgSet& set) { fPOI.removeAll(); fPOI.add(set); }
-
       /// specify the parameters to store in the Markov chain
       /// By default all the parameters are stored
       virtual void SetChainParameters(const RooArgSet & set) { fChainParams.removeAll(); fChainParams.add(set); }
-
-      /// specify the nuisance parameters (eg. the rest of the parameters)
-      virtual void SetNuisanceParameters(const RooArgSet& set) {fNuisParams.removeAll(); fNuisParams.add(set);}
-
-      /// set the conditional observables which will be used when creating the NLL
-      /// so the pdf's will not be normalized on the conditional observables when computing the NLL
-      virtual void SetConditionalObservables(const RooArgSet& set) {fConditionalObs.removeAll(); fConditionalObs.add(set);}
-
-      /// set the global observables which will be used when creating the NLL
-      /// so the constraint pdf's will be normalized correctly on the global observables when computing the NLL
-      virtual void SetGlobalObservables(const RooArgSet& set) {fGlobalObs.removeAll(); fGlobalObs.add(set);}
-
-      /// set the constraint terms to include in the NLL. They are no part of
-      /// the pdf, so a calculator that is constructed from a pdf and not from
-      /// a ModelConfig has no constraint terms unless they are set here.
-      virtual void SetExternalConstraints(const RooArgSet& set) {fExternalConstraints.removeAll(); fExternalConstraints.add(set);}
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
       void SetTestSize(double size) override {fSize = size;}
@@ -169,15 +148,9 @@ namespace RooStats {
 
    protected:
       double fSize = -1;           ///< size of the test (eg. specified rate of Type I error)
-      RooArgSet   fPOI;            ///< parameters of interest for interval
-      RooArgSet   fNuisParams;     ///< nuisance parameters for interval (not really used)
       RooArgSet   fChainParams;    ///< parameters to store in the chain (if not specified they are all of them )
-      RooArgSet   fConditionalObs; ///< conditional observables
-      RooArgSet   fGlobalObs;      ///< global observables
-      RooArgSet   fExternalConstraints; ///< constraint terms
       mutable ProposalFunction* fPropFunc; ///< Proposal function for MCMC integration
-      RooAbsPdf *fPdf = nullptr;           ///< pointer to common PDF (owned by the workspace)
-      RooAbsPdf *fPriorPdf = nullptr;      ///< pointer to prior  PDF (owned by the workspace)
+      ModelConfig const *fModel = nullptr; ///<! the model (owned by its workspace)
       RooAbsData * fData;    ///< pointer to the data (owned by the workspace)
       Int_t fNumIters = 0;   ///< number of iterations to run metropolis algorithm
       Int_t fNumBurnInSteps = 0; ///< number of iterations to discard as burn-in, starting from the first

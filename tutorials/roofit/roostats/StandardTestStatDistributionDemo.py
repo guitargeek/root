@@ -119,9 +119,8 @@ def StandardTestStatDistributionDemo(
 
     # create and configure the ToyMCSampler
     sampler = ROOT.RooStats.ToyMCSampler(ts, nToyMC)
+    # the observables and global observables to generate are the ones of the model
     sampler.SetModel(mc)
-    sampler.SetObservables(mc.GetObservables())
-    sampler.SetGlobalObservables(mc.GetGlobalObservables())
     if not mc.GetPdf().canBeExtended() and (data.numEntries() == 1):
         print(f"tell it to use 1 event")
         sampler.SetNEventsPerToy(1)

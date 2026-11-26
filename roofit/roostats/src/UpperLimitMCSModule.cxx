@@ -23,6 +23,8 @@ upper limit for each toy-MC sample generated
 #include "RooStats/ConfInterval.h"
 #include "RooStats/LikelihoodInterval.h"
 #include "RooStats/ProfileLikelihoodCalculator.h"
+#include "RooStats/ModelConfig.h"
+#include "RooWorkspace.h"
 #include "RooRealVar.h"
 
 #include <ostream>
@@ -184,7 +186,13 @@ bool UpperLimitMCSModule::processBetweenGenAndFit(Int_t /*sampleNum*/) {
 
   coutI(Eval)<<"generated Entries:"<<genSample()->numEntries()<<std::endl;
 
-  RooStats::ProfileLikelihoodCalculator plc( *(genSample()), *(fitModel()), *_poi);
+  // The calculator takes the model from a ModelConfig, which needs a workspace: a copy of the fit model, with the
+  // current values of its parameters. The limits are found by the name of the parameter.
+  RooWorkspace ws{"UpperLimitMCSModule_workspace"};
+  RooStats::ModelConfig modelConfig{"UpperLimitMCSModule_model", &ws};
+  modelConfig.SetPdf(*fitModel());
+  modelConfig.SetParametersOfInterest(_parName.c_str());
+  RooStats::ProfileLikelihoodCalculator plc(*genSample(), modelConfig);
 
   //PLC calculates intervals. for one sided ul multiply testsize by two
   plc.SetTestSize(2*(1-_cl));

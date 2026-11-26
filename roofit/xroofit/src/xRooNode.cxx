@@ -6375,10 +6375,12 @@ xRooNode xRooNode::vars() const
             }
          } else if (fParent) {
             // note: this is slow in large workspaces ... too many obs to look through?
-            std::unique_ptr<RooAbsCollection> _globs3(fParent->obs().get<RooArgList>()->selectByAttrib("global", true));
+            // The global observables of a pdf are variables of the constraint terms of its parameters, which are no
+            // part of the pdf: globs() includes them, while the observables of the pdf don't.
+            auto _globs3 = fParent->globs();
             // std::unique_ptr<RooAbsCollection> _globs(_ws->allVars().selectByAttrib("global",true)); - tried this to
             // be quicker but it wasn't
-            for (auto &_g : *_globs3) {
+            for (auto &_g : *_globs3.get<RooArgList>()) {
                auto _clone = std::shared_ptr<RooAbsArg>(dynamic_cast<RooAbsArg *>(_g->Clone(_g->GetName())));
                if (auto v = std::dynamic_pointer_cast<RooAbsRealLValue>(_clone); v && _g->getStringAttribute("nominal"))
                   v->setVal(TString(_g->getStringAttribute("nominal")).Atof());

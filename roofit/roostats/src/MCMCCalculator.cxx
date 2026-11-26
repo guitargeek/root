@@ -57,8 +57,6 @@ using std::endl;
 
 MCMCCalculator::MCMCCalculator() :
    fPropFunc(nullptr),
-   fPdf(nullptr),
-   fPriorPdf(nullptr),
    fData(nullptr),
    fAxes(nullptr)
 {
@@ -75,29 +73,6 @@ MCMCCalculator::MCMCCalculator(RooAbsData& data, const ModelConfig & model) :
 {
    SetModel(model);
    SetupBasicUsage();
-}
-
-void MCMCCalculator::SetModel(const ModelConfig & model) {
-   // set the model
-   fPdf = model.GetPdf();
-   fPriorPdf = model.GetPriorPdf();
-   fPOI.removeAll();
-   fNuisParams.removeAll();
-   fConditionalObs.removeAll();
-   fGlobalObs.removeAll();
-   fExternalConstraints.removeAll();
-   if (model.GetParametersOfInterest())
-      fPOI.add(*model.GetParametersOfInterest());
-   if (model.GetNuisanceParameters())
-      fNuisParams.add(*model.GetNuisanceParameters());
-   if (model.GetConditionalObservables())
-      fConditionalObs.add( *(model.GetConditionalObservables() ) );
-   if (model.GetGlobalObservables())
-      fGlobalObs.add( *(model.GetGlobalObservables() ) );
-   // the constraint terms are no part of the pdf
-   if (model.GetExternalConstraints())
-      fExternalConstraints.add( *(model.GetExternalConstraints() ) );
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,8 +117,9 @@ void MCMCCalculator::SetLeftSideTailFraction(double a)
 MCMCInterval* MCMCCalculator::GetInterval() const
 {
 
-   if (!fData || !fPdf   ) return nullptr;
-   if (fPOI.empty()) return nullptr;
+   if (!fData || !fModel || !fModel->GetPdf()) return nullptr;
+   RooArgSet const *poi = fModel->GetParametersOfInterest();
+   if (!poi || poi->empty()) return nullptr;
 
    if (fSize < 0) {
       coutE(InputArguments) << "MCMCCalculator::GetInterval: "
@@ -153,23 +129,19 @@ MCMCInterval* MCMCCalculator::GetInterval() const
 
    // if a proposal function has not been specified create a default one
    bool useDefaultPropFunc = (fPropFunc == nullptr);
-   bool usePriorPdf = (fPriorPdf != nullptr);
    if (useDefaultPropFunc) fPropFunc = new UniformProposal();
 
-   // The constraint terms are no part of the pdf and are passed separately.
-   // The prior multiplies the likelihood like a constraint term.
-   RooArgSet constraintsAndPrior{fExternalConstraints};
-   if (usePriorPdf) {
-      constraintsAndPrior.add(*fPriorPdf);
-   }
-
-   std::unique_ptr<RooAbsReal> nll{fPdf->createNLL(*fData, ExternalConstraints(constraintsAndPrior),ConditionalObservables(fConditionalObs),GlobalObservables(fGlobalObs))};
+   // The likelihood of the model, with its constraint terms. The prior multiplies the likelihood like a constraint
+   // term.
+   RooAbsPdf *priorPdf = fModel->GetPriorPdf();
+   std::unique_ptr<RooAbsReal> nll =
+      priorPdf ? fModel->createNLL(*fData, ExternalConstraints(*priorPdf)) : fModel->createNLL(*fData);
 
    std::unique_ptr<RooArgSet> params{nll->getParameters(*fData)};
    RemoveConstantParameters(&*params);
    if (fNumBins > 0) {
       SetBins(*params, fNumBins);
-      SetBins(fPOI, fNumBins);
+      SetBins(*poi, fNumBins);
       if (dynamic_cast<PdfProposal*>(fPropFunc)) {
          std::unique_ptr<RooArgSet> proposalVars{(static_cast<PdfProposal*>(fPropFunc))->GetPdf()->
                                                getParameters((RooAbsData*)nullptr)};
@@ -189,7 +161,7 @@ MCMCInterval* MCMCCalculator::GetInterval() const
    MarkovChain* chain = mh.ConstructChain();
 
    TString name = TString("MCMCInterval_") + TString(GetName() );
-   MCMCInterval* interval = new MCMCInterval(name, fPOI, *chain);
+   MCMCInterval* interval = new MCMCInterval(name, *poi, *chain);
    if (fAxes != nullptr)
       interval->SetAxes(*fAxes);
    if (fNumBurnInSteps > 0)

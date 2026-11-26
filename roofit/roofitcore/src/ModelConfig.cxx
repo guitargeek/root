@@ -65,6 +65,9 @@ expected values.
 #include <RooRealVar.h>
 
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 
 namespace {
@@ -227,6 +230,99 @@ std::unique_ptr<RooDataSet> ModelConfig::generateGlobalObservables(int nEvents) 
       return nullptr;
    }
    return RooFit::generateGlobalObservables(*constraints, *globalObservables, nEvents);
+}
+
+namespace {
+
+// The problems of the constraint terms of a ModelConfig, see ModelConfig::validate().
+void collectConstraintProblems(RooStats::ModelConfig const &mc, std::vector<std::string> &errors,
+                               std::vector<std::string> &warnings)
+{
+   RooArgSet const *constraints = mc.GetExternalConstraints();
+   RooAbsPdf const *pdf = mc.GetPdf();
+   if (!constraints || !pdf) {
+      return;
+   }
+   RooArgSet const *observables = mc.GetObservables();
+   RooArgSet parameters;
+   pdf->getParameters(observables, parameters);
+   const std::string prefix = "ModelConfig \"" + std::string(mc.GetName()) + "\": the external constraint \"";
+   for (RooAbsArg const *term : *constraints) {
+      if (!dynamic_cast<RooAbsPdf const *>(term)) {
+         errors.push_back(prefix + term->GetName() + "\" is no pdf.");
+      } else if (observables && term->dependsOn(*observables)) {
+         RooArgSet dependents;
+         term->getObservables(observables, dependents);
+         std::stringstream ss;
+         ss << prefix << term->GetName() << "\" depends on the observables " << dependents
+            << ". A constraint term is a probability density of global observables, which have one value in the "
+               "whole likelihood, so it multiplies the likelihood only once. A probability density of the observables "
+               "is part of the pdf.";
+         errors.push_back(ss.str());
+      } else if (!term->dependsOn(parameters)) {
+         warnings.push_back(prefix + term->GetName() + "\" depends on none of the parameters of the pdf \"" +
+                            pdf->GetName() +
+                            "\", so it constrains nothing in this model. Was the model changed after the constraint "
+                            "terms were set? Its parameters are fitted only to the constraint term.");
+      }
+   }
+}
+
+} // namespace
+
+////////////////////////////////////////////////////////////////////////////////
+/// Check that the constraint terms fit the model. The ModelConfig is the only
+/// link between the pdf and its constraint terms, so they can get out of sync,
+/// e.g. if the pdf is changed in the workspace after the constraint terms were
+/// set. These problems are reported:
+///
+/// - **Errors**: an external constraint that is no pdf, or that depends on an
+///   observable. A constraint term is a probability density of global
+///   observables, which multiplies the likelihood only once.
+/// - **Warnings**: an external constraint that depends on none of the
+///   parameters of the pdf. It constrains nothing in this model, and its
+///   parameters are fitted only to the constraint term.
+///
+/// ModelConfig::createNLL() and ModelConfig::fitTo() do the same check: they
+/// throw an exception for errors, and report warnings once.
+///
+/// \return `true` if no problems were found.
+
+bool ModelConfig::validate() const
+{
+   std::vector<std::string> errors;
+   std::vector<std::string> warnings;
+   collectConstraintProblems(*this, errors, warnings);
+   for (std::string const &error : errors) {
+      oocoutE(this, InputArguments) << error << std::endl;
+   }
+   for (std::string const &warning : warnings) {
+      oocoutW(this, InputArguments) << warning << std::endl;
+   }
+   return errors.empty() && warnings.empty();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// The check of validate() for createNLL() and fitTo(): throws an exception
+/// for errors, and reports warnings only the first time.
+
+void ModelConfig::checkConstraintTerms() const
+{
+   std::vector<std::string> errors;
+   std::vector<std::string> warnings;
+   collectConstraintProblems(*this, errors, warnings);
+   if (!errors.empty()) {
+      for (std::string const &error : errors) {
+         oocoutE(this, InputArguments) << error << std::endl;
+      }
+      throw std::runtime_error(errors.front());
+   }
+   if (!fConstraintWarningsShown) {
+      for (std::string const &warning : warnings) {
+         oocoutW(this, InputArguments) << warning << std::endl;
+      }
+      fConstraintWarningsShown = true;
+   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -430,6 +526,7 @@ void ModelConfig::SetExternalConstraints(const RooArgSet &set)
 {
    fExtConstraintsName = std::string(GetName()) + "_ExternalConstraints";
    DefineSetInWS(fExtConstraintsName.c_str(), set);
+   fConstraintWarningsShown = false;
 }
 
 /// Specify the conditional observables.
@@ -482,11 +579,24 @@ finalizeCmdList(ModelConfig const &modelConfig, RooLinkedList const &cmdList, st
       addCmdArg(RooFit::GlobalObservables(*args));
    }
 
-   if (auto args = modelConfig.GetExternalConstraints()) {
-      addCmdArg(RooFit::ExternalConstraints(*args));
+   // The constraint terms of the model, and the ones that are passed in addition, e.g. a prior. They are passed also
+   // if there are none: this says that the likelihood has no constraint terms, also if another ModelConfig of the
+   // same pdf has some.
+   RooArgSet constraints;
+   if (auto modelConstraints = modelConfig.GetExternalConstraints()) {
+      constraints.add(*modelConstraints);
    }
+   auto finalCmdList = std::make_unique<RooLinkedList>();
+   for (TObject *obj : cmdList) {
+      auto *cmdArg = static_cast<RooCmdArg *>(obj);
+      if (std::string{cmdArg->GetName()} != "ExternalConstraints") {
+         finalCmdList->Add(cmdArg);
+      } else if (RooArgSet const *extra = cmdArg->getSet(0)) {
+         constraints.add(*extra, /*silent=*/true);
+      }
+   }
+   cmdArgs.push_back(RooFit::ExternalConstraints(constraints));
 
-   auto finalCmdList = std::make_unique<RooLinkedList>(cmdList);
    for (RooCmdArg &arg : cmdArgs) {
       finalCmdList->Add(&arg);
    }
@@ -507,12 +617,15 @@ finalizeCmdList(ModelConfig const &modelConfig, RooLinkedList const &cmdList, st
  *   * GlobalObservables()
  *   * ExternalConstraints()
  *
- * Except for the options above, you can still pass all the other command
- * arguments supported by RooAbsPdf::createNLL().
+ * Constraint terms that are passed with ExternalConstraints() are added to the
+ * ones of the ModelConfig, e.g. a prior pdf. Except for the other options
+ * above, you can still pass all the other command arguments supported by
+ * RooAbsPdf::createNLL().
  */
 
 std::unique_ptr<RooAbsReal> ModelConfig::createNLLImpl(RooAbsData &data, const RooLinkedList &cmdList) const
 {
+   checkConstraintTerms();
    std::vector<RooCmdArg> cmdArgs;
    auto finalCmdList = finalizeCmdList(*this, cmdList, cmdArgs);
    return std::unique_ptr<RooAbsReal>{GetPdf()->createNLL(data, *finalCmdList)};
@@ -527,6 +640,7 @@ std::unique_ptr<RooAbsReal> ModelConfig::createNLLImpl(RooAbsData &data, const R
  */
 std::unique_ptr<RooFitResult> ModelConfig::fitToImpl(RooAbsData &data, const RooLinkedList &cmdList) const
 {
+   checkConstraintTerms();
    std::vector<RooCmdArg> cmdArgs;
    auto finalCmdList = finalizeCmdList(*this, cmdList, cmdArgs);
    return std::unique_ptr<RooFitResult>{GetPdf()->fitTo(data, *finalCmdList)};

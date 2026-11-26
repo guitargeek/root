@@ -6,8 +6,10 @@
 #include <RooRandom.h>
 #include <RooRealVar.h>
 #include <RooStats/BayesianCalculator.h>
+#include <RooStats/ModelConfig.h>
 #include <RooStats/SimpleInterval.h>
 #include <RooUniform.h>
+#include <RooWorkspace.h>
 
 #include <gtest/gtest.h>
 
@@ -36,9 +38,17 @@ TEST(BayesianCalculator, UpperLimitNoNuisance_Issue17567)
 
    RooUniform prior("prior", "prior", ngauss);
 
+   // The calculator takes the pdf, the prior and the parameter of interest from a ModelConfig.
+   RooWorkspace ws{"ws"};
+   RooStats::ModelConfig mc{"mc", &ws};
+   mc.SetPdf(pdftot);
+   mc.SetPriorPdf(prior);
+   mc.SetParametersOfInterest(RooArgSet{ngauss});
+   mc.SetObservables(RooArgSet{mass});
+
    // Run with the default interval method (numerical integration instead of
    // brute-force scan).
-   RooStats::BayesianCalculator bc(*data, pdftot, RooArgSet(ngauss), prior);
+   RooStats::BayesianCalculator bc(*data, mc);
    bc.SetConfidenceLevel(0.95);
    bc.SetLeftSideTailFraction(0.);
    std::unique_ptr<RooStats::SimpleInterval> bcInterval{bc.GetInterval()};
@@ -48,7 +58,7 @@ TEST(BayesianCalculator, UpperLimitNoNuisance_Issue17567)
 
    // Reference: explicit scan with many bins gives the same answer up to
    // numerical integration and scan discretization errors.
-   RooStats::BayesianCalculator bcScan(*data, pdftot, RooArgSet(ngauss), prior);
+   RooStats::BayesianCalculator bcScan(*data, mc);
    bcScan.SetConfidenceLevel(0.95);
    bcScan.SetLeftSideTailFraction(0.);
    bcScan.SetScanOfPosterior(200);

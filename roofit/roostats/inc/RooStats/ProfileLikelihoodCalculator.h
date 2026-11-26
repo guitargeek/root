@@ -26,19 +26,11 @@ namespace RooStats {
       /// Default constructor (needed for I/O)
       ProfileLikelihoodCalculator();
 
-      /// Constructor from data, from a full model pdf describing both parameter of interest and nuisance parameters
-      /// and from the set specifying the parameter of interest (POI).
-      /// There is no need to specify the nuisance parameters since they are all other parameters of the model.
-      /// When using the calculator for performing an hypothesis test one needs to provide also a snapshot (a copy)
-      /// defining the null parameters and their value. There is no need to pass the alternate parameters. These
-      /// will be obtained by the value maximizing the likelihood function
-      ProfileLikelihoodCalculator(RooAbsData& data, RooAbsPdf& pdf, const RooArgSet& paramsOfInterest,
-                                  double size = 0.05, const RooArgSet* nullParams = nullptr );
-
-
-      /// Constructor from data and a model configuration
-      /// If the ModelConfig defines a prior pdf for any of the parameters those will be included as constrained terms in the
-      /// likelihood function
+      /// Constructor from data and a model configuration, which must outlive the calculator. The likelihood is the
+      /// one of the ModelConfig, with its constraint terms. When using the calculator for performing an hypothesis
+      /// test one needs to provide also a snapshot defining the null parameters and their value, see
+      /// ModelConfig::SetSnapshot() and SetNullParameters(). There is no need to pass the alternate parameters. These
+      /// will be obtained by the value maximizing the likelihood function.
       ProfileLikelihoodCalculator(RooAbsData& data, ModelConfig & model, double size = 0.05);
 
 

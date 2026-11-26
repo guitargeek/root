@@ -37,15 +37,14 @@ CombinedCalculator is an interface class for a tools which can produce both RooS
 HypoTestResults and ConfIntervals. The interface currently assumes that any such
 calculator can be configured by specifying:
 
-  - a model common model (eg. a family of specific models which includes both the null and alternate),
+  - a model, given by a ModelConfig: the pdf, the parameters of interest, the nuisance
+    parameters, the constraint terms and the global observables,
   - a data set,
   - a set of parameters of which specify the null (including values and const/non-const status),
-  - a set of parameters of which specify the alternate (including values and const/non-const status),
-  - a set of parameters of nuisance parameters (including values and const/non-const status).
+  - a set of parameters of which specify the alternate (including values and const/non-const status).
 
-The interface allows one to pass the model, data, and parameters via a workspace
-and then specify them with names. The interface also allows one to pass the model,
-data, and parameters without a workspace (which is created internally).
+The calculator does not copy the content of the ModelConfig: it keeps a pointer to it,
+so the ModelConfig must outlive the calculator.
 
 After configuring the calculator, one only needs to ask GetHypoTest() (which will
 return a HypoTestResult pointer) or GetInterval() (which will return an ConfInterval pointer).
@@ -65,24 +64,8 @@ in a common way for several concrete calculators.
 
       CombinedCalculator() = default;
 
-      CombinedCalculator(RooAbsData& data, RooAbsPdf& pdf, const RooArgSet& paramsOfInterest,
-                         double size = 0.05, const RooArgSet* nullParams = nullptr, const RooArgSet* altParams = nullptr, const RooArgSet* nuisParams = nullptr) :
-
-         fPdf(&pdf),
-         fData(&data),
-         fPOI(paramsOfInterest)
-      {
-         if (nullParams) fNullParams.add(*nullParams);
-         if (altParams) fAlternateParams.add(*altParams);
-         if (nuisParams) fNuisParams.add(*nuisParams);
-         SetTestSize(size);
-      }
-
       /// constructor from data and model configuration
-      CombinedCalculator(RooAbsData& data, const ModelConfig& model,
-                         double size = 0.05) :
-         fPdf(nullptr),
-         fData(&data)
+      CombinedCalculator(RooAbsData &data, const ModelConfig &model, double size = 0.05) : fData(&data)
       {
          SetModel(model);
          SetTestSize(size);
@@ -90,15 +73,19 @@ in a common way for several concrete calculators.
 
       /// Main interface to get a ConfInterval, pure virtual
       ConfInterval* GetInterval() const override = 0;
+
       /// main interface to get a HypoTestResult, pure virtual
       HypoTestResult* GetHypoTest() const override = 0;
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
       void SetTestSize(double size) override {fSize = size;}
+
       /// set the confidence level for the interval (eg. 0.95 for a 95% Confidence Interval)
       void SetConfidenceLevel(double cl) override {fSize = 1.-cl;}
+
       /// Get the size of the test (eg. rate of Type I error)
       double Size() const override {return fSize;}
+
       /// Get the Confidence level for the test
       double ConfidenceLevel()  const override {return 1.-fSize;}
 
@@ -107,15 +94,11 @@ in a common way for several concrete calculators.
          fData = &data;
       }
 
-      /// set the model (in this case can set only the parameters for the null hypothesis)
+      /// Set the model, which must outlive the calculator. The parameter values of its snapshot are the null
+      /// parameters.
       void SetModel(const ModelConfig & model) override {
-         fPdf = model.GetPdf();
-         if (model.GetParametersOfInterest()) SetParameters(*model.GetParametersOfInterest());
+         fModel = &model;
          if (model.GetSnapshot()) SetNullParameters(*model.GetSnapshot());
-         if (model.GetNuisanceParameters()) SetNuisanceParameters(*model.GetNuisanceParameters());
-         if (model.GetConditionalObservables()) SetConditionalObservables(*model.GetConditionalObservables());
-         if (model.GetGlobalObservables()) SetGlobalObservables(*model.GetGlobalObservables());
-         if (model.GetExternalConstraints()) SetExternalConstraints(*model.GetExternalConstraints());
       }
 
       void SetNullModel( const ModelConfig &) override {  // to be understood what to do
@@ -123,51 +106,25 @@ in a common way for several concrete calculators.
       void SetAlternateModel(const ModelConfig &) override {  // to be understood what to do
       }
 
-      /* specific setting - keep for convenience-  some of them could be removed */
-
-      /// Set the Pdf
-      virtual void SetPdf(RooAbsPdf& pdf) { fPdf = &pdf; }
-
-      /// specify the parameters of interest in the interval
-      virtual void SetParameters(const RooArgSet& set) { fPOI.removeAll(); fPOI.add(set); }
-
-       /// specify the nuisance parameters (eg. the rest of the parameters)
-      virtual void SetNuisanceParameters(const RooArgSet& set) {fNuisParams.removeAll(); fNuisParams.add(set);}
-
       /// set parameter values for the null if using a common PDF
       virtual void SetNullParameters(const RooArgSet& set) {fNullParams.removeAll(); fNullParams.add(set);}
 
       /// set parameter values for the alternate if using a common PDF
       virtual void SetAlternateParameters(const RooArgSet& set) {fAlternateParams.removeAll(); fAlternateParams.add(set);}
 
-      /// set conditional observables needed for computing the NLL
-      virtual void SetConditionalObservables(const RooArgSet& set) {fConditionalObs.removeAll(); fConditionalObs.add(set);}
-
-       /// set global observables needed for computing the NLL
-      virtual void SetGlobalObservables(const RooArgSet& set) {fGlobalObs.removeAll(); fGlobalObs.add(set);}
-
-      /// set the constraint terms to include in the NLL. They are no part of
-      /// the pdf, so a calculator that is constructed from a pdf and not from
-      /// a ModelConfig has no constraint terms unless they are set here.
-      virtual void SetExternalConstraints(const RooArgSet& set) {fExternalConstraints.removeAll(); fExternalConstraints.add(set);}
-
 
    protected:
 
-      RooAbsPdf * GetPdf() const { return fPdf; }
+      ModelConfig const *GetModel() const { return fModel; }
+      RooAbsPdf * GetPdf() const { return fModel ? fModel->GetPdf() : nullptr; }
       RooAbsData * GetData() const { return fData; }
 
       double fSize = 0.0; ///< size of the test (eg. specified rate of Type I error)
 
-      RooAbsPdf  * fPdf = nullptr;
+      ModelConfig const *fModel = nullptr; ///<! the model (owned by its workspace)
       RooAbsData * fData = nullptr;
-      RooArgSet fPOI;             ///< RooArgSet specifying parameters of interest for interval
       RooArgSet fNullParams;      ///< RooArgSet specifying null parameters for hypothesis test
       RooArgSet fAlternateParams; ///< RooArgSet specifying alternate parameters for hypothesis test
-      RooArgSet fNuisParams;      ///< RooArgSet specifying nuisance parameters for interval
-      RooArgSet fConditionalObs;  ///< RooArgSet specifying the conditional observables
-      RooArgSet fGlobalObs;       ///< RooArgSet specifying the global observables
-      RooArgSet fExternalConstraints; ///< RooArgSet specifying the constraint terms
 
 
       ClassDefOverride(CombinedCalculator,3) // A base class that is for tools that can be both HypoTestCalculators and IntervalCalculators

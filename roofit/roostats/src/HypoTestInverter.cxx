@@ -1112,11 +1112,9 @@ SamplingDistribution * HypoTestInverter::RebuildDistributions(bool isUpper, int 
    }
    // set up test stat sampler in case of asymptotic calculator
    if (dynamic_cast<RooStats::AsymptoticCalculator*>(fCalculator0) ) {
-      toymcSampler->SetObservables(*sbModel->GetObservables() );
       toymcSampler->SetParametersForTestStat(*sbModel->GetParametersOfInterest());
       toymcSampler->SetModel(*sbModel);
-      toymcSampler->SetNuisanceParameters(*sbModel->GetNuisanceParameters());
-      if (sbModel->GetGlobalObservables() )  toymcSampler->SetGlobalObservables(*sbModel->GetGlobalObservables() );
+      toymcSampler->SetGenerateGlobalObservables(true);
       // set number of events
       if (!sbModel->GetPdf()->canBeExtended())
          toymcSampler->SetNEventsPerToy(1);

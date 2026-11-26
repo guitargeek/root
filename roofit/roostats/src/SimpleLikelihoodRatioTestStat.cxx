@@ -28,7 +28,8 @@ bool RooStats::SimpleLikelihoodRatioTestStat::fgAlwaysReuseNll = true ;
 void RooStats::SimpleLikelihoodRatioTestStat::SetAlwaysReuseNLL(bool flag) { fgAlwaysReuseNll = flag ; }
 
 /// Create the likelihood of the pdf of the model, without the constraint
-/// terms: they are the same for both hypotheses and cancel in the ratio.
+/// terms: they are the same for both hypotheses and cancel in the ratio. The
+/// empty set of external constraints says that this is intended.
 std::unique_ptr<RooAbsReal>
 RooStats::SimpleLikelihoodRatioTestStat::createNLL(const ModelConfig &model, RooAbsData &data)
 {
@@ -36,8 +37,9 @@ RooStats::SimpleLikelihoodRatioTestStat::createNLL(const ModelConfig &model, Roo
    if (model.GetConditionalObservables()) {
       conditionalObs.add(*model.GetConditionalObservables());
    }
-   return std::unique_ptr<RooAbsReal>{
-      model.GetPdf()->createNLL(data, RooFit::CloneData(false), RooFit::ConditionalObservables(conditionalObs))};
+   return std::unique_ptr<RooAbsReal>{model.GetPdf()->createNLL(data, RooFit::CloneData(false),
+                                                                RooFit::ConditionalObservables(conditionalObs),
+                                                                RooFit::ExternalConstraints(RooArgSet{}))};
 }
 
 double RooStats::SimpleLikelihoodRatioTestStat::Evaluate(RooAbsData& data, RooArgSet& nullPOI) {

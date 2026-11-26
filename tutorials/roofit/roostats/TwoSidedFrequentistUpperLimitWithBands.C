@@ -215,10 +215,10 @@ void TwoSidedFrequentistUpperLimitWithBands(const char *infile = "", const char 
          cout << "Not sure what to do about this model" << endl;
    }
 
+   // The toys are generated with the global observables of the model (unconditional ensemble).
    if (mc->GetGlobalObservables()) {
       cout << "will use global observables for unconditional ensemble" << endl;
       mc->GetGlobalObservables()->Print();
-      toymcsampler->SetGlobalObservables(*mc->GetGlobalObservables());
    }
 
    // Now get the interval

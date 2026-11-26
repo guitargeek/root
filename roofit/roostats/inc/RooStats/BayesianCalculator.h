@@ -41,12 +41,9 @@ namespace RooStats {
       /// constructor
       BayesianCalculator( );
 
-      BayesianCalculator( RooAbsData& data,
-                          RooAbsPdf& pdf,
-                          const RooArgSet& POI,
-                          RooAbsPdf& priorPdf,
-                          const RooArgSet* nuisanceParameters = nullptr );
-
+      /// constructor from a data set and a ModelConfig, which must outlive the calculator. The pdf, the prior pdf,
+      /// the parameter of interest, the nuisance parameters, the constraint terms and the global observables are the
+      /// ones of the ModelConfig.
       BayesianCalculator( RooAbsData& data,
                           ModelConfig& model );
 
@@ -75,30 +72,8 @@ namespace RooStats {
       }
 
 
-      /// set the model via the ModelConfig
+      /// set the model via the ModelConfig, which must outlive the calculator
       void SetModel( const ModelConfig& model ) override;
-
-      /// specify the parameters of interest in the interval
-      virtual void SetParameters(const RooArgSet& set) { fPOI.removeAll(); fPOI.add(set); }
-
-      /// specify the nuisance parameters (eg. the rest of the parameters)
-      virtual void SetNuisanceParameters(const RooArgSet& set) {fNuisanceParameters.removeAll(); fNuisanceParameters.add(set);}
-
-      /// Set only the Prior Pdf
-      virtual void SetPriorPdf(RooAbsPdf& pdf) { fPriorPdf = &pdf; }
-
-      /// set the conditional observables which will be used when creating the NLL
-      /// so the pdf's will not be normalized on the conditional observables when computing the NLL
-      virtual void SetConditionalObservables(const RooArgSet& set) {fConditionalObs.removeAll(); fConditionalObs.add(set);}
-
-      /// set the global observables which will be used when creating the NLL
-      /// so the constraint pdf's will be normalized correctly on the global observables when computing the NLL
-      virtual void SetGlobalObservables(const RooArgSet& set) {fGlobalObs.removeAll(); fGlobalObs.add(set);}
-
-      /// set the constraint terms to include in the NLL. They are no part of
-      /// the pdf, so a calculator that is constructed from a pdf and not from
-      /// a ModelConfig has no constraint terms unless they are set here.
-      virtual void SetExternalConstraints(const RooArgSet& set) {fExternalConstraints.removeAll(); fExternalConstraints.add(set);}
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
       void SetTestSize( double size ) override {
@@ -164,15 +139,15 @@ namespace RooStats {
       // over all other parameters except the one specified as argument
       // virtual SimpleInterval* GetInterval( RooRealVar* parameter  ) const { return 0; }
 
+      // The content of the model.
+      RooAbsPdf *Pdf() const;
+      RooArgSet const &POI() const;
+      RooAbsPdf *PriorPdf() const;
+      RooArgSet NuisanceParameters() const;
+
       RooAbsData* fData;                         ///< data set
-      RooAbsPdf* fPdf;                           ///< model pdf  (without constraint terms)
-      RooArgSet fPOI;                            ///< POI
-      RooAbsPdf* fPriorPdf;                      ///< prior pdf (typically for the POI)
+      ModelConfig const *fModel = nullptr;       ///<! the model (owned by its workspace)
       RooAbsPdf* fNuisancePdf;                   ///< nuisance pdf (needed when using nuisance sampling technique)
-      RooArgSet fNuisanceParameters;             ///< nuisance parameters
-      RooArgSet fConditionalObs    ;             ///< conditional observables
-      RooArgSet fGlobalObs;                      ///< global observables
-      RooArgSet fExternalConstraints;            ///< constraint terms
 
       mutable RooAbsPdf* fProductPdf;            ///< internal pointer to the product of the constraint terms
       mutable std::unique_ptr<RooAbsReal> fLogLike; ///< internal pointer to log likelihood function

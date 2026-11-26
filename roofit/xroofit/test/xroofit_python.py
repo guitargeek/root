@@ -55,6 +55,22 @@ class XRooFitTests(unittest.TestCase):
         self.assertAlmostEqual(w["pdfs/simPdf/SR/sig"].GetContent(), sig.Integral()*w.poi()["mu"].getVal())
         self.assertAlmostEqual(w["pdfs/simPdf/SR/sig"].GetError(), 0.) # no uncert was added to the signal
 
+        # The constraint term is no part of the pdf, but the likelihood has it, and its global observable, which is
+        # fluctuated in toys and set to the value of the parameter in Asimov datasets.
+        nll = w.nll("obsData")
+        self.assertTrue(nll.constraintTerm())
+        self.assertEqual([g.GetName() for g in nll.globs()], ["globs_alphaSyst"])
+        alpha = w.get().var("alphaSyst")
+        alpha.setVal(0.8)
+
+        def generatedGlob(expected, seed=0):
+            generated = nll.generate(expected, seed)  # keep the pair, which owns the dataset
+            return generated.first.getGlobalObservables().find("globs_alphaSyst").getVal()
+
+        self.assertAlmostEqual(generatedGlob(True), 0.8)
+        self.assertNotAlmostEqual(generatedGlob(False, 1), generatedGlob(False, 2))
+        alpha.setVal(0.0)
+
         # could save the workspace as this point like this:
         # w.SaveAs("ws_test_oneChannelLimit.root")
 

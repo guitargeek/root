@@ -25,18 +25,16 @@ Monte Carlo to calibrate the distribution of the test statistic).
 Usage: It uses the interface of the CombinedCalculator, so that it can be
 configured by specifying:
 
-  - A model common model (*e.g.* a family of specific models, which includes both
-    the null and alternate)
+  - A model, given by a ModelConfig: its pdf, its constraint terms and global
+    observables, and its parameters of interest. The nuisance parameters will
+    be all other parameters of the model.
   - A data set
-  - A set of parameters of interest. The nuisance parameters will be all other
-    parameters of the model.
   - A set of parameters which specify the null hypothesis (including values
     and const/non-const status).
 
-The interface allows one to pass the model, data, and parameters either directly
-or via a ModelConfig class. The alternate hypothesis leaves the parameter free
-to take any value other than those specified by the null hypothesis. There is
-therefore no need to specify the alternate parameters.
+The alternate hypothesis leaves the parameter free to take any value other
+than those specified by the null hypothesis. There is therefore no need to
+specify the alternate parameters.
 
 After configuring the calculator, one only needs to call GetHypoTest() (which
 will return a HypoTestResult pointer) or GetInterval() (which will return a
@@ -77,21 +75,10 @@ using namespace RooStats;
 
 ProfileLikelihoodCalculator::ProfileLikelihoodCalculator() : fGlobalFitDone(false) {}
 
-ProfileLikelihoodCalculator::ProfileLikelihoodCalculator(RooAbsData& data, RooAbsPdf& pdf, const RooArgSet& paramsOfInterest,
-                                                         double size, const RooArgSet* nullParams ) :
-   CombinedCalculator(data,pdf, paramsOfInterest, size, nullParams ),
-   fGlobalFitDone(false)
-{
-   // constructor from pdf and parameters
-   // the pdf must contain eventually the nuisance parameters
-}
-
 ProfileLikelihoodCalculator::ProfileLikelihoodCalculator(RooAbsData& data,  ModelConfig& model, double size) :
    CombinedCalculator(data, model, size),
    fGlobalFitDone(false)
 {
-   // construct from a ModelConfig. Assume data model.GetPdf() will provide full description of model including
-   // constraint term on the nuisances parameters
    assert(model.GetPdf() );
 }
 
@@ -116,18 +103,12 @@ RooFit::OwningPtr<RooAbsReal>  ProfileLikelihoodCalculator::DoGlobalFit() const 
    // keep the list of fitted parameters
 
    DoReset();
-   RooAbsPdf * pdf = GetPdf();
    RooAbsData* data = GetData();
-   if (!data || !pdf ) return nullptr;
-
-   // get all non-const parameters
-   std::unique_ptr<RooArgSet> constrainedParams{pdf->getParameters(*data)};
-   if (!constrainedParams) return nullptr;
-   RemoveConstantParameters(&*constrainedParams);
+   if (!data || !GetPdf()) return nullptr;
 
    const auto& config = GetGlobalRooStatsConfig();
-   std::unique_ptr<RooAbsReal> nll{pdf->createNLL(*data, CloneData(true), ExternalConstraints(fExternalConstraints),ConditionalObservables(fConditionalObs), GlobalObservables(fGlobalObs),
-       RooFit::Offset(config.useLikelihoodOffset) )};
+   std::unique_ptr<RooAbsReal> nll{
+      GetModel()->createNLL(*data, CloneData(true), RooFit::Offset(config.useLikelihoodOffset))};
 
    // check if global fit has been already done
    if (fFitResult && fGlobalFitDone) {
@@ -208,12 +189,9 @@ RooFit::OwningPtr<RooFitResult> ProfileLikelihoodCalculator::DoMinimizeNLL(RooAb
 LikelihoodInterval* ProfileLikelihoodCalculator::GetInterval() const {
 //    RooAbsPdf* pdf   = fWS->pdf(fPdfName);
 //    RooAbsData* data = fWS->data(fDataName);
-   RooAbsPdf * pdf = GetPdf();
    RooAbsData* data = GetData();
-   if (!data || !pdf || fPOI.empty()) return nullptr;
-
-   std::unique_ptr<RooArgSet> constrainedParams{pdf->getParameters(*data)};
-   RemoveConstantParameters(&*constrainedParams);
+   RooArgSet const *poi = GetModel() ? GetModel()->GetParametersOfInterest() : nullptr;
+   if (!data || !GetPdf() || !poi || poi->empty()) return nullptr;
 
 
    // do a global fit cloning the data
@@ -224,14 +202,14 @@ LikelihoodInterval* ProfileLikelihoodCalculator::GetInterval() const {
       return nullptr;
    }
 
-   std::unique_ptr<RooAbsReal> profile{nll->createProfile(fPOI)};
+   std::unique_ptr<RooAbsReal> profile{nll->createProfile(*poi)};
    profile->addOwnedComponents(std::move(nll)) ;  // to avoid memory leak
 
    // t.b.f. " RooProfileLL should keep and provide possibility to query on global minimum
    // set POI to fit value (this will speed up profileLL calculation of global minimum)
    const RooArgList & fitParams = fFitResult->floatParsFinal();
    for (auto *fitPar : static_range_cast<RooRealVar *>(fitParams)) {
-      RooRealVar * par = static_cast<RooRealVar*>(fPOI.find( fitPar->GetName() ));
+      RooRealVar * par = static_cast<RooRealVar*>(poi->find( fitPar->GetName() ));
       if (par) {
          par->setVal( fitPar->getVal() );
          par->setError( fitPar->getError() );
@@ -247,18 +225,18 @@ LikelihoodInterval* ProfileLikelihoodCalculator::GetInterval() const {
 
    TString name = TString("LikelihoodInterval_");// + TString(GetName() );
 
-   // make a list of fPOI with fit result values and pass to LikelihoodInterval class
+   // make a list of the POI with fit result values and pass to LikelihoodInterval class
    // bestPOI is a cloned list of POI only with their best fit values
    RooArgSet fitParSet(fitParams);
    RooArgSet * bestPOI = new RooArgSet();
-   for (auto const *arg : fPOI){
+   for (auto const *arg : *poi){
       RooAbsArg * p  =  fitParSet.find( arg->GetName() );
       if (p) bestPOI->addClone(*p);
       else bestPOI->addClone(*arg);
    }
-   // fPOI contains the parameter of interest of the PL object
+   // poi contains the parameter of interest of the PL object
    // and bestPOI contains a snapshot with the best fit values
-   LikelihoodInterval* interval = new LikelihoodInterval(name, profile.release(), &fPOI, bestPOI);
+   LikelihoodInterval* interval = new LikelihoodInterval(name, profile.release(), poi, bestPOI);
    interval->SetConfidenceLevel(1.-fSize);
    return interval;
 }
@@ -276,11 +254,10 @@ LikelihoodInterval* ProfileLikelihoodCalculator::GetInterval() const {
 HypoTestResult* ProfileLikelihoodCalculator::GetHypoTest() const {
 //    RooAbsPdf* pdf   = fWS->pdf(fPdfName);
 //    RooAbsData* data = fWS->data(fDataName);
-   RooAbsPdf * pdf = GetPdf();
    RooAbsData* data = GetData();
 
 
-   if (!data || !pdf) return nullptr;
+   if (!data || !GetPdf()) return nullptr;
 
    if (fNullParams.empty()) return nullptr;
 
@@ -298,7 +275,8 @@ HypoTestResult* ProfileLikelihoodCalculator::GetHypoTest() const {
       return nullptr;
    }
 
-   std::unique_ptr<RooArgSet> constrainedParams{pdf->getParameters(*data)};
+   // the parameters of the pdf and of the constraint terms
+   std::unique_ptr<RooArgSet> constrainedParams{GetModel()->getParameters(*data)};
    RemoveConstantParameters(&*constrainedParams);
 
    double nLLatMLE = fFitResult->minNll();

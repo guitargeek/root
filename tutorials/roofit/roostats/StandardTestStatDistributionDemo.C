@@ -144,9 +144,8 @@ void StandardTestStatDistributionDemo(const char *infile = "", const char *works
 
    // create and configure the ToyMCSampler
    ToyMCSampler sampler(ts, nToyMC);
+   // the observables and global observables to generate are the ones of the model
    sampler.SetModel(*mc);
-   sampler.SetObservables(*mc->GetObservables());
-   sampler.SetGlobalObservables(*mc->GetGlobalObservables());
    if (!mc->GetPdf()->canBeExtended() && (data->numEntries() == 1)) {
       cout << "tell it to use 1 event" << endl;
       sampler.SetNEventsPerToy(1);

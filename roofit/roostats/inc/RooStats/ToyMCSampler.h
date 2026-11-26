@@ -157,11 +157,17 @@ class ToyMCSampler: public TestStatSampler {
       }
 
       /// Set the model to generate the toys from. The observables are
-      /// generated from its pdf. If global observables are set with
-      /// SetGlobalObservables(), they are generated from the constraint terms
-      /// of the model (see ModelConfig::GetExternalConstraints()), which are
-      /// no part of the pdf. The model needs to outlive the sampler.
+      /// generated from its pdf, and the global observables from its constraint
+      /// terms (see ModelConfig::GetExternalConstraints()), which are no part
+      /// of the pdf, see SetGenerateGlobalObservables(). The observables and
+      /// nuisance parameters are the ones of the model. The model needs to
+      /// outlive the sampler.
       void SetModel(const ModelConfig& model) override { fModel = &model; fPdf = model.GetPdf(); ClearCache(); }
+
+      /// Whether to generate the global observables of the model for each toy
+      /// (the default). If not, they keep their values (conditional ensemble),
+      /// e.g. if the nuisance parameters are randomized with SetPriorNuisance().
+      void SetGenerateGlobalObservables(bool flag = true) { fGenerateGlobalObservables = flag; }
 
       /// How to randomize the prior. Set to nullptr to deactivate randomization.
       void SetPriorNuisance(RooAbsPdf* pdf) override {
@@ -171,14 +177,6 @@ class ToyMCSampler: public TestStatSampler {
             fNuisanceParametersSampler = nullptr;
          }
       }
-      /// specify the nuisance parameters (eg. the rest of the parameters)
-      void SetNuisanceParameters(const RooArgSet& np) override { fNuisancePars = &np; }
-      /// specify the observables in the dataset (needed to evaluate the test statistic)
-      void SetObservables(const RooArgSet& o) override { fObservables = &o; }
-      /// Specify the global observables to generate for each toy from the
-      /// constraint terms of the model. If they are not set, the global
-      /// observables keep their values (conditional ensemble).
-      void SetGlobalObservables(const RooArgSet& o) override { fGlobalObservables = &o; }
 
 
       /// set the size of the test (rate of Type I error) ( Eg. 0.05 for a 95% Confidence Interval)
@@ -252,6 +250,16 @@ class ToyMCSampler: public TestStatSampler {
       /// constraint terms, which includes the global observables.
       std::unique_ptr<RooArgSet> GetAllVariables() const;
 
+      /// The observables of the model.
+      RooArgSet const *Observables() const { return fModel ? fModel->GetObservables() : nullptr; }
+      /// The nuisance parameters of the model.
+      RooArgSet const *NuisanceParameters() const { return fModel ? fModel->GetNuisanceParameters() : nullptr; }
+      /// The global observables of the model to generate for each toy, see SetGenerateGlobalObservables().
+      RooArgSet const *GlobalObservablesToGenerate() const
+      {
+         return fGenerateGlobalObservables && fModel ? fModel->GetGlobalObservables() : nullptr;
+      }
+
 
       /// densities, snapshots, and test statistics to reweight to
       const ModelConfig *fModel = nullptr; ///< model (can be alt or null)
@@ -261,9 +269,7 @@ class ToyMCSampler: public TestStatSampler {
 
       std::string fSamplingDistName; ///< name of the model
       RooAbsPdf *fPriorNuisance = nullptr; ///< prior pdf for nuisance parameters
-      const RooArgSet *fNuisancePars = nullptr;
-      const RooArgSet *fObservables = nullptr;
-      const RooArgSet *fGlobalObservables = nullptr;
+      bool fGenerateGlobalObservables = true; ///< whether to generate the global observables for each toy
       Int_t fNToys;   ///< number of toys to generate
       Int_t fNEvents = 0; ///< number of events per toy (may be ignored depending on settings)
       double fSize = 0.05;

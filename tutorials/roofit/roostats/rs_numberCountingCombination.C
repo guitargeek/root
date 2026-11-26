@@ -28,6 +28,7 @@
 /// \author Kyle Cranmer
 
 #include "RooStats/ProfileLikelihoodCalculator.h"
+#include "RooStats/ModelConfig.h"
 #include "RooStats/NumberCountingPdfFactory.h"
 #include "RooStats/ConfInterval.h"
 #include "RooStats/HypoTestResult.h"
@@ -107,8 +108,12 @@ void rs_numberCountingCombination_expected()
 
    // Step 5, Create a calculator for doing the hypothesis test.
    // because this is a
-   ProfileLikelihoodCalculator plc(*wspace.data("ExpectedNumberCountingData"), *wspace.pdf("TopLevelPdf"), poi, 0.05,
-                                   &nullParams);
+   // The calculator takes the model from a ModelConfig: here, the pdf and the parameter of interest.
+   ModelConfig modelConfig("modelConfig", &wspace);
+   modelConfig.SetPdf("TopLevelPdf");
+   modelConfig.SetParametersOfInterest(poi);
+   ProfileLikelihoodCalculator plc(*wspace.data("ExpectedNumberCountingData"), modelConfig);
+   plc.SetNullParameters(nullParams);
 
    // Step 6, Use the Calculator to get a HypoTestResult
    std::unique_ptr<HypoTestResult> htr{plc.GetHypoTest()};
@@ -128,9 +133,8 @@ void rs_numberCountingCombination_expected()
    // Confidence Interval Stage
 
    // Step 8, Here we re-use the ProfileLikelihoodCalculator to return a confidence interval.
-   // We need to specify what are our parameters of interest
+   // The parameters of interest are the ones of the model
    RooArgSet &paramsOfInterest = nullParams; // they are the same as before in this case
-   plc.SetParameters(paramsOfInterest);
    std::unique_ptr<LikelihoodInterval> lrint{static_cast<LikelihoodInterval *>(plc.GetInterval())};
    lrint->SetConfidenceLevel(0.95);
 
@@ -260,8 +264,12 @@ void rs_numberCountingCombination_observed()
 
    // Step 5, Create a calculator for doing the hypothesis test.
    // because this is a
-   ProfileLikelihoodCalculator plc(*wspace.data("ObservedNumberCountingData"), *wspace.pdf("TopLevelPdf"), poi, 0.05,
-                                   &nullParams);
+   // The calculator takes the model from a ModelConfig: here, the pdf and the parameter of interest.
+   ModelConfig modelConfig("modelConfig", &wspace);
+   modelConfig.SetPdf("TopLevelPdf");
+   modelConfig.SetParametersOfInterest(poi);
+   ProfileLikelihoodCalculator plc(*wspace.data("ObservedNumberCountingData"), modelConfig);
+   plc.SetNullParameters(nullParams);
 
    wspace.var("tau_0")->Print();
    wspace.var("tau_1")->Print();
@@ -284,9 +292,8 @@ void rs_numberCountingCombination_observed()
    // Confidence Interval Stage
 
    // Step 8, Here we re-use the ProfileLikelihoodCalculator to return a confidence interval.
-   // We need to specify what are our parameters of interest
+   // The parameters of interest are the ones of the model
    RooArgSet &paramsOfInterest = nullParams; // they are the same as before in this case
-   plc.SetParameters(paramsOfInterest);
    std::unique_ptr<LikelihoodInterval> lrint{static_cast<LikelihoodInterval *>(plc.GetInterval())};
    lrint->SetConfidenceLevel(0.95);
 
@@ -346,8 +353,12 @@ void rs_numberCountingCombination_observedWithTau()
 
    // Step 5, Create a calculator for doing the hypothesis test.
    // because this is a
-   ProfileLikelihoodCalculator plc(*wspace.data("ObservedNumberCountingDataWithSideband"), *wspace.pdf("TopLevelPdf"),
-                                   poi, 0.05, &nullParams);
+   // The calculator takes the model from a ModelConfig: here, the pdf and the parameter of interest.
+   ModelConfig modelConfig("modelConfig", &wspace);
+   modelConfig.SetPdf("TopLevelPdf");
+   modelConfig.SetParametersOfInterest(poi);
+   ProfileLikelihoodCalculator plc(*wspace.data("ObservedNumberCountingDataWithSideband"), modelConfig);
+   plc.SetNullParameters(nullParams);
 
    // Step 7, Use the Calculator to get a HypoTestResult
    std::unique_ptr<HypoTestResult> htr{plc.GetHypoTest()};
@@ -367,9 +378,8 @@ void rs_numberCountingCombination_observedWithTau()
    // Confidence Interval Stage
 
    // Step 8, Here we re-use the ProfileLikelihoodCalculator to return a confidence interval.
-   // We need to specify what are our parameters of interest
+   // The parameters of interest are the ones of the model
    RooArgSet &paramsOfInterest = nullParams; // they are the same as before in this case
-   plc.SetParameters(paramsOfInterest);
    std::unique_ptr<LikelihoodInterval> lrint{static_cast<LikelihoodInterval *>(plc.GetInterval())};
    lrint->SetConfidenceLevel(0.95);
 

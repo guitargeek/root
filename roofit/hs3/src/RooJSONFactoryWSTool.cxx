@@ -1509,9 +1509,7 @@ void importAnalysis(HS3Document const &doc, HS3::Analysis const &analysis, RooWo
       checkPdf(workspace.arg(term.distribution.name), term.distribution.name, "distribution");
    }
 
-   // The constraint terms of the HistFactory distributions of the likelihood enter through those distributions.
-   // Listed in "aux_distributions", they are not added again; paired with a data set in "distributions", they are
-   // not channels, and the data set gives the observed values of their observables.
+   // A term of the likelihood that is part of another term, e.g. a factor of a product, is no term of its own.
    std::vector<std::unique_ptr<RooArgSet>> trees;
    for (auto const &term : likelihood.terms) {
       RooAbsPdf *listed = workspace.pdf(term.distribution.name);
@@ -1536,6 +1534,35 @@ void importAnalysis(HS3Document const &doc, HS3::Analysis const &analysis, RooWo
       for (std::size_t i = 0; i < trees.size(); ++i) {
          if (i != self && trees[i] && isPartOf(*trees[i])) {
             return true;
+         }
+      }
+      return false;
+   };
+
+   // The constraint terms that the distributions of each term brought along, e.g. the ones that the modifiers of a
+   // HistFactory distribution name. They are no part of the pdfs. Paired with a data set in "distributions", such a
+   // constraint term (or an array of them) is no channel: the data set gives the observed values of its
+   // observables, and it is an external constraint of the ModelConfig.
+   std::vector<std::set<std::string>> broughtAlong(trees.size());
+   for (std::size_t i = 0; i < trees.size(); ++i) {
+      for (auto const &[distName, constraintNames] : constraintsOfDistributions) {
+         if (trees[i] && trees[i]->find(distName.c_str())) {
+            broughtAlong[i].insert(constraintNames.begin(), constraintNames.end());
+         }
+      }
+   }
+   auto isBroughtAlongByOthers = [&](RooAbsArg const &term, std::size_t self) {
+      std::vector<std::string> names{term.GetName()};
+      if (auto const *array = dynamic_cast<RooProdPdf const *>(&term); array && term.getAttribute(arrayDistTag)) {
+         for (RooAbsArg const *component : array->pdfList()) {
+            names.emplace_back(component->GetName());
+         }
+      }
+      for (std::size_t i = 0; i < broughtAlong.size(); ++i) {
+         for (std::string const &name : names) {
+            if (i != self && broughtAlong[i].count(name)) {
+               return true;
+            }
          }
       }
       return false;
@@ -1570,7 +1597,9 @@ void importAnalysis(HS3Document const &doc, HS3::Analysis const &analysis, RooWo
    for (std::size_t i = 0; i < likelihood.terms.size(); ++i) {
       auto const &term = likelihood.terms[i];
       RooAbsPdf *listed = workspace.pdf(term.distribution.name);
-      if (listed && !isConstraintTermOfOthers(*listed, i) && isConstraintTermOfModel(*listed, term)) {
+      const bool isConstraintWithData =
+         listed && (isBroughtAlongByOthers(*listed, i) || isConstraintTermOfModel(*listed, term));
+      if (listed && !isConstraintTermOfOthers(*listed, i) && isConstraintWithData) {
          constraintsWithData.add(*listed);
       } else if (!listed || !isConstraintTermOfOthers(*listed, i)) {
          nllTerms.push_back(&term);
@@ -2214,6 +2243,9 @@ bool RooJSONFactoryWSTool::isConstraintReadAsChannel(RooAbsPdf const &pdf) const
 void RooJSONFactoryWSTool::recordImportedConstraints(std::string const &dist, RooArgSet const &constraints)
 {
    if (!_import) {
+      // A single element is imported, e.g. with importJSONElement(): there is no analysis that takes the constraint
+      // terms, so they are registered in the workspace, where RooFit::constraintsOf() finds them.
+      RooFit::addConstraintTerms(_workspace, constraints);
       return;
    }
    auto &names = _import->constraintsOfDistributions[dist];
@@ -3921,6 +3953,14 @@ void RooJSONFactoryWSTool::importJSONElement(const std::string &name, const std:
       modelConfig.SetWS(_workspace);
       modelConfig.SetPdf(pdname.c_str());
       modelConfig.SetParametersOfInterest(_workspace.argSet(poi));
+      // The constraint terms are no part of the pdf: the ModelConfig gets the ones that the workspace knows for the
+      // parameters of the pdf, e.g. the ones of the modifiers of a HistFactory distribution.
+      if (RooAbsPdf *pdf = modelConfig.GetPdf()) {
+         const RooArgSet constraints = RooFit::constraintsOf(_workspace, *pdf);
+         if (!constraints.empty()) {
+            modelConfig.SetExternalConstraints(constraints);
+         }
+      }
       _workspace.import(modelConfig);
 
       return;

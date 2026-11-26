@@ -79,6 +79,9 @@ int HybridCalculator::PreNullHook(RooArgSet* /*parameterPoint*/, double obsTestS
       // variable number of toys
       if(fNToysNull >= 0) toymcs->SetNToys(fNToysNull);
 
+      // the nuisance parameters are randomized, and the global observables keep their values
+      toymcs->SetGenerateGlobalObservables(false);
+
       // adaptive sampling
       if(fNToysNullTail) {
          oocoutI(nullptr,InputArguments) << "Adaptive Sampling" << std::endl;
@@ -127,6 +130,9 @@ int HybridCalculator::PreAltHook(RooArgSet* /*parameterPoint*/, double obsTestSt
 
       // variable number of toys
       if(fNToysAlt >= 0) toymcs->SetNToys(fNToysAlt);
+
+      // the nuisance parameters are randomized, and the global observables keep their values
+      toymcs->SetGenerateGlobalObservables(false);
 
       // adaptive sampling
       if(fNToysAltTail) {

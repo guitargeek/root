@@ -263,7 +263,7 @@ public:
       if (_verb > 0)
          Info("testCode", "comparing PDFs");
 
-      return ComparePDF(*pMC_API->GetPdf(), *pMC_XML->GetPdf(), pObservables, *pWS_API->data("obsData"));
+      return ComparePDF(*pMC_API, *pMC_XML, pObservables, *pWS_API->data("obsData"));
    }
 
 private:
@@ -374,20 +374,34 @@ private:
       return true;
    }
 
-   bool ComparePDF(RooAbsPdf &rPDF1, RooAbsPdf &rPDF2, const RooArgSet &rAllObservables, RooAbsData &rTestData)
+   // Compare the models of two ModelConfigs: their pdfs and their constraint terms, which are no part of the pdfs.
+   bool ComparePDF(RooStats::ModelConfig const &rMC1, RooStats::ModelConfig const &rMC2,
+                   const RooArgSet &rAllObservables, RooAbsData &rTestData)
    {
       using namespace RooFit;
       using namespace RooStats;
 
+      RooAbsPdf &rPDF1 = *rMC1.GetPdf();
+      RooAbsPdf &rPDF2 = *rMC2.GetPdf();
+
       // options
       const Int_t iSamplingPoints = 100;
 
-      // get variables
-      std::unique_ptr<RooArgSet> pVars1{rPDF1.getVariables()};
-      std::unique_ptr<RooArgSet> pVars2{rPDF2.getVariables()};
+      // get variables, including the ones of the constraint terms
+      std::unique_ptr<RooArgSet> pVars1{rMC1.getVariables()};
+      std::unique_ptr<RooArgSet> pVars2{rMC2.getVariables()};
 
       if (!CompareParameters(*pVars1, *pVars2)) {
          Warning("ComparePDF", "variable sets for PDFs failed check");
+         return false;
+      }
+
+      // the same constraint terms
+      RooArgSet noConstraints;
+      RooArgSet const &constraints1 = rMC1.GetExternalConstraints() ? *rMC1.GetExternalConstraints() : noConstraints;
+      RooArgSet const &constraints2 = rMC2.GetExternalConstraints() ? *rMC2.GetExternalConstraints() : noConstraints;
+      if (constraints1.empty() || !CompareParameters(constraints1, constraints2)) {
+         Warning("ComparePDF", "the constraint terms of the models differ");
          return false;
       }
 
@@ -402,6 +416,11 @@ private:
 
          fPDF1value = rPDF1.getVal();
          fPDF2value = rPDF2.getVal();
+         // the constraint terms multiply the likelihood
+         for (RooAbsArg *constraint : constraints1) {
+            fPDF1value *= static_cast<RooAbsPdf *>(constraint)->getVal();
+            fPDF2value *= static_cast<RooAbsPdf &>(constraints2[constraint->GetName()]).getVal();
+         }
 
          float diff = (fPDF1value - fPDF2value);
          if (fPDF1value != 0.f)
@@ -433,8 +452,8 @@ private:
       pVars1->assign(*pVars2);
 
       // do the fit
-      std::unique_ptr<RooFitResult> r1{rPDF1.fitTo(rTestData, Save(), PrintLevel(-1))};
-      std::unique_ptr<RooFitResult> r2{rPDF2.fitTo(rTestData, Save(), PrintLevel(-1))};
+      std::unique_ptr<RooFitResult> r1{rMC1.fitTo(rTestData, Save(), PrintLevel(-1))};
+      std::unique_ptr<RooFitResult> r2{rMC2.fitTo(rTestData, Save(), PrintLevel(-1))};
 
       if (_verb > 0) {
          r1->Print("v");

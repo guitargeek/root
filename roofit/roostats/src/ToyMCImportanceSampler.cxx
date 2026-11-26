@@ -248,7 +248,7 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
    ooccoutD(nullptr,InputArguments) << std::endl;
    ooccoutD(nullptr,InputArguments) << "GenerateToyDataImportanceSampling" << std::endl;
 
-   if(!fObservables) {
+   if(!Observables()) {
       ooccoutE(nullptr,InputArguments) << "Observables not set." << std::endl;
       return nullptr;
    }
@@ -293,13 +293,16 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
 
 
    // create nuisance parameter points
-   if(!fNuisanceParametersSampler && fPriorNuisance && fNuisancePars)
-      fNuisanceParametersSampler = new NuisanceParametersSampler(fPriorNuisance, fNuisancePars, fNToys, fExpectedNuisancePar);
+   if(!fNuisanceParametersSampler && fPriorNuisance && NuisanceParameters())
+      fNuisanceParametersSampler = new NuisanceParametersSampler(fPriorNuisance, NuisanceParameters(), fNToys, fExpectedNuisancePar);
 
    // generate global observables
-   RooArgSet observables(*fObservables);
-   if(fGlobalObservables  &&  !fGlobalObservables->empty()) {
-      observables.remove(*fGlobalObservables);
+   RooArgSet observables(*Observables());
+   if (RooArgSet const *globalObservables = fModel->GetGlobalObservables()) {
+      observables.remove(*globalObservables);
+   }
+   RooArgSet const *globalObservablesToGenerate = GlobalObservablesToGenerate();
+   if (globalObservablesToGenerate && !globalObservablesToGenerate->empty()) {
       // The global observables are generated from the constraint terms of the
       // model, which are independent of the densities.
       GenerateGlobalObservables();
@@ -367,8 +370,10 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
       if( !fNullNLLs[i] ) {
          // The densities are pdfs of the observables and contain no constraint
          // terms: these are the same for all densities and cancel in the weights.
-         fNullNLLs[i] = std::unique_ptr<RooAbsReal>{fNullDensities[i]->createNLL(*data, RooFit::CloneData(false),
-                                                     RooFit::ConditionalObservables(fConditionalObs))};
+         // The empty set of external constraints says that this is intended.
+         fNullNLLs[i] = std::unique_ptr<RooAbsReal>{fNullDensities[i]->createNLL(
+            *data, RooFit::CloneData(false), RooFit::ConditionalObservables(fConditionalObs),
+            RooFit::ExternalConstraints(RooArgSet{}))};
       }else{
          fNullNLLs[i]->setData( *data, false );
       }
@@ -393,8 +398,9 @@ RooAbsData* ToyMCImportanceSampler::GenerateToyData(
         allVars->assign(*fImportanceSnapshots[i]);
       }
       if( !fImpNLLs[i] ) {
-         fImpNLLs[i] = std::unique_ptr<RooAbsReal>{fImportanceDensities[i]->createNLL(*data, RooFit::CloneData(false),
-                                                          RooFit::ConditionalObservables(fConditionalObs))};
+         fImpNLLs[i] = std::unique_ptr<RooAbsReal>{fImportanceDensities[i]->createNLL(
+            *data, RooFit::CloneData(false), RooFit::ConditionalObservables(fConditionalObs),
+            RooFit::ExternalConstraints(RooArgSet{}))};
       }else{
          fImpNLLs[i]->setData( *data, false );
       }

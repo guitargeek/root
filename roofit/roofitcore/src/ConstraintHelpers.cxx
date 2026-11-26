@@ -17,14 +17,17 @@
 #include <RooAbsData.h>
 #include <RooAbsPdf.h>
 #include <RooConstraintSum.h>
+#include <RooFit/Constraints.h>
 #include <RooMsgService.h>
 #include <RooProdPdf.h>
+#include <RooWorkspace.h>
 
 #include "RooFitImplHelpers.h"
 
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -156,48 +159,116 @@ std::unique_ptr<RooAbsReal> createConstraintTerm(std::string const &name, RooAbs
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// The factors of a RooProdPdf that are constraint terms with respect to a set
-/// of observables, given by the name pointers of the variables.
+/// The factors of the RooProdPdfs in a model that are constraint terms with
+/// respect to a set of observables, given by the name pointers of the
+/// variables.
 ///
-/// A factor is a constraint term if it depends on none of the observables,
-/// can't be extended, and depends on at least one parameter of the factors
-/// that are no such candidates. If `parameters` is given, only these
-/// parameters count.
-std::vector<ConstraintFactor> findConstraintFactors(RooProdPdf const &prod,
+/// A factor is a candidate if it depends on none of the observables and can't
+/// be extended. A candidate is a constraint term if it depends on a parameter
+/// of the rest of the model: of the model without the candidates, or of a
+/// candidate that is a constraint term. This is not limited to the other
+/// factors of the same product: in a RooSimultaneous, a constraint term can be
+/// a factor of a channel that doesn't depend on the parameter, e.g. if the
+/// model was built for a statistics tool that collected the constraint terms
+/// from all channels. If `parameters` is given, only these parameters count.
+///
+/// Such factors cancel in the normalized value of the product, so they don't
+/// contribute to a likelihood of the observables.
+std::vector<ConstraintFactor> findConstraintFactors(RooAbsPdf const &pdf,
                                                     std::unordered_set<TNamed const *> const &observables,
                                                     std::unordered_set<TNamed const *> const *parameters)
 {
-   std::vector<RooAbsPdf *> candidates;
-   std::vector<RooArgSet> candidateVars;
-   std::unordered_set<TNamed const *> otherParams;
+   auto isParameter = [&](RooAbsArg const &arg) {
+      return arg.isFundamental() && !observables.count(arg.namePtr()) &&
+             (!parameters || parameters->count(arg.namePtr()));
+   };
 
-   for (auto *factor : static_range_cast<RooAbsPdf *>(prod.pdfList())) {
-      RooArgSet vars;
-      factor->getParameters(nullptr, vars);
-      const bool dependsOnObservables =
-         std::any_of(vars.begin(), vars.end(), [&](RooAbsArg *v) { return observables.count(v->namePtr()) > 0; });
-      if (dependsOnObservables || factor->canBeExtended()) {
-         for (RooAbsArg *v : vars) {
-            if (!observables.count(v->namePtr()) && (!parameters || parameters->count(v->namePtr()))) {
-               otherParams.insert(v->namePtr());
+   // The candidates, by product.
+   std::vector<ConstraintFactor> candidates;
+   std::unordered_map<RooAbsArg const *, std::unordered_set<RooAbsArg const *>> candidatesOfProduct;
+   RooArgSet components;
+   pdf.branchNodeServerList(&components);
+   for (auto *prod : dynamic_range_cast<RooProdPdf const *>(components)) {
+      if (!prod) {
+         continue;
+      }
+      for (auto *factor : static_range_cast<RooAbsPdf *>(prod->pdfList())) {
+         RooArgSet vars;
+         factor->getParameters(nullptr, vars);
+         const bool dependsOnObservables =
+            std::any_of(vars.begin(), vars.end(), [&](RooAbsArg *v) { return observables.count(v->namePtr()) > 0; });
+         if (!dependsOnObservables && !factor->canBeExtended()) {
+            candidatesOfProduct[prod].insert(factor);
+            candidates.push_back({prod, factor, std::move(vars)});
+         }
+      }
+   }
+   if (candidates.empty()) {
+      return {};
+   }
+
+   // The parameters of the model without the candidates: the leaves that can be reached through value servers,
+   // without going from a product to one of its candidates. A candidate that is reached in another way is part of
+   // the model.
+   std::unordered_set<TNamed const *> modelParams;
+   {
+      std::vector<RooAbsArg const *> stack{&pdf};
+      std::unordered_set<RooAbsArg const *> visited;
+      while (!stack.empty()) {
+         RooAbsArg const *node = stack.back();
+         stack.pop_back();
+         if (!visited.insert(node).second) {
+            continue;
+         }
+         if (node->isFundamental()) {
+            if (isParameter(*node)) {
+               modelParams.insert(node->namePtr());
+            }
+            continue;
+         }
+         auto found = candidatesOfProduct.find(node);
+         for (RooAbsArg *server : node->servers()) {
+            if (server->isValueServer(*node) && (found == candidatesOfProduct.end() || !found->second.count(server))) {
+               stack.push_back(server);
             }
          }
-      } else {
-         candidates.push_back(factor);
-         candidateVars.emplace_back(std::move(vars));
+      }
+   }
+
+   // A candidate that shares a parameter with the model is a constraint term, and its parameters are parameters of
+   // the model then, e.g. for a constraint term of the width of another constraint term.
+   std::vector<bool> isConstraint(candidates.size(), false);
+   for (bool changed = true; changed;) {
+      changed = false;
+      for (std::size_t i = 0; i < candidates.size(); ++i) {
+         if (isConstraint[i]) {
+            continue;
+         }
+         RooArgSet shared;
+         for (RooAbsArg *v : candidates[i].parameters) {
+            if (isParameter(*v) && modelParams.count(v->namePtr())) {
+               shared.add(*v);
+            }
+         }
+         if (shared.empty()) {
+            continue;
+         }
+         for (RooAbsArg *v : candidates[i].parameters) {
+            if (isParameter(*v)) {
+               modelParams.insert(v->namePtr());
+            }
+         }
+         candidates[i].parameters.removeAll();
+         candidates[i].parameters.add(shared);
+         isConstraint[i] = true;
+         changed = true;
       }
    }
 
    std::vector<ConstraintFactor> out;
    for (std::size_t i = 0; i < candidates.size(); ++i) {
-      RooArgSet shared;
-      for (RooAbsArg *v : candidateVars[i]) {
-         if (otherParams.count(v->namePtr())) {
-            shared.add(*v);
-         }
-      }
-      if (!shared.empty()) {
-         out.push_back({candidates[i], std::move(shared)});
+      if (isConstraint[i]) {
+         out.push_back(std::move(candidates[i]));
       }
    }
    return out;
@@ -205,9 +276,9 @@ std::vector<ConstraintFactor> findConstraintFactors(RooProdPdf const &prod,
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Throw an exception if a RooProdPdf in the model has a factor that looks
-/// like a constraint term: one that depends on none of the variables in the
-/// dataset, but on floating parameters of the model that the other factors
-/// depend on, too.
+/// like a constraint term, see findConstraintFactors(): one that depends on
+/// none of the variables in the dataset, but on floating parameters of the
+/// rest of the model.
 ///
 /// Such a factor cancels in the normalized value of the product, so it does
 /// not contribute to the likelihood. Constraint terms are no part of the pdf:
@@ -234,25 +305,52 @@ void checkForConstraintsInProducts(RooAbsPdf const &pdf, RooAbsData const &data)
       }
    }
 
-   RooArgSet components;
-   pdf.branchNodeServerList(&components);
-   for (auto *prod : dynamic_range_cast<RooProdPdf const *>(components)) {
-      if (!prod)
-         continue;
-
-      for (ConstraintFactor const &factor : findConstraintFactors(*prod, dataVars, &floatingParams)) {
-         std::stringstream ss;
-         ss << "The factor \"" << factor.pdf->GetName() << "\" of the RooProdPdf \"" << prod->GetName()
-            << "\" depends on none of the observables in the dataset, but on the parameters " << factor.parameters
-            << " of the other factors. Such a factor cancels in the normalization of the pdf and does NOT constrain "
-               "these parameters in the likelihood. Constraint terms are no part of the pdf: pass them with "
-               "ModelConfig::SetExternalConstraints() and use ModelConfig::createNLL() or ModelConfig::fitTo(), "
-               "or pass them with the ExternalConstraints() command argument. RooFit::splitOffConstraints() "
-               "separates the constraint terms of such a pdf from it.";
-         oocoutE(&pdf, InputArguments) << ss.str() << std::endl;
-         throw std::runtime_error(ss.str());
-      }
+   std::vector<ConstraintFactor> factors = findConstraintFactors(pdf, dataVars, &floatingParams);
+   if (factors.empty()) {
+      return;
    }
+   ConstraintFactor const &factor = factors.front();
+   std::stringstream ss;
+   ss << "The factor \"" << factor.pdf->GetName() << "\" of the RooProdPdf \"" << factor.product->GetName()
+      << "\" depends on none of the observables in the dataset, but on the parameters " << factor.parameters
+      << " of the model. Such a factor cancels in the normalization of the product and does NOT constrain these "
+         "parameters in the likelihood. Constraint terms are no part of the pdf: pass them with "
+         "ModelConfig::SetExternalConstraints() and use ModelConfig::createNLL() or ModelConfig::fitTo(), or pass "
+         "them with the ExternalConstraints() command argument. RooFit::splitOffConstraints() separates the "
+         "constraint terms of such a pdf from it.";
+   oocoutE(&pdf, InputArguments) << ss.str() << std::endl;
+   throw std::runtime_error(ss.str());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Throw an exception if a likelihood of the pdf is created without constraint
+/// terms although its workspace knows constraint terms for its parameters,
+/// see RooFit::constraintsOf(RooWorkspace const &, RooAbsArg const &).
+///
+/// Constraint terms are no part of the pdf, so such a likelihood would leave
+/// the parameters silently unconstrained. This function is called only if no
+/// ExternalConstraints() command argument was given: passing one, also an
+/// empty one, says which constraint terms the likelihood has.
+void checkForForgottenConstraints(RooAbsPdf const &pdf)
+{
+   RooWorkspace const *ws = pdf.workspace();
+   if (!ws) {
+      return;
+   }
+   const RooArgSet constraints = RooFit::constraintsOf(*ws, pdf);
+   if (constraints.empty()) {
+      return;
+   }
+   std::stringstream ss;
+   ss << "The workspace \"" << ws->GetName() << "\" has constraint terms for parameters of the pdf \"" << pdf.GetName()
+      << "\": " << constraints
+      << ", but none were passed to the likelihood. Constraint terms are no part of the pdf, so this likelihood "
+         "would leave the parameters unconstrained. Use ModelConfig::createNLL() or ModelConfig::fitTo(), or pass the "
+         "constraint terms with the ExternalConstraints() command argument, e.g. "
+         "ExternalConstraints(RooFit::constraintsOf(ws, pdf)). To create the likelihood without constraint terms on "
+         "purpose, pass ExternalConstraints() with an empty set.";
+   oocoutE(&pdf, InputArguments) << ss.str() << std::endl;
+   throw std::runtime_error(ss.str());
 }
 
 /// \endcond

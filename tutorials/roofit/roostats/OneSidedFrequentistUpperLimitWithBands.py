@@ -215,10 +215,10 @@ def OneSidedFrequentistUpperLimitWithBands(
         else:
             print(f"Not sure what to do about this model")
 
+    # The toys are generated with the global observables of the model (unconditional ensemble).
     if mc.GetGlobalObservables():
         print(f"will use global observables for unconditional ensemble")
         mc.GetGlobalObservables().Print()
-        toymcsampler.SetGlobalObservables(mc.GetGlobalObservables())
 
     # Now get the interval
     interval = fc.GetInterval()
