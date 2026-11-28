@@ -100,6 +100,26 @@ TFile etc. functionality.
 #include <memory>
 #include <sstream>
 
+// TEMP-DIAG: r3: locate the crash of the interpreted stressHistoFit while the minimizer plugin gets created
+// (needs JC_TEMP_DIAG set)
+#ifdef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#define JC_TEMP(...)                                 \
+   do {                                              \
+      static int jcOn = -1, jcN = 0;                 \
+      if (jcOn < 0)                                  \
+         jcOn = std::getenv("JC_TEMP_DIAG") ? 1 : 0; \
+      if (jcOn && jcN++ < 6) {                       \
+         fprintf(stderr, "[jc-TEMP] " __VA_ARGS__);  \
+         fprintf(stderr, "\n");                      \
+         fflush(stderr);                             \
+      }                                              \
+   } while (0)
+#else
+#define JC_TEMP(...)
+#endif
+
 TPluginManager *gPluginMgr;   // main plugin manager created in TROOT
 
 static bool &TPH__IsReadingDirs() {
@@ -179,7 +199,10 @@ Bool_t TPluginHandler::CanHandle(const char *base, const char *uri)
 Bool_t TPluginHandler::CheckNameMatch(int iarg, const std::type_info& ti)
 {
    int err = 0;
+   JC_TEMP("TPluginHandler::CheckNameMatch: argument %d, type_info name '%s'", iarg, ti.name());
    char* demangled_name = TClassEdit::DemangleTypeIdName(ti, err);
+   JC_TEMP("TPluginHandler::CheckNameMatch: demangled to '%s', error %d", demangled_name ? demangled_name : "(null)",
+           err);
    if (err) {
       return false;
    }
@@ -187,6 +210,8 @@ Bool_t TPluginHandler::CheckNameMatch(int iarg, const std::type_info& ti)
    TClassEdit::GetNormalizedName(norm_name, demangled_name);
    free(demangled_name);
    const TMethodArg *arg = static_cast<const TMethodArg *>(fMethod->GetListOfMethodArgs()->At(iarg));
+   JC_TEMP("TPluginHandler::CheckNameMatch: normalized '%s', expected '%s'", norm_name.c_str(),
+           arg->GetTypeNormalizedName().c_str());
    return norm_name == arg->GetTypeNormalizedName();
 }
 
@@ -208,7 +233,9 @@ void TPluginHandler::SetupCallEnv()
                     [this,&setCanCall](void *) { this->fCanCall = setCanCall; } );
 
    // check if class exists
+   JC_TEMP("TPluginHandler::SetupCallEnv: class '%s', ctor '%s'", fClass.Data(), fCtor.Data());
    TClass *cl = TClass::GetClass(fClass);
+   JC_TEMP("TPluginHandler::SetupCallEnv: class at %p", (void *)cl);
    if (!cl && !fIsGlobal) {
       Error("SetupCallEnv", "class %s not found in plugin %s", fClass.Data(),
             fPlugin.Data());
@@ -225,6 +252,7 @@ void TPluginHandler::SetupCallEnv()
    } else {
       fMethod = cl->GetMethodWithPrototype(method, proto);
    }
+   JC_TEMP("TPluginHandler::SetupCallEnv: method at %p", (void *)fMethod);
 
    if (!fMethod) {
       if (fIsGlobal)
@@ -242,6 +270,7 @@ void TPluginHandler::SetupCallEnv()
 
    fCallEnv = new TMethodCall;
    fCallEnv->Init(fMethod);
+   JC_TEMP("TPluginHandler::SetupCallEnv: call environment initialized, %d arguments", fMethod->GetNargs());
 
    // cache argument types for fast comparison
    fArgTupleTypeInfo.clear();
@@ -271,6 +300,8 @@ Int_t TPluginHandler::CheckPlugin() const
 /// and -1 in case the library does not exist or in case of error.
 void TPluginHandler::LoadPluginImpl()
 {
+   JC_TEMP("TPluginHandler::LoadPluginImpl: class '%s', plugin '%s', macro: %d", fClass.Data(), fPlugin.Data(),
+           (int)fIsMacro);
    if (fIsMacro) {
       if (TClass::GetClass(fClass))
          fLoadStatus = 0;
@@ -283,6 +314,7 @@ void TPluginHandler::LoadPluginImpl()
       else
          fLoadStatus = gROOT->LoadClass(fClass, fPlugin);
    }
+   JC_TEMP("TPluginHandler::LoadPluginImpl: status %d", fLoadStatus);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -300,6 +332,7 @@ Int_t TPluginHandler::LoadPlugin()
 
 Bool_t TPluginHandler::CheckForExecPlugin(Int_t nargs)
 {
+   JC_TEMP("TPluginHandler::CheckForExecPlugin: %d arguments, can call: %d", nargs, (int)fCanCall);
    if (fCtor.IsNull()) {
       Error("ExecPlugin", "no ctor specified for this handler %s", fClass.Data());
       return kFALSE;
@@ -329,6 +362,7 @@ Bool_t TPluginHandler::CheckForExecPlugin(Int_t nargs)
       return kFALSE;
    }
 
+   JC_TEMP("TPluginHandler::CheckForExecPlugin: ok");
    return kTRUE;
 }
 

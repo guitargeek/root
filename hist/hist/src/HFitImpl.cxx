@@ -59,6 +59,29 @@
 #define JC_TEMP(...)
 #endif
 
+// TEMP-DIAG: r3: with JC_TEMP_STAGE=N in the environment, create a minimizer at stage N of HFit::Fit, to see from
+// which step on that crashes (the stages below 10 are in test/stressHistoFit.cxx)
+#ifdef _WIN32
+#include "Math/Factory.h"
+static void JcTempFitStage(int stage)
+{
+   static int wanted = -1;
+   if (wanted < 0) {
+      const char *env = std::getenv("JC_TEMP_STAGE");
+      wanted = env ? atoi(env) : 0;
+   }
+   if (stage != wanted)
+      return;
+   wanted = 1000; // only once
+   JC_TEMP("HFit::Fit: stage %d: creating a minimizer", stage);
+   ROOT::Math::Minimizer *jcMin = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
+   JC_TEMP("HFit::Fit: stage %d: minimizer at %p", stage, (void *)jcMin);
+   delete jcMin;
+}
+#else
+static void JcTempFitStage(int) {}
+#endif
+
 //#define DEBUG
 
 // utility functions used in TH1::Fit
@@ -160,6 +183,7 @@ TFitResultPtr HFit::Fit(FitObject * h1, TF1 *f1 , Foption_t & fitOption , const 
 
    // replacement function using  new fitter
    JC_TEMP("HFit::Fit: entered");
+   JcTempFitStage(10);
    int hdim = HFit::GetDimension(h1);
    int iret = HFit::CheckFitFunction(f1, hdim);
    if (iret != 0) return iret;
@@ -227,6 +251,7 @@ TFitResultPtr HFit::Fit(FitObject * h1, TF1 *f1 , Foption_t & fitOption , const 
    std::shared_ptr<ROOT::Fit::BinData> fitdata(new ROOT::Fit::BinData(opt,range) );
    ROOT::Fit::FillData(*fitdata, h1, f1);
    JC_TEMP("HFit::Fit: data filled, %u points", (unsigned)fitdata->Size());
+   JcTempFitStage(11);
    if (fitdata->Size() == 0 ) {
       Warning("Fit","Fit data is empty ");
       return -1;
@@ -271,6 +296,7 @@ TFitResultPtr HFit::Fit(FitObject * h1, TF1 *f1 , Foption_t & fitOption , const 
    else
       fitter->SetFunction(static_cast<const ROOT::Math::IParamMultiFunction &>(ROOT::Math::WrappedMultiTF1(*f1) ) );
    JC_TEMP("HFit::Fit: function set");
+   JcTempFitStage(12);
 
    // error normalization in case of zero error in the data
    if (fitdata->GetErrorType() == ROOT::Fit::BinData::kNoError) fitConfig.SetNormErrors(true);
@@ -376,6 +402,7 @@ TFitResultPtr HFit::Fit(FitObject * h1, TF1 *f1 , Foption_t & fitOption , const 
 
    bool fitok = false;
    JC_TEMP("HFit::Fit: fitter configured, starting the fit");
+   JcTempFitStage(13);
 
 
    // check if can use option user

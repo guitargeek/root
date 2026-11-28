@@ -32,6 +32,26 @@ occur if parameters involve temporary object construction.
 
 #include <cstring>
 
+// TEMP-DIAG: r3: locate the crash of the interpreted stressHistoFit while the minimizer plugin gets created
+// (needs JC_TEMP_DIAG set)
+#ifdef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#define JC_TEMP(...)                                 \
+   do {                                              \
+      static int jcOn = -1, jcN = 0;                 \
+      if (jcOn < 0)                                  \
+         jcOn = std::getenv("JC_TEMP_DIAG") ? 1 : 0; \
+      if (jcOn && jcN++ < 6) {                       \
+         fprintf(stderr, "[jc-TEMP] " __VA_ARGS__);  \
+         fprintf(stderr, "\n");                      \
+         fflush(stderr);                             \
+      }                                              \
+   } while (0)
+#else
+#define JC_TEMP(...)
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Default TMethodCall ctor. Use Init() to initialize the method call
 /// environment.
@@ -455,9 +475,11 @@ void TMethodCall::Execute(void *object, Longptr_t &retLong)
 
    void *address = nullptr;
    if (object) address = (void*)((Longptr_t)object + fOffset);
+   JC_TEMP("TMethodCall::Execute(object, long): function %p, object %p", (void *)fFunc, address);
    gCling->SetTempLevel(1);
    retLong = gCling->CallFunc_ExecInt(fFunc,address);
    gCling->SetTempLevel(-1);
+   JC_TEMP("TMethodCall::Execute(object, long): done");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -552,7 +574,10 @@ void TMethodCall::Execute(void *objAddress, const void* args[], int nargs, void 
 {
    if (!fFunc) return;
 
+   JC_TEMP("TMethodCall::Execute(args): function %p, %d arguments, the first at %p", (void *)fFunc, nargs,
+           nargs > 0 ? args[0] : nullptr);
    gCling->CallFunc_ExecWithArgsAndReturn(fFunc,objAddress,args,nargs,ret);
+   JC_TEMP("TMethodCall::Execute(args): done");
 
 }
 

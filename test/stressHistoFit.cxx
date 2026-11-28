@@ -151,6 +151,33 @@ int gJcDiag = 0;
 #define JC_TEMP(...)
 #endif
 
+// TEMP-DIAG: r3: with JC_TEMP_STAGE=N in the environment, create a minimizer when reaching stage N, to see from
+// which step on that crashes (stages 10 to 13 are in HFitImpl.cxx). Such a run ends after the first fit.
+#ifdef _WIN32
+#include "Math/Factory.h"
+#include "Math/Minimizer.h"
+#include "TSystem.h"
+#include <cstdlib>
+int gJcStage = -1;
+void JcTempStage(int stage)
+{
+   if (gJcStage < 0)
+      gJcStage = gSystem->Getenv("JC_TEMP_STAGE") ? atoi(gSystem->Getenv("JC_TEMP_STAGE")) : 0;
+   if (stage == 100 && gJcStage > 0) {
+      JC_TEMP("stage run: the first fit is done, exiting");
+      gSystem->Exit(0);
+   }
+   if (stage != gJcStage)
+      return;
+   gJcStage = 1000; // only once
+   JC_TEMP("stage %d: creating a minimizer", stage);
+   ROOT::Math::Minimizer *jcMin = ROOT::Math::Factory::CreateMinimizer("Minuit2", "Migrad");
+   JC_TEMP("stage %d: minimizer at %p", stage, (void *)jcMin);
+}
+#else
+void JcTempStage(int) {}
+#endif
+
 
 unsigned int __DRAW__ = 0;
 unsigned int __WRITE__ = 0; // write fitted object in a file
@@ -748,8 +775,10 @@ int testFitters(T* object, F* func, vector< vector<algoType> >& listAlgos, fitFu
             // perform the fit
             JC_TEMP("testFitters: fit %d with %s/%s, options '%s'", numberOfFits, listAlgos[j][i].type.Data(),
                     listAlgos[j][i].algo.Data(), opt.Data());
+            JcTempStage(9);
             object->Fit(func, opt);
             JC_TEMP("testFitters: fit %d done", numberOfFits);
+            JcTempStage(100);
             // if is a reference set the reference value for chi2 (parameters are compared to original ones)
             if (listAlgos[j][i].reference) {
                ref.chi = func->GetChisquare()/func->GetNDF();
@@ -812,14 +841,17 @@ int test1DObjects(vector< vector<algoType> >& listH,
       JC_TEMP("test1DObjects: function %u, creating TF1", j);
       func = new TF1( listOfFunctions[j].name, listOfFunctions[j].func, minX, maxX, listOfFunctions[j].npars);
       JC_TEMP("test1DObjects: TF1 created");
+      JcTempStage(4);
       // set original parameter values
       func->SetParameters(&(listOfFunctions[j].origPars[0]));
       JC_TEMP("test1DObjects: TF1 parameters set");
+      JcTempStage(5);
 
       // create here h1 since it is used to make TGraphs's and THnsparse
       if (h1) delete h1;
       h1 = new TH1D("h1", "Histogram1D Equal Bins", nbinsX, minX, maxX);
       JC_TEMP("test1DObjects: TH1D created");
+      JcTempStage(6);
       rndm.SetSeed(100+gTestIndex);
       JC_TEMP("test1DObjects: seed set");
 
@@ -839,6 +871,7 @@ int test1DObjects(vector< vector<algoType> >& listH,
       for (int i = 1; i <= h1->GetNbinsX() + 1; ++i)
          h1->SetBinContent(i, rndm.Poisson(func->Eval(h1->GetBinCenter(i))));
       JC_TEMP("test1DObjects: histogram filled");
+      JcTempStage(7);
 
       h1->Sumw2(); // make as a weighted histo to test weighted fits
       JC_TEMP("test1DObjects: Sumw2 done");
@@ -852,6 +885,7 @@ int test1DObjects(vector< vector<algoType> >& listH,
          if (c1 && !__DRAW__) delete c1;
          c1 = new TCanvas(TString::Format("c%d_H1D",gTestIndex), "Histogram1D");
          JC_TEMP("test1DObjects: TCanvas created");
+         JcTempStage(8);
          ObjectWrapper<TH1D*> owh1(h1);
          JC_TEMP("test1DObjects: calling testFitters");
          globalStatus += status = testFitters(&owh1, func, listH, listOfFunctions[j]);
@@ -1472,6 +1506,7 @@ void init_structures()
 
 int stressHistoFit()
 {
+   JcTempStage(1);
    rndm.SetSeed(10);
 
    if (gEnableMT) ROOT::EnableImplicitMT();
@@ -1479,6 +1514,7 @@ int stressHistoFit()
    ROOT::Math::IntegratorOneDimOptions::SetDefaultIntegrator("Adaptive");
 
    init_structures();
+   JcTempStage(2);
 
    int iret = 0;
    gTestIndex = 0;
@@ -1495,6 +1531,7 @@ int stressHistoFit()
    cout << "****************************************************************************" <<endl;
 
    std::cout << "\nTest 1D and 2D objects\n\n";
+   JcTempStage(3);
    JC_TEMP("stressHistoFit: calling test1DObjects");
    iret += test1DObjects(listTH1DAlgos, listAlgosTGraph, listAlgosTGraphError, l1DFunctions);
    iret += test2DObjects(listTH2DAlgos, listAlgosTGraph2D, listAlgosTGraph2DError, l2DFunctions);

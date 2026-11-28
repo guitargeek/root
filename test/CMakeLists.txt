@@ -268,6 +268,16 @@ if(unuran)
   # TEMP-DIAG: r2: JC_TEMP_DIAG enables the exception report of TWinNTSystem and the markers in the fit code
   ROOT_ADD_TEST(test-stresshistofit-interpreted COMMAND ${root_exe} -b -q ${CMAKE_CURRENT_SOURCE_DIR}/stressHistoFit.cxx
                 FAILREGEX "FAILED|Error in" DEPENDS test-stresshistofit ENVIRONMENT JC_TEMP_DIAG=1)
+  # TEMP-DIAG: r3: the same with a minimizer created at an earlier stage (JcTempStage in the macro, JcTempFitStage
+  # in HFitImpl.cxx). The runs end after the first fit and always fail, so that their output gets shown.
+  if(MSVC)
+    foreach(stage RANGE 1 13)
+      ROOT_ADD_TEST(jc-temp-stresshistofit-stage${stage}
+                    COMMAND ${root_exe} -b -q ${CMAKE_CURRENT_SOURCE_DIR}/stressHistoFit.cxx
+                    FAILREGEX "FAILED|Error in|jc-TEMP" DEPENDS test-stresshistofit
+                    ENVIRONMENT JC_TEMP_DIAG=1 JC_TEMP_STAGE=${stage})
+    endforeach()
+  endif()
 endif()
 
 #--stressEntryList---------------------------------------------------------------------------

@@ -71,6 +71,26 @@ C++ interpreter and the Clang C++ compiler, not CINT.
 #include <string>
 #include <sstream>
 
+// TEMP-DIAG: r3: locate the crash of the interpreted stressHistoFit while the minimizer plugin gets created
+// (needs JC_TEMP_DIAG set)
+#ifdef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#define JC_TEMP(...)                                 \
+   do {                                              \
+      static int jcOn = -1, jcN = 0;                 \
+      if (jcOn < 0)                                  \
+         jcOn = std::getenv("JC_TEMP_DIAG") ? 1 : 0; \
+      if (jcOn && jcN++ < 6) {                       \
+         fprintf(stderr, "[jc-TEMP] " __VA_ARGS__);  \
+         fprintf(stderr, "\n");                      \
+         fflush(stderr);                             \
+      }                                              \
+   } while (0)
+#else
+#define JC_TEMP(...)
+#endif
+
 using namespace ROOT;
 using namespace clang;
 using llvm::APSInt, llvm::raw_string_ostream;
@@ -1030,7 +1050,20 @@ tcling_callfunc_Wrapper_t TClingCallFunc::make_wrapper()
    //
    //  Compile the wrapper code.
    //
+#ifdef _WIN32
+   // TEMP-DIAG: r3: the wrapper that constructs the minimizer
+   const bool jcShow = wrapper.find("Minimizer") != string::npos;
+   if (jcShow) {
+      JC_TEMP("TClingCallFunc::make_wrapper: '%s' has %d characters:\n%s", wrapper_name.c_str(), (int)wrapper.size(),
+              wrapper.c_str());
+   }
+#endif
    void *F = compile_wrapper(wrapper_name, wrapper);
+#ifdef _WIN32
+   if (jcShow) {
+      JC_TEMP("TClingCallFunc::make_wrapper: compiled to %p", F);
+   }
+#endif
    if (F) {
       gWrapperStore.insert(make_pair(D, F));
    } else {
@@ -1217,13 +1250,16 @@ double TClingCallFunc::ExecDouble(void *address)
 void TClingCallFunc::ExecWithArgsAndReturn(void *address, const void *args[] /*= 0*/,
       int nargs /*= 0*/, void *ret/*= 0*/)
 {
+   JC_TEMP("TClingCallFunc::ExecWithArgsAndReturn: address %p, %d arguments", address, nargs);
    IFacePtr();
    if (!fWrapper) {
       ::Error("TClingCallFunc::ExecWithArgsAndReturn(address, args, ret)",
             "Called with no wrapper, not implemented!");
       return;
    }
+   JC_TEMP("TClingCallFunc::ExecWithArgsAndReturn: calling the wrapper at %p", (void *)fWrapper.load());
    (*fWrapper)(address, nargs, const_cast<void **>(args), ret);
+   JC_TEMP("TClingCallFunc::ExecWithArgsAndReturn: the wrapper returned");
 }
 
 void TClingCallFunc::ExecWithReturn(void *address, void *ret/*= 0*/)

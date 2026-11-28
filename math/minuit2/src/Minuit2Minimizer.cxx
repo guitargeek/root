@@ -110,6 +110,8 @@ Minuit2Minimizer::Minuit2Minimizer(const char *type) : fDim(0)
 {
    // constructor from a string
 
+   JC_TEMP("Minuit2Minimizer::Minuit2Minimizer: type at %p", (const void *)type);
+   JC_TEMP("Minuit2Minimizer::Minuit2Minimizer: type '%s'", type);
    std::string algoname(type);
    // tolower() is not an  std function (Windows)
    std::transform(algoname.begin(), algoname.end(), algoname.begin(), (int (*)(int))tolower);
@@ -127,6 +129,7 @@ Minuit2Minimizer::Minuit2Minimizer(const char *type) : fDim(0)
       algoType = kMigradBFGS;
 
    SetMinimizerType(algoType);
+   JC_TEMP("Minuit2Minimizer::Minuit2Minimizer: done");
 }
 
 void Minuit2Minimizer::SetMinimizerType(ROOT::Minuit2::EMinimizerType type)

@@ -305,6 +305,8 @@ if(MSVC)
     set(cling_link_str "${cling_link_str} /EXPORT:${sym}")
   endforeach(sym ${cling_exports})
   set_property(TARGET Cling APPEND_STRING PROPERTY LINK_FLAGS "${cling_link_str} ${CLAD_LIBS}")
+  # TEMP-DIAG: r3: function names of libCling for the crash reports of TWinNTSystem.cxx (JcTempMapSymbols)
+  target_link_options(Cling PRIVATE "/MAP:$<TARGET_FILE_DIR:Cling>/libCling.map")
 endif()
 
 if(NOT APPLE AND NOT MSVC)

@@ -680,9 +680,9 @@ namespace {
       }
    }
 
-   // TEMP-DIAG: r2: the interpreted stressHistoFit dies inside TH1::Fit without a stack trace. With JC_TEMP_DIAG
-   // set, report first-chance exceptions together with every word on the stack that points to code, which
-   // also works when the frames cannot be walked.
+   // TEMP-DIAG: r2/r3: the interpreted stressHistoFit dies inside TH1::Fit without a stack trace. With JC_TEMP_DIAG
+   // set, report first-chance exceptions and invalid parameters of C runtime functions: registers, what they
+   // point to, the unwound frames (64 bit) and every word on the stack that points to code.
    static bool JcTempRead(ULONG_PTR addr, void *out, SIZE_T n)
    {
       SIZE_T got = 0;
@@ -717,9 +717,203 @@ namespace {
       return (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
    }
 
+   static void JcTempDumpBytes(const char *tag, ULONG_PTR addr, unsigned int n)
+   {
+      unsigned char bytes[48];
+      char hex[3 * sizeof(bytes) + 1];
+      char txt[sizeof(bytes) + 1];
+      if (n > sizeof(bytes))
+         n = sizeof(bytes);
+      if (!JcTempRead(addr, bytes, n))
+         return;
+      for (unsigned int i = 0; i < n; ++i) {
+         snprintf(hex + 3 * i, 4, "%02x ", bytes[i]);
+         txt[i] = (bytes[i] >= 32 && bytes[i] < 127) ? (char)bytes[i] : '.';
+      }
+      txt[n] = 0;
+      fprintf(stderr, "[jc-TEMP]    %-8s %p: %s|%s|\n", tag, (void *)addr, hex, txt);
+   }
+
+   static void JcTempMapSymbols(const ULONG_PTR *addrs, int n)
+   {
+      // libCling exports few of its functions: take the names from the map file that the linker wrote next to it
+      enum {
+         kMax = 220,
+         kName = 200
+      };
+      static unsigned long long best[kMax];
+      static char names[kMax][kName];
+      static char line[8192];
+      static char name[4096];
+      HMODULE cling = ::GetModuleHandleA("libCling.dll");
+      if (!cling || n <= 0)
+         return;
+      if (n > kMax)
+         n = kMax;
+      char path[MAX_PATH + 1];
+      const DWORD len = ::GetModuleFileNameA(cling, path, MAX_PATH);
+      if (len < 5 || len >= MAX_PATH)
+         return;
+      path[len] = 0;
+      memcpy(path + len - 3, "map", 3);
+      const ULONG_PTR lo = (ULONG_PTR)cling;
+      const IMAGE_DOS_HEADER *dos = (const IMAGE_DOS_HEADER *)cling;
+      const IMAGE_NT_HEADERS *nt = (const IMAGE_NT_HEADERS *)((const char *)cling + dos->e_lfanew);
+      const ULONG_PTR size = nt->OptionalHeader.SizeOfImage;
+      bool any = false;
+      for (int i = 0; i < n; ++i) {
+         best[i] = 0;
+         names[i][0] = 0;
+         any = any || (addrs[i] >= lo && addrs[i] - lo < size);
+      }
+      if (!any)
+         return;
+      FILE *map = fopen(path, "r");
+      if (!map) {
+         fprintf(stderr, "[jc-TEMP]    cannot open %s\n", path);
+         fflush(stderr);
+         return;
+      }
+      unsigned long long preferred = 0;
+      unsigned long nSymbols = 0;
+      while (fgets(line, sizeof(line), map)) {
+         if (!preferred) {
+            const char *p = strstr(line, "Preferred load address is ");
+            if (p)
+               preferred = strtoull(p + 26, nullptr, 16);
+            continue;
+         }
+         unsigned int sec = 0, off = 0;
+         unsigned long long va = 0;
+         if (sscanf(line, " %x:%x %4095s %llx", &sec, &off, name, &va) != 4 || va <= preferred)
+            continue;
+         ++nSymbols;
+         const unsigned long long rva = va - preferred;
+         for (int i = 0; i < n; ++i) {
+            if (addrs[i] >= lo && addrs[i] - lo < size && rva <= addrs[i] - lo && rva >= best[i]) {
+               best[i] = rva;
+               snprintf(names[i], kName, "%s", name);
+            }
+         }
+      }
+      fclose(map);
+      fprintf(stderr, "[jc-TEMP]    %s: %lu symbols, preferred base 0x%llx\n", path, nSymbols, preferred);
+      for (int i = 0; i < n; ++i) {
+         if (names[i][0])
+            fprintf(stderr, "[jc-TEMP]    map %3d: libCling.dll+0x%llx = %s+0x%llx\n", i,
+                    (unsigned long long)(addrs[i] - lo), names[i], (unsigned long long)(addrs[i] - lo) - best[i]);
+      }
+      fflush(stderr);
+   }
+
+   static void JcTempReport(const CONTEXT *ctx, bool brief)
+   {
+      char where[MAX_PATH + 64];
+#if defined(_M_X64)
+      const ULONG_PTR pc = ctx->Rip, sp = ctx->Rsp;
+      const char *regNames[] = {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
+                                "r8",  "r9",  "r10", "r11", "r12", "r13", "r14", "r15"};
+      const ULONG_PTR regs[] = {ctx->Rax, ctx->Rcx, ctx->Rdx, ctx->Rbx, ctx->Rsp, ctx->Rbp, ctx->Rsi, ctx->Rdi,
+                                ctx->R8,  ctx->R9,  ctx->R10, ctx->R11, ctx->R12, ctx->R13, ctx->R14, ctx->R15};
+#elif defined(_M_IX86)
+      const ULONG_PTR pc = ctx->Eip, sp = ctx->Esp;
+      const char *regNames[] = {"eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"};
+      const ULONG_PTR regs[] = {ctx->Eax, ctx->Ecx, ctx->Edx, ctx->Ebx, ctx->Esp, ctx->Ebp, ctx->Esi, ctx->Edi};
+#else
+      const ULONG_PTR pc = 0, sp = 0;
+      const char *regNames[] = {"none"};
+      const ULONG_PTR regs[] = {0};
+#endif
+      const int nRegs = (int)(sizeof(regs) / sizeof(regs[0]));
+      fprintf(stderr, "[jc-TEMP]    pc=%p", (void *)pc);
+      for (int i = 0; i < nRegs; ++i)
+         fprintf(stderr, " %s=%p", regNames[i], (void *)regs[i]);
+      fprintf(stderr, "\n");
+      fflush(stderr);
+      if (!brief) {
+         // the instructions around the pc and the memory that the registers point to
+         JcTempDumpBytes("code-48", pc - 48, 48);
+         JcTempDumpBytes("code", pc, 48);
+         for (int i = 0; i < nRegs; ++i) {
+            if (regs[i] > 0x10000 && !JcTempIsCode(regs[i]))
+               JcTempDumpBytes(regNames[i], regs[i], 48);
+         }
+         fflush(stderr);
+      }
+
+      enum {
+         kMaxFound = 200,
+         kMaxFrames = 64
+      };
+      static ULONG_PTR found[kMaxFound + kMaxFrames];
+      static unsigned int offset[kMaxFound];
+      int nFound = 0;
+      for (unsigned int i = 0; sp && i < 16384 && nFound < (brief ? 24 : kMaxFound); ++i) {
+         ULONG_PTR word = 0;
+         if (!JcTempRead(sp + i * sizeof(ULONG_PTR), &word, sizeof(word)))
+            break;
+         if (word > 0x10000 && JcTempIsCode(word)) {
+            found[nFound] = word;
+            offset[nFound] = (unsigned int)(i * sizeof(ULONG_PTR));
+            ++nFound;
+         }
+      }
+      for (int i = 0; i < nFound; ++i) {
+         JcTempDescribe(where, sizeof(where), found[i]);
+         fprintf(stderr, "[jc-TEMP]    sp+0x%05x: %p %s\n", offset[i], (void *)found[i], where);
+      }
+      fflush(stderr);
+
+      int nFrames = 0;
+#if defined(_M_X64)
+      // the real frames, from the unwind information
+      CONTEXT walk = *ctx;
+      while (nFrames < kMaxFrames && walk.Rip) {
+         found[nFound + nFrames] = (ULONG_PTR)walk.Rip;
+         JcTempDescribe(where, sizeof(where), (ULONG_PTR)walk.Rip);
+         fprintf(stderr, "[jc-TEMP]    frame %2d: pc=%p sp=%p %s\n", nFrames, (void *)walk.Rip, (void *)walk.Rsp,
+                 where);
+         fflush(stderr);
+         ++nFrames;
+         DWORD64 imageBase = 0;
+         PRUNTIME_FUNCTION function = ::RtlLookupFunctionEntry(walk.Rip, &imageBase, nullptr);
+         if (function) {
+            PVOID handlerData = nullptr;
+            DWORD64 establisher = 0;
+            ::RtlVirtualUnwind(UNW_FLAG_NHANDLER, imageBase, walk.Rip, function, &walk, &handlerData, &establisher,
+                               nullptr);
+         } else {
+            // no unwind information: a leaf function, the return address is on top of the stack
+            DWORD64 ret = 0;
+            if (!JcTempRead((ULONG_PTR)walk.Rsp, &ret, sizeof(ret)))
+               break;
+            walk.Rip = ret;
+            walk.Rsp += 8;
+         }
+      }
+#endif
+
+      // the frames (or without them the stack words) with the nearest exported symbol
+      const int first = nFrames ? nFound : 0;
+      const int count = nFrames ? nFrames : nFound;
+      if (InitImagehlpFunctions()) {
+         for (int i = 0; i < count; ++i) {
+            const DWORD64 addr = (DWORD64)found[first + i];
+            const std::string moduleName = GetModuleName(addr);
+            const std::string functionName = GetFunctionName(addr);
+            fprintf(stderr, "[jc-TEMP]    symbol %3d: %s%s\n", i, moduleName.c_str(), functionName.c_str());
+         }
+         fflush(stderr);
+         _SymCleanup(::GetCurrentProcess());
+      }
+      JcTempMapSymbols(found + first, count);
+   }
+
+   static LONG gJcTempBusy = 0;
+   static LONG gJcTempInvalid = 0;
+
    static LONG WINAPI JcTempVectoredHandler(LPEXCEPTION_POINTERS xcp)
    {
-      static LONG busy = 0;
       static LONG nCxx = 0;
       static LONG nOther = 0;
       const EXCEPTION_RECORD *rec = xcp->ExceptionRecord;
@@ -728,10 +922,10 @@ namespace {
       // debugger notifications: OutputDebugString, thread names
       if (code == 0x40010006 || code == 0x4001000A || code == 0x406D1388)
          return EXCEPTION_CONTINUE_SEARCH;
-      if (::InterlockedExchange(&busy, 1))
+      if (::InterlockedExchange(&gJcTempBusy, 1))
          return EXCEPTION_CONTINUE_SEARCH;
-      if (::InterlockedIncrement(isCxx ? &nCxx : &nOther) > 12) {
-         ::InterlockedExchange(&busy, 0);
+      if (::InterlockedIncrement(isCxx ? &nCxx : &nOther) > (isCxx ? 12 : 4)) {
+         ::InterlockedExchange(&gJcTempBusy, 0);
          return EXCEPTION_CONTINUE_SEARCH;
       }
 
@@ -761,51 +955,36 @@ namespace {
          }
          fprintf(stderr, "[jc-TEMP]    C++ exception of type %s\n", name[0] ? name : "(unknown)");
       }
-
-      const CONTEXT *ctx = xcp->ContextRecord;
-#if defined(_M_X64)
-      const ULONG_PTR pc = ctx->Rip, sp = ctx->Rsp, bp = ctx->Rbp;
-#elif defined(_M_IX86)
-      const ULONG_PTR pc = ctx->Eip, sp = ctx->Esp, bp = ctx->Ebp;
-#else
-      const ULONG_PTR pc = 0, sp = 0, bp = 0;
-#endif
-      fprintf(stderr, "[jc-TEMP]    pc=%p sp=%p bp=%p\n", (void *)pc, (void *)sp, (void *)bp);
       fflush(stderr);
-
-      const int kMaxFound = 56;
-      ULONG_PTR found[kMaxFound];
-      unsigned int offset[kMaxFound];
-      int nFound = 0;
-      for (unsigned int i = 0; sp && i < 4096 && nFound < (isCxx ? 24 : kMaxFound); ++i) {
-         ULONG_PTR word = 0;
-         if (!JcTempRead(sp + i * sizeof(ULONG_PTR), &word, sizeof(word)))
-            break;
-         if (word > 0x10000 && JcTempIsCode(word)) {
-            found[nFound] = word;
-            offset[nFound] = (unsigned int)(i * sizeof(ULONG_PTR));
-            ++nFound;
-         }
-      }
-      for (int i = 0; i < nFound; ++i) {
-         JcTempDescribe(where, sizeof(where), found[i]);
-         fprintf(stderr, "[jc-TEMP]    sp+0x%04x: %p %s\n", offset[i], (void *)found[i], where);
-      }
-      fflush(stderr);
-
-      // the same addresses with the nearest exported symbol
-      if (InitImagehlpFunctions()) {
-         for (int i = -1; i < nFound; ++i) {
-            const DWORD64 addr = i < 0 ? (DWORD64)pc : (DWORD64)found[i];
-            const std::string moduleName = GetModuleName(addr);
-            const std::string functionName = GetFunctionName(addr);
-            fprintf(stderr, "[jc-TEMP]    symbol %2d: %s%s\n", i, moduleName.c_str(), functionName.c_str());
-         }
-         fflush(stderr);
-         _SymCleanup(::GetCurrentProcess());
-      }
-      ::InterlockedExchange(&busy, 0);
+      JcTempReport(xcp->ContextRecord, isCxx);
+      ::InterlockedExchange(&gJcTempBusy, 0);
       return EXCEPTION_CONTINUE_SEARCH;
+   }
+
+   static void JcTempFailAtExit()
+   {
+      // the runtime would have terminated the process at the first invalid parameter
+      fflush(nullptr);
+      ::TerminateProcess(::GetCurrentProcess(), 0xc0000409);
+   }
+
+   static void __cdecl
+   JcTempInvalidParameter(const wchar_t *, const wchar_t *, const wchar_t *, unsigned int, uintptr_t)
+   {
+      // Without a handler, the runtime ends the process here with a fast-fail (exit code 0xc0000409) that no
+      // exception handler sees. Report the caller and let the runtime function return its error instead.
+      const LONG n = ::InterlockedIncrement(&gJcTempInvalid);
+      if (n == 1)
+         atexit(JcTempFailAtExit);
+      if (n > 6 || ::InterlockedExchange(&gJcTempBusy, 1))
+         return;
+      CONTEXT ctx;
+      ::RtlCaptureContext(&ctx);
+      fprintf(stderr, "[jc-TEMP] invalid parameter %ld passed to a C runtime function, errno=%d, thread %lu\n", (long)n,
+              errno, (unsigned long)::GetCurrentThreadId());
+      fflush(stderr);
+      JcTempReport(&ctx, false);
+      ::InterlockedExchange(&gJcTempBusy, 0);
    }
 
    ////// Shortcuts helper functions IsShortcut and ResolveShortCut ///////////
@@ -1228,9 +1407,11 @@ Bool_t TWinNTSystem::Init()
    //WinNTSignal(kSigAlarm,                 SigHandler);
    WinNTSignal(kSigFloatingException,     SigHandler);
    ::SetUnhandledExceptionFilter(ExceptionFilter);
-   // TEMP-DIAG: r2: see JcTempVectoredHandler
-   if (std::getenv("JC_TEMP_DIAG"))
+   // TEMP-DIAG: r2/r3: see JcTempVectoredHandler and JcTempInvalidParameter
+   if (std::getenv("JC_TEMP_DIAG")) {
       ::AddVectoredExceptionHandler(1, JcTempVectoredHandler);
+      _set_invalid_parameter_handler(JcTempInvalidParameter);
+   }
 
    fSigcnt = 0;
 
@@ -4061,6 +4242,10 @@ void TWinNTSystem::Exit(int code, Bool_t mode)
    }
    TROOT::ShutDown();
    gVirtualX->CloseDisplay();
+
+   // TEMP-DIAG: r3: JcTempInvalidParameter let the process continue, make sure that the test still fails
+   if (gJcTempInvalid && !code)
+      code = 3;
 
    if (mode) {
       ::exit(code);

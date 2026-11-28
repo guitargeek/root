@@ -52,6 +52,26 @@
 #include <algorithm>
 #include <cassert>
 
+// TEMP-DIAG: r3: locate the crash of the interpreted stressHistoFit while the minimizer plugin gets created
+// (needs JC_TEMP_DIAG set)
+#ifdef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#define JC_TEMP(...)                                 \
+   do {                                              \
+      static int jcOn = -1, jcN = 0;                 \
+      if (jcOn < 0)                                  \
+         jcOn = std::getenv("JC_TEMP_DIAG") ? 1 : 0; \
+      if (jcOn && jcN++ < 6) {                       \
+         fprintf(stderr, "[jc-TEMP] " __VA_ARGS__);  \
+         fprintf(stderr, "\n");                      \
+         fflush(stderr);                             \
+      }                                              \
+   } while (0)
+#else
+#define JC_TEMP(...)
+#endif
+
 //#define DEBUG
 #ifdef DEBUG
 #include <iostream>
@@ -88,7 +108,10 @@ ROOT::Math::Minimizer * ROOT::Math::Factory::CreateMinimizer(const std::string &
    // create Minimizer using the PM
    TPluginHandler *h;
    //gDebug = 3;
+   JC_TEMP("Factory::CreateMinimizer: looking for the handler of '%s', algorithm '%s' at %p", minim, algo,
+           (const void *)algo);
    if ((h = gROOT->GetPluginManager()->FindHandler("ROOT::Math::Minimizer",minim ))) {
+      JC_TEMP("Factory::CreateMinimizer: handler at %p, loading the plugin", (void *)h);
       if (h->LoadPlugin() == -1)  {
 #ifdef DEBUG
       std::cout << "Error Loading ROOT::Math::Minimizer " << minim << std::endl;
@@ -97,7 +120,9 @@ ROOT::Math::Minimizer * ROOT::Math::Factory::CreateMinimizer(const std::string &
       }
 
       // create plug-in with required algorithm
+      JC_TEMP("Factory::CreateMinimizer: plugin loaded, calling ExecPlugin");
       ROOT::Math::Minimizer * min = reinterpret_cast<ROOT::Math::Minimizer *>( h->ExecPlugin(1,algo ) );
+      JC_TEMP("Factory::CreateMinimizer: ExecPlugin returned %p", (void *)min);
 #ifdef DEBUG
       if (min != 0)
          std::cout << "Loaded Minimizer " << minimizerType << "  " << algoType << std::endl;
