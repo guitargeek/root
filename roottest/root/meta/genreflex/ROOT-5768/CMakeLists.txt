@@ -9,24 +9,30 @@ if(NOT MSVC OR win_broken_tests)
                             --output=${CMAKE_CURRENT_BINARY_DIR}/PyCool_rflx.cxx
                     FIXTURES_SETUP PyCool-reflex-dict)
 
+  # Standalone project that builds a static library, only to ensure that the
+  # generated dictionary can be compiled. It is built by a test via
+  # "ctest --build-and-test", so it creates no target in this project and the
+  # test can run in parallel with the others.
+  set(_pycoollib_project ${CMAKE_CURRENT_BINARY_DIR}/PyCoolLib_project)
+  file(CONFIGURE OUTPUT ${_pycoollib_project}/src/CMakeLists.txt @ONLY CONTENT [[
+cmake_minimum_required(VERSION @CMAKE_MINIMUM_REQUIRED_VERSION@)
+project(PyCoolLib LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD @CMAKE_CXX_STANDARD@)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if(MSVC)
+  # ROOT's headers need ROOT's compiler flags, e.g. -Zc:__cplusplus
+  set(CMAKE_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
+endif()
 
-  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/PyCool_rflx.cxx
-                     COMMAND ${CMAKE_COMMAND} -E echo "do nothing, dictionary should be generated already")
+add_library(PyCoolLib STATIC "@CMAKE_CURRENT_BINARY_DIR@/PyCool_rflx.cxx")
+target_include_directories(PyCoolLib PRIVATE "@CMAKE_BINARY_DIR@/include" "@CMAKE_CURRENT_SOURCE_DIR@")
+]])
 
-
-  # build static library only to ensure that generated dictionary can be compiled
-  add_library(PyCoolLib EXCLUDE_FROM_ALL STATIC ${CMAKE_CURRENT_BINARY_DIR}/PyCool_rflx.cxx)
-
-  target_include_directories(PyCoolLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-  # target_include_directories(PyCoolLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/CoralBase)
-
-  ROOTTEST_ADD_TEST(PyCoolLib-build
-                    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} ${build_config} --target PyCoolLib${fast} -- ${always-make}
-                    FIXTURES_REQUIRED PyCool-reflex-dict)
-  if(GeneratorNeedsBuildSerialization)
-    if(GeneratorNeedsResourecLock)
-      set_property(TEST roottest-root-meta-genreflex-ROOT-5768-PyCoolLib-build APPEND PROPERTY RESOURCE_LOCK CMAKE_BUILD)
-    endif()
-    set_property(TEST roottest-root-meta-genreflex-ROOT-5768-PyCoolLib-build APPEND PROPERTY FIXTURES_REQUIRED CMAKE_BUILD_ALL)
-  endif()
+  ROOTTEST_TARGETNAME_FROM_FILE(_pycoollib_test PyCoolLib)
+  ROOT_ADD_TEST(${_pycoollib_test}-build
+    BUILD PyCoolLib
+    SOURCE_DIR ${_pycoollib_project}/src
+    BINARY_DIR ${_pycoollib_project}/build
+    FIXTURES_REQUIRED PyCool-reflex-dict)
 endif()
