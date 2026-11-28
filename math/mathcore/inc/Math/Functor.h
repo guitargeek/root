@@ -122,9 +122,10 @@ private :
 };
 
 // MSVC puts no vtordisp field in front of the virtual base of the two gradient functors, while the interpreter
-// does: code compiled by MSVC then crashes on objects that the interpreter constructed. Make them agree.
+// does: code compiled by MSVC then crashes on objects that the interpreter constructed. Make them agree by always
+// adding it: without it, the size on x86 is no multiple of the alignment, which the interpreter rejects for arrays.
 #ifdef _MSC_VER
-#pragma vtordisp(push, 0)
+#pragma vtordisp(push, 2)
 #endif
 
 /**
